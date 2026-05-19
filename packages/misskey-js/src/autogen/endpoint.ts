@@ -163,6 +163,8 @@ import type {
 	AppCreateResponse,
 	AppShowRequest,
 	AppShowResponse,
+	AtprotoBackfillRequest,
+	AtprotoBackfillResponse,
 	AtprotoFollowRequest,
 	AtprotoFollowResponse,
 	AtprotoSearchRequest,
@@ -789,6 +791,7 @@ export type Endpoints = {
 	'ap/show': { req: ApShowRequest; res: ApShowResponse };
 	'app/create': { req: AppCreateRequest; res: AppCreateResponse };
 	'app/show': { req: AppShowRequest; res: AppShowResponse };
+	'atproto/backfill': { req: AtprotoBackfillRequest; res: AtprotoBackfillResponse };
 	'atproto/follow': { req: AtprotoFollowRequest; res: AtprotoFollowResponse };
 	'atproto/search': { req: AtprotoSearchRequest; res: AtprotoSearchResponse };
 	'atproto/unfollow': { req: AtprotoUnfollowRequest; res: AtprotoUnfollowResponse };
