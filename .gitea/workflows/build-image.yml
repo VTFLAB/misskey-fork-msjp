@@ -41,8 +41,11 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ gitea.actor }}
-          password: ${{ secrets.GITEA_TOKEN }}
+          # secrets.GITEA_TOKEN は repo scope の short-lived token で packages
+          # registry の push 権限を含まない。VTF user の personal access token を
+          # REGISTRY_TOKEN として repo secret に登録して使う (write:package scope 必須)。
+          username: VTF
+          password: ${{ secrets.REGISTRY_TOKEN }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
