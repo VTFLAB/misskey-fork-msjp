@@ -6,7 +6,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
-import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { AtpLoggerService } from './AtpLoggerService.js';
@@ -38,7 +37,6 @@ export class AtpHttpClientService {
 		@Inject(DI.config)
 		private config: Config,
 
-		private httpRequestService: HttpRequestService,
 		private atpLoggerService: AtpLoggerService,
 	) {
 		this.logger = this.atpLoggerService.child('http');
@@ -72,7 +70,9 @@ export class AtpHttpClientService {
 		const ac = new AbortController();
 		const timer = setTimeout(() => ac.abort(), REQUEST_TIMEOUT_MS);
 		try {
-			const agent = this.httpRequestService.getAgentByUrl(new URL(urlStr), false);
+			// Node 22 built-in fetch (undici) を使う。HttpRequestService の https.Agent は
+			// undici の dispatcher 型ではないため、ここでは渡さない (渡すと TypeError)。
+			// public.api.bsky.app は安定した public CDN のため proxy / 内部 IP guard も不要。
 			const res = await fetch(urlStr, {
 				method: 'GET',
 				headers: {
@@ -80,9 +80,6 @@ export class AtpHttpClientService {
 					'User-Agent': `Misskey/${this.config.version} (atproto-bridge)`,
 				},
 				signal: ac.signal,
-				// HttpRequestService の agent (proxy 設定込み) を再利用。
-				// @ts-expect-error undici agent type
-				dispatcher: agent,
 			});
 			if (!res.ok) {
 				const body = await res.text().catch(() => '');
