@@ -167,13 +167,22 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 	public async refreshSubscription(): Promise<void> {
 		const before = this.wantedDids.join(',');
 		await this.refreshWantedDids();
-		if (this.wantedDids.join(',') !== before) {
+		const changed = this.wantedDids.join(',') !== before;
+		const disconnected = this.ws == null && !this.connecting && this.reconnectTimer == null && this.wantedDids.length > 0;
+
+		if (changed) {
 			this.logger.info(`wantedDids changed (${this.wantedDids.length} DIDs), reconnecting`);
 			// closeWs() の close event handler が scheduleReconnect() を呼ぶと、ここでの
 			// 即時 connect() と重複した 2 つの WS が開く race condition があるので、
 			// 「次の close は自動 reconnect を抑止する」フラグを立てる。
 			this.suppressNextReconnect = true;
 			this.closeWs('did-list-changed');
+			this.reconnectAttempt = 0;
+			this.connect();
+		} else if (disconnected) {
+			// did は変わらなかったが WS が落ちていて reconnect timer も無い (= stuck) 状態。
+			// 60 秒ごとの定期 tick で蘇生させる。
+			this.logger.info(`detected disconnected state, reconnecting (${this.wantedDids.length} DIDs)`);
 			this.reconnectAttempt = 0;
 			this.connect();
 		}
@@ -281,23 +290,29 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 			return;
 		}
 
+		// closure 内で「自分が現役 WS かどうか」を確認するため、
+		// このインスタンス自身への参照をハンドラ内で this.ws と比較する。
 		ws.addEventListener('open', () => {
+			if (this.ws !== ws) return; // 古い WS の open はもう関係ない
 			this.connecting = false;
 			this.reconnectAttempt = 0;
 			this.lastConnectAt = Date.now();
 			this.logger.info(`Jetstream connected (dids=${this.wantedDids.length} cursor=${this.currentCursor ?? '(none)'})`);
 		});
 		ws.addEventListener('message', (event: MessageEvent) => {
+			if (this.ws !== ws) return; // 古い WS からのメッセージは無視
 			this.handleMessage(event.data);
 		});
 		ws.addEventListener('error', (event) => {
 			const msg = (event as Event & { message?: string }).message ?? '(no message)';
-			this.logger.warn(`Jetstream WS error: ${msg}`);
+			this.logger.warn(`Jetstream WS error: ${msg}${this.ws === ws ? '' : ' (stale)'}`);
 		});
 		ws.addEventListener('close', (event) => {
-			this.connecting = false;
 			const uptime = this.lastConnectAt != null ? Math.round((Date.now() - this.lastConnectAt) / 1000) : 0;
-			this.logger.warn(`Jetstream WS closed (code=${event.code}, reason="${event.reason}", uptime=${uptime}s)`);
+			const stale = this.ws !== ws;
+			this.logger.warn(`Jetstream WS closed (code=${event.code}, reason="${event.reason}", uptime=${uptime}s${stale ? ', stale' : ''})`);
+			if (stale) return; // 古い WS の close は無視 (this.ws / connecting / reconnect 制御に触らない)
+			this.connecting = false;
 			this.ws = null;
 			if (this.suppressNextReconnect) {
 				this.suppressNextReconnect = false;
@@ -319,6 +334,10 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 			// ignore close errors
 		}
 		this.ws = null;
+		// connecting state は close event で false に戻る予定だが、
+		// 「CONNECTING 中に close()」では close event が来ないことがある
+		// (Node 22 undici WS の挙動)。フラグは明示的に下ろす。
+		this.connecting = false;
 	}
 
 	@bindThis
