@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import cluster from 'node:cluster';
 import { Inject, Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import * as Redis from 'ioredis';
 import { DI } from '@/di-symbols.js';
@@ -81,6 +82,7 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 	private wantedDids: string[] = [];
 	private stopped = false;
 	private connecting = false;
+	private suppressNextReconnect = false;
 	private stats: EventStats = ZERO_STATS();
 	private lastConnectAt: number | null = null;
 
@@ -101,10 +103,16 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 
 	async onModuleInit(): Promise<void> {
 		// テスト / migration ランから誤起動しないようガード。
-		// node が CLI スクリプトとして起動された場合は process.env.NODE_ENV !== 'production' の
-		// 通常 dev/test では起動。disable したい場合は env で AT_PROTO_DISABLE_JETSTREAM=1。
+		// disable したい場合は env で AT_PROTO_DISABLE_JETSTREAM=1。
 		if (process.env.AT_PROTO_DISABLE_JETSTREAM === '1') {
 			this.logger.info('disabled via AT_PROTO_DISABLE_JETSTREAM env');
+			return;
+		}
+		// Misskey は cluster で main + worker(s) を立てるが、Jetstream は単一 WS 購読の
+		// 方が帯域・DB INSERT 重複の両面で好ましい。disableClustering=true (workerless) の場合は
+		// main 自身が両役を兼ねるのでそのまま起動する。それ以外は primary process のみで起動。
+		if (!cluster.isPrimary) {
+			this.logger.info(`skip start: not cluster primary (worker.id=${cluster.worker?.id})`);
 			return;
 		}
 		await this.start();
@@ -161,6 +169,10 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 		await this.refreshWantedDids();
 		if (this.wantedDids.join(',') !== before) {
 			this.logger.info(`wantedDids changed (${this.wantedDids.length} DIDs), reconnecting`);
+			// closeWs() の close event handler が scheduleReconnect() を呼ぶと、ここでの
+			// 即時 connect() と重複した 2 つの WS が開く race condition があるので、
+			// 「次の close は自動 reconnect を抑止する」フラグを立てる。
+			this.suppressNextReconnect = true;
 			this.closeWs('did-list-changed');
 			this.reconnectAttempt = 0;
 			this.connect();
@@ -287,6 +299,11 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 			const uptime = this.lastConnectAt != null ? Math.round((Date.now() - this.lastConnectAt) / 1000) : 0;
 			this.logger.warn(`Jetstream WS closed (code=${event.code}, reason="${event.reason}", uptime=${uptime}s)`);
 			this.ws = null;
+			if (this.suppressNextReconnect) {
+				this.suppressNextReconnect = false;
+				this.logger.debug('skipping auto-reconnect (manual close by refreshSubscription)');
+				return;
+			}
 			this.scheduleReconnect();
 		});
 
