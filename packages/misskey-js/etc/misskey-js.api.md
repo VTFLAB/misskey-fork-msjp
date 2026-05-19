@@ -576,6 +576,12 @@ type ApShowRequest = operations['ap___show']['requestBody']['content']['applicat
 type ApShowResponse = operations['ap___show']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type AtprotoBackfillRequest = operations['atproto___backfill']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AtprotoBackfillResponse = operations['atproto___backfill']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type AtprotoFollowRequest = operations['atproto___follow']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -1713,6 +1719,8 @@ declare namespace entities {
         AppCreateResponse,
         AppShowRequest,
         AppShowResponse,
+        AtprotoBackfillRequest,
+        AtprotoBackfillResponse,
         AtprotoFollowRequest,
         AtprotoFollowResponse,
         AtprotoSearchRequest,
