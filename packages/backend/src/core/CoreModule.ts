@@ -151,6 +151,8 @@ import { ApMentionService } from './activitypub/models/ApMentionService.js';
 import { ApNoteService } from './activitypub/models/ApNoteService.js';
 import { ApPersonService } from './activitypub/models/ApPersonService.js';
 import { ApQuestionService } from './activitypub/models/ApQuestionService.js';
+import { AtpLoggerService } from './atproto/AtpLoggerService.js';
+import { AtpHttpClientService } from './atproto/AtpHttpClientService.js';
 import { QueueModule } from './QueueModule.js';
 import { QueueService } from './QueueService.js';
 import { LoggerService } from './LoggerService.js';
@@ -303,6 +305,9 @@ const $ApMentionService: Provider = { provide: 'ApMentionService', useExisting: 
 const $ApNoteService: Provider = { provide: 'ApNoteService', useExisting: ApNoteService };
 const $ApPersonService: Provider = { provide: 'ApPersonService', useExisting: ApPersonService };
 const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting: ApQuestionService };
+
+const $AtpLoggerService: Provider = { provide: 'AtpLoggerService', useExisting: AtpLoggerService };
+const $AtpHttpClientService: Provider = { provide: 'AtpHttpClientService', useExisting: AtpHttpClientService };
 //#endregion
 
 @Module({
@@ -457,6 +462,10 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		ApNoteService,
 		ApPersonService,
 		ApQuestionService,
+
+		AtpLoggerService,
+		AtpHttpClientService,
+
 		QueueService,
 
 		//#region 文字列ベースでのinjection用(循環参照対応のため)
@@ -606,6 +615,9 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		$ApNoteService,
 		$ApPersonService,
 		$ApQuestionService,
+
+		$AtpLoggerService,
+		$AtpHttpClientService,
 		//#endregion
 	],
 	exports: [
@@ -756,6 +768,10 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		ApNoteService,
 		ApPersonService,
 		ApQuestionService,
+
+		AtpLoggerService,
+		AtpHttpClientService,
+
 		QueueService,
 
 		//#region 文字列ベースでのinjection用(循環参照対応のため)
@@ -903,6 +919,9 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 		$ApNoteService,
 		$ApPersonService,
 		$ApQuestionService,
+
+		$AtpLoggerService,
+		$AtpHttpClientService,
 		//#endregion
 	],
 })
