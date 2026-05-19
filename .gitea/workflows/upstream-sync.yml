@@ -1,0 +1,135 @@
+# Upstream (github.com/misskey-dev/misskey) → bsky-integration 自動 rebase。
+# 毎日 18:00 UTC = 03:00 JST に schedule で走る。手動でも workflow_dispatch から走らせられる。
+# conflict 発生時は rebase --abort して Gitea Issue を立てて exit 1 (人間が手動 rebase)。
+name: Upstream Sync
+
+on:
+  schedule:
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout bsky-integration with full history
+        uses: actions/checkout@v4
+        with:
+          ref: bsky-integration
+          fetch-depth: 0
+          # GITEA_TOKEN は workflow が自動で発行する短命 token。
+          # force-with-lease push と issue 作成の両方に使う。
+          token: ${{ secrets.GITEA_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "gitea-actions[bot]"
+          git config user.email "actions@git.msjp.pro"
+
+      - name: Fetch upstream/master
+        id: fetch
+        run: |
+          git remote add upstream https://github.com/misskey-dev/misskey.git
+          git fetch upstream master --quiet
+          UP_HEAD=$(git rev-parse upstream/master)
+          UP_SHORT=$(git rev-parse --short upstream/master)
+          echo "upstream_head=$UP_HEAD" >> "$GITHUB_OUTPUT"
+          echo "upstream_short=$UP_SHORT" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if already rebased
+        id: check
+        run: |
+          BASE=$(git merge-base bsky-integration upstream/master)
+          if [ "$BASE" = "${{ steps.fetch.outputs.upstream_head }}" ]; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::bsky-integration already contains upstream/master (${{ steps.fetch.outputs.upstream_short }}). Nothing to rebase."
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Attempt rebase onto upstream/master
+        id: rebase
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          set +e
+          git rebase upstream/master >/tmp/rebase.log 2>&1
+          RC=$?
+          set -e
+          if [ "$RC" = "0" ]; then
+            echo "result=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=conflict" >> "$GITHUB_OUTPUT"
+            {
+              echo 'conflict_files<<EOF'
+              git diff --name-only --diff-filter=U | sort -u
+              echo 'EOF'
+            } >> "$GITHUB_OUTPUT"
+            {
+              echo 'rebase_log<<EOF'
+              tail -n 80 /tmp/rebase.log
+              echo 'EOF'
+            } >> "$GITHUB_OUTPUT"
+            git rebase --abort
+          fi
+
+      - name: Push rebased branch
+        if: steps.rebase.outputs.result == 'success'
+        run: |
+          git push --force-with-lease origin bsky-integration
+
+      - name: Open issue on conflict
+        if: steps.rebase.outputs.result == 'conflict'
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+          UP_SHORT: ${{ steps.fetch.outputs.upstream_short }}
+          UP_HEAD: ${{ steps.fetch.outputs.upstream_head }}
+          CONFLICT_FILES: ${{ steps.rebase.outputs.conflict_files }}
+          REBASE_LOG: ${{ steps.rebase.outputs.rebase_log }}
+        run: |
+          set -e
+          BODY=$(cat <<EOF
+          ## Upstream rebase conflict (upstream/master = \`$UP_SHORT\`)
+
+          自動 rebase が conflict で失敗しました。手動で対応してください。
+
+          ### conflict が出たファイル
+
+          \`\`\`
+          $CONFLICT_FILES
+          \`\`\`
+
+          ### 手元での再現
+
+          \`\`\`fish
+          cd ~/Document/misskey-bsky-fork
+          git fetch upstream
+          git checkout bsky-integration
+          git rebase $UP_HEAD
+          # conflict 解消後
+          git rebase --continue
+          git push --force-with-lease origin bsky-integration
+          \`\`\`
+
+          ### rebase ログ末尾 80 行
+
+          \`\`\`
+          $REBASE_LOG
+          \`\`\`
+
+          ---
+          Workflow: \`upstream-sync.yml\`
+          Run: ${{ gitea.server_url }}/${{ gitea.repository }}/actions/runs/${{ gitea.run_id }}
+          EOF
+          )
+          jq -n --arg title "Upstream rebase conflict ($UP_SHORT)" --arg body "$BODY" \
+            '{title: $title, body: $body, labels: []}' \
+            | curl -fsS -X POST \
+                -H "Authorization: token $GITEA_TOKEN" \
+                -H "Content-Type: application/json" \
+                --data @- \
+                "${{ gitea.server_url }}/api/v1/repos/${{ gitea.repository }}/issues"
+          exit 1
