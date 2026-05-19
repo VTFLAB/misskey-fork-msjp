@@ -1049,6 +1049,15 @@ export type paths = {
          */
         post: operations['app___show'];
     };
+    '/atproto/search': {
+        /**
+         * atproto/search
+         * @description Bluesky の actor を AppView 検索する (匿名アクセス、自前 PDS を持たない)。各結果には、現在のユーザーが該当 Bluesky pseudo-user を既に follow しているかが付く。
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         */
+        post: operations['atproto___search'];
+    };
     '/auth/accept': {
         /**
          * auth/accept
@@ -14177,6 +14186,94 @@ export interface operations {
             };
             /** @description I'm Ai */
             418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    atproto___search: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    q: string;
+                    /** @default 25 */
+                    limit?: number;
+                    cursor?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        actors: {
+                            did: string;
+                            handle: string;
+                            displayName: string | null;
+                            description: string | null;
+                            avatar: string | null;
+                            indexedAt: string | null;
+                            isFollowedByMe: boolean;
+                        }[];
+                        cursor: string | null;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
