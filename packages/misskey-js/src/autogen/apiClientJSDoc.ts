@@ -1281,6 +1281,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * Bluesky pseudo-user の直近 N 日分の post を AppView (getAuthorFeed) から取り込む。既存 note は uri 重複で skip される。新規 follow 時は /api/atproto/follow が自動で呼ぶので、これは既存 follow 済アカウントを後から取り込むときや、cutoff を伸ばしたいときに使う。長時間 (~数分) かかる場合があるので背景実行に向く。
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'atproto/backfill', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Bluesky DID で識別される pseudo-user を upsert し follow する。新規 follow 完了後、Jetstream subscription を即時 refresh する。
      * 
      * **Credential required**: *Yes* / **Permission**: *write:following*

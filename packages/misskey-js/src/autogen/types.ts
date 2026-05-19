@@ -1049,6 +1049,15 @@ export type paths = {
          */
         post: operations['app___show'];
     };
+    '/atproto/backfill': {
+        /**
+         * atproto/backfill
+         * @description Bluesky pseudo-user の直近 N 日分の post を AppView (getAuthorFeed) から取り込む。既存 note は uri 重複で skip される。新規 follow 時は /api/atproto/follow が自動で呼ぶので、これは既存 follow 済アカウントを後から取り込むときや、cutoff を伸ばしたいときに使う。長時間 (~数分) かかる場合があるので背景実行に向く。
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['atproto___backfill'];
+    };
     '/atproto/follow': {
         /**
          * atproto/follow
@@ -14204,6 +14213,88 @@ export interface operations {
             };
             /** @description I'm Ai */
             418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    atproto___backfill: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    did: string;
+                    /** @default 30 */
+                    days?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        did: string;
+                        scanned: number;
+                        ingested: number;
+                        pagesRequested: number;
+                        reachedCutoff: boolean;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
