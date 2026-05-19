@@ -15,8 +15,11 @@ export class AtpLoggerService {
 	constructor(
 		private loggerService: LoggerService,
 	) {
+		// bundler / Misskey logger の挙動とは別に、NestJS が本当に instance を作っているかを
+		// stderr に直接出して観測可能にする。本番運用が安定したら削除してよい。
+		// eslint-disable-next-line no-console
+		console.error(`[atproto:bootstrap] AtpLoggerService constructor invoked, PID=${process.pid}`);
 		this.logger = this.loggerService.getLogger('atproto', 'magenta');
-		// 起動可視性のため info で出す (production でも常時出る)。本番運用が安定したら debug に戻してよい。
 		this.logger.info(`atproto logger initialized (PID=${process.pid})`);
 	}
 
