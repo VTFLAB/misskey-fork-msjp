@@ -9,6 +9,7 @@ import { ApiError } from '@/server/api/error.js';
 import { AtpPersonService } from '@/core/atproto/AtpPersonService.js';
 import { AtpJetstreamService } from '@/core/atproto/AtpJetstreamService.js';
 import { AtpLoggerService } from '@/core/atproto/AtpLoggerService.js';
+import { AtpNoteService } from '@/core/atproto/AtpNoteService.js';
 import { UserFollowingService } from '@/core/UserFollowingService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
@@ -64,6 +65,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	constructor(
 		private atpPersonService: AtpPersonService,
 		private atpJetstreamService: AtpJetstreamService,
+		private atpNoteService: AtpNoteService,
 		atpLoggerService: AtpLoggerService,
 		private userFollowingService: UserFollowingService,
 		private userEntityService: UserEntityService,
@@ -81,8 +83,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new ApiError(meta.errors.appviewUnavailable, { reason: err instanceof Error ? err.message : String(err) });
 			});
 
+			let isNewFollow = false;
 			try {
 				await this.userFollowingService.follow(me, pseudoUser);
+				isNewFollow = true;
 				logger.info(`follow ok: me=${me.id} → userId=${pseudoUser.id} (@${pseudoUser.username})`);
 			} catch (e) {
 				if (e instanceof IdentifiableError && e.id === 'ec3f65c0-a9d1-47d9-8791-b2e7b9dcdced') {
@@ -96,6 +100,14 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			this.atpJetstreamService.refreshSubscription().catch(err => {
 				logger.warn(`refreshSubscription failed (will retry next tick): ${err instanceof Error ? err.message : String(err)}`);
 			});
+
+			// 新規 follow なら直近 30 日分の post を backfill (background)。API は待たない。
+			// 既存 follow 時は alreadyFollowing で throw 済なのでここには来ない。
+			if (isNewFollow) {
+				this.atpNoteService.backfillAuthorFeed(ps.did).catch(err => {
+					logger.warn(`backfill failed: did=${ps.did} err=${err instanceof Error ? err.message : String(err)}`);
+				});
+			}
 
 			return await this.userEntityService.pack(pseudoUser.id, me, { schema: 'UserDetailedNotMe' });
 		});
