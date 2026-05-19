@@ -3582,3 +3582,12 @@ _qr:
   scanFile: "端末の画像をスキャン"
   raw: "テキスト"
   mfm: "MFM"
+
+_atproto:
+  bluesky: "Bluesky"
+  searchPlaceholder: "ハンドル / 表示名 (例: jay.bsky.team)"
+  appviewUnavailable: "Bluesky AppView に接続できませんでした"
+  noResults: "該当するアカウントが見つかりませんでした"
+  followAndSubscribe: "フォローして取り込み開始"
+  unfollow: "フォロー解除"
+  poweredBy: "Bluesky 公開 AppView を匿名で参照しています"
