@@ -116,6 +116,7 @@ packages/frontend/src/
 - [x] **Phase 7**: Backfill (新規 follow 時 30 日 + `/api/atproto/backfill` endpoint)
 - [x] **Phase 8**: Avatar/Banner を DriveService.uploadFromUrl で取り込み
 - [x] **本番デプロイ**: image `2026.5.3-bsky-d3e620f` 稼働中、6 アカウント follow + 3,266 note + avatar 全件取り込み済
+- [x] **Phase 9**: CI/CD 化 — Gitea Actions (upstream-sync 毎日 03:00 JST + build-image on push) + mi-host podman auto-update (5 分間隔) で完全自動化
 
 検証コマンド (deploy 後):
 
@@ -160,14 +161,14 @@ cd ~/Document/misskey-bsky-fork
 - **origin**: `https://git.msjp.pro/VTF/misskey-bsky-fork` (**private** repo、未作成なら次 session 冒頭で gitea-mcp 経由で作成)
 - **upstream**: `https://github.com/misskey-dev/misskey.git` (read-only fetch、月 1 で rebase 取り込み)
 
-### 初期 setup (未実施)
+### 初期 setup (完了済 2026-05-19)
 
 ```fish
+# 実施済 — 参考として残す
 cd ~/Document/misskey-bsky-fork
-git remote -v   # 現状は origin = github.com/misskey-dev/misskey (clone 元)
 git remote rename origin upstream
 git remote add origin https://git.msjp.pro/VTF/misskey-bsky-fork.git
-# 初回 push は WAN 確認対象 (§3)、user に確認後
+git config remote.upstream.fetch "+refs/heads/*:refs/remotes/upstream/*"
 git push -u origin bsky-integration
 ```
 
@@ -183,12 +184,19 @@ git push -u origin bsky-integration
 - push / fetch / clone は **LAN または WireGuard VPN 経由でのみ可能**
 - §3 上は WAN host 名のため confirmation 対象だが、実体は LAN 限定
 
-### 上流追従 (月 1 推奨)
+### 上流追従
+
+**自動 (推奨)**: Gitea Actions `upstream-sync.yml` が毎日 03:00 JST (= 18:00 UTC) に
+`upstream/master` を fetch → `bsky-integration` 上で rebase → `git push --force-with-lease`
+を試行する。conflict が出たら `rebase --abort` して Gitea Issue を立てて停止するので、
+それを見て手動で対応する。手動 trigger は Gitea Web UI から `workflow_dispatch`。
+
+**手動 (conflict 解消用)**:
 
 ```fish
 git fetch upstream
-git log upstream/master --oneline | head -20      # 何が変わったか確認
-git rebase upstream/master                         # bsky-integration 上で rebase
+git log upstream/master --oneline | head -20
+git rebase upstream/master
 # conflict は主に CoreModule.ts (flat 列挙の末尾追加) で発生する可能性
 # core/atproto/ 配下は upstream に存在しないため conflict 発生せず
 git push --force-with-lease origin bsky-integration  # ※force push は §4 destructive 扱い、要確認
@@ -204,73 +212,62 @@ git push --force-with-lease origin bsky-integration  # ※force push は §4 des
 
 ## Deploy 方法
 
-### 現運用 (Misskey 公式 image)
+### 構成
 
 - ホスト: CT 200 mi-host (pve2 = 192.168.1.3、`mi-host.msjp-local.org`)
 - 公開: HAProxy 経由 `mi.msjp.pro` (Cloudflare → OPNsense → CT 200)
-- 構成: **Podman Quadlet** + Misskey 公式 image (`docker.io/misskey/misskey:2026.5.3`)
-- deploy 元: `/mnt/data/seafile/documents/homelab-ops/misskey/` (config/, deploy.sh, quadlet/)
+- 構成: **Podman Quadlet** (rootless under `misskey` user) + 自前 fork image
+- Quadlet ソース: `/mnt/data/seafile/documents/homelab-ops/misskey/quadlet/`
 - Postgres / Redis / Object storage (Versity S3 on TNAS) は別 service
 
-### Fork deploy 計画
+### CI/CD パイプライン (2026-05-19 以降)
 
-#### Step 1: 自前 image build
+```
+1. workstation: git commit + push to git.msjp.pro/VTF/misskey-bsky-fork (bsky-integration)
+2. Gitea Actions (.gitea/workflows/build-image.yml) が走る:
+   - Dockerfile から image を build
+   - tag 2 種を git.msjp.pro registry に push:
+       - git.msjp.pro/vtf/misskey-bsky-fork:2026.5.3-bsky-<short_sha>  (immutable)
+       - git.msjp.pro/vtf/misskey-bsky-fork:bsky-latest                 (rolling)
+3. mi-host CT 200 上の misskey user で動く podman-auto-update.timer (5 分間隔) が
+   bsky-latest の digest 変化を検出 → podman auto-update が pull + restart
+4. container entrypoint `pnpm migrate && pnpm start` が migration を自動適用
+```
 
-Misskey は repo root に `Dockerfile` を持つ (multi-stage):
+upstream rebase も別 workflow (`upstream-sync.yml`) が毎日 03:00 JST に試行する。
+conflict 時は Gitea Issue が立つので、それを見て手動 rebase + push。
+
+### 通常運用フロー
 
 ```fish
 cd ~/Document/misskey-bsky-fork
-set TAG "2026.5.3-bsky-"(git rev-parse --short HEAD)
-docker build -t git.msjp.pro/vtf/misskey-bsky-fork:$TAG .
-```
-
-Registry 選択肢:
-
-- **(推奨) Gitea Container Registry** (`git.msjp.pro` の packages 機能、要有効化確認)
-  - push: `docker login git.msjp.pro` → `docker push git.msjp.pro/vtf/misskey-bsky-fork:$TAG`
-- **homelab 自前 registry を立てる** (CT 新規、`registry:2` image)
-- **緊急回避**: `docker save | ssh mi-host docker load` で image を直送
-
-#### Step 2: Staging 検証 (推奨)
-
-- 別 CT (例: CT 201 mi-host-staging) を立てて、本番と同じ Quadlet + 別 DB で動作確認
-- 簡略化したい場合: 本番に直接当てる代わりに **PBS で full backup 必須**
-
-#### Step 3: 本番切替
-
-```fish
-# 1. PBS で CT 200 の full backup (絶対必須、rollback の根拠)
-ssh pve2 'vzdump 200 --storage pbs --compress zstd'
-
-# 2. Quadlet の image 行を fork 版に書き換え
-#    /mnt/data/seafile/documents/homelab-ops/misskey/quadlet/ で編集して deploy.sh 経由
-#    image=docker.io/misskey/misskey:2026.5.3
-#      ↓
-#    image=git.msjp.pro/vtf/misskey-bsky-fork:2026.5.3-bsky-<sha>
-
-# 3. migration 実行 (atDid column 追加)
-ssh mi-host 'podman exec misskey pnpm --filter backend run migrate'
-
-# 4. Quadlet reload + restart
-ssh mi-host 'systemctl daemon-reload && systemctl restart misskey'
-
-# 5. 動作確認
-curl -fsS https://mi.msjp.pro/api/meta | jq '.version'   # 2026.5.3 表示
-curl -fsS -X POST https://mi.msjp.pro/api/atproto/search -d '{"q":"jay.bsky.team"}' | jq
+# 修正
+git add <files>
+git commit -m "..."
+git push origin bsky-integration
+# 以降は Gitea Actions が build → registry push、mi-host が 5 分以内に
+# pull + restart まで自動で完了する。Gitea UI で workflow を見て確認。
 ```
 
 ### Rollback
 
-- image tag を `docker.io/misskey/misskey:2026.5.3` に戻す + Quadlet restart
-- **atDid column は残しても害なし** (Misskey 本家 code は触らない)、down migration は不要
-- 万が一 schema が壊れた場合のみ PBS backup から full restore
+最も早い順:
+
+```fish
+# 即時: bsky-latest を 1 つ前の sha tag に戻す (registry 操作)
+# mi-host 側で immutable な sha tag を一時的に Quadlet に固定するのが安全:
+ssh root@mi-host.msjp-local.org "su - misskey -c \"sed -i 's|^Image=.*misskey-bsky-fork:.*|Image=git.msjp.pro/vtf/misskey-bsky-fork:2026.5.3-bsky-<old_sha>|; s|^AutoUpdate=registry|AutoUpdate=disabled|' ~/.config/containers/systemd/misskey-web.container\" && systemctl --user --machine=misskey@.host daemon-reload && systemctl --user --machine=misskey@.host restart misskey-web.service"
+
+# 最重: PBS full restore (atDid column が壊れた、DB が壊れた場合のみ)
+ssh root@192.168.1.3 'pvesm list tnas-pbs | grep -i 200'
+# pve UI からの復元が安全
+```
 
 ### 重要な注意
 
-- **homelab-ops/misskey/quadlet/** も fork image を指すよう更新が必要、homelab-ops 側に commit する
-- 公式 Misskey upgrade 時の追従:
-  1. upstream rebase → 2. `pnpm install && pnpm build` → 3. image rebuild → 4. registry push → 5. Quadlet image tag 更新 → 6. CT 200 で migrate + restart
-- Misskey DB は CT 200 内 Postgres、fork branch 独自 migration `1779174024562-*` は **upstream には絶対送らない**
+- **homelab-ops/misskey/quadlet/misskey-web.container** は `Image=...:bsky-latest` + `AutoUpdate=registry` に切り替え済 (homelab-ops 側にも commit)
+- fork branch 独自 migration `1779174024562-*` は **upstream には絶対送らない** (private fork)
+- Misskey DB は CT 200 内 Postgres、auto-update での migration 失敗時は restart loop に入る前に systemd の StartLimit (default 5 trials / 10s) で止まる → 手動 rollback の出番
 
 ## 動作確認 / 検証コマンド
 
