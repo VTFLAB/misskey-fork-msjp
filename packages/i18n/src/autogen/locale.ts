@@ -13370,4 +13370,34 @@ export interface Locale extends ILocale {
          */
         "mfm": string;
     };
+    "_atproto": {
+        /**
+         * Bluesky
+         */
+        "bluesky": string;
+        /**
+         * ハンドル / 表示名 (例: jay.bsky.team)
+         */
+        "searchPlaceholder": string;
+        /**
+         * Bluesky AppView に接続できませんでした
+         */
+        "appviewUnavailable": string;
+        /**
+         * 該当するアカウントが見つかりませんでした
+         */
+        "noResults": string;
+        /**
+         * フォローして取り込み開始
+         */
+        "followAndSubscribe": string;
+        /**
+         * フォロー解除
+         */
+        "unfollow": string;
+        /**
+         * Bluesky 公開 AppView を匿名で参照しています
+         */
+        "poweredBy": string;
+    };
 }
