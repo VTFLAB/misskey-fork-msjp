@@ -105,17 +105,44 @@ packages/frontend/src/
 - [x] #2: Misskey 2026.5.3 を `~/Document/misskey-bsky-fork/` に shallow clone、`bsky-integration` branch
 - [x] #3: DB migration `1779174024562-AddAtDidToUser.js` (partial unique index)
 - [x] #4: AtpLoggerService + AtpHttpClientService + CoreModule flat 登録 (AtpModule 別 module 化は circular import で却下、Misskey 流儀の flat 列挙に統一)
+- [x] #5: AtpDidResolver (plc.directory + did:web) + AtpPersonService (DID → pseudo-MiUser upsert、profile fetch、avatar URL 取扱い)
+- [x] #6: AtpSearchService + `/api/atproto/search` endpoint (frontend 表示用に isFollowedByMe を相関、misskey-js 再生成済)
+- [x] #7: AtpJetstreamService (WS subscriber、指数バックオフ reconnect、Redis cursor 永続化、wantedDids 動的更新、inline 処理)
+- [x] #8: AtpNoteService (lexicon → MFM facets/embed/reply、NoteCreateService 呼出、repost = renote 変換、delete commit 対応)
+- [x] #9: Frontend "Bluesky" 検索タブ (search.bluesky.vue) + `/api/atproto/follow` & `/api/atproto/unfollow` endpoint
 
 残り:
 
-- [ ] #5: AtpDidResolver (plc.directory + did:web) + AtpPersonService (DID → pseudo-MiUser upsert、profile fetch、avatar URL 取扱い)
-- [ ] #6: AtpSearchService (searchActors wrap) + `/api/atproto/search` endpoint (Misskey の endpoint registration 含む)
-- [ ] #7: AtpJetstreamService (WS subscriber、reconnect、cursor 永続化、BullMQ worker、wantedDids 動的更新)
-- [ ] #8: AtpNoteService (lexicon → MFM、facets / embed / reply chain、NoteCreateService 呼び出し、repost 処理)
-- [ ] #9: Frontend "Bluesky" tab in 検索画面 (Vue 3 component、`/api/atproto/search` 呼び出し、follow ボタン)
-- [ ] #10: E2E 検証 (search → follow → post 流入 → HTL/GTL 表示、LTL 除外)
+- [ ] #10: E2E 検証 (search → follow → post 流入 → HTL/GTL 表示、LTL 除外) ※ deploy 後に手動確認
 
-合計 8-12 日専念分。
+検証コマンド (deploy 後):
+
+```fish
+# 1. 検索が走るか
+curl -s "https://mi.msjp.pro/api/atproto/search" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"q":"jay.bsky.team"}' | jq '.actors[0]'
+
+# 2. follow して Jetstream 開始
+curl -s "https://mi.msjp.pro/api/atproto/follow" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"did":"did:plc:oky5czdrnfjpqslsw2a5iclo"}' | jq '.'
+
+# 3. 30 秒待ってから HTL に post が流入するか
+sleep 30 && curl -s "https://mi.msjp.pro/api/notes/timeline" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"limit":5}' | jq '.[] | {uri, text}' | head -30
+
+# 4. LTL に Bsky 投稿が混じっていないこと (userHost IS NULL filter)
+curl -s "https://mi.msjp.pro/api/notes/local-timeline" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"limit":50}' | jq '[.[] | select(.user.host == "bsky.social")] | length'
+# → 0 が出れば OK
+```
 
 ## 次セッション開始
 
