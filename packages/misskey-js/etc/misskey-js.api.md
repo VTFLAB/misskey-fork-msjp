@@ -579,6 +579,24 @@ type ApShowRequest = operations['ap___show']['requestBody']['content']['applicat
 type ApShowResponse = operations['ap___show']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type AtprotoFollowRequest = operations['atproto___follow']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AtprotoFollowResponse = operations['atproto___follow']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type AtprotoSearchRequest = operations['atproto___search']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AtprotoSearchResponse = operations['atproto___search']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type AtprotoUnfollowRequest = operations['atproto___unfollow']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type AtprotoUnfollowResponse = operations['atproto___unfollow']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type AuthAcceptRequest = operations['auth___accept']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -1699,6 +1717,12 @@ declare namespace entities {
         AppCreateResponse,
         AppShowRequest,
         AppShowResponse,
+        AtprotoFollowRequest,
+        AtprotoFollowResponse,
+        AtprotoSearchRequest,
+        AtprotoSearchResponse,
+        AtprotoUnfollowRequest,
+        AtprotoUnfollowResponse,
         AuthAcceptRequest,
         AuthSessionGenerateRequest,
         AuthSessionGenerateResponse,
