@@ -1040,6 +1040,15 @@ export type paths = {
          */
         post: operations['app___show'];
     };
+    '/atproto/follow': {
+        /**
+         * atproto/follow
+         * @description Bluesky DID で識別される pseudo-user を upsert し follow する。新規 follow 完了後、Jetstream subscription を即時 refresh する。
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:following*
+         */
+        post: operations['atproto___follow'];
+    };
     '/atproto/search': {
         /**
          * atproto/search
@@ -1048,6 +1057,15 @@ export type paths = {
          *     **Credential required**: *Yes* / **Permission**: *read:account*
          */
         post: operations['atproto___search'];
+    };
+    '/atproto/unfollow': {
+        /**
+         * atproto/unfollow
+         * @description Bluesky DID で識別される pseudo-user を unfollow する。pseudo-user 自体は残す (他 user の follow 対象になっている場合があるため)。
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:following*
+         */
+        post: operations['atproto___unfollow'];
     };
     '/auth/accept': {
         /**
@@ -14122,6 +14140,80 @@ export interface operations {
             };
         };
     };
+    atproto___follow: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    did: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['UserDetailedNotMe'];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     atproto___search: {
         requestBody: {
             content: {
@@ -14152,6 +14244,80 @@ export interface operations {
                         }[];
                         cursor: string | null;
                     };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    atproto___unfollow: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    did: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['UserDetailedNotMe'];
                 };
             };
             /** @description Client error */

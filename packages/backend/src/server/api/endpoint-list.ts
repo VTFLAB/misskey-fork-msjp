@@ -450,3 +450,5 @@ export * as 'v2/admin/emoji/list' from './endpoints/v2/admin/emoji/list.js';
 
 // atproto (Bluesky 統合、private fork 専用)
 export * as 'atproto/search' from './endpoints/atproto/search.js';
+export * as 'atproto/follow' from './endpoints/atproto/follow.js';
+export * as 'atproto/unfollow' from './endpoints/atproto/unfollow.js';

@@ -22,6 +22,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkInfo warn>{{ i18n.ts.usersSearchNotAvailable }}</MkInfo>
 		</div>
 	</div>
+
+	<div v-else-if="tab === 'bluesky'" class="_spacer" style="--MI_SPACER-w: 800px;">
+		<XBluesky v-bind="props"/>
+	</div>
 </PageWithHeader>
 </template>
 
@@ -38,7 +42,7 @@ const props = withDefaults(defineProps<{
 	userId?: string,
 	username?: string,
 	host?: string | null,
-	type?: 'note' | 'user',
+	type?: 'note' | 'user' | 'bluesky',
 	origin?: 'combined' | 'local' | 'remote',
 	// For storybook only
 	ignoreNotesSearchAvailable?: boolean,
@@ -54,6 +58,7 @@ const props = withDefaults(defineProps<{
 
 const XNote = defineAsyncComponent(() => import('./search.note.vue'));
 const XUser = defineAsyncComponent(() => import('./search.user.vue'));
+const XBluesky = defineAsyncComponent(() => import('./search.bluesky.vue'));
 
 const tab = ref(toRef(props, 'type').value);
 
@@ -67,6 +72,10 @@ const headerTabs = computed(() => [{
 	key: 'user',
 	title: i18n.ts.users,
 	icon: 'ti ti-users',
+}, {
+	key: 'bluesky',
+	title: i18n.ts._atproto.bluesky,
+	icon: 'ti ti-cloud',
 }]);
 
 definePage(() => ({

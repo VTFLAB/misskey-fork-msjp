@@ -162,8 +162,12 @@ import type {
 	AppCreateResponse,
 	AppShowRequest,
 	AppShowResponse,
+	AtprotoFollowRequest,
+	AtprotoFollowResponse,
 	AtprotoSearchRequest,
 	AtprotoSearchResponse,
+	AtprotoUnfollowRequest,
+	AtprotoUnfollowResponse,
 	AuthAcceptRequest,
 	AuthSessionGenerateRequest,
 	AuthSessionGenerateResponse,
@@ -783,7 +787,9 @@ export type Endpoints = {
 	'ap/show': { req: ApShowRequest; res: ApShowResponse };
 	'app/create': { req: AppCreateRequest; res: AppCreateResponse };
 	'app/show': { req: AppShowRequest; res: AppShowResponse };
+	'atproto/follow': { req: AtprotoFollowRequest; res: AtprotoFollowResponse };
 	'atproto/search': { req: AtprotoSearchRequest; res: AtprotoSearchResponse };
+	'atproto/unfollow': { req: AtprotoUnfollowRequest; res: AtprotoUnfollowResponse };
 	'auth/accept': { req: AuthAcceptRequest; res: EmptyResponse };
 	'auth/session/generate': { req: AuthSessionGenerateRequest; res: AuthSessionGenerateResponse };
 	'auth/session/show': { req: AuthSessionShowRequest; res: AuthSessionShowResponse };
