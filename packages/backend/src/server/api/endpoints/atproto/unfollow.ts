@@ -11,6 +11,7 @@ import type { FollowingsRepository, UsersRepository } from '@/models/_.js';
 import type { MiRemoteUser } from '@/models/User.js';
 import { UserFollowingService } from '@/core/UserFollowingService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
+import { AtpLoggerService } from '@/core/atproto/AtpLoggerService.js';
 
 export const meta = {
 	tags: ['atproto', 'following'],
@@ -57,12 +58,17 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		@Inject(DI.followingsRepository)
 		private followingsRepository: FollowingsRepository,
 
+		atpLoggerService: AtpLoggerService,
 		private userFollowingService: UserFollowingService,
 		private userEntityService: UserEntityService,
 	) {
+		const logger = atpLoggerService.child('api/unfollow');
 		super(meta, paramDef, async (ps, me) => {
+			logger.info(`/api/atproto/unfollow enter: me=${me.id} did=${ps.did}`);
+
 			const pseudoUser = await this.usersRepository.findOneBy({ atDid: ps.did }) as MiRemoteUser | null;
 			if (pseudoUser == null) {
+				logger.warn(`no pseudo-user found for did=${ps.did}`);
 				throw new ApiError(meta.errors.noSuchUser);
 			}
 
@@ -72,6 +78,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (exists) {
 				await this.userFollowingService.unfollow(me, pseudoUser);
+				logger.info(`unfollow ok: me=${me.id} → userId=${pseudoUser.id}`);
+			} else {
+				logger.info(`unfollow noop (already not following): me=${me.id} → userId=${pseudoUser.id}`);
 			}
 
 			return await this.userEntityService.pack(pseudoUser.id, me, { schema: 'UserDetailedNotMe' });
