@@ -1,2 +1,3 @@
 /settings.local.json
 /.credentials.json
+/scheduled_tasks.lock

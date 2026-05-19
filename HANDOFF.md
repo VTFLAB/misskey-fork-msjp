@@ -2,18 +2,22 @@
 
 ## TL;DR
 
-**本番運用中**。`mi.msjp.pro` (CT 200 mi-host VM on pve2) で
-`git.msjp.pro/vtf/misskey-bsky-fork:2026.5.3-bsky-d3e620f` 稼働中。
-直近 30 日分の backfill 込みで Bluesky の post を取り込み、avatar/banner も
-DriveFile 化済。LTL から除外、GTL / HTL に流入、検索可。
+**本番運用中 + CI/CD 自動化済**。`mi.msjp.pro` (CT 200 mi-host VM on pve2) で fork image が稼働中。
+直近 30 日分の backfill 込みで Bluesky の post を取り込み、avatar/banner も DriveFile 化済。
+LTL から除外、GTL / HTL に流入、検索可。
+
+deploy は `git push` → Gitea Actions build → registry push → mi-host が 5 分以内に pull + restart
+の完全自動化。upstream rebase も毎日 03:00 JST に Gitea Actions が試行 (conflict 時のみ Issue 経由で人間介入)。
 
 ## 現在の状態 (2026-05-19 時点)
 
 | 場所 | 状態 |
 |---|---|
-| ソース | `~/Document/misskey-bsky-fork` (branch `bsky-integration`) — push 先未設定 |
-| upstream | `github.com/misskey-dev/misskey` v2026.5.3 base |
-| 本番 image | `git.msjp.pro/vtf/misskey-bsky-fork:2026.5.3-bsky-d3e620f` (commit `d3e620f`) |
+| ソース | `~/Document/misskey-bsky-fork` (branch `bsky-integration`) — origin = `git.msjp.pro/VTF/misskey-bsky-fork` (private) |
+| upstream | `github.com/misskey-dev/misskey` v2026.5.3 base、毎日 03:00 JST に自動 rebase 試行 |
+| CI/CD | Gitea Actions `.gitea/workflows/{upstream-sync,build-image}.yml` |
+| 本番 image (rolling) | `git.msjp.pro/vtf/misskey-bsky-fork:bsky-latest` — mi-host が AutoUpdate=registry で参照 |
+| 本番 image (immutable) | `git.msjp.pro/vtf/misskey-bsky-fork:2026.5.3-bsky-<sha>` (rollback 用) |
 | 本番ホスト | mi-host (CT 200 / pve2) — rootless podman + Quadlet @ `/home/misskey/.config/containers/systemd/` |
 | 本番 Quadlet | image swap + `FORCE_FOLLOW_REMOTE_USER_FOR_TESTING=true` 追加。元 Quadlet は `.bak-20260519-*` 保存 |
 | homelab-ops 側 Quadlet | `/mnt/data/seafile/documents/homelab-ops/misskey/quadlet/misskey-web.container` も同期済 (commit `606b310`) |
@@ -111,44 +115,42 @@ ssh root@mi-host.msjp-local.org 'sudo -iu misskey podman exec misskey-postgres p
 ssh root@mi-host.msjp-local.org 'sudo -iu misskey podman exec misskey-redis redis-cli get atproto:jetstream:cursor'
 ```
 
-### ビルド & デプロイ (次回コード変更時の手順)
+### ビルド & デプロイ (CI/CD 経由 — Phase 9 以降)
 
 ```fish
-# 1. workstation でコードを修正、commit
+# 1. workstation でコードを修正、commit、push
 cd ~/Document/misskey-bsky-fork
-# (lint check) — host built が必須なので shared deps を rebuild してから
-pnpm --filter misskey-js build && pnpm --filter i18n build && \
-  pnpm --filter misskey-reversi build && pnpm --filter misskey-bubble-game build && \
-  pnpm --filter backend lint
-
-# 2. host の built/ を必ずクリーン (Docker context 混入防止)
-rm -rf built packages/*/built packages/misskey-js/generator/built packages/misskey-js/generator/api.json
-
-# 3. commit
 git add <files>
 git commit -m "..."
+git push origin bsky-integration
 
-# 4. image build
+# 2. Gitea Actions が自動で走る (https://git.msjp.pro/VTF/misskey-bsky-fork/actions)
+#    - build-image.yml: Dockerfile → image build → registry push
+#    - bsky-latest tag が更新される
+#
+# 3. mi-host CT 200 上の podman-auto-update.timer (5 分間隔) が
+#    bsky-latest の digest 変化を検出 → pull + container restart まで自動
+#
+# 4. 動作確認
+ssh root@mi-host.msjp-local.org 'sudo -iu misskey journalctl --user-unit=misskey-web.service --since "5 minutes ago" --no-pager' | grep -iE "atproto|Now listening"
+curl -fsS https://mi.msjp.pro/api/meta | jq '.version'
+```
+
+ローカルビルドが必要な場面 (CI を待たず手元で確認したい / Gitea ダウン時):
+
+```fish
+cd ~/Document/misskey-bsky-fork
+# host built/ を必ずクリーン (Docker context 混入防止)
+rm -rf built packages/*/built packages/misskey-js/generator/built packages/misskey-js/generator/api.json
+
 set SHA (git rev-parse --short HEAD)
 set TAG "git.msjp.pro/vtf/misskey-bsky-fork:2026.5.3-bsky-$SHA"
 podman build -t $TAG --build-arg NODE_ENV=production .
 
-# 5. 転送 + load
-podman save --format docker-archive -o /tmp/misskey-image.tar $TAG
-scp /tmp/misskey-image.tar root@mi-host.msjp-local.org:/home/misskey/misskey-bsky-fork.tar
-ssh root@mi-host.msjp-local.org "chown misskey:misskey /home/misskey/misskey-bsky-fork.tar && su - misskey -c 'podman load -i /home/misskey/misskey-bsky-fork.tar' && rm /home/misskey/misskey-bsky-fork.tar"
-
-# 6. Quadlet image tag swap + restart (.bak 取得込み)
-ssh root@mi-host.msjp-local.org "su - misskey -c \"cp ~/.config/containers/systemd/misskey-web.container ~/.config/containers/systemd/misskey-web.container.bak-\$(date +%Y%m%d-%H%M%S) && sed -i 's|^Image=git.msjp.pro/vtf/misskey-bsky-fork:.*|Image=$TAG|' ~/.config/containers/systemd/misskey-web.container\" && systemctl --user --machine=misskey@.host daemon-reload && systemctl --user --machine=misskey@.host restart misskey-web.service"
-
-# 7. boot 待ち + atproto 起動確認
-ssh root@mi-host.msjp-local.org 'sudo -iu misskey journalctl --user-unit=misskey-web.service --since "1 minute ago" --no-pager' | grep -iE "atproto|Now listening"
-
-# 8. homelab-ops の Quadlet 同期 commit
-cd /mnt/data/seafile/documents/homelab-ops
-# misskey/quadlet/misskey-web.container の Image 行を bump
-git add misskey/quadlet/misskey-web.container
-git commit -m "chore(misskey): image bump <OLD> → <NEW> (..)"
+# registry に push して auto-update に任せる
+podman push $TAG
+podman tag $TAG git.msjp.pro/vtf/misskey-bsky-fork:bsky-latest
+podman push git.msjp.pro/vtf/misskey-bsky-fork:bsky-latest
 ```
 
 ### Backfill / refresh (既存 follow への遡及取り込み)
@@ -161,14 +163,17 @@ ssh root@mi-host.msjp-local.org "sudo -iu misskey podman exec misskey-postgres p
 ### Rollback (緊急時)
 
 ```fish
-# 即時 (snapshot 経由、VM 内のすべての状態が pre-bsky-deploy 時点に戻る、follow 等も消える)
+# (a) 即時 image revert: Quadlet を immutable な sha tag に切り替えて AutoUpdate=disabled に
+# <good_sha> = 戻したい安定版の short sha (例: d3e620f)
+set GOOD_SHA d3e620f
+ssh root@mi-host.msjp-local.org "su - misskey -c \"sed -i 's|^Image=.*misskey-bsky-fork:.*|Image=git.msjp.pro/vtf/misskey-bsky-fork:2026.5.3-bsky-$GOOD_SHA|; s|^AutoUpdate=registry|AutoUpdate=disabled|' ~/.config/containers/systemd/misskey-web.container\" && systemctl --user --machine=misskey@.host daemon-reload && systemctl --user --machine=misskey@.host restart misskey-web.service"
+# 復旧後、修正 commit + push → image build 完了後に Quadlet を bsky-latest + AutoUpdate=registry に戻す
+
+# (b) VM 全体を初期状態に戻す (follow 等も消える、PBS snapshot 経由)
 ssh root@192.168.1.3 'qm rollback 200 pre-bsky-deploy'
 
-# image だけ戻す (atDid column はそのまま残るが Misskey 本家は使わないので無害)
-ssh root@mi-host.msjp-local.org "su - misskey -c \"sed -i 's|^Image=git.msjp.pro/vtf/misskey-bsky-fork:.*|Image=docker.io/misskey/misskey:2026.5.3|' ~/.config/containers/systemd/misskey-web.container\" && systemctl --user --machine=misskey@.host daemon-reload && systemctl --user --machine=misskey@.host restart misskey-web.service"
-
-# PBS full restore (最重)
-ssh root@192.168.1.3 'pvesm list tnas-pbs | grep -i 200' # ID 確認
+# (c) PBS full restore (最重、DB 含めて完全に戻す)
+ssh root@192.168.1.3 'pvesm list tnas-pbs | grep -i 200'
 # pve UI から復元するのが安全 (CLI でやるなら qmrestore)
 ```
 
