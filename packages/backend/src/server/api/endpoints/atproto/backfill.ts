@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { ApiError } from '@/server/api/error.js';
 import { AtpNoteService } from '@/core/atproto/AtpNoteService.js';
+import { AtpPersonService } from '@/core/atproto/AtpPersonService.js';
 import { AtpLoggerService } from '@/core/atproto/AtpLoggerService.js';
 
 export const meta = {
@@ -56,6 +57,7 @@ export const paramDef = {
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
 		private atpNoteService: AtpNoteService,
+		private atpPersonService: AtpPersonService,
 		atpLoggerService: AtpLoggerService,
 	) {
 		const logger = atpLoggerService.child('api/backfill');
@@ -65,6 +67,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			}
 
 			logger.info(`/api/atproto/backfill enter: me=${me.id} did=${ps.did} days=${ps.days}`);
+
+			// avatar/banner の取り込みも兼ねて profile を強制再取得。
+			await this.atpPersonService.resolveByDid(ps.did, { forceRefresh: true }).catch(err => {
+				logger.warn(`force refresh failed (continuing to backfill): ${err instanceof Error ? err.message : String(err)}`);
+			});
 
 			const cutoffMs = ps.days * 24 * 60 * 60 * 1000;
 			const result = await this.atpNoteService.backfillAuthorFeed(ps.did, { cutoffMs });

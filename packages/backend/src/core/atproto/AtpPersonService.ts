@@ -11,6 +11,8 @@ import { MiUser } from '@/models/User.js';
 import type { MiRemoteUser } from '@/models/User.js';
 import { MiUserProfile } from '@/models/UserProfile.js';
 import { IdService } from '@/core/IdService.js';
+import { DriveService } from '@/core/DriveService.js';
+import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import { isDuplicateKeyValueError } from '@/misc/is-duplicate-key-value-error.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
@@ -20,7 +22,9 @@ import { AtpDidResolver } from './AtpDidResolver.js';
 
 // Bsky user = host='bsky.social' の pseudo-remote MiUser として扱う。
 // uri='at://<did>', atDid=<did> で identify する。
-// avatar/banner は CDN URL をそのまま保存し、Misskey 側で DriveFile を作らない。
+// avatar/banner は Bsky CDN から DriveService.uploadFromUrl で取り込んで
+// 自前 MiDriveFile を作る (avatarId/bannerId 非 null にしないと Misskey が
+// `getIdenticonUrl` にフォールバックして表示されない仕様のため)。
 
 export const BSKY_PSEUDO_HOST = 'bsky.social';
 
@@ -57,6 +61,8 @@ export class AtpPersonService {
 		private userProfilesRepository: UserProfilesRepository,
 
 		private idService: IdService,
+		private driveService: DriveService,
+		private driveFileEntityService: DriveFileEntityService,
 		private atpLoggerService: AtpLoggerService,
 		private atpHttpClientService: AtpHttpClientService,
 		private atpDidResolver: AtpDidResolver,
@@ -142,8 +148,10 @@ export class AtpPersonService {
 					isBot: false,
 					isExplorable: true,
 					isLocked: false,
-					avatarUrl: profile.avatar ?? null,
-					bannerUrl: profile.banner ?? null,
+					// avatar/banner はトランザクション外で DriveService.uploadFromUrl 経由で取り込み
+					// (avatarId が non-null でないと Misskey UI で表示されない)。
+					avatarUrl: null,
+					bannerUrl: null,
 					followersCount: profile.followersCount ?? 0,
 					followingCount: profile.followsCount ?? 0,
 					notesCount: 0,
@@ -171,8 +179,17 @@ export class AtpPersonService {
 		}
 
 		if (user == null) throw new Error('failed to create pseudo-user');
-		this.logger.info(`created pseudo-user: userId=${(user as MiRemoteUser).id} handle=@${(user as MiRemoteUser).username} did=${did}`);
-		return user;
+		const createdUser = user as MiRemoteUser;
+		this.logger.info(`created pseudo-user: userId=${createdUser.id} handle=@${createdUser.username} did=${did}`);
+
+		// avatar/banner の DriveFile 化 (失敗しても user 作成は成功させる)
+		const mediaUpdates = await this.resolveAvatarAndBanner(createdUser, profile);
+		if (Object.keys(mediaUpdates).length > 0) {
+			await this.usersRepository.update(createdUser.id, mediaUpdates);
+			Object.assign(createdUser, mediaUpdates);
+		}
+
+		return createdUser;
 	}
 
 	@bindThis
@@ -192,12 +209,12 @@ export class AtpPersonService {
 		}
 
 		const handle = profile.handle ?? user.username;
+		// avatar/banner はトランザクション外で別 update する (DriveFile 取り込みの戻り値で
+		// avatarId 等を埋めるため、ここでは触らない)。
 		const userUpdates: Partial<MiUser> = {
 			username: handle.slice(0, USERNAME_LENGTH),
 			usernameLower: handle.toLowerCase().slice(0, USERNAME_LENGTH),
 			name: this.truncate(profile.displayName, NAME_LENGTH),
-			avatarUrl: profile.avatar ?? null,
-			bannerUrl: profile.banner ?? null,
 			followersCount: profile.followersCount ?? user.followersCount,
 			followingCount: profile.followsCount ?? user.followingCount,
 			lastFetchedAt: new Date(),
@@ -209,7 +226,64 @@ export class AtpPersonService {
 			url: this.profileUrl(handle, did),
 		});
 
-		return { ...user, ...userUpdates } as MiRemoteUser;
+		const merged = { ...user, ...userUpdates } as MiRemoteUser;
+		const mediaUpdates = await this.resolveAvatarAndBanner(merged, profile);
+		if (Object.keys(mediaUpdates).length > 0) {
+			await this.usersRepository.update(user.id, mediaUpdates);
+			Object.assign(merged, mediaUpdates);
+		}
+
+		return merged;
+	}
+
+	/**
+	 * Bsky CDN の avatar / banner を Misskey の drive に取り込み、avatarId 等を返す。
+	 * - 既に同じ URL の DriveFile があれば再利用
+	 * - 失敗時は警告ログのみ (user 作成は止めない、識別 icon にフォールバック)
+	 *
+	 * 返却値は usersRepository.update に渡せる Partial<MiUser>。
+	 */
+	@bindThis
+	private async resolveAvatarAndBanner(user: MiRemoteUser, profile: BskyProfileView): Promise<Partial<MiUser>> {
+		const updates: Partial<MiUser> = {};
+
+		const sameAvatar = user.avatarId != null && user.avatar?.uri === profile.avatar;
+		if (profile.avatar && !sameAvatar) {
+			try {
+				const file = await this.driveService.uploadFromUrl({
+					url: profile.avatar,
+					user: { id: user.id, host: user.host },
+					folderId: null,
+					uri: profile.avatar,
+				});
+				updates.avatarId = file.id;
+				updates.avatarUrl = this.driveFileEntityService.getPublicUrl(file, 'avatar');
+				updates.avatarBlurhash = file.blurhash;
+				this.logger.info(`avatar ingested: userId=${user.id} file=${file.id}`);
+			} catch (e) {
+				this.logger.warn(`avatar download failed for ${user.atDid}: ${e instanceof Error ? e.message : String(e)}`);
+			}
+		}
+
+		const sameBanner = user.bannerId != null && user.banner?.uri === profile.banner;
+		if (profile.banner && !sameBanner) {
+			try {
+				const file = await this.driveService.uploadFromUrl({
+					url: profile.banner,
+					user: { id: user.id, host: user.host },
+					folderId: null,
+					uri: profile.banner,
+				});
+				updates.bannerId = file.id;
+				updates.bannerUrl = this.driveFileEntityService.getPublicUrl(file);
+				updates.bannerBlurhash = file.blurhash;
+				this.logger.info(`banner ingested: userId=${user.id} file=${file.id}`);
+			} catch (e) {
+				this.logger.warn(`banner download failed for ${user.atDid}: ${e instanceof Error ? e.message : String(e)}`);
+			}
+		}
+
+		return updates;
 	}
 
 	@bindThis
