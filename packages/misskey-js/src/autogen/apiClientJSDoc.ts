@@ -1281,11 +1281,33 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * Bluesky DID で識別される pseudo-user を upsert し follow する。新規 follow 完了後、Jetstream subscription を即時 refresh する。
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:following*
+     */
+    request<E extends 'atproto/follow', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Bluesky の actor を AppView 検索する (匿名アクセス、自前 PDS を持たない)。各結果には、現在のユーザーが該当 Bluesky pseudo-user を既に follow しているかが付く。
      * 
      * **Credential required**: *Yes* / **Permission**: *read:account*
      */
     request<E extends 'atproto/search', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Bluesky DID で識別される pseudo-user を unfollow する。pseudo-user 自体は残す (他 user の follow 対象になっている場合があるため)。
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:following*
+     */
+    request<E extends 'atproto/unfollow', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
       credential?: string | null,
