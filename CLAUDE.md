@@ -99,21 +99,23 @@ packages/frontend/src/
 
 ## 進捗
 
-完了 (2026-05-19、`/mnt/data/seafile/documents/homelab-ops/` から着手したセッション):
+**本番運用中** (2026-05-19 デプロイ済、`mi.msjp.pro`)。次セッションへの引き継ぎは [HANDOFF.md](HANDOFF.md) を参照。
 
-- [x] #1: Bsky AppView anonymous API + Jetstream 動作確認 (token 不要、Jetstream 15.6 events/sec 受信)
-- [x] #2: Misskey 2026.5.3 を `~/Document/misskey-bsky-fork/` に shallow clone、`bsky-integration` branch
-- [x] #3: DB migration `1779174024562-AddAtDidToUser.js` (partial unique index)
-- [x] #4: AtpLoggerService + AtpHttpClientService + CoreModule flat 登録 (AtpModule 別 module 化は circular import で却下、Misskey 流儀の flat 列挙に統一)
-- [x] #5: AtpDidResolver (plc.directory + did:web) + AtpPersonService (DID → pseudo-MiUser upsert、profile fetch、avatar URL 取扱い)
-- [x] #6: AtpSearchService + `/api/atproto/search` endpoint (frontend 表示用に isFollowedByMe を相関、misskey-js 再生成済)
-- [x] #7: AtpJetstreamService (WS subscriber、指数バックオフ reconnect、Redis cursor 永続化、wantedDids 動的更新、inline 処理)
-- [x] #8: AtpNoteService (lexicon → MFM facets/embed/reply、NoteCreateService 呼出、repost = renote 変換、delete commit 対応)
-- [x] #9: Frontend "Bluesky" 検索タブ (search.bluesky.vue) + `/api/atproto/follow` & `/api/atproto/unfollow` endpoint
+完了:
 
-残り:
-
-- [ ] #10: E2E 検証 (search → follow → post 流入 → HTL/GTL 表示、LTL 除外) ※ deploy 後に手動確認
+- [x] #1: Bsky AppView anonymous API + Jetstream 動作確認
+- [x] #2: Misskey 2026.5.3 を shallow clone、`bsky-integration` branch
+- [x] #3: DB migration `1779174024562-AddAtDidToUser.js`
+- [x] #4: AtpLoggerService + AtpHttpClientService + CoreModule flat 登録
+- [x] #5: AtpDidResolver + AtpPersonService
+- [x] #6: AtpSearchService + `/api/atproto/search`
+- [x] #7: AtpJetstreamService (cluster gating、stale handler isolation、stuck connecting 復旧)
+- [x] #8: AtpNoteService (lexicon → MFM facets/embed/reply、repost、delete)
+- [x] #9: Frontend "Bluesky" 検索タブ + `/api/atproto/follow,unfollow`
+- [x] #10: E2E 検証 (search → follow → post 流入 → HTL/GTL 表示、LTL 除外)
+- [x] **Phase 7**: Backfill (新規 follow 時 30 日 + `/api/atproto/backfill` endpoint)
+- [x] **Phase 8**: Avatar/Banner を DriveService.uploadFromUrl で取り込み
+- [x] **本番デプロイ**: image `2026.5.3-bsky-d3e620f` 稼働中、6 アカウント follow + 3,266 note + avatar 全件取り込み済
 
 検証コマンド (deploy 後):
 
