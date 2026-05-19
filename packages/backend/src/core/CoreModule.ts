@@ -156,6 +156,8 @@ import { AtpHttpClientService } from './atproto/AtpHttpClientService.js';
 import { AtpDidResolver } from './atproto/AtpDidResolver.js';
 import { AtpPersonService } from './atproto/AtpPersonService.js';
 import { AtpSearchService } from './atproto/AtpSearchService.js';
+import { AtpNoteService } from './atproto/AtpNoteService.js';
+import { AtpJetstreamService } from './atproto/AtpJetstreamService.js';
 import { QueueModule } from './QueueModule.js';
 import { QueueService } from './QueueService.js';
 import { LoggerService } from './LoggerService.js';
@@ -314,6 +316,8 @@ const $AtpHttpClientService: Provider = { provide: 'AtpHttpClientService', useEx
 const $AtpDidResolver: Provider = { provide: 'AtpDidResolver', useExisting: AtpDidResolver };
 const $AtpPersonService: Provider = { provide: 'AtpPersonService', useExisting: AtpPersonService };
 const $AtpSearchService: Provider = { provide: 'AtpSearchService', useExisting: AtpSearchService };
+const $AtpNoteService: Provider = { provide: 'AtpNoteService', useExisting: AtpNoteService };
+const $AtpJetstreamService: Provider = { provide: 'AtpJetstreamService', useExisting: AtpJetstreamService };
 //#endregion
 
 @Module({
@@ -474,6 +478,8 @@ const $AtpSearchService: Provider = { provide: 'AtpSearchService', useExisting: 
 		AtpDidResolver,
 		AtpPersonService,
 		AtpSearchService,
+		AtpNoteService,
+		AtpJetstreamService,
 
 		QueueService,
 
@@ -630,6 +636,8 @@ const $AtpSearchService: Provider = { provide: 'AtpSearchService', useExisting: 
 		$AtpDidResolver,
 		$AtpPersonService,
 		$AtpSearchService,
+		$AtpNoteService,
+		$AtpJetstreamService,
 		//#endregion
 	],
 	exports: [
@@ -786,6 +794,8 @@ const $AtpSearchService: Provider = { provide: 'AtpSearchService', useExisting: 
 		AtpDidResolver,
 		AtpPersonService,
 		AtpSearchService,
+		AtpNoteService,
+		AtpJetstreamService,
 
 		QueueService,
 
@@ -940,6 +950,8 @@ const $AtpSearchService: Provider = { provide: 'AtpSearchService', useExisting: 
 		$AtpDidResolver,
 		$AtpPersonService,
 		$AtpSearchService,
+		$AtpNoteService,
+		$AtpJetstreamService,
 		//#endregion
 	],
 })
