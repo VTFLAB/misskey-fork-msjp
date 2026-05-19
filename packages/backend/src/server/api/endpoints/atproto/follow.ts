@@ -8,6 +8,7 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { ApiError } from '@/server/api/error.js';
 import { AtpPersonService } from '@/core/atproto/AtpPersonService.js';
 import { AtpJetstreamService } from '@/core/atproto/AtpJetstreamService.js';
+import { AtpLoggerService } from '@/core/atproto/AtpLoggerService.js';
 import { UserFollowingService } from '@/core/UserFollowingService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
@@ -63,30 +64,37 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	constructor(
 		private atpPersonService: AtpPersonService,
 		private atpJetstreamService: AtpJetstreamService,
+		atpLoggerService: AtpLoggerService,
 		private userFollowingService: UserFollowingService,
 		private userEntityService: UserEntityService,
 	) {
+		const logger = atpLoggerService.child('api/follow');
 		super(meta, paramDef, async (ps, me) => {
+			logger.info(`/api/atproto/follow enter: me=${me.id} did=${ps.did}`);
+
 			if (!ps.did.startsWith('did:plc:') && !ps.did.startsWith('did:web:')) {
 				throw new ApiError(meta.errors.invalidDid);
 			}
 
 			const pseudoUser = await this.atpPersonService.resolveByDid(ps.did).catch(err => {
+				logger.error(`resolveByDid failed: did=${ps.did} err=${err instanceof Error ? err.message : String(err)}`);
 				throw new ApiError(meta.errors.appviewUnavailable, { reason: err instanceof Error ? err.message : String(err) });
 			});
 
 			try {
 				await this.userFollowingService.follow(me, pseudoUser);
+				logger.info(`follow ok: me=${me.id} → userId=${pseudoUser.id} (@${pseudoUser.username})`);
 			} catch (e) {
 				if (e instanceof IdentifiableError && e.id === 'ec3f65c0-a9d1-47d9-8791-b2e7b9dcdced') {
+					logger.info(`already following: me=${me.id} → userId=${pseudoUser.id}`);
 					throw new ApiError(meta.errors.alreadyFollowing);
 				}
 				throw e;
 			}
 
 			// 新規 DID は Jetstream の wantedDids に加える。次の subscription refresh で反映。
-			this.atpJetstreamService.refreshSubscription().catch(() => {
-				// reconnect 失敗は致命ではないので飲み込む (次の周期で再試行)
+			this.atpJetstreamService.refreshSubscription().catch(err => {
+				logger.warn(`refreshSubscription failed (will retry next tick): ${err instanceof Error ? err.message : String(err)}`);
 			});
 
 			return await this.userEntityService.pack(pseudoUser.id, me, { schema: 'UserDetailedNotMe' });
