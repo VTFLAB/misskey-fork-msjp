@@ -155,6 +155,7 @@ import { AtpLoggerService } from './atproto/AtpLoggerService.js';
 import { AtpHttpClientService } from './atproto/AtpHttpClientService.js';
 import { AtpDidResolver } from './atproto/AtpDidResolver.js';
 import { AtpPersonService } from './atproto/AtpPersonService.js';
+import { AtpSearchService } from './atproto/AtpSearchService.js';
 import { QueueModule } from './QueueModule.js';
 import { QueueService } from './QueueService.js';
 import { LoggerService } from './LoggerService.js';
@@ -312,6 +313,7 @@ const $AtpLoggerService: Provider = { provide: 'AtpLoggerService', useExisting: 
 const $AtpHttpClientService: Provider = { provide: 'AtpHttpClientService', useExisting: AtpHttpClientService };
 const $AtpDidResolver: Provider = { provide: 'AtpDidResolver', useExisting: AtpDidResolver };
 const $AtpPersonService: Provider = { provide: 'AtpPersonService', useExisting: AtpPersonService };
+const $AtpSearchService: Provider = { provide: 'AtpSearchService', useExisting: AtpSearchService };
 //#endregion
 
 @Module({
@@ -471,6 +473,7 @@ const $AtpPersonService: Provider = { provide: 'AtpPersonService', useExisting: 
 		AtpHttpClientService,
 		AtpDidResolver,
 		AtpPersonService,
+		AtpSearchService,
 
 		QueueService,
 
@@ -626,6 +629,7 @@ const $AtpPersonService: Provider = { provide: 'AtpPersonService', useExisting: 
 		$AtpHttpClientService,
 		$AtpDidResolver,
 		$AtpPersonService,
+		$AtpSearchService,
 		//#endregion
 	],
 	exports: [
@@ -781,6 +785,7 @@ const $AtpPersonService: Provider = { provide: 'AtpPersonService', useExisting: 
 		AtpHttpClientService,
 		AtpDidResolver,
 		AtpPersonService,
+		AtpSearchService,
 
 		QueueService,
 
@@ -934,6 +939,7 @@ const $AtpPersonService: Provider = { provide: 'AtpPersonService', useExisting: 
 		$AtpHttpClientService,
 		$AtpDidResolver,
 		$AtpPersonService,
+		$AtpSearchService,
 		//#endregion
 	],
 })
