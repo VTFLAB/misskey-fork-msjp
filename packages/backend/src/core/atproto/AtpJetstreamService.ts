@@ -44,6 +44,12 @@ const RECONNECT_MAX_MS = 30_000;
 const MAX_WANTED_DIDS = 5000;
 
 const STATS_INTERVAL_MS = 60_000;
+// Jetstream watermark: handleMessage が呼ばれる度に lastEventAt を更新し、
+// HEARTBEAT_TIMEOUT_MS 以上無音だったら WS が死んでいるとみなして強制再接続する。
+// 接続自体は WS の close event が来ない silent-death の保険。Bsky の流量は public
+// network 全体で常に活発なので、wantedDids が空でない限り 5 分以上完全無音は dead 判定。
+const HEARTBEAT_CHECK_INTERVAL_MS = 30_000;
+const HEARTBEAT_TIMEOUT_MS = 5 * 60_000;
 
 type EventStats = {
 	received: number;
@@ -77,6 +83,7 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 	private didRefreshTimer: NodeJS.Timeout | null = null;
 	private cursorFlushTimer: NodeJS.Timeout | null = null;
 	private statsTimer: NodeJS.Timeout | null = null;
+	private heartbeatTimer: NodeJS.Timeout | null = null;
 	private currentCursor: number | null = null;
 	private flushedCursor: number | null = null;
 	private wantedDids: string[] = [];
@@ -85,6 +92,7 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 	private suppressNextReconnect = false;
 	private stats: EventStats = ZERO_STATS();
 	private lastConnectAt: number | null = null;
+	private lastEventAt: number | null = null;
 
 	constructor(
 		@Inject(DI.config)
@@ -132,6 +140,7 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 		this.scheduleDidRefresh();
 		this.scheduleCursorFlush();
 		this.scheduleStatsLog();
+		this.scheduleHeartbeatCheck();
 		this.connect();
 	}
 
@@ -153,6 +162,10 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 		if (this.statsTimer != null) {
 			clearInterval(this.statsTimer);
 			this.statsTimer = null;
+		}
+		if (this.heartbeatTimer != null) {
+			clearInterval(this.heartbeatTimer);
+			this.heartbeatTimer = null;
 		}
 		this.logger.info('stopping, flushing cursor');
 		this.closeWs('shutdown');
@@ -235,6 +248,23 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 	}
 
 	@bindThis
+	private scheduleHeartbeatCheck(): void {
+		this.heartbeatTimer = setInterval(() => {
+			// 接続中で、最後の event 受信から HEARTBEAT_TIMEOUT_MS 以上経過していたら
+			// silent-death と判定して WS を強制 close → 通常の reconnect 経路に乗せる。
+			if (this.ws == null) return;
+			if (this.lastEventAt == null) return;
+			const idleMs = Date.now() - this.lastEventAt;
+			if (idleMs > HEARTBEAT_TIMEOUT_MS) {
+				this.logger.warn(`heartbeat watchdog: no Jetstream events for ${Math.round(idleMs / 1000)}s; forcing reconnect`);
+				// 通常 reconnect させる (suppressNextReconnect は立てない)
+				this.closeWs('heartbeat-timeout');
+				this.scheduleReconnect();
+			}
+		}, HEARTBEAT_CHECK_INTERVAL_MS);
+	}
+
+	@bindThis
 	private async loadCursor(): Promise<number | null> {
 		const raw = await this.redisClient.get(CURSOR_REDIS_KEY).catch(() => null);
 		if (raw == null) return null;
@@ -297,6 +327,9 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 			this.connecting = false;
 			this.reconnectAttempt = 0;
 			this.lastConnectAt = Date.now();
+			// open 時点で lastEventAt を初期化。これがないと「接続直後 = 過去の eventAt がそのまま →
+			// heartbeat watchdog が即時に reconnect する」死亡ループに陥る。
+			this.lastEventAt = Date.now();
 			this.logger.info(`Jetstream connected (dids=${this.wantedDids.length} cursor=${this.currentCursor ?? '(none)'})`);
 		});
 		ws.addEventListener('message', (event: MessageEvent) => {
@@ -357,6 +390,7 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 	private handleMessage(data: unknown): void {
 		if (typeof data !== 'string') return;
 		this.stats.received += 1;
+		this.lastEventAt = Date.now();
 
 		let evt: JetstreamEvent;
 		try {
