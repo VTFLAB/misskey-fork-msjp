@@ -42,6 +42,30 @@ const RECONNECT_MAX_MS = 30_000;
 // 10000 件としているが、長すぎる URL は Cloudflare 等で 414 になるので保守的に絞る。
 const MAX_WANTED_DIDS = 5000;
 
+const STATS_INTERVAL_MS = 60_000;
+
+type EventStats = {
+	received: number;
+	postCreate: number;
+	postDelete: number;
+	repostCreate: number;
+	repostDelete: number;
+	ingestErrors: number;
+	skippedNoSubject: number;
+	parseErrors: number;
+};
+
+const ZERO_STATS = (): EventStats => ({
+	received: 0,
+	postCreate: 0,
+	postDelete: 0,
+	repostCreate: 0,
+	repostDelete: 0,
+	ingestErrors: 0,
+	skippedNoSubject: 0,
+	parseErrors: 0,
+});
+
 @Injectable()
 export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown {
 	private logger: Logger;
@@ -51,11 +75,14 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 	private reconnectTimer: NodeJS.Timeout | null = null;
 	private didRefreshTimer: NodeJS.Timeout | null = null;
 	private cursorFlushTimer: NodeJS.Timeout | null = null;
+	private statsTimer: NodeJS.Timeout | null = null;
 	private currentCursor: number | null = null;
 	private flushedCursor: number | null = null;
 	private wantedDids: string[] = [];
 	private stopped = false;
 	private connecting = false;
+	private stats: EventStats = ZERO_STATS();
+	private lastConnectAt: number | null = null;
 
 	constructor(
 		@Inject(DI.config)
@@ -92,9 +119,11 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 		this.stopped = false;
 		this.currentCursor = await this.loadCursor();
 		this.flushedCursor = this.currentCursor;
+		this.logger.info(`starting (cursor from Redis = ${this.currentCursor ?? '(none)'}, AT_PROTO_DISABLE_JETSTREAM=${process.env.AT_PROTO_DISABLE_JETSTREAM ?? 'unset'})`);
 		await this.refreshWantedDids();
 		this.scheduleDidRefresh();
 		this.scheduleCursorFlush();
+		this.scheduleStatsLog();
 		this.connect();
 	}
 
@@ -113,6 +142,11 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 			clearInterval(this.cursorFlushTimer);
 			this.cursorFlushTimer = null;
 		}
+		if (this.statsTimer != null) {
+			clearInterval(this.statsTimer);
+			this.statsTimer = null;
+		}
+		this.logger.info('stopping, flushing cursor');
 		this.closeWs('shutdown');
 		await this.flushCursor(true);
 	}
@@ -136,8 +170,12 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 	@bindThis
 	private async refreshWantedDids(): Promise<void> {
 		try {
+			const before = this.wantedDids.length;
 			const dids = await this.atpPersonService.listAllDids();
 			this.wantedDids = dids.slice(0, MAX_WANTED_DIDS);
+			if (before !== this.wantedDids.length) {
+				this.logger.info(`wantedDids updated: ${before} → ${this.wantedDids.length}`);
+			}
 			if (dids.length > MAX_WANTED_DIDS) {
 				this.logger.warn(`pseudo-user DID count ${dids.length} exceeds MAX_WANTED_DIDS=${MAX_WANTED_DIDS}; later entries will not be subscribed`);
 			}
@@ -158,6 +196,21 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 		this.cursorFlushTimer = setInterval(() => {
 			this.flushCursor(false).catch(e => this.logger.error(`cursor flush failed: ${e instanceof Error ? e.message : String(e)}`));
 		}, CURSOR_FLUSH_INTERVAL_MS);
+	}
+
+	@bindThis
+	private scheduleStatsLog(): void {
+		this.statsTimer = setInterval(() => {
+			const s = this.stats;
+			if (s.received === 0 && s.ingestErrors === 0) {
+				this.logger.debug(`stats(60s): no events. connected=${this.ws != null} dids=${this.wantedDids.length}`);
+			} else {
+				this.logger.info(
+					`stats(60s): received=${s.received} post(+${s.postCreate}/-${s.postDelete}) repost(+${s.repostCreate}/-${s.repostDelete}) ingestErrors=${s.ingestErrors} skippedNoSubject=${s.skippedNoSubject} parseErrors=${s.parseErrors} cursor=${this.currentCursor ?? '(none)'} dids=${this.wantedDids.length}`,
+				);
+			}
+			this.stats = ZERO_STATS();
+		}, STATS_INTERVAL_MS);
 	}
 
 	@bindThis
@@ -219,7 +272,8 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 		ws.addEventListener('open', () => {
 			this.connecting = false;
 			this.reconnectAttempt = 0;
-			this.logger.info('Jetstream connected');
+			this.lastConnectAt = Date.now();
+			this.logger.info(`Jetstream connected (dids=${this.wantedDids.length} cursor=${this.currentCursor ?? '(none)'})`);
 		});
 		ws.addEventListener('message', (event: MessageEvent) => {
 			this.handleMessage(event.data);
@@ -230,7 +284,8 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 		});
 		ws.addEventListener('close', (event) => {
 			this.connecting = false;
-			this.logger.warn(`Jetstream WS closed (code=${event.code}, reason="${event.reason}")`);
+			const uptime = this.lastConnectAt != null ? Math.round((Date.now() - this.lastConnectAt) / 1000) : 0;
+			this.logger.warn(`Jetstream WS closed (code=${event.code}, reason="${event.reason}", uptime=${uptime}s)`);
 			this.ws = null;
 			this.scheduleReconnect();
 		});
@@ -265,11 +320,13 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 	@bindThis
 	private handleMessage(data: unknown): void {
 		if (typeof data !== 'string') return;
+		this.stats.received += 1;
 
 		let evt: JetstreamEvent;
 		try {
 			evt = JSON.parse(data) as JetstreamEvent;
 		} catch (e) {
+			this.stats.parseErrors += 1;
 			this.logger.warn(`malformed Jetstream message: ${e instanceof Error ? e.message : String(e)}`);
 			return;
 		}
@@ -283,24 +340,38 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 		const commit = evt.commit;
 		if (commit.collection === 'app.bsky.feed.post') {
 			if (commit.operation === 'create' || commit.operation === 'update') {
-				if (commit.record == null) return;
+				if (commit.record == null) {
+					this.stats.skippedNoSubject += 1;
+					return;
+				}
+				this.stats.postCreate += 1;
 				this.atpNoteService.ingestPost(evt.did, commit.rkey, commit.record).catch(e => {
-					this.logger.error(`ingestPost failed for ${evt.did}/${commit.rkey}: ${e instanceof Error ? e.message : String(e)}`);
+					this.stats.ingestErrors += 1;
+					this.logger.error(`ingestPost failed for ${evt.did}/${commit.rkey}: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`);
 				});
 			} else if (commit.operation === 'delete') {
+				this.stats.postDelete += 1;
 				this.atpNoteService.deletePost(evt.did, commit.rkey).catch(e => {
-					this.logger.error(`deletePost failed for ${evt.did}/${commit.rkey}: ${e instanceof Error ? e.message : String(e)}`);
+					this.stats.ingestErrors += 1;
+					this.logger.error(`deletePost failed for ${evt.did}/${commit.rkey}: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`);
 				});
 			}
 		} else if (commit.collection === 'app.bsky.feed.repost') {
 			if (commit.operation === 'create' || commit.operation === 'update') {
-				if (commit.record == null) return;
+				if (commit.record == null) {
+					this.stats.skippedNoSubject += 1;
+					return;
+				}
+				this.stats.repostCreate += 1;
 				this.atpNoteService.ingestRepost(evt.did, commit.rkey, commit.record).catch(e => {
-					this.logger.error(`ingestRepost failed for ${evt.did}/${commit.rkey}: ${e instanceof Error ? e.message : String(e)}`);
+					this.stats.ingestErrors += 1;
+					this.logger.error(`ingestRepost failed for ${evt.did}/${commit.rkey}: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`);
 				});
 			} else if (commit.operation === 'delete') {
+				this.stats.repostDelete += 1;
 				this.atpNoteService.deleteRepost(evt.did, commit.rkey).catch(e => {
-					this.logger.error(`deleteRepost failed for ${evt.did}/${commit.rkey}: ${e instanceof Error ? e.message : String(e)}`);
+					this.stats.ingestErrors += 1;
+					this.logger.error(`deleteRepost failed for ${evt.did}/${commit.rkey}: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}`);
 				});
 			}
 		}
