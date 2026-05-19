@@ -6,6 +6,10 @@
 Dockerfile
 build/
 built/
+**/built/
+packages/*/built/
+packages/misskey-js/generator/built/
+packages/misskey-js/generator/api.json
 src-js/
 db/
 .devcontainer/compose.yml
