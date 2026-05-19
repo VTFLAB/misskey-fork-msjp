@@ -16,7 +16,8 @@ export class AtpLoggerService {
 		private loggerService: LoggerService,
 	) {
 		this.logger = this.loggerService.getLogger('atproto', 'magenta');
-		this.logger.debug('atproto logger initialized');
+		// 起動可視性のため info で出す (production でも常時出る)。本番運用が安定したら debug に戻してよい。
+		this.logger.info(`atproto logger initialized (PID=${process.pid})`);
 	}
 
 	@bindThis
