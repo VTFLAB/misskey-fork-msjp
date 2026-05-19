@@ -285,6 +285,14 @@ export class MiUser {
 	})
 	public token: string | null;
 
+	// AT Protocol (Bluesky) DID. host='bsky.social' の pseudo-remote user 専用。
+	// 一意性は migration の partial unique index で担保 (WHERE "atDid" IS NOT NULL)。
+	@Column('varchar', {
+		length: 256, nullable: true,
+		comment: 'AT Protocol DID for Bluesky pseudo-remote users (host=bsky.social).',
+	})
+	public atDid: string | null;
+
 	constructor(data: Partial<MiUser>) {
 		if (data == null) return;
 
