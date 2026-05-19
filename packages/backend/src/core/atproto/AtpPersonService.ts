@@ -6,14 +6,15 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DataSource, EntityManager, IsNull, Not } from 'typeorm';
 import { DI } from '@/di-symbols.js';
-import type { UserProfilesRepository, UsersRepository } from '@/models/_.js';
+import type { FollowingsRepository, UserProfilesRepository, UsersRepository } from '@/models/_.js';
 import { MiUser } from '@/models/User.js';
-import type { MiRemoteUser } from '@/models/User.js';
+import type { MiLocalUser, MiRemoteUser } from '@/models/User.js';
 import { MiUserProfile } from '@/models/UserProfile.js';
 import { IdService } from '@/core/IdService.js';
 import { DriveService } from '@/core/DriveService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import { isDuplicateKeyValueError } from '@/misc/is-duplicate-key-value-error.js';
+import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { AtpLoggerService } from './AtpLoggerService.js';
@@ -59,6 +60,9 @@ export class AtpPersonService {
 
 		@Inject(DI.userProfilesRepository)
 		private userProfilesRepository: UserProfilesRepository,
+
+		@Inject(DI.followingsRepository)
+		private followingsRepository: FollowingsRepository,
 
 		private idService: IdService,
 		private driveService: DriveService,
@@ -307,11 +311,77 @@ export class AtpPersonService {
 	/**
 	 * 全 Bsky pseudo-user の DID 一覧を返す。Jetstream の wantedDids 構築用。
 	 */
+	/**
+	 * Misskey 標準の UserFollowingService.follow() は local→remote follow を AP follow request
+	 * として処理し、followee.inbox に "Follow" を deliver、Accept 待ち。本 fork の pseudo-MiUser
+	 * (host='bsky.social') は inbox=null で Accept が永遠に返らず、followings table に行が
+	 * 入らない問題があった。ここでは insertFollowingDoc 相当の最小実装で直接 insert する。
+	 * upstream の UserFollowingService 自体は touch しない方針 (rebase コスト minimize)。
+	 *
+	 * cache invalidation を行わないが、Misskey の followings 関連 cache は read-through
+	 * (毎回 DB 参照) または短 TTL なので、現状の運用では数秒以内に follow が反映される
+	 * (Phase 1-8 期間の env 経由実装でも同等の挙動だった)。
+	 */
+	@bindThis
+	public async directFollow(
+		follower: MiLocalUser,
+		followee: MiRemoteUser,
+	): Promise<void> {
+		const exists = await this.followingsRepository.exists({
+			where: { followerId: follower.id, followeeId: followee.id },
+		});
+		if (exists) {
+			throw new IdentifiableError('ec3f65c0-a9d1-47d9-8791-b2e7b9dcdced', 'already following');
+		}
+
+		await this.followingsRepository.insert({
+			id: this.idService.gen(),
+			followerId: follower.id,
+			followeeId: followee.id,
+			followerHost: follower.host,
+			followerInbox: null,
+			followerSharedInbox: null,
+			followeeHost: followee.host,
+			followeeInbox: null,
+			followeeSharedInbox: null,
+		});
+
+		await this.usersRepository.increment({ id: follower.id }, 'followingCount', 1);
+		await this.usersRepository.increment({ id: followee.id }, 'followersCount', 1);
+
+		this.logger.info(`directFollow: follower=${follower.id} → followee=${followee.id} (@${followee.username}@${followee.host})`);
+	}
+
+	/**
+	 * directFollow の逆。pseudo-MiUser に対する unfollow を AP request 経由でなく直接削除する。
+	 */
+	@bindThis
+	public async directUnfollow(
+		follower: MiLocalUser,
+		followee: MiRemoteUser,
+	): Promise<boolean> {
+		const result = await this.followingsRepository.delete({
+			followerId: follower.id,
+			followeeId: followee.id,
+		});
+		const affected = result.affected ?? 0;
+		if (affected > 0) {
+			await this.usersRepository.decrement({ id: follower.id }, 'followingCount', affected);
+			await this.usersRepository.decrement({ id: followee.id }, 'followersCount', affected);
+			this.logger.info(`directUnfollow: follower=${follower.id} → followee=${followee.id} (@${followee.username}@${followee.host})`);
+			return true;
+		}
+		return false;
+	}
+
 	@bindThis
 	public async listAllDids(): Promise<string[]> {
+		// ORDER BY id ASC は AtpJetstreamService.refreshSubscription の join(',') 比較で
+		// 「行は同じだが順序が違う」だけで diff 判定 → spurious reconnect 発生を防ぐため必須。
 		const rows = await this.usersRepository.find({
 			where: { atDid: Not(IsNull()) },
 			select: ['atDid'],
+			order: { id: 'ASC' },
 		});
 		return rows.map(r => r.atDid).filter((d): d is string => d != null);
 	}
