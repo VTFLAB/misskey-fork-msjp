@@ -153,6 +153,8 @@ import { ApPersonService } from './activitypub/models/ApPersonService.js';
 import { ApQuestionService } from './activitypub/models/ApQuestionService.js';
 import { AtpLoggerService } from './atproto/AtpLoggerService.js';
 import { AtpHttpClientService } from './atproto/AtpHttpClientService.js';
+import { AtpDidResolver } from './atproto/AtpDidResolver.js';
+import { AtpPersonService } from './atproto/AtpPersonService.js';
 import { QueueModule } from './QueueModule.js';
 import { QueueService } from './QueueService.js';
 import { LoggerService } from './LoggerService.js';
@@ -308,6 +310,8 @@ const $ApQuestionService: Provider = { provide: 'ApQuestionService', useExisting
 
 const $AtpLoggerService: Provider = { provide: 'AtpLoggerService', useExisting: AtpLoggerService };
 const $AtpHttpClientService: Provider = { provide: 'AtpHttpClientService', useExisting: AtpHttpClientService };
+const $AtpDidResolver: Provider = { provide: 'AtpDidResolver', useExisting: AtpDidResolver };
+const $AtpPersonService: Provider = { provide: 'AtpPersonService', useExisting: AtpPersonService };
 //#endregion
 
 @Module({
@@ -465,6 +469,8 @@ const $AtpHttpClientService: Provider = { provide: 'AtpHttpClientService', useEx
 
 		AtpLoggerService,
 		AtpHttpClientService,
+		AtpDidResolver,
+		AtpPersonService,
 
 		QueueService,
 
@@ -618,6 +624,8 @@ const $AtpHttpClientService: Provider = { provide: 'AtpHttpClientService', useEx
 
 		$AtpLoggerService,
 		$AtpHttpClientService,
+		$AtpDidResolver,
+		$AtpPersonService,
 		//#endregion
 	],
 	exports: [
@@ -771,6 +779,8 @@ const $AtpHttpClientService: Provider = { provide: 'AtpHttpClientService', useEx
 
 		AtpLoggerService,
 		AtpHttpClientService,
+		AtpDidResolver,
+		AtpPersonService,
 
 		QueueService,
 
@@ -922,6 +932,8 @@ const $AtpHttpClientService: Provider = { provide: 'AtpHttpClientService', useEx
 
 		$AtpLoggerService,
 		$AtpHttpClientService,
+		$AtpDidResolver,
+		$AtpPersonService,
 		//#endregion
 	],
 })
