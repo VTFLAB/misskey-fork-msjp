@@ -13,6 +13,7 @@ import { NoteDeleteService } from '@/core/NoteDeleteService.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { AtpLoggerService } from './AtpLoggerService.js';
+import { AtpHttpClientService } from './AtpHttpClientService.js';
 import { AtpPersonService } from './AtpPersonService.js';
 
 // Bsky lexicon の最小型 (必要 field のみ)。
@@ -56,8 +57,31 @@ type BskyRepostRecord = {
 	createdAt?: string;
 };
 
+// app.bsky.feed.getAuthorFeed の応答 (必要 field のみ)。
+type BskyFeedItem = {
+	post?: {
+		uri: string;
+		cid?: string;
+		author?: { did: string };
+		record?: unknown;
+		indexedAt?: string;
+	};
+	// repost の場合 reason が付く。backfill では skip して original 投稿のみ取り込む
+	// (repost は forward Jetstream に任せる)。
+	reason?: { $type: string };
+};
+
+type BskyAuthorFeedResponse = {
+	feed?: BskyFeedItem[];
+	cursor?: string;
+};
+
 const POST_COLLECTION = 'app.bsky.feed.post';
 const REPOST_COLLECTION = 'app.bsky.feed.repost';
+
+const BACKFILL_DEFAULT_CUTOFF_MS = 30 * 24 * 60 * 60 * 1000; // 30 日
+const BACKFILL_PAGE_LIMIT = 100;
+const BACKFILL_MAX_PAGES = 20; // safety: 最大 2000 件まで遡る
 
 @Injectable()
 export class AtpNoteService {
@@ -73,6 +97,7 @@ export class AtpNoteService {
 		private noteCreateService: NoteCreateService,
 		private noteDeleteService: NoteDeleteService,
 		private atpLoggerService: AtpLoggerService,
+		private atpHttpClientService: AtpHttpClientService,
 		private atpPersonService: AtpPersonService,
 	) {
 		this.logger = this.atpLoggerService.child('note');
@@ -169,6 +194,74 @@ export class AtpNoteService {
 			}
 			throw e;
 		}
+	}
+
+	/**
+	 * follow 時に直近 N 日分の post を AppView (`app.bsky.feed.getAuthorFeed`) から
+	 * reverse-chronological に取って ingestPost に流す。cutoff 越え or feed 終端で停止。
+	 * 既存 note は ingestPost 内で uri lookup によって dedup される。
+	 * repost (item.reason 付き) は skip — forward Jetstream に任せる。
+	 */
+	@bindThis
+	public async backfillAuthorFeed(
+		did: string,
+		opts: { cutoffMs?: number } = {},
+	): Promise<{ scanned: number; ingested: number; pagesRequested: number; reachedCutoff: boolean }> {
+		const cutoffMs = opts.cutoffMs ?? BACKFILL_DEFAULT_CUTOFF_MS;
+		const cutoffTs = Date.now() - cutoffMs;
+		let scanned = 0;
+		let ingested = 0;
+		let cursor: string | undefined;
+		let pagesRequested = 0;
+		let reachedCutoff = false;
+
+		this.logger.info(`backfill start: did=${did} cutoffDays=${(cutoffMs / 86400000).toFixed(1)}`);
+
+		while (pagesRequested < BACKFILL_MAX_PAGES) {
+			pagesRequested += 1;
+			let page: BskyAuthorFeedResponse;
+			try {
+				page = await this.atpHttpClientService.xrpcGet<BskyAuthorFeedResponse>(
+					'app.bsky.feed.getAuthorFeed',
+					{ actor: did, limit: BACKFILL_PAGE_LIMIT, cursor },
+				);
+			} catch (e) {
+				this.logger.warn(`backfill getAuthorFeed failed: did=${did} page=${pagesRequested} err=${e instanceof Error ? e.message : String(e)}`);
+				break;
+			}
+			const items = page.feed ?? [];
+			if (items.length === 0) break;
+
+			for (const item of items) {
+				scanned += 1;
+				// repost (= 他人の post の再放流) は backfill では skip。Jetstream の forward に任せる。
+				if (item.reason != null) continue;
+				const post = item.post;
+				if (post == null || post.author?.did !== did) continue;
+				const record = post.record as BskyPostRecord | undefined;
+				if (record == null) continue;
+				const createdAtTs = record.createdAt ? new Date(record.createdAt).getTime() : 0;
+				if (createdAtTs > 0 && createdAtTs < cutoffTs) {
+					reachedCutoff = true;
+					break;
+				}
+				const rkey = post.uri.split('/').pop();
+				if (!rkey) continue;
+				try {
+					const result = await this.ingestPost(did, rkey, record as unknown as Record<string, unknown>);
+					if (result != null) ingested += 1;
+				} catch (e) {
+					this.logger.warn(`backfill ingest failed: ${post.uri} ${e instanceof Error ? e.message : String(e)}`);
+				}
+			}
+
+			if (reachedCutoff) break;
+			cursor = page.cursor;
+			if (cursor == null) break;
+		}
+
+		this.logger.info(`backfill done: did=${did} scanned=${scanned} ingested=${ingested} pages=${pagesRequested} reachedCutoff=${reachedCutoff}`);
+		return { scanned, ingested, pagesRequested, reachedCutoff };
 	}
 
 	@bindThis
