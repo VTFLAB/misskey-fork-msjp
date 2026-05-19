@@ -64,26 +64,24 @@ deploy は `git push` → Gitea Actions build → registry push → mi-host が 
 
 ## 既知の未対応 TODO
 
-優先順:
+2026-05-20 までに #1, #8, #9 を除く 6 件は対応済。残るのは構造的に対応不要 / 別 phase なものだけ。
 
-1. **CHANGELOG 未記載** — private fork なので skip 中。upstream rebase 時に必要なら追加。
+### 対応済 (history としてのみ残す)
 
-2. **`FORCE_FOLLOW_REMOTE_USER_FOR_TESTING` env 依存** — 命名がテスト用で気持ち悪い。本来は fork 専用の `AtpPersonService.directFollow(me, pseudoUser)` 等で `UserFollowingService.insertFollowingDoc` を直接呼ぶ実装にすべき (insertFollowingDoc が private なので別経路要)。
-   - 影響: env を外すと既存 6 user の再 follow ができなくなるが、現状の follow 関係は維持される。
+- ~~#2 `FORCE_FOLLOW_REMOTE_USER_FOR_TESTING` env 依存~~ — `AtpPersonService.directFollow / directUnfollow` を新設し follow/unfollow endpoint をそちらに切替。`UserFollowingService.follow` の AP follow request 経路を bypass。env は no-op になったので Quadlet からも削除済。
+- ~~#3 `AtpLoggerService` の constructor `console.error` 診断~~ — 撤去。
+- ~~#4 `listAllDids()` の順序不安定~~ — `order: { id: 'ASC' }` を追加、spurious reconnect 解消。
+- ~~#5 Jetstream watermark / heartbeat~~ — `lastEventAt` を handleMessage で更新、`scheduleHeartbeatCheck` (30s 毎) で 5 分以上無音なら強制 close → 通常 reconnect 経路に乗せる。
+- ~~#6 Backfill の大量並列実行~~ — 自前 in-memory FIFO queue (`acquireBackfillSlot` / `releaseBackfillSlot`) で `BACKFILL_MAX_PARALLEL=2` に制限。50 同時 follow でも順次 2 並列まで。
+- ~~#7 Quote post (`app.bsky.embed.record`)~~ — `extractQuoteSubjectUri` + `fetchOrIngestPostByUri` (`com.atproto.repo.getRecord` 経由で subject を AppView fetch) を新設。`ingestPost` で `renote` 引数として `noteCreateService.create` に渡し、Misskey の quote (renote) として表示。`ingestRepost` も同じ pattern で subject 未取り込み時に AppView fetch するように改善 (これまでは skip)。
 
-3. **AtpLoggerService の constructor `console.error` 診断** — staging で build context バグを追跡したときの遺物。stderr のみで害は無いが、本番では雑音。`feat(atproto): cleanup diagnostic` で消す。
+### 残 (構造的・別 phase)
 
-4. **`listAllDids()` の順序が不安定 → spurious reconnect** — `ORDER BY id` 抜けで PostgreSQL がランダム順を返すことがあり、`refreshSubscription` 内の `join(',')` 比較で「変化したと誤判定 → 不必要に WS reconnect」が発生する。実害は WS 切断時間 1〜2s のみで自動回復。修正は 1 行 (`select` クエリに `order: { id: 'ASC' }` 追加)。
-
-5. **Jetstream の watermark / heartbeat** — `idleTimeoutMs` 相当の watchdog 無し。WS が無音で死ぬケースを 60s 周期の did refresh tick で蘇生しているが、もっと早期の検出にしたいなら ping/pong を入れる。
-
-6. **Backfill の大量並列実行**: `/api/atproto/follow` の自動 backfill は background `.catch()` で並列に走る。50 アカウントを一気に follow すると AppView 50 並列 + DB INSERT 50 並列で本番 PG にも負荷。実用上は 1-2 アカウント /分 のペースなので問題化していないが、将来的に follow 多発する用途なら queue 化したい。
-
-7. **Quote post (`app.bsky.embed.record`)**: 現状は trailer URL を text に挿入するのみで Misskey の quote (renote) 化していない。subject post を fetchOrIngest して renote として作る実装が望ましい。
+1. **CHANGELOG 未記載** — private fork なので skip 中。upstream への PR を出さない限り不要。
 
 8. **Avatar URL の SVG fallback**: Bluesky の avatar が無い user の場合 `profile.avatar` が undefined。今は何もしないので identicon になる。Misskey 流の挙動と一致しているので問題なし。
 
-9. **upstream rebase**: 月 1 で `git fetch upstream && git rebase upstream/master`。conflict 期待ファイル: `CoreModule.ts` の flat 列挙、`MiUser.ts` の atDid column 周辺、`endpoint-list.ts`。
+9. **upstream rebase**: 自動化済 (`.gitea/workflows/upstream-sync.yml` が毎日 03:00 JST に試行 → conflict 時のみ Issue 起票)。conflict 期待ファイル: `CoreModule.ts` の flat 列挙、`MiUser.ts` の atDid column 周辺、`endpoint-list.ts`。
 
 ## 運用コマンド集
 

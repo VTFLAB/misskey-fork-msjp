@@ -83,9 +83,21 @@ const BACKFILL_DEFAULT_CUTOFF_MS = 30 * 24 * 60 * 60 * 1000; // 30 日
 const BACKFILL_PAGE_LIMIT = 100;
 const BACKFILL_MAX_PAGES = 20; // safety: 最大 2000 件まで遡る
 
+// 並列度制限。50 アカウントを一気に follow しても AppView / Postgres に対する並列実行数を
+// この値以下に抑える。超過分は内部 FIFO queue に積まれて順次消化される。
+// BullMQ への置換も検討したが、Misskey の既存 queue モジュールに乗せるオーバーヘッドより
+// in-memory semaphore で十分 (process 再起動で job が失われるが、follow 状態は DB に
+// 残っているので /api/atproto/backfill で人手再 trigger できる)。
+const BACKFILL_MAX_PARALLEL = 2;
+
 @Injectable()
 export class AtpNoteService {
 	private logger: Logger;
+
+	// in-memory FIFO queue with concurrency limit for backfill jobs.
+	// inflight が BACKFILL_MAX_PARALLEL に達したら waiters に積まれ、先行 job が完了したら次が走る。
+	private backfillInflight = 0;
+	private backfillWaiters: Array<() => void> = [];
 
 	constructor(
 		@Inject(DI.usersRepository)
@@ -101,6 +113,23 @@ export class AtpNoteService {
 		private atpPersonService: AtpPersonService,
 	) {
 		this.logger = this.atpLoggerService.child('note');
+	}
+
+	@bindThis
+	private async acquireBackfillSlot(): Promise<void> {
+		if (this.backfillInflight < BACKFILL_MAX_PARALLEL) {
+			this.backfillInflight += 1;
+			return;
+		}
+		await new Promise<void>(resolve => this.backfillWaiters.push(resolve));
+		this.backfillInflight += 1;
+	}
+
+	@bindThis
+	private releaseBackfillSlot(): void {
+		this.backfillInflight -= 1;
+		const next = this.backfillWaiters.shift();
+		if (next != null) next();
 	}
 
 	@bindThis
@@ -122,7 +151,17 @@ export class AtpNoteService {
 
 		const author = await this.atpPersonService.resolveByDid(did);
 
-		const text = this.renderText(record);
+		// Quote post (app.bsky.embed.record / recordWithMedia) を Misskey の renote として
+		// 取り込む。subject post が AppView で fetch でき、かつ post collection の場合のみ。
+		// list / feed generator / starter pack 等は対象外で、trailer URL fallback に任せる。
+		const quoteSubjectUri = this.extractQuoteSubjectUri(record.embed);
+		const renote = quoteSubjectUri != null
+			? await this.fetchOrIngestPostByUri(quoteSubjectUri)
+			: null;
+
+		// renote として取り込めた場合、embed trailer から quote 用 URL を抑止する
+		// (Misskey の renote 表示で subject を見せるので二重表示にしないため)。
+		const text = this.renderText(record, { suppressQuoteTrailer: renote != null });
 		const replyParentUri = record.reply?.parent.uri ?? null;
 		const reply = replyParentUri ? await this.lookupNoteByUri(replyParentUri) : null;
 		if (replyParentUri != null && reply == null) {
@@ -136,12 +175,13 @@ export class AtpNoteService {
 				createdAt,
 				text: text.length > 0 ? text : null,
 				reply,
+				renote,
 				visibility: 'public',
 				localOnly: false,
 				uri,
 				url,
 			});
-			this.logger.info(`ingestPost created: noteId=${created.id} user=@${author.username} uri=${uri} textLen=${text.length}${reply ? ' reply=Y' : ''}`);
+			this.logger.info(`ingestPost created: noteId=${created.id} user=@${author.username} uri=${uri} textLen=${text.length}${reply ? ' reply=Y' : ''}${renote ? ` quote=${renote.id}` : ''}`);
 			return created;
 		} catch (e) {
 			if ((e as { name?: string }).name === 'duplicated') {
@@ -149,6 +189,69 @@ export class AtpNoteService {
 				return await this.lookupNoteByUri(uri);
 			}
 			throw e;
+		}
+	}
+
+	/**
+	 * embed が record / recordWithMedia の場合に subject post の AT-URI を返す。
+	 * post collection に限定する (list / feedgen 等は null)。
+	 */
+	@bindThis
+	private extractQuoteSubjectUri(embed: BskyEmbed | undefined): string | null {
+		if (embed == null) return null;
+		const subjectUri =
+			embed.$type === 'app.bsky.embed.record' ? embed.record.uri :
+			embed.$type === 'app.bsky.embed.recordWithMedia' ? embed.record.record.uri :
+			null;
+		if (subjectUri == null) return null;
+		const parsed = this.parseAtUri(subjectUri);
+		if (parsed == null || parsed.collection !== POST_COLLECTION) return null;
+		return subjectUri;
+	}
+
+	@bindThis
+	private parseAtUri(uri: string): { did: string; collection: string; rkey: string } | null {
+		if (!uri.startsWith('at://')) return null;
+		const rest = uri.slice('at://'.length);
+		const parts = rest.split('/');
+		if (parts.length < 3) return null;
+		const [didPart, collectionPart, ...rkeyParts] = parts;
+		if (!didPart || !collectionPart || rkeyParts.length === 0) return null;
+		return { did: didPart, collection: collectionPart, rkey: rkeyParts.join('/') };
+	}
+
+	/**
+	 * AT-URI で identify される Bsky post を、既に DB にあればそれを、無ければ AppView
+	 * (com.atproto.repo.getRecord) から取得して ingest する。recursive な quote chain は
+	 * 段数 1 までに抑える (ingestPost 内で再度 quote ingest が走るのを防ぐため、
+	 * fetchOrIngestPostByUri からの呼び出しでは embed.record を fetch しない仕様)。
+	 *
+	 * 注: ここでは ingestPost(本体) を呼ぶので、subject post 自体の embed が更に quote
+	 * を持つ場合、ingest 時に再帰的に解決されうる。深い chain は AppView 負荷を考えて
+	 * 将来 max-depth で抑える検討の余地あり (現状は 1-2 段が実用 ceiling)。
+	 */
+	@bindThis
+	private async fetchOrIngestPostByUri(uri: string): Promise<MiNote | null> {
+		const existing = await this.lookupNoteByUri(uri);
+		if (existing != null) return existing;
+
+		const parsed = this.parseAtUri(uri);
+		if (parsed == null || parsed.collection !== POST_COLLECTION) return null;
+
+		try {
+			const response = await this.atpHttpClientService.xrpcGet<{
+				uri: string;
+				cid: string;
+				value: Record<string, unknown>;
+			}>('com.atproto.repo.getRecord', {
+				repo: parsed.did,
+				collection: parsed.collection,
+				rkey: parsed.rkey,
+			});
+			return await this.ingestPost(parsed.did, parsed.rkey, response.value);
+		} catch (e) {
+			this.logger.warn(`fetchOrIngestPostByUri failed for ${uri}: ${e instanceof Error ? e.message : String(e)}`);
+			return null;
 		}
 	}
 
@@ -167,10 +270,11 @@ export class AtpNoteService {
 			return existing;
 		}
 
-		const subjectNote = await this.lookupNoteByUri(record.subject.uri);
+		// 対象 post が DB に無い場合、AppView から fetch して ingest する (renote 整合性を維持)。
+		// 失敗時のみ skip。
+		const subjectNote = await this.fetchOrIngestPostByUri(record.subject.uri);
 		if (subjectNote == null) {
-			// 対象ポストが未取り込みの場合は skip (将来 backfill 実装で対応)
-			this.logger.info(`ingestRepost skipped: subject ${record.subject.uri} not in DB (need backfill)`);
+			this.logger.info(`ingestRepost skipped: subject ${record.subject.uri} could not be fetched`);
 			return null;
 		}
 
@@ -207,6 +311,19 @@ export class AtpNoteService {
 		did: string,
 		opts: { cutoffMs?: number } = {},
 	): Promise<{ scanned: number; ingested: number; pagesRequested: number; reachedCutoff: boolean }> {
+		await this.acquireBackfillSlot();
+		try {
+			return await this.backfillAuthorFeedInternal(did, opts);
+		} finally {
+			this.releaseBackfillSlot();
+		}
+	}
+
+	@bindThis
+	private async backfillAuthorFeedInternal(
+		did: string,
+		opts: { cutoffMs?: number },
+	): Promise<{ scanned: number; ingested: number; pagesRequested: number; reachedCutoff: boolean }> {
 		const cutoffMs = opts.cutoffMs ?? BACKFILL_DEFAULT_CUTOFF_MS;
 		const cutoffTs = Date.now() - cutoffMs;
 		let scanned = 0;
@@ -215,7 +332,7 @@ export class AtpNoteService {
 		let pagesRequested = 0;
 		let reachedCutoff = false;
 
-		this.logger.info(`backfill start: did=${did} cutoffDays=${(cutoffMs / 86400000).toFixed(1)}`);
+		this.logger.info(`backfill start: did=${did} cutoffDays=${(cutoffMs / 86400000).toFixed(1)} (inflight=${this.backfillInflight}/${BACKFILL_MAX_PARALLEL})`);
 
 		while (pagesRequested < BACKFILL_MAX_PAGES) {
 			pagesRequested += 1;
@@ -316,12 +433,15 @@ export class AtpNoteService {
 	 * Bsky の text + facets + embed を MFM 風文字列に組み立てる。
 	 * facets は UTF-8 byte offset なので、TextEncoder で byte 列に直してから
 	 * 後ろのほうから置換し、最後に文字列へ戻す。
+	 *
+	 * suppressQuoteTrailer = true のとき、embed が record / recordWithMedia でも
+	 * その quote 用 URL trailer を出さない (renote 経由で表示するため重複回避)。
 	 */
 	@bindThis
-	private renderText(record: BskyPostRecord): string {
+	private renderText(record: BskyPostRecord, opts: { suppressQuoteTrailer?: boolean } = {}): string {
 		const text = record.text ?? '';
 		const replacedFacets = this.applyFacets(text, record.facets ?? []);
-		const trailers = this.renderEmbedTrailers(record.embed);
+		const trailers = this.renderEmbedTrailers(record.embed, opts);
 		return [replacedFacets, ...trailers].filter(s => s.length > 0).join('\n\n');
 	}
 
@@ -379,7 +499,7 @@ export class AtpNoteService {
 	}
 
 	@bindThis
-	private renderEmbedTrailers(embed: BskyEmbed | undefined): string[] {
+	private renderEmbedTrailers(embed: BskyEmbed | undefined, opts: { suppressQuoteTrailer?: boolean } = {}): string[] {
 		if (embed == null) return [];
 		switch (embed.$type) {
 			case 'app.bsky.embed.external':
@@ -387,8 +507,10 @@ export class AtpNoteService {
 			case 'app.bsky.embed.images':
 				return [];
 			case 'app.bsky.embed.record':
+				if (opts.suppressQuoteTrailer) return [];
 				return [this.atUriToWebUrl(embed.record.uri) ?? embed.record.uri];
 			case 'app.bsky.embed.recordWithMedia':
+				if (opts.suppressQuoteTrailer) return [];
 				return [this.atUriToWebUrl(embed.record.record.uri) ?? embed.record.record.uri];
 			default:
 				return [];

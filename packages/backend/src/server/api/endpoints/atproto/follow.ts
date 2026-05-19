@@ -10,7 +10,6 @@ import { AtpPersonService } from '@/core/atproto/AtpPersonService.js';
 import { AtpJetstreamService } from '@/core/atproto/AtpJetstreamService.js';
 import { AtpLoggerService } from '@/core/atproto/AtpLoggerService.js';
 import { AtpNoteService } from '@/core/atproto/AtpNoteService.js';
-import { UserFollowingService } from '@/core/UserFollowingService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 
@@ -67,7 +66,6 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private atpJetstreamService: AtpJetstreamService,
 		private atpNoteService: AtpNoteService,
 		atpLoggerService: AtpLoggerService,
-		private userFollowingService: UserFollowingService,
 		private userEntityService: UserEntityService,
 	) {
 		const logger = atpLoggerService.child('api/follow');
@@ -85,7 +83,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			let isNewFollow = false;
 			try {
-				await this.userFollowingService.follow(me, pseudoUser);
+				await this.atpPersonService.directFollow(me, pseudoUser);
 				isNewFollow = true;
 				logger.info(`follow ok: me=${me.id} → userId=${pseudoUser.id} (@${pseudoUser.username})`);
 			} catch (e) {

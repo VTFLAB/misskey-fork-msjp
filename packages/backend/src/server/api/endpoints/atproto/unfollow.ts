@@ -7,11 +7,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { ApiError } from '@/server/api/error.js';
 import { DI } from '@/di-symbols.js';
-import type { FollowingsRepository, UsersRepository } from '@/models/_.js';
+import type { UsersRepository } from '@/models/_.js';
 import type { MiRemoteUser } from '@/models/User.js';
-import { UserFollowingService } from '@/core/UserFollowingService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { AtpLoggerService } from '@/core/atproto/AtpLoggerService.js';
+import { AtpPersonService } from '@/core/atproto/AtpPersonService.js';
 
 export const meta = {
 	tags: ['atproto', 'following'],
@@ -55,11 +55,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		@Inject(DI.usersRepository)
 		private usersRepository: UsersRepository,
 
-		@Inject(DI.followingsRepository)
-		private followingsRepository: FollowingsRepository,
-
 		atpLoggerService: AtpLoggerService,
-		private userFollowingService: UserFollowingService,
+		private atpPersonService: AtpPersonService,
 		private userEntityService: UserEntityService,
 	) {
 		const logger = atpLoggerService.child('api/unfollow');
@@ -72,12 +69,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new ApiError(meta.errors.noSuchUser);
 			}
 
-			const exists = await this.followingsRepository.exists({
-				where: { followerId: me.id, followeeId: pseudoUser.id },
-			});
-
-			if (exists) {
-				await this.userFollowingService.unfollow(me, pseudoUser);
+			const removed = await this.atpPersonService.directUnfollow(me, pseudoUser);
+			if (removed) {
 				logger.info(`unfollow ok: me=${me.id} → userId=${pseudoUser.id}`);
 			} else {
 				logger.info(`unfollow noop (already not following): me=${me.id} → userId=${pseudoUser.id}`);
