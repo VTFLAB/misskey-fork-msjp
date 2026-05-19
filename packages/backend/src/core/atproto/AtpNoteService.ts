@@ -81,23 +81,33 @@ export class AtpNoteService {
 	@bindThis
 	public async ingestPost(did: string, rkey: string, raw: Record<string, unknown>): Promise<MiNote | null> {
 		const record = raw as BskyPostRecord;
-		if (typeof record.text !== 'string') return null;
+		if (typeof record.text !== 'string') {
+			this.logger.debug(`ingestPost skipped (no text): ${did}/${rkey}`);
+			return null;
+		}
 
 		const uri = this.buildPostUri(did, rkey);
 
 		// 既存ノートがあればスキップ (Jetstream のリトライ / update イベント対策)
 		const existing = await this.notesRepository.findOneBy({ uri });
-		if (existing != null) return existing;
+		if (existing != null) {
+			this.logger.debug(`ingestPost dedup hit: ${uri}`);
+			return existing;
+		}
 
 		const author = await this.atpPersonService.resolveByDid(did);
 
 		const text = this.renderText(record);
-		const reply = record.reply ? await this.lookupNoteByUri(record.reply.parent.uri) : null;
+		const replyParentUri = record.reply?.parent.uri ?? null;
+		const reply = replyParentUri ? await this.lookupNoteByUri(replyParentUri) : null;
+		if (replyParentUri != null && reply == null) {
+			this.logger.debug(`ingestPost: reply parent ${replyParentUri} not yet in DB, posting as standalone`);
+		}
 		const createdAt = record.createdAt ? new Date(record.createdAt) : null;
 		const url = this.buildWebUrl(author, rkey);
 
 		try {
-			return await this.noteCreateService.create(author, {
+			const created = await this.noteCreateService.create(author, {
 				createdAt,
 				text: text.length > 0 ? text : null,
 				reply,
@@ -106,8 +116,11 @@ export class AtpNoteService {
 				uri,
 				url,
 			});
+			this.logger.info(`ingestPost created: noteId=${created.id} user=@${author.username} uri=${uri} textLen=${text.length}${reply ? ' reply=Y' : ''}`);
+			return created;
 		} catch (e) {
 			if ((e as { name?: string }).name === 'duplicated') {
+				this.logger.debug(`ingestPost duplicate (race): ${uri}`);
 				return await this.lookupNoteByUri(uri);
 			}
 			throw e;
@@ -117,16 +130,22 @@ export class AtpNoteService {
 	@bindThis
 	public async ingestRepost(did: string, rkey: string, raw: Record<string, unknown>): Promise<MiNote | null> {
 		const record = raw as BskyRepostRecord;
-		if (record.subject?.uri == null) return null;
+		if (record.subject?.uri == null) {
+			this.logger.debug(`ingestRepost skipped (no subject): ${did}/${rkey}`);
+			return null;
+		}
 
 		const uri = this.buildRepostUri(did, rkey);
 		const existing = await this.notesRepository.findOneBy({ uri });
-		if (existing != null) return existing;
+		if (existing != null) {
+			this.logger.debug(`ingestRepost dedup hit: ${uri}`);
+			return existing;
+		}
 
 		const subjectNote = await this.lookupNoteByUri(record.subject.uri);
 		if (subjectNote == null) {
 			// 対象ポストが未取り込みの場合は skip (将来 backfill 実装で対応)
-			this.logger.debug(`repost subject not in DB: ${record.subject.uri}`);
+			this.logger.info(`ingestRepost skipped: subject ${record.subject.uri} not in DB (need backfill)`);
 			return null;
 		}
 
@@ -134,15 +153,18 @@ export class AtpNoteService {
 		const createdAt = record.createdAt ? new Date(record.createdAt) : null;
 
 		try {
-			return await this.noteCreateService.create(author, {
+			const created = await this.noteCreateService.create(author, {
 				createdAt,
 				renote: subjectNote,
 				visibility: 'public',
 				localOnly: false,
 				uri,
 			});
+			this.logger.info(`ingestRepost created: noteId=${created.id} user=@${author.username} renoteId=${subjectNote.id}`);
+			return created;
 		} catch (e) {
 			if ((e as { name?: string }).name === 'duplicated') {
+				this.logger.debug(`ingestRepost duplicate (race): ${uri}`);
 				return await this.lookupNoteByUri(uri);
 			}
 			throw e;
@@ -162,7 +184,10 @@ export class AtpNoteService {
 	@bindThis
 	private async deleteByUri(did: string, uri: string): Promise<void> {
 		const note = await this.notesRepository.findOneBy({ uri });
-		if (note == null) return;
+		if (note == null) {
+			this.logger.debug(`delete: note not found in DB (already gone or never ingested): ${uri}`);
+			return;
+		}
 
 		const author = await this.usersRepository.findOneBy({ atDid: did }) as MiRemoteUser | null;
 		if (author == null) {
@@ -170,6 +195,7 @@ export class AtpNoteService {
 			return;
 		}
 		await this.noteDeleteService.delete(author, note);
+		this.logger.info(`deleted note: noteId=${note.id} uri=${uri}`);
 	}
 
 	@bindThis

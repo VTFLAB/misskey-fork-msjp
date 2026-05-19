@@ -83,10 +83,13 @@ export class AtpPersonService {
 		const existing = await this.fetchByDid(did);
 		if (existing != null) {
 			if (opts.forceRefresh || this.shouldRefresh(existing)) {
+				this.logger.debug(`resolveByDid: refresh path for ${did} (userId=${existing.id})`);
 				return await this.refresh(existing);
 			}
+			this.logger.debug(`resolveByDid: cache hit for ${did} (userId=${existing.id})`);
 			return existing;
 		}
+		this.logger.info(`resolveByDid: create path for ${did}`);
 		return await this.create(did);
 	}
 
@@ -168,6 +171,7 @@ export class AtpPersonService {
 		}
 
 		if (user == null) throw new Error('failed to create pseudo-user');
+		this.logger.info(`created pseudo-user: userId=${(user as MiRemoteUser).id} handle=@${(user as MiRemoteUser).username} did=${did}`);
 		return user;
 	}
 
