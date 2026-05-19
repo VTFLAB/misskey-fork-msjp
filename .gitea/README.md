@@ -20,11 +20,14 @@ deploy 側 (Quadlet + auto-update timer の override) は `homelab-ops/misskey/`
 
 ## 必要な secrets / 権限
 
-Gitea Actions が自動発行する `GITEA_TOKEN` をそのまま使う。両 workflow が要求する追加 secret は無い。
-
-- `contents: write` — upstream-sync が force-with-lease push するため必須
-- `issues: write` — upstream-sync が conflict 時に Issue を立てるため必須
-- container registry への push 権限は `GITEA_TOKEN` で `${{ gitea.actor }}` (= owner = `VTF`) に紐づく
+- **`upstream-sync.yml`**: `secrets.GITEA_TOKEN` のみ。Gitea Actions が自動発行する repo scope
+  token で、`contents: write` (push) + `issues: write` (conflict 時 Issue 作成) を満たす。
+- **`build-image.yml`**: `secrets.REGISTRY_TOKEN` (user 側で 1 度だけ手動登録)。
+  Gitea の `GITEA_TOKEN` は repo scope のみで packages registry の push 権限を含まないため、
+  別途 VTF user の personal access token (`write:package` scope 必須) を登録する。
+  登録先は `https://git.msjp.pro/VTF/misskey-bsky-fork/settings/actions/secrets` の `[Add Secret]`、
+  Name = `REGISTRY_TOKEN`、Value = `~/.config/opencode/secrets/gitea.env` の `GITEA_ACCESS_TOKEN`
+  (admin user の場合は all-scope なので writes:package を含む)。
 
 ## Trouble shooting
 
