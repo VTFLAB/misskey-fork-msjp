@@ -253,6 +253,11 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 			// 接続中で、最後の event 受信から HEARTBEAT_TIMEOUT_MS 以上経過していたら
 			// silent-death と判定して WS を強制 close → 通常の reconnect 経路に乗せる。
 			if (this.ws == null) return;
+			// CONNECTING/CLOSING 中の WS は watchdog 対象外。OPEN 前に殺すと
+			// open ハンドラの lastEventAt 初期化に到達できず、古い lastEventAt のまま
+			// 「reconnect(30s) と watchdog(30s) が位相ロック → 接続確立前に毎回 close」
+			// の death-loop に陥る (open が永久に発火しない)。
+			if (this.ws.readyState !== WebSocket.OPEN) return;
 			if (this.lastEventAt == null) return;
 			const idleMs = Date.now() - this.lastEventAt;
 			if (idleMs > HEARTBEAT_TIMEOUT_MS) {
