@@ -39,6 +39,13 @@ const CURSOR_FLUSH_INTERVAL_MS = 5_000;
 const DID_REFRESH_INTERVAL_MS = 60_000;
 const RECONNECT_MIN_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
+// 接続試行の watchdog。new WebSocket() が CONNECTING のまま open/close/error の
+// どれも発火しない silent hang (network blip / half-open TCP / blackhole) に陥ると、
+// connecting フラグが true 固着し connect() の `if (this.connecting) return` で
+// 以後の全 reconnect が gate され、heartbeat watchdog も readyState!==OPEN を skip、
+// refreshSubscription の disconnected 判定も (ws!=null || connecting) で false になり
+// プロセス再起動まで永久 wedge する。接続ごとにこの時間で強制 closeWs → reconnect。
+const CONNECT_TIMEOUT_MS = 20_000;
 // Jetstream の URL クエリは最大長制限がある。Bluesky 側は wantedDids 上限を
 // 10000 件としているが、長すぎる URL は Cloudflare 等で 414 になるので保守的に絞る。
 const MAX_WANTED_DIDS = 5000;
@@ -84,6 +91,7 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 	private cursorFlushTimer: NodeJS.Timeout | null = null;
 	private statsTimer: NodeJS.Timeout | null = null;
 	private heartbeatTimer: NodeJS.Timeout | null = null;
+	private connectTimer: NodeJS.Timeout | null = null;
 	private currentCursor: number | null = null;
 	private flushedCursor: number | null = null;
 	private wantedDids: string[] = [];
@@ -167,6 +175,7 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 			clearInterval(this.heartbeatTimer);
 			this.heartbeatTimer = null;
 		}
+		this.clearConnectTimer();
 		this.logger.info('stopping, flushing cursor');
 		this.closeWs('shutdown');
 		await this.flushCursor(true);
@@ -330,6 +339,7 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 		ws.addEventListener('open', () => {
 			if (this.ws !== ws) return; // 古い WS の open はもう関係ない
 			this.connecting = false;
+			this.clearConnectTimer();
 			this.reconnectAttempt = 0;
 			this.lastConnectAt = Date.now();
 			// open 時点で lastEventAt を初期化。これがないと「接続直後 = 過去の eventAt がそのまま →
@@ -352,6 +362,7 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 			if (stale) return; // 古い WS の close は無視 (this.ws / connecting / reconnect 制御に触らない)
 			this.connecting = false;
 			this.ws = null;
+			this.clearConnectTimer();
 			if (this.suppressNextReconnect) {
 				this.suppressNextReconnect = false;
 				this.logger.debug('skipping auto-reconnect (manual close by refreshSubscription)');
@@ -361,10 +372,32 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 		});
 
 		this.ws = ws;
+
+		// 接続試行 watchdog: CONNECT_TIMEOUT_MS 以内に open/close/error の
+		// いずれも発火しなければ silent hang とみなし、強制 closeWs → reconnect。
+		// open/close ハンドラ側で clearConnectTimer() するので正常系では発火しない。
+		this.clearConnectTimer();
+		this.connectTimer = setTimeout(() => {
+			this.connectTimer = null;
+			if (this.ws !== ws) return; // 既に別 WS へ切り替わっている
+			if (ws.readyState === WebSocket.OPEN) return; // 既に open 済み
+			this.logger.warn(`connect watchdog: WS stuck (readyState=${ws.readyState}) for ${CONNECT_TIMEOUT_MS}ms; forcing reconnect`);
+			this.closeWs('connect-timeout');
+			this.scheduleReconnect();
+		}, CONNECT_TIMEOUT_MS);
+	}
+
+	@bindThis
+	private clearConnectTimer(): void {
+		if (this.connectTimer != null) {
+			clearTimeout(this.connectTimer);
+			this.connectTimer = null;
+		}
 	}
 
 	@bindThis
 	private closeWs(reason: string): void {
+		this.clearConnectTimer();
 		if (this.ws == null) return;
 		try {
 			this.ws.close(1000, reason);
