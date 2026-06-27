@@ -380,7 +380,7 @@ export class AtpPersonService {
 		// 「行は同じだが順序が違う」だけで diff 判定 → spurious reconnect 発生を防ぐため必須。
 		const rows = await this.usersRepository.find({
 			where: { atDid: Not(IsNull()) },
-			select: ['atDid'],
+			select: { atDid: true },
 			order: { id: 'ASC' },
 		});
 		return rows.map(r => r.atDid).filter((d): d is string => d != null);
