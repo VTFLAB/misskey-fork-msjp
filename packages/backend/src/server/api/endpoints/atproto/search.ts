@@ -119,7 +119,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		// 1. DID から local pseudo-user の id を引く
 		const users = await this.usersRepository.find({
 			where: { atDid: In(dids) },
-			select: ['id', 'atDid'],
+			select: { id: true, atDid: true },
 		});
 		if (users.length === 0) return new Set();
 
@@ -131,7 +131,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				followerId: meId,
 				followeeId: In(users.map(u => u.id)),
 			},
-			select: ['followeeId'],
+			select: { followeeId: true },
 		});
 
 		const result = new Set<string>();
