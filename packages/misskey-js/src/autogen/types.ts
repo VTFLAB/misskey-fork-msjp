@@ -8074,6 +8074,8 @@ export interface operations {
                 'application/json': {
                     /** Format: misskey:id */
                     emojiId: string;
+                    /** @default false */
+                    overwrite?: boolean;
                 };
             };
         };
