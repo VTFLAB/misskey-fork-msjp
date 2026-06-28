@@ -12276,9 +12276,49 @@ export interface Locale extends ILocale {
              */
             "confirmImportEmojisTitle": string;
             /**
-             * リモートから受信した{count}個の絵文字のインポートを行います。絵文字のライセンスに十分な注意を払ってください。実行しますか？
+             * リモートから受信した{count}個の絵文字のインポートを行います。同名の絵文字が既に存在する場合は画像が上書きされます。絵文字のライセンスに十分な注意を払ってください。実行しますか？
              */
             "confirmImportEmojisDescription": ParameterizedString<"count">;
+            /**
+             * 検索結果の全件インポート
+             */
+            "confirmBulkImportTitle": string;
+            /**
+             * 現在の検索条件に一致する全{pages}ページの絵文字をインポートします。1件ごとに{interval}msの間隔を空けます。同名の絵文字が既に存在する場合は画像が上書きされます。絵文字のライセンスに十分な注意を払ってください。実行しますか？
+             */
+            "confirmBulkImportDescription": ParameterizedString<"pages" | "interval">;
+            /**
+             * インポート完了
+             */
+            "bulkImportCompletedTitle": string;
+            /**
+             * {done} / {total} 件完了 ({failed} 件失敗)
+             */
+            "bulkImportCompletedDescription": ParameterizedString<"done" | "total" | "failed">;
+            /**
+             * インポート中断
+             */
+            "bulkImportCancelledTitle": string;
+            /**
+             * {done} / {total} 件完了 ({failed} 件失敗) で中断しました
+             */
+            "bulkImportCancelledDescription": ParameterizedString<"done" | "total" | "failed">;
+            /**
+             * インターバル(ms)
+             */
+            "bulkImportInterval": string;
+            /**
+             * 検索結果を全件インポート
+             */
+            "bulkImportButton": string;
+            /**
+             * キャンセル
+             */
+            "bulkImportCancel": string;
+            /**
+             * {done} / {total} 完了 ({failed} 失敗)
+             */
+            "bulkImportProgress": ParameterizedString<"done" | "total" | "failed">;
         };
         "_local": {
             /**
