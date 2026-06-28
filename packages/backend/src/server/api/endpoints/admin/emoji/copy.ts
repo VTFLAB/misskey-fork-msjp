@@ -35,11 +35,13 @@ export const meta = {
 
 	res: {
 		type: 'object',
-		optional: false, nullable: false,
+		optional: false,
+		nullable: false,
 		properties: {
 			id: {
 				type: 'string',
-				optional: false, nullable: false,
+				optional: false,
+				nullable: false,
 				format: 'id',
 			},
 		},
@@ -50,6 +52,7 @@ export const paramDef = {
 	type: 'object',
 	properties: {
 		emojiId: { type: 'string', format: 'misskey:id' },
+		overwrite: { type: 'boolean', default: false },
 	},
 	required: ['emojiId'],
 } as const;
@@ -57,7 +60,7 @@ export const paramDef = {
 // TODO: ロジックをサービスに切り出す
 
 @Injectable()
-export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
+export default class extends Endpoint<typeof meta, typeof paramDef> {
 	constructor(
 		@Inject(DI.emojisRepository)
 		private emojisRepository: EmojisRepository,
@@ -75,7 +78,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			try {
 				// Create file
-				driveFile = await this.driveService.uploadFromUrl({ url: emoji.originalUrl, user: null, force: true });
+				driveFile = await this.driveService.uploadFromUrl({
+					url: emoji.originalUrl,
+					user: null,
+					force: true,
+				});
 			} catch (_) {
 				// TODO: need to return Drive Error
 				throw new ApiError();
@@ -83,21 +90,50 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			// Duplication Check
 			const isDuplicate = await this.customEmojiService.checkDuplicate(emoji.name);
-			if (isDuplicate) throw new ApiError(meta.errors.duplicateName);
+			if (isDuplicate) {
+				if (!ps.overwrite) {
+					throw new ApiError(meta.errors.duplicateName);
+				}
 
-			const addedEmoji = await this.customEmojiService.add({
-				originalUrl: driveFile.url,
-				publicUrl: driveFile.webpublicUrl ?? driveFile.url,
-				fileType: driveFile.webpublicType ?? driveFile.type,
-				name: emoji.name,
-				category: emoji.category,
-				aliases: emoji.aliases,
-				host: null,
-				license: emoji.license,
-				isSensitive: emoji.isSensitive,
-				localOnly: emoji.localOnly,
-				roleIdsThatCanBeUsedThisEmojiAsReaction: emoji.roleIdsThatCanBeUsedThisEmojiAsReaction,
-			}, me);
+				const existing = await this.customEmojiService.getEmojiByName(emoji.name);
+				if (existing == null) {
+					throw new ApiError(meta.errors.duplicateName);
+				}
+
+				const result = await this.customEmojiService.update(
+					{
+						id: existing.id,
+						originalUrl: driveFile.url,
+						publicUrl: driveFile.webpublicUrl ?? driveFile.url,
+						fileType: driveFile.webpublicType ?? driveFile.type,
+					},
+					me,
+				);
+
+				if (result !== null) {
+					throw new ApiError();
+				}
+
+				const updated = await this.emojisRepository.findOneByOrFail({ id: existing.id });
+				return this.emojiEntityService.packDetailed(updated);
+			}
+
+			const addedEmoji = await this.customEmojiService.add(
+				{
+					originalUrl: driveFile.url,
+					publicUrl: driveFile.webpublicUrl ?? driveFile.url,
+					fileType: driveFile.webpublicType ?? driveFile.type,
+					name: emoji.name,
+					category: emoji.category,
+					aliases: emoji.aliases,
+					host: null,
+					license: emoji.license,
+					isSensitive: emoji.isSensitive,
+					localOnly: emoji.localOnly,
+					roleIdsThatCanBeUsedThisEmojiAsReaction: emoji.roleIdsThatCanBeUsedThisEmojiAsReaction,
+				},
+				me,
+			);
 
 			return this.emojiEntityService.packDetailed(addedEmoji);
 		});
