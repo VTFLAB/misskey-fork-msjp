@@ -9,7 +9,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div :class="$style.root" class="_gaps">
 			<MkFolder>
 				<template #icon><i class="ti ti-search"></i></template>
-				<template #label>{{ i18n.ts._customEmojisManager._gridCommon.searchSettings }}</template>
+				<template #label>
+					{{
+						i18n.ts._customEmojisManager._gridCommon.searchSettings
+					}}
+				</template>
 				<template #caption>
 					{{ i18n.ts._customEmojisManager._gridCommon.searchSettingCaption }}
 				</template>
@@ -64,11 +68,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</MkInput>
 					</div>
 
-					<hr>
+					<hr/>
 
 					<MkFolder :spacerMax="8" :spacerMin="8">
 						<template #icon><i class="ti ti-arrows-sort"></i></template>
-						<template #label>{{ i18n.ts._customEmojisManager._gridCommon.sortOrder }}</template>
+						<template #label>
+							{{
+								i18n.ts._customEmojisManager._gridCommon.sortOrder
+							}}
+						</template>
 						<MkSortOrderEditor
 							:baseOrderKeyNames="gridSortOrderKeys"
 							:currentOrders="sortOrders"
@@ -76,15 +84,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 						/>
 					</MkFolder>
 
-					<MkInput
-						v-model="queryLimit"
-						type="number"
-						:max="100"
-					>
-						<template #label>{{ i18n.ts._customEmojisManager._gridCommon.searchLimit }}</template>
+					<MkInput v-model="queryLimit" type="number" :max="100">
+						<template #label>
+							{{
+								i18n.ts._customEmojisManager._gridCommon.searchLimit
+							}}
+						</template>
 					</MkInput>
 
-					<div :class="[[spMode ? $style.searchButtonsSp : $style.searchButtons]]">
+					<div
+						:class="[
+							[spMode ? $style.searchButtonsSp : $style.searchButtons],
+						]"
+					>
 						<MkButton primary @click="onSearchRequest">
 							{{ i18n.ts.search }}
 						</MkButton>
@@ -97,14 +109,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<MkFolder>
 				<template #icon><i class="ti ti-notes"></i></template>
-				<template #label>{{ i18n.ts._customEmojisManager._gridCommon.registrationLogs }}</template>
+				<template #label>
+					{{
+						i18n.ts._customEmojisManager._gridCommon.registrationLogs
+					}}
+				</template>
 				<template #caption>
-					{{ i18n.ts._customEmojisManager._gridCommon.registrationLogsCaption }}
+					{{
+						i18n.ts._customEmojisManager._gridCommon.registrationLogsCaption
+					}}
 				</template>
 				<XRegisterLogs :logs="requestLogs"/>
 			</MkFolder>
 
-			<component :is="loadingHandler.component.value" v-if="loadingHandler.showing.value"/>
+			<component
+				:is="loadingHandler.component.value"
+				v-if="loadingHandler.showing.value"
+			/>
 			<template v-else>
 				<div v-if="gridItems.length === 0" style="text-align: center">
 					{{ i18n.ts._customEmojisManager._local._list.emojisNothing }}
@@ -112,23 +133,59 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 				<template v-else>
 					<div v-if="gridItems.length > 0" :class="$style.gridArea">
-						<MkGrid :data="gridItems" :settings="setupGrid()" @event="onGridEvent"/>
+						<MkGrid
+							:data="gridItems"
+							:settings="setupGrid()"
+							@event="onGridEvent"
+						/>
 					</div>
 
 					<div :class="$style.footer">
-						<div>
-							<!-- レイアウト調整用のスペース -->
+						<div :class="$style.left">
+							<MkInput
+								v-model="bulkImportIntervalMs"
+								type="number"
+								:min="100"
+								:max="10000"
+								:disabled="bulkImportRunning"
+							>
+								<template #label>
+									{{
+										i18n.ts._customEmojisManager._remote.bulkImportInterval
+									}}
+								</template>
+							</MkInput>
+							<MkButton
+								:disabled="bulkImportRunning"
+								@click="onBulkImportClicked"
+							>
+								{{ i18n.ts._customEmojisManager._remote.bulkImportButton }}
+							</MkButton>
+							<template v-if="bulkImportRunning">
+								<span>{{
+									i18n.tsx._customEmojisManager._remote.bulkImportProgress(
+										bulkImportProgress,
+									)
+								}}</span>
+								<MkButton danger @click="bulkImportCancelled = true">
+									{{ i18n.ts._customEmojisManager._remote.bulkImportCancel }}
+								</MkButton>
+							</template>
 						</div>
 
 						<div :class="$style.center">
-							<MkPagingButtons :current="currentPage" :max="allPages" :buttonCount="5" @pageChanged="onPageChanged"/>
+							<MkPagingButtons
+								:current="currentPage"
+								:max="allPages"
+								:buttonCount="5"
+								@pageChanged="onPageChanged"
+							/>
 						</div>
 
 						<div :class="$style.right">
 							<MkButton primary @click="onImportClicked">
-								{{
-									i18n.ts._customEmojisManager._remote.importEmojisButton
-								}} ({{ checkedItemsCount }})
+								{{ i18n.ts._customEmojisManager._remote.importEmojisButton }}
+								({{ checkedItemsCount }})
 							</MkButton>
 						</div>
 					</div>
@@ -142,8 +199,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script setup lang="ts">
 import { computed, onMounted, ref, useCssModule } from 'vue';
 import * as Misskey from 'misskey-js';
-import type { GridSortOrderKey, RequestLogItem } from '@/pages/admin/custom-emojis-manager.impl.js';
-import type { GridCellValueChangeEvent, GridEvent } from '@/components/grid/grid-event.js';
+import type {
+	GridSortOrderKey,
+	RequestLogItem,
+} from '@/pages/admin/custom-emojis-manager.impl.js';
+import type {
+	GridCellValueChangeEvent,
+	GridEvent,
+} from '@/components/grid/grid-event.js';
 import type { GridSetting } from '@/components/grid/grid.js';
 import type { SortOrder } from '@/components/MkSortOrderEditor.define.js';
 import MkRemoteEmojiEditDialog from '@/components/MkRemoteEmojiEditDialog.vue';
@@ -152,7 +215,10 @@ import { i18n } from '@/i18n.js';
 import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
 import MkGrid from '@/components/grid/MkGrid.vue';
-import { emptyStrToUndefined, gridSortOrderKeys } from '@/pages/admin/custom-emojis-manager.impl.js';
+import {
+	emptyStrToUndefined,
+	gridSortOrderKeys,
+} from '@/pages/admin/custom-emojis-manager.impl.js';
 import MkFolder from '@/components/MkFolder.vue';
 import XRegisterLogs from '@/pages/admin/custom-emojis-manager.logs.vue';
 import * as os from '@/os.js';
@@ -190,7 +256,9 @@ function setupGrid(): GridSetting {
 						text: i18n.ts._customEmojisManager._remote.importSelectionRows,
 						icon: 'ti ti-download',
 						action: async () => {
-							const targets = context.rangedRows.map(it => gridItems.value[it.index]);
+							const targets = context.rangedRows.map(
+								(it) => gridItems.value[it.index],
+							);
 							await importEmojis(targets);
 						},
 					},
@@ -198,13 +266,55 @@ function setupGrid(): GridSetting {
 			},
 		},
 		cols: [
-			{ bindTo: 'checked', icon: 'ti-download', type: 'boolean', editable: true, width: 34 },
-			{ bindTo: 'url', icon: 'ti-icons', type: 'image', editable: false, width: 'auto' },
-			{ bindTo: 'name', title: 'name', type: 'text', editable: false, width: 'auto' },
-			{ bindTo: 'host', title: 'host', type: 'text', editable: false, width: 'auto' },
-			{ bindTo: 'license', title: 'license', type: 'text', editable: false, width: 200 },
-			{ bindTo: 'uri', title: 'uri', type: 'text', editable: false, width: 'auto' },
-			{ bindTo: 'publicUrl', title: 'publicUrl', type: 'text', editable: false, width: 'auto' },
+			{
+				bindTo: 'checked',
+				icon: 'ti-download',
+				type: 'boolean',
+				editable: true,
+				width: 34,
+			},
+			{
+				bindTo: 'url',
+				icon: 'ti-icons',
+				type: 'image',
+				editable: false,
+				width: 'auto',
+			},
+			{
+				bindTo: 'name',
+				title: 'name',
+				type: 'text',
+				editable: false,
+				width: 'auto',
+			},
+			{
+				bindTo: 'host',
+				title: 'host',
+				type: 'text',
+				editable: false,
+				width: 'auto',
+			},
+			{
+				bindTo: 'license',
+				title: 'license',
+				type: 'text',
+				editable: false,
+				width: 200,
+			},
+			{
+				bindTo: 'uri',
+				title: 'uri',
+				type: 'text',
+				editable: false,
+				width: 'auto',
+			},
+			{
+				bindTo: 'publicUrl',
+				title: 'publicUrl',
+				type: 'text',
+				editable: false,
+				width: 'auto',
+			},
 		],
 		cells: {
 			contextMenuFactory: (col, row, value, context) => {
@@ -215,30 +325,37 @@ function setupGrid(): GridSetting {
 						icon: 'ti ti-info-circle',
 						action: async () => {
 							const target = customEmojis.value[row.index];
-							const { dispose } = os.popup(MkRemoteEmojiEditDialog, {
-								emoji: {
-									id: target.id,
-									name: target.name,
-									host: target.host!,
-									license: target.license,
-									url: target.publicUrl,
+							const { dispose } = os.popup(
+								MkRemoteEmojiEditDialog,
+								{
+									emoji: {
+										id: target.id,
+										name: target.name,
+										host: target.host!,
+										license: target.license,
+										url: target.publicUrl,
+									},
 								},
-							}, {
-								done: () => {
-									dispose();
+								{
+									done: () => {
+										dispose();
+									},
+									closed: () => {
+										dispose();
+									},
 								},
-								closed: () => {
-									dispose();
-								},
-							});
+							);
 						},
 					},
 					{
 						type: 'button',
-						text: i18n.ts._customEmojisManager._remote.importSelectionRangesRows,
+						text: i18n.ts._customEmojisManager._remote
+							.importSelectionRangesRows,
 						icon: 'ti ti-download',
 						action: async () => {
-							const targets = context.rangedCells.map(it => gridItems.value[it.row.index]);
+							const targets = context.rangedCells.map(
+								(it) => gridItems.value[it.row.index],
+							);
 							await importEmojis(targets);
 						},
 					},
@@ -264,10 +381,17 @@ const previousQuery = ref<string | undefined>(undefined);
 const sortOrders = ref<SortOrder<GridSortOrderKey>[]>([]);
 const requestLogs = ref<RequestLogItem[]>([]);
 
+const bulkImportIntervalMs = ref(1000);
+const bulkImportRunning = ref(false);
+const bulkImportCancelled = ref(false);
+const bulkImportProgress = ref({ total: 0, done: 0, failed: 0 });
+
 const gridItems = ref<GridItem[]>([]);
 
 const spMode = computed(() => ['smartphone', 'tablet'].includes(deviceKind));
-const checkedItemsCount = computed(() => gridItems.value.filter(it => it.checked).length);
+const checkedItemsCount = computed(
+	() => gridItems.value.filter((it) => it.checked).length,
+);
 
 function onSortOrderUpdate(_sortOrders: SortOrder<GridSortOrderKey>[]) {
 	sortOrders.value = _sortOrders;
@@ -291,7 +415,7 @@ async function onPageChanged(pageNumber: number) {
 }
 
 async function onImportClicked() {
-	const targets = gridItems.value.filter(it => it.checked);
+	const targets = gridItems.value.filter((it) => it.checked);
 	await importEmojis(targets);
 }
 
@@ -305,7 +429,10 @@ function onGridEvent(event: GridEvent) {
 
 function onGridCellValueChange(event: GridCellValueChangeEvent) {
 	const { row, column, newValue } = event;
-	if (gridItems.value.length > row.index && column.setting.bindTo in gridItems.value[row.index]) {
+	if (
+		gridItems.value.length > row.index &&
+		column.setting.bindTo in gridItems.value[row.index]
+	) {
 		(gridItems.value[row.index] as any)[column.setting.bindTo] = newValue;
 	}
 }
@@ -314,7 +441,9 @@ async function importEmojis(targets: GridItem[]) {
 	const confirm = await os.confirm({
 		type: 'info',
 		title: i18n.ts._customEmojisManager._remote.confirmImportEmojisTitle,
-		text: i18n.tsx._customEmojisManager._remote.confirmImportEmojisDescription({ count: targets.length }),
+		text: i18n.tsx._customEmojisManager._remote.confirmImportEmojisDescription({
+			count: targets.length,
+		}),
 	});
 
 	if (confirm.canceled) {
@@ -323,33 +452,144 @@ async function importEmojis(targets: GridItem[]) {
 
 	const result = await os.promiseDialog(
 		Promise.all(
-			targets.map(item =>
-				misskeyApi(
-					'admin/emoji/copy',
-					{
-						emojiId: item.id!,
-					})
+			targets.map((item) =>
+				misskeyApi('admin/emoji/copy', {
+					emojiId: item.id!,
+					overwrite: true,
+				})
 					.then(() => ({ item, success: true, err: undefined }))
-					.catch(err => ({ item, success: false, err })),
+					.catch((err) => ({ item, success: false, err })),
 			),
 		),
 	);
-	const failedItems = result.filter(it => !it.success);
+	const failedItems = result.filter((it) => !it.success);
 
 	if (failedItems.length > 0) {
 		await os.alert({
 			type: 'error',
 			title: i18n.ts.somethingHappened,
-			text: i18n.ts._customEmojisManager._gridCommon.alertEmojisRegisterFailedDescription,
+			text: i18n.ts._customEmojisManager._gridCommon
+				.alertEmojisRegisterFailedDescription,
 		});
 	}
 
-	requestLogs.value = result.map(it => ({
+	requestLogs.value = result.map((it) => ({
 		failed: !it.success,
 		url: it.item.url,
 		name: it.item.name,
 		error: it.err ? JSON.stringify(it.err) : undefined,
 	}));
+
+	await refreshCustomEmojis();
+}
+
+async function fetchPage(pageNumber: number) {
+	const query: Misskey.entities.V2AdminEmojiListRequest['query'] = {
+		name: emptyStrToUndefined(queryName.value),
+		host: emptyStrToUndefined(queryHost.value),
+		license: emptyStrToUndefined(queryLicense.value),
+		uri: emptyStrToUndefined(queryUri.value),
+		publicUrl: emptyStrToUndefined(queryPublicUrl.value),
+		hostType: 'remote',
+	};
+
+	return await loadingHandler.scope(() =>
+		misskeyApi('v2/admin/emoji/list', {
+			limit: queryLimit.value,
+			query: query,
+			page: pageNumber,
+			sortKeys: sortOrders.value.map(
+				({ key, direction }) => `${direction}${key}`,
+			) as never[],
+		}),
+	);
+}
+
+function sleep(ms: number) {
+	return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function onBulkImportClicked() {
+	if (bulkImportRunning.value) return;
+
+	// Determine total pages from current search
+	const firstResult = await fetchPage(1);
+	const totalPages = firstResult.allPages;
+
+	const confirm = await os.confirm({
+		type: 'info',
+		title: i18n.ts._customEmojisManager._remote.confirmBulkImportTitle,
+		text: i18n.tsx._customEmojisManager._remote.confirmBulkImportDescription({
+			pages: totalPages,
+			interval: bulkImportIntervalMs.value,
+		}),
+	});
+	if (confirm.canceled) return;
+
+	bulkImportRunning.value = true;
+	bulkImportCancelled.value = false;
+	bulkImportProgress.value = { total: 0, done: 0, failed: 0 };
+
+	const failedLogs: RequestLogItem[] = [];
+
+	for (let page = 1; page <= totalPages; page++) {
+		if (bulkImportCancelled.value) break;
+
+		const pageResult = page === 1 ? firstResult : await fetchPage(page);
+		bulkImportProgress.value.total += pageResult.emojis.length;
+
+		for (const emoji of pageResult.emojis) {
+			if (bulkImportCancelled.value) break;
+			try {
+				await misskeyApi('admin/emoji/copy', {
+					emojiId: emoji.id,
+					overwrite: true,
+				});
+				bulkImportProgress.value.done++;
+			} catch (err) {
+				bulkImportProgress.value.done++;
+				bulkImportProgress.value.failed++;
+				failedLogs.push({
+					failed: true,
+					url: emoji.publicUrl,
+					name: emoji.name,
+					error: err ? JSON.stringify(err) : undefined,
+				});
+			}
+			await sleep(bulkImportIntervalMs.value);
+		}
+	}
+
+	bulkImportRunning.value = false;
+
+	// Show failures in the logs panel (cap to last 200 to avoid memory blowup)
+	requestLogs.value = failedLogs.slice(-200);
+
+	if (bulkImportCancelled.value) {
+		await os.alert({
+			type: 'info',
+			title: i18n.ts._customEmojisManager._remote.bulkImportCancelledTitle,
+			text: i18n.tsx._customEmojisManager._remote.bulkImportCancelledDescription(
+				{
+					done: bulkImportProgress.value.done,
+					total: bulkImportProgress.value.total,
+					failed: bulkImportProgress.value.failed,
+				},
+			),
+		});
+	} else {
+		await os.alert({
+			type: 'info',
+			title: i18n.ts._customEmojisManager._remote.bulkImportCompletedTitle,
+			text: i18n.tsx._customEmojisManager._remote.bulkImportCompletedDescription(
+				{
+					done: bulkImportProgress.value.done,
+					total: bulkImportProgress.value.total,
+					failed: bulkImportProgress.value.failed,
+				},
+			),
+		});
+	}
 
 	await refreshCustomEmojis();
 }
@@ -368,17 +608,12 @@ async function refreshCustomEmojis() {
 		currentPage.value = 1;
 	}
 
-	const result = await loadingHandler.scope(() => misskeyApi('v2/admin/emoji/list', {
-		limit: queryLimit.value,
-		query: query,
-		page: currentPage.value,
-		sortKeys: sortOrders.value.map(({ key, direction }) => `${direction}${key}`) as never[],
-	}));
+	const result = await fetchPage(currentPage.value);
 
 	customEmojis.value = result.emojis;
 	allPages.value = result.allPages;
 	previousQuery.value = JSON.stringify(query);
-	gridItems.value = customEmojis.value.map(it => ({
+	gridItems.value = customEmojis.value.map((it) => ({
 		checked: false,
 		id: it.id,
 		url: it.publicUrl,
@@ -471,8 +706,8 @@ onMounted(async () => {
 	background-color: var(--MI_THEME-bg);
 
 	position: sticky;
-	left:0;
-	bottom:0;
+	left: 0;
+	bottom: 0;
 	z-index: 1;
 	// stickyで追従させる都合上、フッター自身でpaddingを持つ必要があるため、親要素で画一的に指定している分をネガティブマージンで相殺している
 	margin-top: calc(var(--MI-margin) * -1);
@@ -483,6 +718,13 @@ onMounted(async () => {
 	display: grid;
 	grid-template-columns: 1fr 1fr 1fr;
 	gap: 8px;
+
+	& .left {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex-wrap: wrap;
+	}
 
 	& .center {
 		display: flex;
