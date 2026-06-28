@@ -57,6 +57,12 @@ const STATS_INTERVAL_MS = 60_000;
 // network 全体で常に活発なので、wantedDids が空でない限り 5 分以上完全無音は dead 判定。
 const HEARTBEAT_CHECK_INTERVAL_MS = 30_000;
 const HEARTBEAT_TIMEOUT_MS = 5 * 60_000;
+const HEARTBEAT_TIMEOUT_LOW_DID_MS = 30 * 60_000;
+const LOW_DID_THRESHOLD = 100;
+// 起動時に Redis cursor がこの時間以上古ければ、Jetstream 遅延 replay ではなく
+// AppView backfill で一気に追いつく。
+const CURSOR_CATCHUP_THRESHOLD_MS = 10 * 60_000;
+const CURSOR_TTL_SECONDS = 24 * 60 * 60;
 
 type EventStats = {
 	received: number;
@@ -145,6 +151,22 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 		this.flushedCursor = this.currentCursor;
 		this.logger.info(`starting (cursor from Redis = ${this.currentCursor ?? '(none)'}, AT_PROTO_DISABLE_JETSTREAM=${process.env.AT_PROTO_DISABLE_JETSTREAM ?? 'unset'})`);
 		await this.refreshWantedDids();
+
+		// cursor が大幅遅延していれば Jetstream replay では追いつかないので
+		// AppView backfill で catch-up し、cursor を現在時刻にリセットする。
+		// backfill は並列度2の内部 queue に任せて fire-and-forget で始動し、
+		// Jetstream 接続はそのまま続行する。
+		if (this.currentCursor != null) {
+			const cursorAgeMs = (Date.now() * 1000 - this.currentCursor) / 1000;
+			if (cursorAgeMs > CURSOR_CATCHUP_THRESHOLD_MS) {
+				this.catchUpViaBackfill(cursorAgeMs).catch(err => {
+					this.logger.error(`catch-up backfill failed: ${err instanceof Error ? err.message : String(err)}`);
+				});
+				this.currentCursor = Date.now() * 1000;
+				this.flushedCursor = this.currentCursor;
+				this.logger.info(`cursor reset to realtime after catch-up: ${this.currentCursor}`);
+			}
+		}
 		this.scheduleDidRefresh();
 		this.scheduleCursorFlush();
 		this.scheduleStatsLog();
@@ -259,7 +281,7 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 	@bindThis
 	private scheduleHeartbeatCheck(): void {
 		this.heartbeatTimer = setInterval(() => {
-			// 接続中で、最後の event 受信から HEARTBEAT_TIMEOUT_MS 以上経過していたら
+			// 接続中で、最後の event 受信から heartbeat timeout 以上経過していたら
 			// silent-death と判定して WS を強制 close → 通常の reconnect 経路に乗せる。
 			if (this.ws == null) return;
 			// CONNECTING/CLOSING 中の WS は watchdog 対象外。OPEN 前に殺すと
@@ -268,9 +290,10 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 			// の death-loop に陥る (open が永久に発火しない)。
 			if (this.ws.readyState !== WebSocket.OPEN) return;
 			if (this.lastEventAt == null) return;
+			const timeoutMs = this.getEffectiveHeartbeatTimeout();
 			const idleMs = Date.now() - this.lastEventAt;
-			if (idleMs > HEARTBEAT_TIMEOUT_MS) {
-				this.logger.warn(`heartbeat watchdog: no Jetstream events for ${Math.round(idleMs / 1000)}s; forcing reconnect`);
+			if (idleMs > timeoutMs) {
+				this.logger.warn(`heartbeat watchdog: no Jetstream events for ${Math.round(idleMs / 1000)}s (timeout=${Math.round(timeoutMs / 1000)}s); forcing reconnect`);
 				// 通常 reconnect させる (suppressNextReconnect は立てない)
 				this.closeWs('heartbeat-timeout');
 				this.scheduleReconnect();
@@ -290,10 +313,11 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 	private async flushCursor(force: boolean): Promise<void> {
 		if (this.currentCursor == null) return;
 		if (!force && this.currentCursor === this.flushedCursor) return;
-		await this.redisClient.set(CURSOR_REDIS_KEY, String(this.currentCursor)).catch(e => {
+		await this.redisClient.set(CURSOR_REDIS_KEY, String(this.currentCursor), 'EX', CURSOR_TTL_SECONDS).catch(e => {
 			this.logger.error(`cursor save failed: ${e instanceof Error ? e.message : String(e)}`);
 		});
 		this.flushedCursor = this.currentCursor;
+		this.logger.debug(`cursor flushed (TTL ${CURSOR_TTL_SECONDS}s): ${this.currentCursor}`);
 	}
 
 	@bindThis
@@ -385,6 +409,26 @@ export class AtpJetstreamService implements OnModuleInit, OnApplicationShutdown 
 			this.closeWs('connect-timeout');
 			this.scheduleReconnect();
 		}, CONNECT_TIMEOUT_MS);
+	}
+
+	@bindThis
+	private getEffectiveHeartbeatTimeout(): number {
+		return this.wantedDids.length < LOW_DID_THRESHOLD
+			? HEARTBEAT_TIMEOUT_LOW_DID_MS
+			: HEARTBEAT_TIMEOUT_MS;
+	}
+
+	@bindThis
+	private async catchUpViaBackfill(gapMs: number): Promise<void> {
+		const minutesBehind = Math.round(gapMs / 60_000);
+		this.logger.warn(`cursor is ${minutesBehind} minutes behind; triggering catch-up backfill for ${this.wantedDids.length} DIDs`);
+		const cutoffMs = gapMs + 24 * 60 * 60 * 1000; // gap + 1 day buffer
+		this.logger.warn(`catch-up: backfilling ${this.wantedDids.length} DIDs (cutoff=${(cutoffMs / 86400000).toFixed(1)} days)`);
+		for (const did of this.wantedDids) {
+			this.atpNoteService.backfillAuthorFeed(did, { cutoffMs }).catch(err => {
+				this.logger.warn(`catch-up backfill failed for ${did}: ${err instanceof Error ? err.message : String(err)}`);
+			});
+		}
 	}
 
 	@bindThis
