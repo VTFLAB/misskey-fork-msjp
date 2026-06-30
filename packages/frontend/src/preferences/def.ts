@@ -228,6 +228,9 @@ export const PREF_DEF = definePreferences({
 	enableQuickAddMfmFunction: {
 		default: false,
 	},
+	showMfmToolbar: {
+		default: false,
+	},
 	loadRawImages: {
 		default: false,
 	},
