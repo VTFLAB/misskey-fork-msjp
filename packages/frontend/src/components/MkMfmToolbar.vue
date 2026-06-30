@@ -50,7 +50,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:disabled="textareaEl == null"
 			@click="applyFunction(tag)"
 		>
-			<i class="ti ti-icons"></i>
+			<i :class="MFM_FUNCTION_ICONS[tag] ?? 'ti ti-icons'"></i>
 			<span :class="$style.functionLabel">{{ tag }}</span>
 		</button>
 	</div>
@@ -61,11 +61,34 @@ SPDX-License-Identifier: AGPL-3.0-only
 import { computed, nextTick } from 'vue';
 import { MFM_TAGS } from '@@/js/const.js';
 import type { MfmSyntaxEntry } from '@/utility/mfm-syntax.js';
-import {
-	MFM_SYNTAX_ENTRIES,
-	
-} from '@/utility/mfm-syntax.js';
+import { MFM_SYNTAX_ENTRIES } from '@/utility/mfm-syntax.js';
 import { i18n } from '@/i18n.js';
+
+const MFM_FUNCTION_ICONS: Record<string, string> = {
+	tada: 'ti ti-confetti',
+	jelly: 'ti ti-wave-sine',
+	twitch: 'ti ti-bolt',
+	shake: 'ti ti-wave-square',
+	spin: 'ti ti-rotate',
+	jump: 'ti ti-arrow-bounce',
+	bounce: 'ti ti-ball-volleyball',
+	flip: 'ti ti-flip-horizontal',
+	x2: 'ti ti-arrows-vertical',
+	x3: 'ti ti-arrows-up-down',
+	x4: 'ti ti-arrows-maximize',
+	scale: 'ti ti-resize',
+	position: 'ti ti-target',
+	fg: 'ti ti-color-swatch',
+	bg: 'ti ti-palette',
+	border: 'ti ti-border-all',
+	font: 'ti ti-typography',
+	blur: 'ti ti-blur',
+	rainbow: 'ti ti-rainbow',
+	sparkle: 'ti ti-sparkles',
+	rotate: 'ti ti-rotate-clockwise-2',
+	ruby: 'ti ti-letter-r',
+	unixtime: 'ti ti-clock-code',
+};
 
 const props = defineProps<{
 	textareaEl: HTMLTextAreaElement | null;
