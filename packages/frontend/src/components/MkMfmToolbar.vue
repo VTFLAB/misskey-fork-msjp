@@ -51,7 +51,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 			@click="applyFunction(tag)"
 		>
 			<i :class="MFM_FUNCTION_ICONS[tag] ?? 'ti ti-icons'"></i>
-			<span :class="$style.functionLabel">{{ tag }}</span>
 		</button>
 	</div>
 </div>
@@ -248,10 +247,5 @@ function applyFunction(tag: string) {
 	margin-top: 8px;
 	padding-top: 8px;
 	border-top: 1px solid var(--MI_THEME-divider);
-}
-
-.functionLabel {
-	margin-left: 4px;
-	font-size: 11px;
 }
 </style>
