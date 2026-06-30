@@ -102,11 +102,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button v-tooltip="i18n.ts.mention" class="_button" :class="$style.footerButton" @click="insertMention"><i class="ti ti-at"></i></button>
 			<button v-if="showAddMfmFunction" v-tooltip="i18n.ts.addMfmFunction" :class="['_button', $style.footerButton]" @click="insertMfmFunction"><i class="ti ti-palette"></i></button>
 			<button v-if="postFormActions.length > 0" v-tooltip="i18n.ts.plugins" class="_button" :class="$style.footerButton" @click="showActions"><i class="ti ti-plug"></i></button>
+			<button v-tooltip="i18n.ts._mfmToolbar.show" :class="['_button', $style.footerButton, { [$style.footerButtonActive]: showMfmToolbar }]" @click="showMfmToolbar = !showMfmToolbar"><i class="ti ti-wand"></i></button>
 		</div>
 		<div :class="$style.footerRight">
 			<button v-tooltip="i18n.ts.emoji" :class="['_button', $style.footerButton]" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
 		</div>
 	</footer>
+	<MkMfmToolbar v-if="showMfmToolbar" v-model:show="showMfmToolbar" v-model:text="text" :textareaEl="textareaEl" @changed="onMfmToolbarChanged"/>
 	<datalist id="hashtags">
 		<option v-for="hashtag in recentHashtags" :key="hashtag" :value="hashtag"></option>
 	</datalist>
@@ -158,6 +160,7 @@ import { checkDragDataType, getDragData } from '@/drag-and-drop.js';
 import { useUploader } from '@/composables/use-uploader.js';
 import { startTour } from '@/utility/tour.js';
 import { closeTip } from '@/tips.js';
+import MkMfmToolbar from '@/components/MkMfmToolbar.vue';
 
 const $i = ensureSignin();
 
@@ -193,6 +196,8 @@ const accountMenuEl = useTemplateRef('accountMenuEl');
 const footerEl = useTemplateRef('footerEl');
 const submitButtonEl = useTemplateRef('submitButtonEl');
 
+const showMfmToolbar = ref(prefer.s.showMfmToolbar);
+watch(showMfmToolbar, () => prefer.commit('showMfmToolbar', showMfmToolbar.value));
 const posting = ref(false);
 const posted = ref(false);
 const text = ref(props.initialText ?? '');
@@ -1203,6 +1208,14 @@ async function insertEmoji(ev: PointerEvent) {
 			});
 		},
 	);
+}
+
+function onMfmToolbarChanged() {
+	nextTick(() => {
+		if (textareaEl.value) {
+			textareaEl.value.focus();
+		}
+	});
 }
 
 async function insertMfmFunction(ev: PointerEvent) {
