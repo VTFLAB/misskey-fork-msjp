@@ -65,6 +65,11 @@ export const navbarItemDef = reactive<{
 		indicated: computed(() => $i != null && $i.hasUnreadAnnouncement),
 		to: '/announcements',
 	},
+	updateInfo: {
+		title: i18n.ts.updateInfo,
+		icon: 'ti ti-speakerphone',
+		to: '/updates',
+	},
 	search: {
 		title: i18n.ts.search,
 		icon: 'ti ti-search',
