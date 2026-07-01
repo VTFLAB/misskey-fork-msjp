@@ -331,6 +331,7 @@ import type {
 	DriveFoldersUpdateResponse,
 	DriveStreamRequest,
 	DriveStreamResponse,
+	EarthquakeHistoryResponse,
 	EmailAddressAvailableRequest,
 	EmailAddressAvailableResponse,
 	EmojiRequest,
@@ -904,6 +905,7 @@ export type Endpoints = {
 	'drive/folders/show': { req: DriveFoldersShowRequest; res: DriveFoldersShowResponse };
 	'drive/folders/update': { req: DriveFoldersUpdateRequest; res: DriveFoldersUpdateResponse };
 	'drive/stream': { req: DriveStreamRequest; res: DriveStreamResponse };
+	'earthquake/history': { req: EmptyRequest; res: EarthquakeHistoryResponse };
 	'email-address/available': { req: EmailAddressAvailableRequest; res: EmailAddressAvailableResponse };
 	'emoji': { req: EmojiRequest; res: EmojiResponse };
 	'emojis': { req: EmptyRequest; res: EmojisResponse };

@@ -197,6 +197,7 @@ export * as 'drive/folders/find' from './endpoints/drive/folders/find.js';
 export * as 'drive/folders/show' from './endpoints/drive/folders/show.js';
 export * as 'drive/folders/update' from './endpoints/drive/folders/update.js';
 export * as 'drive/stream' from './endpoints/drive/stream.js';
+export * as 'earthquake/history' from './endpoints/earthquake/history.js';
 export * as 'email-address/available' from './endpoints/email-address/available.js';
 export * as 'emoji' from './endpoints/emoji.js';
 export * as 'emojis' from './endpoints/emojis.js';

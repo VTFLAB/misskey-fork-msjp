@@ -334,6 +334,7 @@ export type DriveFoldersUpdateRequest = operations['drive___folders___update']['
 export type DriveFoldersUpdateResponse = operations['drive___folders___update']['responses']['200']['content']['application/json'];
 export type DriveStreamRequest = operations['drive___stream']['requestBody']['content']['application/json'];
 export type DriveStreamResponse = operations['drive___stream']['responses']['200']['content']['application/json'];
+export type EarthquakeHistoryResponse = operations['earthquake___history']['responses']['200']['content']['application/json'];
 export type EmailAddressAvailableRequest = operations['email-address___available']['requestBody']['content']['application/json'];
 export type EmailAddressAvailableResponse = operations['email-address___available']['responses']['200']['content']['application/json'];
 export type EmojiRequest = operations['emoji']['requestBody']['content']['application/json'];
