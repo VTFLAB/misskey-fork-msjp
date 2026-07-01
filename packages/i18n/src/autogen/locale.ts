@@ -10149,6 +10149,22 @@ export interface Locale extends ILocale {
              * 風速
              */
             "windSpeed": string;
+            /**
+             * 体感
+             */
+            "feelsLike": string;
+            /**
+             * 最高
+             */
+            "todayHigh": string;
+            /**
+             * 最低
+             */
+            "todayLow": string;
+            /**
+             * 降水確率
+             */
+            "precipitationProbability": string;
             "_conditions": {
                 /**
                  * 快晴

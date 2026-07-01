@@ -24977,8 +24977,12 @@ export interface operations {
                         temperature: number;
                         humidity?: number | null;
                         windSpeed?: number | null;
+                        feelsLike?: number | null;
                         weatherCode: number;
                         isDay: boolean;
+                        tempMax?: number | null;
+                        tempMin?: number | null;
+                        precipitationProbability?: number | null;
                     };
                 };
             };
