@@ -13,9 +13,15 @@ type OpenMeteoResponse = {
 		time: string;
 		temperature_2m: number;
 		relative_humidity_2m?: number;
+		apparent_temperature?: number;
 		weather_code: number;
 		wind_speed_10m?: number;
 		is_day: number;
+	};
+	daily?: {
+		temperature_2m_max?: number[];
+		temperature_2m_min?: number[];
+		precipitation_probability_max?: number[];
 	};
 };
 
@@ -54,6 +60,10 @@ export const meta = {
 				type: 'number',
 				optional: true, nullable: true,
 			},
+			feelsLike: {
+				type: 'number',
+				optional: true, nullable: true,
+			},
 			weatherCode: {
 				type: 'number',
 				optional: false, nullable: false,
@@ -61,6 +71,18 @@ export const meta = {
 			isDay: {
 				type: 'boolean',
 				optional: false, nullable: false,
+			},
+			tempMax: {
+				type: 'number',
+				optional: true, nullable: true,
+			},
+			tempMin: {
+				type: 'number',
+				optional: true, nullable: true,
+			},
+			precipitationProbability: {
+				type: 'number',
+				optional: true, nullable: true,
 			},
 		},
 	},
@@ -86,7 +108,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const url = new URL('https://api.open-meteo.com/v1/forecast');
 			url.searchParams.set('latitude', ps.latitude.toString());
 			url.searchParams.set('longitude', ps.longitude.toString());
-			url.searchParams.set('current', 'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,is_day');
+			url.searchParams.set('current', 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,is_day');
+			url.searchParams.set('daily', 'temperature_2m_max,temperature_2m_min,precipitation_probability_max');
+			url.searchParams.set('forecast_days', '1');
 			url.searchParams.set('timezone', 'auto');
 
 			let json: OpenMeteoResponse;
@@ -112,8 +136,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				temperature: json.current.temperature_2m,
 				humidity: json.current.relative_humidity_2m ?? null,
 				windSpeed: json.current.wind_speed_10m ?? null,
+				feelsLike: json.current.apparent_temperature ?? null,
 				weatherCode: json.current.weather_code,
 				isDay: json.current.is_day === 1,
+				tempMax: json.daily?.temperature_2m_max?.[0] ?? null,
+				tempMin: json.daily?.temperature_2m_min?.[0] ?? null,
+				precipitationProbability: json.daily?.precipitation_probability_max?.[0] ?? null,
 			};
 		});
 	}
