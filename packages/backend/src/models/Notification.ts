@@ -148,6 +148,21 @@ export type MiNotification = {
 	id: string;
 	createdAt: string;
 	updateInfoId: MiUpdateInfo['id'];
+} | {
+	// 緊急地震速報 (JMA EEW, bsky-fork 独自)。DB永続化はせず、EarthquakeAlertService の
+	// in-memory history から得られる値をそのまま埋め込む (app 型と同じ埋め込みパターン)。
+	type: 'earthquakeAlert';
+	id: string;
+	createdAt: string;
+	eventId: string;
+	serial: number;
+	title: string;
+	hypocenter: string;
+	magnitude: number;
+	maxIntensity: string;
+	isWarn: boolean;
+	isFinal: boolean;
+	isCancel: boolean;
 };
 
 export type MiGroupedNotification = MiNotification | {
