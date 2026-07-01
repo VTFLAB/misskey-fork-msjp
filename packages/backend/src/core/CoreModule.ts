@@ -79,6 +79,7 @@ import { ChatService } from './ChatService.js';
 import { RegistryApiService } from './RegistryApiService.js';
 import { ReversiService } from './ReversiService.js';
 import { PageService } from './PageService.js';
+import { UpdateInfoService } from './UpdateInfoService.js';
 
 import { ChartLoggerService } from './chart/ChartLoggerService.js';
 import FederationChart from './chart/charts/federation.js';
@@ -132,6 +133,7 @@ import { FlashLikeEntityService } from './entities/FlashLikeEntityService.js';
 import { RoleEntityService } from './entities/RoleEntityService.js';
 import { ReversiGameEntityService } from './entities/ReversiGameEntityService.js';
 import { MetaEntityService } from './entities/MetaEntityService.js';
+import { UpdateInfoEntityService } from './entities/UpdateInfoEntityService.js';
 
 import { ApAudienceService } from './activitypub/ApAudienceService.js';
 import { ApDbResolverService } from './activitypub/ApDbResolverService.js';
@@ -173,6 +175,7 @@ const $AccountMoveService: Provider = { provide: 'AccountMoveService', useExisti
 const $AccountUpdateService: Provider = { provide: 'AccountUpdateService', useExisting: AccountUpdateService };
 const $SensitiveMediaDetectionService: Provider = { provide: 'SensitiveMediaDetectionService', useExisting: SensitiveMediaDetectionService };
 const $AnnouncementService: Provider = { provide: 'AnnouncementService', useExisting: AnnouncementService };
+const $UpdateInfoService: Provider = { provide: 'UpdateInfoService', useExisting: UpdateInfoService };
 const $AntennaService: Provider = { provide: 'AntennaService', useExisting: AntennaService };
 const $AchievementService: Provider = { provide: 'AchievementService', useExisting: AchievementService };
 const $AvatarDecorationService: Provider = { provide: 'AvatarDecorationService', useExisting: AvatarDecorationService };
@@ -293,6 +296,7 @@ const $RoleEntityService: Provider = { provide: 'RoleEntityService', useExisting
 const $ReversiGameEntityService: Provider = { provide: 'ReversiGameEntityService', useExisting: ReversiGameEntityService };
 const $MetaEntityService: Provider = { provide: 'MetaEntityService', useExisting: MetaEntityService };
 const $SystemWebhookEntityService: Provider = { provide: 'SystemWebhookEntityService', useExisting: SystemWebhookEntityService };
+const $UpdateInfoEntityService: Provider = { provide: 'UpdateInfoEntityService', useExisting: UpdateInfoEntityService };
 
 const $ApAudienceService: Provider = { provide: 'ApAudienceService', useExisting: ApAudienceService };
 const $ApDbResolverService: Provider = { provide: 'ApDbResolverService', useExisting: ApDbResolverService };
@@ -334,6 +338,7 @@ const $AtpJetstreamService: Provider = { provide: 'AtpJetstreamService', useExis
 		AccountUpdateService,
 		SensitiveMediaDetectionService,
 		AnnouncementService,
+		UpdateInfoService,
 		AntennaService,
 		AchievementService,
 		AvatarDecorationService,
@@ -454,6 +459,7 @@ const $AtpJetstreamService: Provider = { provide: 'AtpJetstreamService', useExis
 		ReversiGameEntityService,
 		MetaEntityService,
 		SystemWebhookEntityService,
+		UpdateInfoEntityService,
 
 		ApAudienceService,
 		ApDbResolverService,
@@ -494,6 +500,7 @@ const $AtpJetstreamService: Provider = { provide: 'AtpJetstreamService', useExis
 		$AccountUpdateService,
 		$SensitiveMediaDetectionService,
 		$AnnouncementService,
+		$UpdateInfoService,
 		$AntennaService,
 		$AchievementService,
 		$AvatarDecorationService,
@@ -614,6 +621,7 @@ const $AtpJetstreamService: Provider = { provide: 'AtpJetstreamService', useExis
 		$ReversiGameEntityService,
 		$MetaEntityService,
 		$SystemWebhookEntityService,
+		$UpdateInfoEntityService,
 
 		$ApAudienceService,
 		$ApDbResolverService,
@@ -653,6 +661,7 @@ const $AtpJetstreamService: Provider = { provide: 'AtpJetstreamService', useExis
 		AccountUpdateService,
 		SensitiveMediaDetectionService,
 		AnnouncementService,
+		UpdateInfoService,
 		AntennaService,
 		AchievementService,
 		AvatarDecorationService,
@@ -772,6 +781,7 @@ const $AtpJetstreamService: Provider = { provide: 'AtpJetstreamService', useExis
 		ReversiGameEntityService,
 		MetaEntityService,
 		SystemWebhookEntityService,
+		UpdateInfoEntityService,
 
 		ApAudienceService,
 		ApDbResolverService,
@@ -812,6 +822,7 @@ const $AtpJetstreamService: Provider = { provide: 'AtpJetstreamService', useExis
 		$AccountUpdateService,
 		$SensitiveMediaDetectionService,
 		$AnnouncementService,
+		$UpdateInfoService,
 		$AntennaService,
 		$AchievementService,
 		$AvatarDecorationService,
@@ -930,6 +941,7 @@ const $AtpJetstreamService: Provider = { provide: 'AtpJetstreamService', useExis
 		$ReversiGameEntityService,
 		$MetaEntityService,
 		$SystemWebhookEntityService,
+		$UpdateInfoEntityService,
 
 		$ApAudienceService,
 		$ApDbResolverService,

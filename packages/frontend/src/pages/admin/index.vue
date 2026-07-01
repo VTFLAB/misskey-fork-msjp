@@ -162,6 +162,11 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		to: '/admin/announcements',
 		active: currentPage.value?.route.name === 'announcements',
 	}, {
+		icon: 'ti ti-speakerphone',
+		text: i18n.ts.updateInfo,
+		to: '/admin/update-info',
+		active: currentPage.value?.route.name === 'updateInfo',
+	}, {
 		icon: 'ti ti-ad',
 		text: i18n.ts.ads,
 		to: '/admin/ads',
