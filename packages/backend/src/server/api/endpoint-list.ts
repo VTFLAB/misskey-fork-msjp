@@ -244,6 +244,7 @@ export * as 'gallery/posts/unlike' from './endpoints/gallery/posts/unlike.js';
 export * as 'gallery/posts/update' from './endpoints/gallery/posts/update.js';
 export * as 'get-avatar-decorations' from './endpoints/get-avatar-decorations.js';
 export * as 'get-online-users-count' from './endpoints/get-online-users-count.js';
+export * as 'get-weather' from './endpoints/get-weather.js';
 export * as 'hashtags/list' from './endpoints/hashtags/list.js';
 export * as 'hashtags/search' from './endpoints/hashtags/search.js';
 export * as 'hashtags/show' from './endpoints/hashtags/show.js';
