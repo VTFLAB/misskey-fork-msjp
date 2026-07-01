@@ -2652,6 +2652,7 @@ _widgets:
   clicker: "クリッカー"
   birthdayFollowings: "もうすぐ誕生日のユーザー"
   chat: "ダイレクトメッセージ"
+  weather: "天気"
 
 _widgetOptions:
   showHeader: "ヘッダーを表示"
@@ -2659,6 +2660,26 @@ _widgetOptions:
   height: "高さ"
   _button:
     colored: "色付き"
+  _weather:
+    locationName: "地点名"
+    latitude: "緯度"
+    longitude: "経度"
+    refreshIntervalSec: "更新間隔(秒)"
+    humidity: "湿度"
+    windSpeed: "風速"
+    _conditions:
+      clear: "快晴"
+      mainlyClear: "晴れ"
+      partlyCloudy: "一部曇り"
+      cloudy: "曇り"
+      fog: "霧"
+      drizzle: "霧雨"
+      rain: "雨"
+      snow: "雪"
+      rainShowers: "にわか雨"
+      snowShowers: "にわか雪"
+      thunderstorm: "雷雨"
+      unknown: "不明"
   _clock:
     size: "サイズ"
     thickness: "針の太さ"

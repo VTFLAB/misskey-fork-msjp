@@ -10084,6 +10084,10 @@ export interface Locale extends ILocale {
          * ダイレクトメッセージ
          */
         "chat": string;
+        /**
+         * 天気
+         */
+        "weather": string;
     };
     "_widgetOptions": {
         /**
@@ -10103,6 +10107,82 @@ export interface Locale extends ILocale {
              * 色付き
              */
             "colored": string;
+        };
+        "_weather": {
+            /**
+             * 地点名
+             */
+            "locationName": string;
+            /**
+             * 緯度
+             */
+            "latitude": string;
+            /**
+             * 経度
+             */
+            "longitude": string;
+            /**
+             * 更新間隔(秒)
+             */
+            "refreshIntervalSec": string;
+            /**
+             * 湿度
+             */
+            "humidity": string;
+            /**
+             * 風速
+             */
+            "windSpeed": string;
+            "_conditions": {
+                /**
+                 * 快晴
+                 */
+                "clear": string;
+                /**
+                 * 晴れ
+                 */
+                "mainlyClear": string;
+                /**
+                 * 一部曇り
+                 */
+                "partlyCloudy": string;
+                /**
+                 * 曇り
+                 */
+                "cloudy": string;
+                /**
+                 * 霧
+                 */
+                "fog": string;
+                /**
+                 * 霧雨
+                 */
+                "drizzle": string;
+                /**
+                 * 雨
+                 */
+                "rain": string;
+                /**
+                 * 雪
+                 */
+                "snow": string;
+                /**
+                 * にわか雨
+                 */
+                "rainShowers": string;
+                /**
+                 * にわか雪
+                 */
+                "snowShowers": string;
+                /**
+                 * 雷雨
+                 */
+                "thunderstorm": string;
+                /**
+                 * 不明
+                 */
+                "unknown": string;
+            };
         };
         "_clock": {
             /**
