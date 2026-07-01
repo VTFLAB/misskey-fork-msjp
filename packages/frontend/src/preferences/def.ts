@@ -194,7 +194,7 @@ export const PREF_DEF = definePreferences({
 			'chat',
 			'-',
 			'explore',
-			'announcements',
+			'updateInfo',
 			'channels',
 			'search',
 			'-',
