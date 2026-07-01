@@ -1149,6 +1149,10 @@ export interface Locale extends ILocale {
      */
     "announcements": string;
     /**
+     * アップデート情報
+     */
+    "updateInfo": string;
+    /**
      * 画像URL
      */
     "imageUrl": string;
@@ -5109,6 +5113,76 @@ export interface Locale extends ILocale {
      */
     "enableQuickAddMfmFunction": string;
     /**
+     * MFMツールバーをデフォルトで表示する
+     */
+    "showMfmToolbar": string;
+    "_mfmToolbar": {
+        /**
+         * MFM装飾ツールバー
+         */
+        "title": string;
+        /**
+         * MFMツールバーを表示
+         */
+        "show": string;
+        /**
+         * 太字
+         */
+        "bold": string;
+        /**
+         * イタリック
+         */
+        "italic": string;
+        /**
+         * 打ち消し線
+         */
+        "strike": string;
+        /**
+         * 目立たない字
+         */
+        "small": string;
+        /**
+         * 揺れる字
+         */
+        "big": string;
+        /**
+         * 引用
+         */
+        "quote": string;
+        /**
+         * コードブロック
+         */
+        "codeBlock": string;
+        /**
+         * インラインコード
+         */
+        "inlineCode": string;
+        /**
+         * 数式ブロック
+         */
+        "mathBlock": string;
+        /**
+         * インライン数式
+         */
+        "inlineMath": string;
+        /**
+         * 中央寄せ
+         */
+        "center": string;
+        /**
+         * リンク
+         */
+        "link": string;
+        /**
+         * 検索
+         */
+        "search": string;
+        /**
+         * MFM関数
+         */
+        "functions": string;
+    };
+    /**
      * バブルゲーム
      */
     "bubbleGame": string;
@@ -6564,6 +6638,12 @@ export interface Locale extends ILocale {
          * オンにすると、このお知らせは通知されず、既読にする必要もなくなります。
          */
         "silenceDescription": string;
+    };
+    "_updateInfo": {
+        /**
+         * サーバー独自機能のアップデート情報を掲載します。お知らせと異なり画面に常時表示されず、公開すると全ユーザーに通知として届きます。
+         */
+        "description": string;
     };
     "_initialAccountSetting": {
         /**
@@ -9683,6 +9763,14 @@ export interface Locale extends ILocale {
          */
         "read:admin:announcements": string;
         /**
+         * アップデート情報を操作する
+         */
+        "write:admin:update-info": string;
+        /**
+         * アップデート情報を見る
+         */
+        "read:admin:update-info": string;
+        /**
          * アバターデコレーションを操作する
          */
         "write:admin:avatar-decorations": string;
@@ -11089,6 +11177,10 @@ export interface Locale extends ILocale {
              * 連携アプリからの通知
              */
             "app": string;
+            /**
+             * アップデート情報
+             */
+            "updateInfo": string;
         };
         "_actions": {
             /**
@@ -11660,6 +11752,18 @@ export interface Locale extends ILocale {
          * プロキシアカウントの説明を更新
          */
         "updateProxyAccountDescription": string;
+        /**
+         * アップデート情報を作成
+         */
+        "createUpdateInfo": string;
+        /**
+         * アップデート情報を更新
+         */
+        "updateUpdateInfo": string;
+        /**
+         * アップデート情報を削除
+         */
+        "deleteUpdateInfo": string;
     };
     "_fileViewer": {
         /**

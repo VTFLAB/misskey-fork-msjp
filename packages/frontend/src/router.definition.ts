@@ -212,6 +212,12 @@ export const ROUTE_DEF = [{
 	path: '/announcements/:announcementId',
 	component: page(() => import('@/pages/announcement.vue')),
 }, {
+	path: '/updates',
+	component: page(() => import('@/pages/update-infos.vue')),
+}, {
+	path: '/updates/:updateInfoId',
+	component: page(() => import('@/pages/update-info.vue')),
+}, {
 	path: '/about',
 	component: page(() => import('@/pages/about.vue')),
 	hash: 'initialTab',
@@ -426,6 +432,10 @@ export const ROUTE_DEF = [{
 		path: '/announcements',
 		name: 'announcements',
 		component: page(() => import('@/pages/admin/announcements.vue')),
+	}, {
+		path: '/update-info',
+		name: 'updateInfo',
+		component: page(() => import('@/pages/admin/update-info.vue')),
 	}, {
 		path: '/ads',
 		name: 'ads',
