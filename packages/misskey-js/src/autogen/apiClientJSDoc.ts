@@ -2397,6 +2397,17 @@ declare module '../api.js' {
      * 
      * **Credential required**: *No*
      */
+    request<E extends 'earthquake/history', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * No description provided.
+     * 
+     * **Credential required**: *No*
+     */
     request<E extends 'email-address/available', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,

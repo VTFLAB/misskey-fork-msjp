@@ -113,6 +113,46 @@ export type AnnouncementCreated = {
 	announcement: Announcement;
 };
 
+// JMA EEW (緊急地震速報, bsky-fork 独自)。Wolfx Open API (https://wolfx.jp/apidoc_en) 準拠。
+// Magunitude は原文APIのtypoをそのまま採用している。
+export type JmaEewWarnArea = {
+	Chiiki: string;
+	Shindo1: string;
+	Shindo2: string;
+	Time: string;
+	Type: string;
+	Arrive: boolean;
+};
+
+export type JmaEewAlert = {
+	type: 'jma_eew';
+	Title: string;
+	CodeType: string;
+	'Issue.Source': string;
+	'Issue.Status': string;
+	EventID: string;
+	Serial: number;
+	AnnouncedTime: string;
+	OriginTime: string;
+	Hypocenter: string;
+	Latitude: number;
+	Longitude: number;
+	Magunitude: number;
+	Depth: number;
+	MaxIntensity: string;
+	WarnArea?: JmaEewWarnArea[];
+	isSea: boolean;
+	isTraining: boolean;
+	isAssumption: boolean;
+	isWarn: boolean;
+	isFinal: boolean;
+	isCancel: boolean;
+};
+
+export type EarthquakeAlert = {
+	alert: JmaEewAlert;
+};
+
 export type SignupRequest = {
 	username: string;
 	password: string;
