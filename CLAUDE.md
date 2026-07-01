@@ -21,7 +21,11 @@ Claude Code 固有の補助 (skills / agents / slash commands / docs) は `.clau
 - Misskey 1 画面で Twitter 移行組の Bluesky 公式アカウント等を購読表示
 - **inbound only** (Bsky → Misskey 表示のみ、Misskey → Bsky 投稿は実装しない)
 - **anonymous** (自前 Bsky account / OAuth / app password 不要、public AppView API のみ使う)
-- **自分 1 人用の private fork** (公開しない、Bridgy Fed 系の consent 論争を回避)
+- **稼働インスタンス (`mi.msjp.pro`) は小規模公開インスタンスとして運用中** (2026-07-01 時点)
+  - 新規登録: 完全オープン登録 (招待コード不要)
+  - ActivityPub 連合: オープン (許可/拒否リスト運用は現状無し)
+  - コードリポジトリ (`git.msjp.pro/VTF/misskey-bsky-fork`) は非公開のまま
+  - **要検討**: AGPL-3.0 §13 (Remote Network Interaction) はネットワーク経由でソフトウェアを利用可能にした場合の corresponding source 提供義務を課す。稼働インスタンスを公開した時点でこの条項が発火している可能性が高く、リポジトリ非公開のままで良いか法務的に未整理 (2026-07-01 時点で結論保留、要検討事項として記録)
 
 ### 非スコープ (明確に「やらない」もの)
 
@@ -39,7 +43,8 @@ Claude Code 固有の補助 (skills / agents / slash commands / docs) は `.clau
   - **C. Bridgy Fed**: 対象が bot/公式アカウントで opt-in 窓口なし、却下
   - **D. 2 画面運用 (Phanpy + Misskey)**: 統合という目的を達成しない、却下
 - 工数評価: 1-2 週間専念で Phase 1 (= inbound 統合) 完成見込み
-- Firefish (Misskey fork) の燃え尽き廃止事例を踏まえ、**fork patch は最小侵襲・private 運用** で炎上回避
+- Firefish (Misskey fork) の燃え尽き廃止事例を踏まえ、**fork patch は最小侵襲** を維持 (upstream rebase コスト抑制)
+- 当初は private 運用前提だったが、2026-07-01 時点で小規模公開インスタンスへ移行済み。**モデレーション・スパム対策・プライバシー制御まわりの機能要件が新たに発生している** (詳細は今後の機能候補検討を参照)
 
 ## 設計の核
 
@@ -59,7 +64,7 @@ Claude Code 固有の補助 (skills / agents / slash commands / docs) は `.clau
 
 - upstream: `github.com/misskey-dev/misskey` **v2026.5.3** (現運用 CT 200 mi-host と同 version)
 - branch: `bsky-integration`
-- 公開しない: private repo on Gitea (`git.msjp.pro`)
+- コードリポジトリは非公開のまま: private repo on Gitea (`git.msjp.pro`)。稼働インスタンス自体は公開運用 (上記プロジェクト目的を参照)
 
 ### 認証 / 取得経路
 
@@ -318,8 +323,8 @@ setTimeout(()=>process.exit(0), 10000);
   - 日本語応答、§3 WAN 確認、§4 destructive 確認、secrets-guard、etc.
 - 上の `@AGENTS.md` で Misskey upstream の codex/copilot 共有ルールも継承
 - このプロジェクト固有:
-  - **AGPL-3.0-only** 維持 (Misskey upstream に倣う、ファイル冒頭の SPDX 行を踏襲)
-  - **upstream に PR を送らない** (private fork、公開しない)
+  - **AGPL-3.0-only** 維持 (Misskey upstream に倣う、ファイル冒頭の SPDX 行を踏襲)。稼働インスタンス公開に伴う §13 source-offer 義務の扱いは未整理 (上記プロジェクト目的の「要検討」参照)
+  - **upstream に PR を送らない** (fork 固有の atproto 統合コードのため、upstream の関心事と無関係)
   - **`core/activitypub/` の AP 関連 file は touch しない** (upstream rebase コスト爆発防止)
   - **既存 timeline query は touch しない** (LTL の Bsky 自動除外を維持)
   - **`---` より上 (upstream 由来部分) は touch しない** (rebase 容易性維持)
