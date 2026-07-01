@@ -6,11 +6,13 @@
 - Feat: リモートのカスタム絵文字を検索結果から全件一括インポートできるようにし、同名既存絵文字の画像を上書きする機能を追加
 - Feat: 「お知らせ」とは別に、フォーク独自機能のアップデート情報をコントロールパネルから掲載できるように (bsky-fork 独自)。公開すると全ユーザーに通知として届き、通知をクリックすると詳細ページが開く
 - Feat: 天気予報ウィジェットを追加 (bsky-fork 独自)。緯度・経度・地点名を設定でき、Open-Meteo API から現在の気温・天気・湿度・風速を取得して表示する
+- Feat: 緊急地震速報 (JMA EEW) をリアルタイムのトースト通知で受け取れるように (bsky-fork 独自、提供: Wolfx https://wolfx.jp)。あわせて直近の速報履歴を表示するウィジェットを追加
 
 ### Server
 
 - Feat: アップデート情報の管理用エンドポイント (`admin/update-info/*`) と閲覧用エンドポイント (`update-info/show`, `update-infos`) を追加 (bsky-fork 独自)
 - Feat: 天気予報ウィジェット向けの `get-weather` エンドポイントを追加 (bsky-fork 独自)。Open-Meteo API (無料・APIキー不要) をサーバー側でプロキシし、緯度・経度から現在の天気情報を返す
+- Feat: Wolfx (JMA EEW) の WebSocket feed をサーバー側で購読し、全接続中クライアントへ `earthquakeAlert` ブロードキャストストリームで配信する仕組みを追加 (bsky-fork 独自)。直近30件の速報履歴を返す `earthquake/history` エンドポイントも追加
 
 ## 2026.9.0
 

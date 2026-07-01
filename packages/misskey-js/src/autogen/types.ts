@@ -1959,6 +1959,15 @@ export type paths = {
          */
         post: operations['drive___stream'];
     };
+    '/earthquake/history': {
+        /**
+         * earthquake/history
+         * @description No description provided.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['earthquake___history'];
+    };
     '/email-address/available': {
         /**
          * email-address/available
@@ -21462,6 +21471,90 @@ export interface operations {
                 };
                 content: {
                     'application/json': components['schemas']['DriveFile'][];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    earthquake___history: {
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        alerts: {
+                            Title: string;
+                            EventID: string;
+                            Serial: number;
+                            AnnouncedTime: string;
+                            OriginTime: string;
+                            Hypocenter: string;
+                            Latitude: number;
+                            Longitude: number;
+                            Magunitude: number;
+                            Depth: number;
+                            MaxIntensity: string;
+                            WarnArea?: {
+                                Chiiki: string;
+                                Shindo1: string;
+                                Shindo2: string;
+                                Time: string;
+                                Type: string;
+                                Arrive: boolean;
+                            }[];
+                            isSea: boolean;
+                            isWarn: boolean;
+                            isFinal: boolean;
+                            isCancel: boolean;
+                        }[];
+                    };
                 };
             };
             /** @description Client error */

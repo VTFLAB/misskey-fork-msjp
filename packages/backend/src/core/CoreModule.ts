@@ -160,6 +160,7 @@ import { AtpPersonService } from './atproto/AtpPersonService.js';
 import { AtpSearchService } from './atproto/AtpSearchService.js';
 import { AtpNoteService } from './atproto/AtpNoteService.js';
 import { AtpJetstreamService } from './atproto/AtpJetstreamService.js';
+import { EarthquakeAlertService } from './earthquake/EarthquakeAlertService.js';
 import { QueueModule } from './QueueModule.js';
 import { QueueService } from './QueueService.js';
 import { LoggerService } from './LoggerService.js';
@@ -488,6 +489,7 @@ const $AtpJetstreamService: Provider = { provide: 'AtpJetstreamService', useExis
 		AtpSearchService,
 		AtpNoteService,
 		AtpJetstreamService,
+		EarthquakeAlertService,
 
 		QueueService,
 		TelemetryService,
@@ -810,6 +812,7 @@ const $AtpJetstreamService: Provider = { provide: 'AtpJetstreamService', useExis
 		AtpSearchService,
 		AtpNoteService,
 		AtpJetstreamService,
+		EarthquakeAlertService,
 
 		QueueService,
 		TelemetryService,
