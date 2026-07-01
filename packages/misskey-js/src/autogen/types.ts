@@ -2384,6 +2384,15 @@ export type paths = {
          */
         post: operations['get-online-users-count'];
     };
+    '/get-weather': {
+        /**
+         * get-weather
+         * @description No description provided.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['get-weather'];
+    };
     '/hashtags/list': {
         /**
          * hashtags/list
@@ -24788,6 +24797,79 @@ export interface operations {
                 content: {
                     'application/json': {
                         count: number;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'get-weather': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    latitude: number;
+                    longitude: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        time: string;
+                        temperature: number;
+                        humidity?: number | null;
+                        windSpeed?: number | null;
+                        weatherCode: number;
+                        isDay: boolean;
                     };
                 };
             };
