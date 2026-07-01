@@ -38,6 +38,7 @@ export const notificationTypes = [
 	'login',
 	'createToken',
 	'updateInfo',
+	'earthquakeAlert',
 ] as const;
 
 export const noteVisibilities = ['public', 'home', 'followers', 'specified'] as const;
