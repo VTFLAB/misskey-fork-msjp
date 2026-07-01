@@ -24,6 +24,7 @@
  * createToken - トークン作成
  * app - アプリ通知
  * test - テスト通知（サーバー側）
+ * updateInfo - アップデート情報が掲載された
  */
 export const notificationTypes = [
 	'note',
@@ -46,6 +47,7 @@ export const notificationTypes = [
 	'createToken',
 	'app',
 	'test',
+	'updateInfo',
 ] as const;
 
 export const groupedNotificationTypes = [
@@ -135,6 +137,9 @@ export const moderationLogTypes = [
 	'deleteGalleryPost',
 	'deleteChatRoom',
 	'updateProxyAccountDescription',
+	'createUpdateInfo',
+	'updateUpdateInfo',
+	'deleteUpdateInfo',
 ] as const;
 
 export type ModerationLogPayloads = {
@@ -401,6 +406,19 @@ export type ModerationLogPayloads = {
 	updateProxyAccountDescription: {
 		before: string | null;
 		after: string | null;
+	};
+	createUpdateInfo: {
+		updateInfoId: string;
+		updateInfo: any;
+	};
+	updateUpdateInfo: {
+		updateInfoId: string;
+		before: any;
+		after: any;
+	};
+	deleteUpdateInfo: {
+		updateInfoId: string;
+		updateInfo: any;
 	};
 };
 

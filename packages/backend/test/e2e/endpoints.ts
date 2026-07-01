@@ -6,6 +6,7 @@
 process.env.NODE_ENV = 'test';
 
 import * as assert from 'assert';
+import { setTimeout } from 'node:timers/promises';
 import { describe, beforeAll, test, expect, vi } from 'vitest';
 // node-fetch only supports it's own Blob yet
 // https://github.com/node-fetch/node-fetch/pull/1664
@@ -1248,6 +1249,147 @@ describe('Endpoints', () => {
 
 			assert.strictEqual((resAlice.body as unknown as { memo: string }).memo, memoAliceToBob);
 			assert.strictEqual((resCarol.body as unknown as { memo: string }).memo, memoCarolToBob);
+		});
+	});
+
+	describe('Update info', () => {
+		test('モデレーターが作成すると全ローカルユーザーに通知が届く', async () => {
+			const createRes = await api('admin/update-info/create', {
+				title: 'テストアップデート',
+				text: '新機能を追加しました。',
+			}, alice);
+
+			assert.strictEqual(createRes.status, 200);
+			assert.strictEqual((createRes.body as unknown as { title: string }).title, 'テストアップデート');
+			const updateInfoId = (createRes.body as unknown as { id: string }).id;
+
+			// createNotificationは非同期(fire-and-forget)なので少し待つ
+			await setTimeout(100);
+
+			const notificationsRes = await api('i/notifications', {}, bob);
+			const updateInfoNotification = (notificationsRes.body as unknown as { type: string; updateInfo: { id: string } }[])
+				.find(n => n.type === 'updateInfo');
+
+			assert.notStrictEqual(updateInfoNotification, undefined);
+			assert.strictEqual(updateInfoNotification!.updateInfo.id, updateInfoId);
+
+			const showRes = await api('update-info/show', { updateInfoId }, bob);
+			assert.strictEqual(showRes.status, 200);
+			assert.strictEqual((showRes.body as unknown as { text: string }).text, '新機能を追加しました。');
+		});
+
+		test('モデレーターでないユーザーは作成できない', async () => {
+			const res = await api('admin/update-info/create', {
+				title: 'テストアップデート2',
+				text: '本文',
+			}, bob);
+
+			assert.strictEqual(res.status, 403);
+			assert.strictEqual(castAsError(res.body as any).error.code, 'ROLE_PERMISSION_DENIED');
+		});
+
+		test('削除すると一覧・詳細から消える', async () => {
+			const createRes = await api('admin/update-info/create', {
+				title: '削除されるお知らせ',
+				text: '本文',
+			}, alice);
+			const updateInfoId = (createRes.body as unknown as { id: string }).id;
+
+			await api('admin/update-info/delete', { id: updateInfoId }, alice);
+
+			const showRes = await api('update-info/show', { updateInfoId }, bob);
+			assert.strictEqual(showRes.status, 400);
+			assert.strictEqual(castAsError(showRes.body as any).error.code, 'NO_SUCH_UPDATE_INFO');
+		});
+
+		test('モデレーターでないユーザーは削除できない', async () => {
+			const createRes = await api('admin/update-info/create', {
+				title: '削除できないはずのお知らせ',
+				text: '本文',
+			}, alice);
+			const updateInfoId = (createRes.body as unknown as { id: string }).id;
+
+			const res = await api('admin/update-info/delete', { id: updateInfoId }, bob);
+			assert.strictEqual(res.status, 403);
+			assert.strictEqual(castAsError(res.body as any).error.code, 'ROLE_PERMISSION_DENIED');
+		});
+
+		test('更新するとタイトル・本文が変わる', async () => {
+			const createRes = await api('admin/update-info/create', {
+				title: '更新前タイトル',
+				text: '更新前本文',
+			}, alice);
+			const updateInfoId = (createRes.body as unknown as { id: string }).id;
+
+			const updateRes = await api('admin/update-info/update', {
+				id: updateInfoId,
+				title: '更新後タイトル',
+				text: '更新後本文',
+			}, alice);
+			assert.strictEqual(updateRes.status, 204);
+
+			const showRes = await api('update-info/show', { updateInfoId }, bob);
+			assert.strictEqual((showRes.body as unknown as { title: string }).title, '更新後タイトル');
+			assert.strictEqual((showRes.body as unknown as { text: string }).text, '更新後本文');
+			assert.notStrictEqual((showRes.body as unknown as { updatedAt: string | null }).updatedAt, null);
+		});
+
+		test('存在しないIDを更新しようとするとエラーになる', async () => {
+			const res = await api('admin/update-info/update', {
+				id: '000000000000000000000000',
+				title: 'タイトル',
+				text: '本文',
+			}, alice);
+			assert.strictEqual(res.status, 400);
+			assert.strictEqual(castAsError(res.body as any).error.code, 'NO_SUCH_UPDATE_INFO');
+		});
+
+		test('モデレーターでないユーザーは更新できない', async () => {
+			const createRes = await api('admin/update-info/create', {
+				title: '更新できないはずのタイトル',
+				text: '本文',
+			}, alice);
+			const updateInfoId = (createRes.body as unknown as { id: string }).id;
+
+			const res = await api('admin/update-info/update', {
+				id: updateInfoId,
+				title: '書き換えたタイトル',
+				text: '本文',
+			}, bob);
+			assert.strictEqual(res.status, 403);
+			assert.strictEqual(castAsError(res.body as any).error.code, 'ROLE_PERMISSION_DENIED');
+		});
+
+		test('管理画面用の一覧取得ができる', async () => {
+			const createRes = await api('admin/update-info/create', {
+				title: '一覧テスト用',
+				text: '本文',
+			}, alice);
+			const updateInfoId = (createRes.body as unknown as { id: string }).id;
+
+			const listRes = await api('admin/update-info/list', { limit: 100 }, alice);
+			assert.strictEqual(listRes.status, 200);
+			const list = listRes.body as unknown as { id: string }[];
+			assert.ok(list.some(x => x.id === updateInfoId));
+		});
+
+		test('モデレーターでないユーザーは一覧取得できない', async () => {
+			const res = await api('admin/update-info/list', {}, bob);
+			assert.strictEqual(res.status, 403);
+			assert.strictEqual(castAsError(res.body as any).error.code, 'ROLE_PERMISSION_DENIED');
+		});
+
+		test('未認証でも一覧(update-infos)を取得できる', async () => {
+			const createRes = await api('admin/update-info/create', {
+				title: '公開一覧テスト用',
+				text: '本文',
+			}, alice);
+			const updateInfoId = (createRes.body as unknown as { id: string }).id;
+
+			const res = await api('update-infos', { limit: 100 });
+			assert.strictEqual(res.status, 200);
+			const list = res.body as unknown as { id: string }[];
+			assert.ok(list.some(x => x.id === updateInfoId));
 		});
 	});
 });
