@@ -474,5 +474,20 @@ export const packedNotificationSchema = {
 				enum: ['test'],
 			},
 		},
+	}, {
+		type: 'object',
+		properties: {
+			...baseSchema.properties,
+			type: {
+				type: 'string',
+				optional: false, nullable: false,
+				enum: ['updateInfo'],
+			},
+			updateInfo: {
+				type: 'object',
+				ref: 'UpdateInfo',
+				optional: false, nullable: false,
+			},
+		},
 	}],
 } as const;

@@ -136,6 +136,12 @@ import type {
 	AdminUnsetUserBannerRequest,
 	AdminUnsuspendUserRequest,
 	AdminUpdateAbuseUserReportRequest,
+	AdminUpdateInfoCreateRequest,
+	AdminUpdateInfoCreateResponse,
+	AdminUpdateInfoDeleteRequest,
+	AdminUpdateInfoListRequest,
+	AdminUpdateInfoListResponse,
+	AdminUpdateInfoUpdateRequest,
 	AdminUpdateMetaRequest,
 	AdminUpdateProxyAccountRequest,
 	AdminUpdateProxyAccountResponse,
@@ -612,6 +618,10 @@ import type {
 	SwUpdateRegistrationResponse,
 	TestRequest,
 	TestResponse,
+	UpdateInfoShowRequest,
+	UpdateInfoShowResponse,
+	UpdateInfosRequest,
+	UpdateInfosResponse,
 	UsernameAvailableRequest,
 	UsernameAvailableResponse,
 	UsersRequest,
@@ -775,6 +785,10 @@ export type Endpoints = {
 	'admin/unset-user-banner': { req: AdminUnsetUserBannerRequest; res: EmptyResponse };
 	'admin/unsuspend-user': { req: AdminUnsuspendUserRequest; res: EmptyResponse };
 	'admin/update-abuse-user-report': { req: AdminUpdateAbuseUserReportRequest; res: EmptyResponse };
+	'admin/update-info/create': { req: AdminUpdateInfoCreateRequest; res: AdminUpdateInfoCreateResponse };
+	'admin/update-info/delete': { req: AdminUpdateInfoDeleteRequest; res: EmptyResponse };
+	'admin/update-info/list': { req: AdminUpdateInfoListRequest; res: AdminUpdateInfoListResponse };
+	'admin/update-info/update': { req: AdminUpdateInfoUpdateRequest; res: EmptyResponse };
 	'admin/update-meta': { req: AdminUpdateMetaRequest; res: EmptyResponse };
 	'admin/update-proxy-account': { req: AdminUpdateProxyAccountRequest; res: AdminUpdateProxyAccountResponse };
 	'admin/update-user-note': { req: AdminUpdateUserNoteRequest; res: EmptyResponse };
@@ -1083,6 +1097,8 @@ export type Endpoints = {
 	'sw/unregister': { req: SwUnregisterRequest; res: EmptyResponse };
 	'sw/update-registration': { req: SwUpdateRegistrationRequest; res: SwUpdateRegistrationResponse };
 	'test': { req: TestRequest; res: TestResponse };
+	'update-info/show': { req: UpdateInfoShowRequest; res: UpdateInfoShowResponse };
+	'update-infos': { req: UpdateInfosRequest; res: UpdateInfosResponse };
 	'username/available': { req: UsernameAvailableRequest; res: UsernameAvailableResponse };
 	'users': { req: UsersRequest; res: UsersResponse };
 	'users/achievements': { req: UsersAchievementsRequest; res: UsersAchievementsResponse };
