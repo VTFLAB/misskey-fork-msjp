@@ -11283,6 +11283,10 @@ export interface Locale extends ILocale {
              * アップデート情報
              */
             "updateInfo": string;
+            /**
+             * 緊急地震速報
+             */
+            "earthquakeAlert": string;
         };
         "_actions": {
             /**

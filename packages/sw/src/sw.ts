@@ -181,6 +181,9 @@ globalThis.addEventListener('notificationclick', (ev: ServiceWorkerGlobalScopeEv
 							case 'reaction':
 								client = await swos.openNote(data.body.note.id, loginId);
 								break;
+							case 'updateInfo':
+								client = await swos.openClient('push', `/updates/${data.body.updateInfo.id}`, loginId);
+								break;
 							default:
 								if ('note' in data.body) {
 									client = await swos.openNote(data.body.note.id, loginId);
