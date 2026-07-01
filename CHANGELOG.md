@@ -7,12 +7,15 @@
 - Feat: 「お知らせ」とは別に、フォーク独自機能のアップデート情報をコントロールパネルから掲載できるように (bsky-fork 独自)。公開すると全ユーザーに通知として届き、通知をクリックすると詳細ページが開く
 - Feat: 天気予報ウィジェットを追加 (bsky-fork 独自)。緯度・経度・地点名を設定でき、Open-Meteo API から現在の気温・天気・湿度・風速を取得して表示する
 - Feat: 緊急地震速報 (JMA EEW) をリアルタイムのトースト通知で受け取れるように (bsky-fork 独自、提供: Wolfx https://wolfx.jp)。あわせて直近の速報履歴を表示するウィジェットを追加
+- Fix: 「アップデート情報」の通知が PWA/OS のプッシュ通知で表示されず、汎用フォールバック通知になっていた問題を修正 (bsky-fork 独自)。クリックで詳細ページへ遷移するようにもした
+- Feat: 緊急地震速報が PWA/OS のプッシュ通知としても届くように (bsky-fork 独自)。通知欄が埋まらないよう、警報発表時・最終報・警報後の取消のみを対象にする
 
 ### Server
 
 - Feat: アップデート情報の管理用エンドポイント (`admin/update-info/*`) と閲覧用エンドポイント (`update-info/show`, `update-infos`) を追加 (bsky-fork 独自)
 - Feat: 天気予報ウィジェット向けの `get-weather` エンドポイントを追加 (bsky-fork 独自)。Open-Meteo API (無料・APIキー不要) をサーバー側でプロキシし、緯度・経度から現在の天気情報を返す
 - Feat: Wolfx (JMA EEW) の WebSocket feed をサーバー側で購読し、全接続中クライアントへ `earthquakeAlert` ブロードキャストストリームで配信する仕組みを追加 (bsky-fork 独自)。直近30件の速報履歴を返す `earthquake/history` エンドポイントも追加
+- Feat: 緊急地震速報を新規通知type `earthquakeAlert` として重要イベント (警報発表時・最終報・取消) のみ全ユーザーに配信し、既存の通知 / Web Push 基盤に接続 (bsky-fork 独自)
 
 ## 2026.7.0
 
