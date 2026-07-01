@@ -214,6 +214,15 @@ export type ModerationLog = {
 } | {
 	type: 'updateProxyAccountDescription';
 	info: ModerationLogPayloads['updateProxyAccountDescription'];
+} | {
+	type: 'createUpdateInfo';
+	info: ModerationLogPayloads['createUpdateInfo'];
+} | {
+	type: 'updateUpdateInfo';
+	info: ModerationLogPayloads['updateUpdateInfo'];
+} | {
+	type: 'deleteUpdateInfo';
+	info: ModerationLogPayloads['deleteUpdateInfo'];
 });
 
 export type ServerStats = {

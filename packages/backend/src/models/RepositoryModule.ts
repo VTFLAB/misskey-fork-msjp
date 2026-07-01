@@ -65,6 +65,7 @@ import {
 	MiSwSubscription,
 	MiSystemAccount,
 	MiSystemWebhook,
+	MiUpdateInfo,
 	MiUsedUsername,
 	MiUser,
 	MiUserIp,
@@ -544,6 +545,12 @@ const $reversiGamesRepository: Provider = {
 	inject: [DI.db],
 };
 
+const $updateInfosRepository: Provider = {
+	provide: DI.updateInfosRepository,
+	useFactory: (db: DataSource) => db.getRepository(MiUpdateInfo).extend(miRepository as MiRepository<MiUpdateInfo>),
+	inject: [DI.db],
+};
+
 @Module({
 	imports: [],
 	providers: [
@@ -623,6 +630,7 @@ const $reversiGamesRepository: Provider = {
 		$chatApprovalsRepository,
 		$bubbleGameRecordsRepository,
 		$reversiGamesRepository,
+		$updateInfosRepository,
 	],
 	exports: [
 		$usersRepository,
@@ -701,6 +709,7 @@ const $reversiGamesRepository: Provider = {
 		$chatApprovalsRepository,
 		$bubbleGameRecordsRepository,
 		$reversiGamesRepository,
+		$updateInfosRepository,
 	],
 })
 export class RepositoryModule {
