@@ -11,7 +11,7 @@ import { common } from './common.js';
 import type { Component } from 'vue';
 import type { Keymap } from '@/utility/hotkey.js';
 import { i18n } from '@/i18n.js';
-import { alert, confirm, popup, post } from '@/os.js';
+import { alert, confirm, popup, post, toast } from '@/os.js';
 import { useStream } from '@/stream.js';
 import * as sound from '@/utility/sound.js';
 import { $i } from '@/i.js';
@@ -326,6 +326,18 @@ export async function mainBoot() {
 			});
 
 			stream.on('announcementCreated', onAnnouncementCreated);
+
+			// 地震速報 (JMA EEW, bsky-fork 独自): Wolfx (https://wolfx.jp) 経由でサーバーが
+			// 中継した緊急地震速報を全接続中クライアントへトースト通知する。
+			stream.on('earthquakeAlert', ev => {
+				const a = ev.alert;
+				const status = a.isCancel
+					? i18n.ts._widgetOptions._earthquakeHistory.cancel
+					: a.isWarn
+						? i18n.ts._widgetOptions._earthquakeHistory.warn
+						: i18n.ts._widgetOptions._earthquakeHistory.forecast;
+				toast(`${i18n.ts.earthquakeEarlyWarning}(${status}): ${a.Hypocenter} M${a.Magunitude} ${i18n.ts._widgetOptions._earthquakeHistory.maxIntensity}${a.MaxIntensity}`);
+			});
 
 			const main = markRaw(stream.useChannel('main', null, 'System'));
 
