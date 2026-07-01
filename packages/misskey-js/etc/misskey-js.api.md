@@ -1428,6 +1428,9 @@ type DriveStreamRequest = operations['drive___stream']['requestBody']['content']
 type DriveStreamResponse = operations['drive___stream']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type EarthquakeHistoryResponse = operations['earthquake___history']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type EmailAddressAvailableRequest = operations['email-address___available']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -1909,6 +1912,7 @@ declare namespace entities {
         DriveFoldersUpdateResponse,
         DriveStreamRequest,
         DriveStreamResponse,
+        EarthquakeHistoryResponse,
         EmailAddressAvailableRequest,
         EmailAddressAvailableResponse,
         EmojiRequest,

@@ -365,6 +365,7 @@ banner: "バナー"
 displayOfSensitiveMedia: "センシティブなメディアの表示"
 whenServerDisconnected: "サーバーとの接続が失われたとき"
 disconnectedFromServer: "サーバーから切断されました"
+earthquakeEarlyWarning: "緊急地震速報"
 reload: "リロード"
 doNothing: "なにもしない"
 reloadConfirm: "リロードしますか？"
@@ -2653,6 +2654,7 @@ _widgets:
   birthdayFollowings: "もうすぐ誕生日のユーザー"
   chat: "ダイレクトメッセージ"
   weather: "天気"
+  earthquakeHistory: "地震速報履歴"
 
 _widgetOptions:
   showHeader: "ヘッダーを表示"
@@ -2680,6 +2682,12 @@ _widgetOptions:
       snowShowers: "にわか雪"
       thunderstorm: "雷雨"
       unknown: "不明"
+  _earthquakeHistory:
+    warn: "警報"
+    forecast: "予報"
+    cancel: "取消"
+    final: "最終報"
+    maxIntensity: "最大震度"
   _clock:
     size: "サイズ"
     thickness: "針の太さ"
