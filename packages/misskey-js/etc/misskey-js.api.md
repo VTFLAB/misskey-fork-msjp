@@ -1420,6 +1420,11 @@ type DriveStreamRequest = operations['drive___stream']['requestBody']['content']
 type DriveStreamResponse = operations['drive___stream']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type EarthquakeAlert = {
+    alert: JmaEewAlert;
+};
+
+// @public (undocumented)
 type EarthquakeHistoryResponse = operations['earthquake___history']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
@@ -1560,6 +1565,9 @@ declare namespace entities {
         EmojiUpdated,
         EmojiDeleted,
         AnnouncementCreated,
+        JmaEewWarnArea,
+        JmaEewAlert,
+        EarthquakeAlert,
         SignupRequest,
         SignupResponse,
         SignupPendingRequest,
@@ -2909,6 +2917,42 @@ type IWebhooksTestRequest = operations['i___webhooks___test']['requestBody']['co
 type IWebhooksUpdateRequest = operations['i___webhooks___update']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
+type JmaEewAlert = {
+    type: 'jma_eew';
+    Title: string;
+    CodeType: string;
+    'Issue.Source': string;
+    'Issue.Status': string;
+    EventID: string;
+    Serial: number;
+    AnnouncedTime: string;
+    OriginTime: string;
+    Hypocenter: string;
+    Latitude: number;
+    Longitude: number;
+    Magunitude: number;
+    Depth: number;
+    MaxIntensity: string;
+    WarnArea?: JmaEewWarnArea[];
+    isSea: boolean;
+    isTraining: boolean;
+    isAssumption: boolean;
+    isWarn: boolean;
+    isFinal: boolean;
+    isCancel: boolean;
+};
+
+// @public (undocumented)
+type JmaEewWarnArea = {
+    Chiiki: string;
+    Shindo1: string;
+    Shindo2: string;
+    Time: string;
+    Type: string;
+    Arrive: boolean;
+};
+
+// @public (undocumented)
 type MeDetailed = components['schemas']['MeDetailed'];
 
 // @public (undocumented)
@@ -3195,7 +3239,7 @@ type Notification_2 = components['schemas']['Notification'];
 type NotificationsCreateRequest = operations['notifications___create']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
-export const notificationTypes: readonly ["note", "follow", "mention", "reply", "renote", "quote", "reaction", "pollEnded", "scheduledNotePosted", "scheduledNotePostFailed", "receiveFollowRequest", "followRequestAccepted", "app", "roleAssigned", "chatRoomInvitationReceived", "achievementEarned", "exportCompleted", "test", "login", "createToken"];
+export const notificationTypes: readonly ["note", "follow", "mention", "reply", "renote", "quote", "reaction", "pollEnded", "scheduledNotePosted", "scheduledNotePostFailed", "receiveFollowRequest", "followRequestAccepted", "app", "roleAssigned", "chatRoomInvitationReceived", "achievementEarned", "exportCompleted", "test", "login", "createToken", "updateInfo", "earthquakeAlert"];
 
 // @public (undocumented)
 export function nyaize(text: string): string;
