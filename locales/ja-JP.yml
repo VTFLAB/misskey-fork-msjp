@@ -284,6 +284,7 @@ usernameOrUserId: "ユーザー名かユーザーID"
 noSuchUser: "ユーザーが見つかりません"
 lookup: "照会"
 announcements: "お知らせ"
+updateInfo: "アップデート情報"
 imageUrl: "画像URL"
 remove: "削除"
 removed: "削除しました"
@@ -1682,6 +1683,9 @@ _announcement:
   silence: "非通知"
   silenceDescription: "オンにすると、このお知らせは通知されず、既読にする必要もなくなります。"
 
+_updateInfo:
+  description: "サーバー独自機能のアップデート情報を掲載します。お知らせと異なり画面に常時表示されず、公開すると全ユーザーに通知として届きます。"
+
 _initialAccountSetting:
   accountCreated: "アカウントの作成が完了しました！"
   letsStartAccountSetup: "さっそくアカウントの初期設定を行いましょう。"
@@ -2561,6 +2565,8 @@ _permissions:
   "read:admin:invite-codes": "招待コードを見る"
   "write:admin:announcements": "お知らせを操作する"
   "read:admin:announcements": "お知らせを見る"
+  "write:admin:update-info": "アップデート情報を操作する"
+  "read:admin:update-info": "アップデート情報を見る"
   "write:admin:avatar-decorations": "アバターデコレーションを操作する"
   "read:admin:avatar-decorations": "アバターデコレーションを見る"
   "write:admin:federation": "連合に関する情報を操作する"
@@ -2948,6 +2954,7 @@ _notification:
     createToken: "アクセストークンの作成"
     test: "通知のテスト"
     app: "連携アプリからの通知"
+    updateInfo: "アップデート情報"
 
   _actions:
     followBack: "フォローバック"
@@ -3108,6 +3115,9 @@ _moderationLogTypes:
   deleteGalleryPost: "ギャラリーの投稿を削除"
   deleteChatRoom: "ダイレクトメッセージのグループを削除"
   updateProxyAccountDescription: "プロキシアカウントの説明を更新"
+  createUpdateInfo: "アップデート情報を作成"
+  updateUpdateInfo: "アップデート情報を更新"
+  deleteUpdateInfo: "アップデート情報を削除"
 
 _fileViewer:
   title: "ファイルの詳細"

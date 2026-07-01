@@ -17,6 +17,7 @@ import { FilterUnionByProperty, groupedNotificationTypes } from '@/types.js';
 import { CacheService } from '@/core/CacheService.js';
 import { RoleEntityService } from './RoleEntityService.js';
 import { ChatEntityService } from './ChatEntityService.js';
+import { UpdateInfoEntityService } from './UpdateInfoEntityService.js';
 import type { OnModuleInit } from '@nestjs/common';
 import type { UserEntityService } from './UserEntityService.js';
 import type { NoteEntityService } from './NoteEntityService.js';
@@ -40,6 +41,7 @@ export class NotificationEntityService implements OnModuleInit {
 	private noteEntityService: NoteEntityService;
 	private roleEntityService: RoleEntityService;
 	private chatEntityService: ChatEntityService;
+	private updateInfoEntityService: UpdateInfoEntityService;
 
 	constructor(
 		private moduleRef: ModuleRef,
@@ -62,6 +64,7 @@ export class NotificationEntityService implements OnModuleInit {
 		this.noteEntityService = this.moduleRef.get('NoteEntityService');
 		this.roleEntityService = this.moduleRef.get('RoleEntityService');
 		this.chatEntityService = this.moduleRef.get('ChatEntityService');
+		this.updateInfoEntityService = this.moduleRef.get('UpdateInfoEntityService');
 	}
 
 	/**
@@ -163,6 +166,13 @@ export class NotificationEntityService implements OnModuleInit {
 			return null;
 		}
 
+		const needsUpdateInfo = notification.type === 'updateInfo';
+		const updateInfo = needsUpdateInfo ? await this.updateInfoEntityService.pack(notification.updateInfoId) : undefined;
+		// if the update info has been deleted, don't show this notification
+		if (needsUpdateInfo && !updateInfo) {
+			return null;
+		}
+
 		return await awaitAll({
 			id: notification.id,
 			createdAt: new Date(notification.createdAt).toISOString(),
@@ -193,6 +203,9 @@ export class NotificationEntityService implements OnModuleInit {
 				body: notification.customBody,
 				header: notification.customHeader,
 				icon: notification.customIcon,
+			} : {}),
+			...(notification.type === 'updateInfo' ? {
+				updateInfo: updateInfo,
 			} : {}),
 		});
 	}

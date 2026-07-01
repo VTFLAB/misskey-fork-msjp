@@ -13,6 +13,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-else-if="notification.type === 'renote:grouped'" :class="[$style.icon, $style.icon_renoteGroup]"><i class="ti ti-repeat" style="line-height: 1;"></i></div>
 		<MkAvatar v-else-if="'user' in notification" :class="$style.icon" :user="notification.user" link preview/>
 		<img v-else-if="'icon' in notification && notification.icon != null" :class="[$style.icon, $style.icon_app]" :src="notification.icon" alt=""/>
+		<img v-else-if="notification.type === 'updateInfo'" :class="[$style.icon, $style.icon_app]" :src="instance.iconUrl ?? '/favicon.ico'" alt=""/>
 		<div
 			:class="[$style.subIcon, {
 				[$style.t_follow]: notification.type === 'follow',
@@ -31,6 +32,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				[$style.t_createToken]: notification.type === 'createToken',
 				[$style.t_chatRoomInvitationReceived]: notification.type === 'chatRoomInvitationReceived',
 				[$style.t_roleAssigned]: notification.type === 'roleAssigned' && notification.role.iconUrl == null,
+				[$style.t_updateInfo]: notification.type === 'updateInfo',
 			}]"
 		>
 			<i v-if="notification.type === 'follow'" class="ti ti-plus"></i>
@@ -48,6 +50,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<i v-else-if="notification.type === 'login'" class="ti ti-login-2"></i>
 			<i v-else-if="notification.type === 'createToken'" class="ti ti-key"></i>
 			<i v-else-if="notification.type === 'chatRoomInvitationReceived'" class="ti ti-messages"></i>
+			<i v-else-if="notification.type === 'updateInfo'" class="ti ti-speakerphone"></i>
 			<template v-else-if="notification.type === 'roleAssigned'">
 				<img v-if="notification.role.iconUrl" style="height: 1.3em; vertical-align: -22%;" :src="notification.role.iconUrl" alt=""/>
 				<i v-else class="ti ti-badges"></i>
@@ -79,6 +82,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span v-else-if="notification.type === 'reaction:grouped'">{{ i18n.tsx._notification.reactedBySomeUsers({ n: getActualReactedUsersCount(notification) }) }}</span>
 			<span v-else-if="notification.type === 'renote:grouped'">{{ i18n.tsx._notification.renotedBySomeUsers({ n: notification.users.length }) }}</span>
 			<span v-else-if="notification.type === 'app'">{{ notification.header }}</span>
+			<span v-else-if="notification.type === 'updateInfo'">{{ instance.name ?? i18n.ts.instance }}</span>
 			<MkTime v-if="withTime" :time="notification.createdAt" :class="$style.headerTime"/>
 		</header>
 		<div>
@@ -151,6 +155,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span v-else-if="notification.type === 'app'" :class="$style.text">
 				<Mfm :text="notification.body" :nowrap="false"/>
 			</span>
+			<MkA v-else-if="notification.type === 'updateInfo'" :class="$style.text" :to="`/updates/${notification.updateInfo.id}`">
+				{{ notification.updateInfo.title }}
+			</MkA>
 
 			<div v-if="notification.type === 'reaction:grouped'">
 				<div v-for="reaction of notification.reactions" :key="reaction.user.id + reaction.reaction" :class="$style.reactionsItem">
@@ -186,6 +193,7 @@ import { userPage } from '@/filters/user.js';
 import { i18n } from '@/i18n.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { ensureSignin } from '@/i.js';
+import { instance } from '@/instance.js';
 
 const $i = ensureSignin();
 
@@ -390,6 +398,11 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 }
 
 .t_chatRoomInvitationReceived {
+	background: var(--eventOther);
+	pointer-events: none;
+}
+
+.t_updateInfo {
 	background: var(--eventOther);
 	pointer-events: none;
 }

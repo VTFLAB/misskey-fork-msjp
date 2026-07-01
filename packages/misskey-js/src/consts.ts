@@ -37,6 +37,7 @@ export const notificationTypes = [
 	'test',
 	'login',
 	'createToken',
+	'updateInfo',
 ] as const;
 
 export const noteVisibilities = ['public', 'home', 'followers', 'specified'] as const;
@@ -112,6 +113,8 @@ export const permissions = [
 	'read:admin:invite-codes',
 	'write:admin:announcements',
 	'read:admin:announcements',
+	'write:admin:update-info',
+	'read:admin:update-info',
 	'write:admin:avatar-decorations',
 	'read:admin:avatar-decorations',
 	'write:admin:federation',
@@ -190,6 +193,9 @@ export const moderationLogTypes = [
 	'deleteGalleryPost',
 	'deleteChatRoom',
 	'updateProxyAccountDescription',
+	'createUpdateInfo',
+	'updateUpdateInfo',
+	'deleteUpdateInfo',
 ] as const;
 
 export const rolePolicies = [
@@ -538,4 +544,17 @@ export type ModerationLogPayloads = {
 		before: string | null;
 		after: string | null;
 	}
+	createUpdateInfo: {
+		updateInfoId: string;
+		updateInfo: any;
+	};
+	updateUpdateInfo: {
+		updateInfoId: string;
+		before: any;
+		after: any;
+	};
+	deleteUpdateInfo: {
+		updateInfoId: string;
+		updateInfo: any;
+	};
 };

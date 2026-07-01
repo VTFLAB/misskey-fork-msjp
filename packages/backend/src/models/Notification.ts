@@ -10,6 +10,7 @@ import { MiAccessToken } from './AccessToken.js';
 import { MiRole } from './Role.js';
 import { MiDriveFile } from './DriveFile.js';
 import { MiNoteDraft } from './NoteDraft.js';
+import { MiUpdateInfo } from './UpdateInfo.js';
 
 // misskey-js の notificationTypes と同期すべし
 export type MiNotification = {
@@ -142,6 +143,11 @@ export type MiNotification = {
 	type: 'test';
 	id: string;
 	createdAt: string;
+} | {
+	type: 'updateInfo';
+	id: string;
+	createdAt: string;
+	updateInfoId: MiUpdateInfo['id'];
 };
 
 export type MiGroupedNotification = MiNotification | {
