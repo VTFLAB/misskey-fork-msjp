@@ -105,16 +105,16 @@ const { widgetProps, configure } = useWidgetPropsManager(name,
 // WMO Weather interpretation codes (https://open-meteo.com/en/docs) を大まかな区分にまとめる
 const WEATHER_CODE_MAP: Partial<Record<number, { icon: string; textKey: keyof typeof i18n.ts._widgetOptions._weather._conditions }>> = {
 	0: { icon: 'ti-sun', textKey: 'clear' },
-	1: { icon: 'ti-cloud-sun', textKey: 'mainlyClear' },
-	2: { icon: 'ti-cloud-sun', textKey: 'partlyCloudy' },
+	1: { icon: 'ti-sun-high', textKey: 'mainlyClear' },
+	2: { icon: 'ti-sun-high', textKey: 'partlyCloudy' },
 	3: { icon: 'ti-cloud', textKey: 'cloudy' },
 	45: { icon: 'ti-cloud-fog', textKey: 'fog' },
 	48: { icon: 'ti-cloud-fog', textKey: 'fog' },
-	51: { icon: 'ti-cloud-drizzle', textKey: 'drizzle' },
-	53: { icon: 'ti-cloud-drizzle', textKey: 'drizzle' },
-	55: { icon: 'ti-cloud-drizzle', textKey: 'drizzle' },
-	56: { icon: 'ti-cloud-drizzle', textKey: 'drizzle' },
-	57: { icon: 'ti-cloud-drizzle', textKey: 'drizzle' },
+	51: { icon: 'ti-cloud-rain', textKey: 'drizzle' },
+	53: { icon: 'ti-cloud-rain', textKey: 'drizzle' },
+	55: { icon: 'ti-cloud-rain', textKey: 'drizzle' },
+	56: { icon: 'ti-cloud-rain', textKey: 'drizzle' },
+	57: { icon: 'ti-cloud-rain', textKey: 'drizzle' },
 	61: { icon: 'ti-cloud-rain', textKey: 'rain' },
 	63: { icon: 'ti-cloud-rain', textKey: 'rain' },
 	65: { icon: 'ti-cloud-rain', textKey: 'rain' },
@@ -148,7 +148,8 @@ const precipitationProbability = ref<number | null>(null);
 
 const icon = computed(() => {
 	const base = weatherCode.value != null ? WEATHER_CODE_MAP[weatherCode.value]?.icon ?? 'ti-cloud-question' : 'ti-cloud-question';
-	return `ti ${!isDay.value && base === 'ti-sun' ? 'ti-moon' : base}`;
+	const isSunLike = base === 'ti-sun' || base === 'ti-sun-high';
+	return `ti ${!isDay.value && isSunLike ? 'ti-moon' : base}`;
 });
 
 const conditionText = computed(() => {
