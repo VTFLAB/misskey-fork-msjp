@@ -256,6 +256,23 @@ async function composeNotification(data: PushNotificationDataMap[keyof PushNotif
 						data,
 					}];
 
+				case 'updateInfo':
+					return [data.body.updateInfo.title, {
+						body: data.body.updateInfo.text,
+						icon: data.body.updateInfo.imageUrl ?? undefined,
+						badge: iconUrl('bell'),
+						data,
+					}];
+
+				case 'earthquakeAlert':
+					return [data.body.title, {
+						body: `${data.body.hypocenter} M${data.body.magnitude} 最大震度${data.body.maxIntensity}`,
+						badge: iconUrl('bell'),
+						tag: `earthquake:${data.body.eventId}`,
+						data,
+						renotify: true,
+					}];
+
 				default:
 					return null;
 			}
