@@ -13,14 +13,34 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkLoading v-if="fetching"/>
 		<MkResult v-else-if="error" type="error"/>
 		<div v-else :class="$style.body">
-			<i :class="[icon, $style.icon]"></i>
-			<div :class="$style.main">
-				<span :class="$style.temperature">{{ Math.round(temperature ?? 0) }}°C</span>
-				<span :class="$style.condition">{{ conditionText }}</span>
+			<div :class="$style.hero">
+				<i :class="[icon, $style.icon, { [$style.night]: !isDay }]"></i>
+				<div :class="$style.main">
+					<span :class="$style.temperature">{{ Math.round(temperature ?? 0) }}<span :class="$style.deg">°</span></span>
+					<span :class="$style.condition">{{ conditionText }}</span>
+				</div>
 			</div>
-			<div v-if="humidity != null || windSpeed != null" :class="$style.sub">
-				<span v-if="humidity != null">{{ i18n.ts._widgetOptions._weather.humidity }}: {{ Math.round(humidity) }}%</span>
-				<span v-if="windSpeed != null">{{ i18n.ts._widgetOptions._weather.windSpeed }}: {{ Math.round(windSpeed) }}km/h</span>
+			<div v-if="feelsLike != null || humidity != null || windSpeed != null" :class="$style.stats">
+				<span v-if="feelsLike != null" :class="$style.stat">
+					<i class="ti ti-temperature" :class="$style.statIcon" aria-hidden="true"></i>{{ i18n.ts._widgetOptions._weather.feelsLike }} {{ Math.round(feelsLike) }}°
+				</span>
+				<span v-if="humidity != null" :class="$style.stat">
+					<i class="ti ti-droplet" :class="$style.statIcon" aria-hidden="true"></i><span :class="$style.srOnly">{{ i18n.ts._widgetOptions._weather.humidity }}</span> {{ Math.round(humidity) }}%
+				</span>
+				<span v-if="windSpeed != null" :class="$style.stat">
+					<i class="ti ti-wind" :class="$style.statIcon" aria-hidden="true"></i><span :class="$style.srOnly">{{ i18n.ts._widgetOptions._weather.windSpeed }}</span> {{ Math.round(windSpeed) }}km/h
+				</span>
+			</div>
+			<div v-if="tempMax != null || tempMin != null || precipitationProbability != null" :class="$style.today">
+				<span v-if="tempMax != null" :class="$style.todayItem" :title="i18n.ts._widgetOptions._weather.todayHigh">
+					<i class="ti ti-arrow-up" :class="$style.todayIcon" aria-hidden="true"></i><span :class="$style.srOnly">{{ i18n.ts._widgetOptions._weather.todayHigh }}</span> {{ Math.round(tempMax) }}°
+				</span>
+				<span v-if="tempMin != null" :class="$style.todayItem" :title="i18n.ts._widgetOptions._weather.todayLow">
+					<i class="ti ti-arrow-down" :class="$style.todayIcon" aria-hidden="true"></i><span :class="$style.srOnly">{{ i18n.ts._widgetOptions._weather.todayLow }}</span> {{ Math.round(tempMin) }}°
+				</span>
+				<span v-if="precipitationProbability != null" :class="$style.todayItem" :title="i18n.ts._widgetOptions._weather.precipitationProbability">
+					<i class="ti ti-umbrella" :class="$style.todayIcon" aria-hidden="true"></i><span :class="$style.srOnly">{{ i18n.ts._widgetOptions._weather.precipitationProbability }}</span> {{ Math.round(precipitationProbability) }}%
+				</span>
 			</div>
 		</div>
 	</div>
@@ -119,8 +139,12 @@ const error = ref(false);
 const temperature = ref<number | null>(null);
 const humidity = ref<number | null>(null);
 const windSpeed = ref<number | null>(null);
+const feelsLike = ref<number | null>(null);
 const weatherCode = ref<number | null>(null);
 const isDay = ref(true);
+const tempMax = ref<number | null>(null);
+const tempMin = ref<number | null>(null);
+const precipitationProbability = ref<number | null>(null);
 
 const icon = computed(() => {
 	const base = weatherCode.value != null ? WEATHER_CODE_MAP[weatherCode.value]?.icon ?? 'ti-cloud-question' : 'ti-cloud-question';
@@ -144,8 +168,12 @@ const tick = () => {
 		temperature.value = res.temperature;
 		humidity.value = res.humidity ?? null;
 		windSpeed.value = res.windSpeed ?? null;
+		feelsLike.value = res.feelsLike ?? null;
 		weatherCode.value = res.weatherCode;
 		isDay.value = res.isDay;
+		tempMax.value = res.tempMax ?? null;
+		tempMin.value = res.tempMin ?? null;
+		precipitationProbability.value = res.precipitationProbability ?? null;
 		error.value = false;
 		fetching.value = false;
 	}).catch(() => {
@@ -182,36 +210,94 @@ defineExpose<WidgetComponentExpose>({
 
 .body {
 	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.srOnly {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+.hero {
+	display: flex;
 	align-items: center;
 	gap: 12px;
 }
 
 .icon {
-	font-size: 2.2em;
+	font-size: 2.8em;
 	color: var(--MI_THEME-accent);
+
+	&.night {
+		opacity: 0.8;
+	}
 }
 
 .main {
 	display: flex;
 	flex-direction: column;
+	min-width: 0;
 }
 
 .temperature {
-	font-size: 1.6em;
+	font-size: 2em;
 	font-weight: bold;
 	line-height: 1.2;
 }
 
-.condition {
-	font-size: 0.85em;
+.deg {
+	font-size: 0.6em;
+	font-weight: 500;
 	opacity: 0.75;
 }
 
-.sub {
-	display: flex;
-	gap: 12px;
-	margin-top: 8px;
-	font-size: 0.8em;
+.condition {
+	font-size: 0.9em;
 	opacity: 0.75;
+}
+
+.stats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 14px;
+	font-size: 0.85em;
+	opacity: 0.8;
+	border-top: solid 0.5px var(--MI_THEME-divider);
+	padding-top: 8px;
+}
+
+.stat {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.statIcon {
+	color: var(--MI_THEME-accent);
+}
+
+.today {
+	display: flex;
+	gap: 14px;
+	font-size: 0.85em;
+	opacity: 0.8;
+}
+
+.todayItem {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.todayIcon {
+	color: var(--MI_THEME-accent);
 }
 </style>
