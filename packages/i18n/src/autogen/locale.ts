@@ -1477,6 +1477,10 @@ export interface Locale extends ILocale {
      */
     "disconnectedFromServer": string;
     /**
+     * 緊急地震速報
+     */
+    "earthquakeEarlyWarning": string;
+    /**
      * リロード
      */
     "reload": string;
@@ -10183,6 +10187,10 @@ export interface Locale extends ILocale {
          * 天気
          */
         "weather": string;
+        /**
+         * 地震速報履歴
+         */
+        "earthquakeHistory": string;
     };
     "_widgetOptions": {
         /**
@@ -10278,6 +10286,28 @@ export interface Locale extends ILocale {
                  */
                 "unknown": string;
             };
+        };
+        "_earthquakeHistory": {
+            /**
+             * 警報
+             */
+            "warn": string;
+            /**
+             * 予報
+             */
+            "forecast": string;
+            /**
+             * 取消
+             */
+            "cancel": string;
+            /**
+             * 最終報
+             */
+            "final": string;
+            /**
+             * 最大震度
+             */
+            "maxIntensity": string;
         };
         "_clock": {
             /**

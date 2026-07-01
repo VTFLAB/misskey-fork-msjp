@@ -14,6 +14,7 @@ import {
 } from './autogen/models.js';
 import {
 	AnnouncementCreated,
+	EarthquakeAlert,
 	EmojiAdded, EmojiDeleted,
 	EmojiUpdated,
 	PageEvent,
@@ -337,4 +338,5 @@ export type BroadcastEvents = {
 	emojiUpdated: (payload: EmojiUpdated) => void;
 	emojiDeleted: (payload: EmojiDeleted) => void;
 	announcementCreated: (payload: AnnouncementCreated) => void;
+	earthquakeAlert: (payload: EarthquakeAlert) => void;
 };
