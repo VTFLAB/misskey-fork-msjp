@@ -489,5 +489,24 @@ export const packedNotificationSchema = {
 				optional: false, nullable: false,
 			},
 		},
+	}, {
+		type: 'object',
+		properties: {
+			...baseSchema.properties,
+			type: {
+				type: 'string',
+				optional: false, nullable: false,
+				enum: ['earthquakeAlert'],
+			},
+			eventId: { type: 'string', optional: false, nullable: false },
+			serial: { type: 'number', optional: false, nullable: false },
+			title: { type: 'string', optional: false, nullable: false },
+			hypocenter: { type: 'string', optional: false, nullable: false },
+			magnitude: { type: 'number', optional: false, nullable: false },
+			maxIntensity: { type: 'string', optional: false, nullable: false },
+			isWarn: { type: 'boolean', optional: false, nullable: false },
+			isFinal: { type: 'boolean', optional: false, nullable: false },
+			isCancel: { type: 'boolean', optional: false, nullable: false },
+		},
 	}],
 } as const;
