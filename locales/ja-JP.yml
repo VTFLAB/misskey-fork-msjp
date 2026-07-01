@@ -2669,6 +2669,10 @@ _widgetOptions:
     refreshIntervalSec: "更新間隔(秒)"
     humidity: "湿度"
     windSpeed: "風速"
+    feelsLike: "体感"
+    todayHigh: "最高"
+    todayLow: "最低"
+    precipitationProbability: "降水確率"
     _conditions:
       clear: "快晴"
       mainlyClear: "晴れ"
