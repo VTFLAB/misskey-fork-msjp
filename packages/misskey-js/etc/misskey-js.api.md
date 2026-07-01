@@ -1961,6 +1961,8 @@ declare namespace entities {
         GalleryPostsUpdateResponse,
         GetAvatarDecorationsResponse,
         GetOnlineUsersCountResponse,
+        GetWeatherRequest,
+        GetWeatherResponse,
         HashtagsListRequest,
         HashtagsListResponse,
         HashtagsSearchRequest,
@@ -2543,6 +2545,12 @@ type GetAvatarDecorationsResponse = operations['get-avatar-decorations']['respon
 
 // @public (undocumented)
 type GetOnlineUsersCountResponse = operations['get-online-users-count']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type GetWeatherRequest = operations['get-weather']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type GetWeatherResponse = operations['get-weather']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type Hashtag = components['schemas']['Hashtag'];
