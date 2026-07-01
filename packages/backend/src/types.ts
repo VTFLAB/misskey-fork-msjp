@@ -25,6 +25,7 @@
  * app - アプリ通知
  * test - テスト通知（サーバー側）
  * updateInfo - アップデート情報が掲載された
+ * earthquakeAlert - 緊急地震速報 (JMA EEW) を受信した (bsky-fork 独自)
  */
 export const notificationTypes = [
 	'note',
@@ -48,6 +49,7 @@ export const notificationTypes = [
 	'app',
 	'test',
 	'updateInfo',
+	'earthquakeAlert',
 ] as const;
 
 export const groupedNotificationTypes = [

@@ -207,6 +207,17 @@ export class NotificationEntityService implements OnModuleInit {
 			...(notification.type === 'updateInfo' ? {
 				updateInfo: updateInfo,
 			} : {}),
+			...(notification.type === 'earthquakeAlert' ? {
+				eventId: notification.eventId,
+				serial: notification.serial,
+				title: notification.title,
+				hypocenter: notification.hypocenter,
+				magnitude: notification.magnitude,
+				maxIntensity: notification.maxIntensity,
+				isWarn: notification.isWarn,
+				isFinal: notification.isFinal,
+				isCancel: notification.isCancel,
+			} : {}),
 		});
 	}
 

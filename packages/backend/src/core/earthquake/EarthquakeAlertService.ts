@@ -4,11 +4,15 @@
  */
 
 import cluster from 'node:cluster';
-import { Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
+import { IsNull } from 'typeorm';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
+import { NotificationService } from '@/core/NotificationService.js';
+import { DI } from '@/di-symbols.js';
+import type { UsersRepository } from '@/models/_.js';
 
 // Wolfx Open API (https://wolfx.jp/apidoc_en) の JMA EEW (緊急地震速報) WebSocket feed。
 // 無料・APIキー不要・認証不要の公開API。フィールド定義はドキュメント準拠 (Magunitude は原文のtypoをそのまま採用)。
@@ -64,10 +68,16 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 	private connectTimer: NodeJS.Timeout | null = null;
 	private suppressNextReconnect = false;
 	private history: JmaEewAlert[] = [];
+	// isWarn が発報済みのEventIDを保持 (通知欄が埋まるのを防ぐため重要イベントのみpushする判定に使う)。
+	private warnedEvents = new Set<string>();
 
 	constructor(
 		private loggerService: LoggerService,
 		private globalEventService: GlobalEventService,
+		private notificationService: NotificationService,
+
+		@Inject(DI.usersRepository)
+		private usersRepository: UsersRepository,
 	) {
 		this.logger = this.loggerService.getLogger('earthquake', 'red');
 	}
@@ -225,5 +235,58 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 
 		this.logger.info(`EEW: ${evt.Hypocenter} M${evt.Magunitude} 最大震度${evt.MaxIntensity} (Serial=${evt.Serial}, isFinal=${evt.isFinal}, isCancel=${evt.isCancel})`);
 		this.globalEventService.publishBroadcastStream('earthquakeAlert', { alert: evt });
+
+		if (this.shouldNotify(evt)) {
+			this.notifyAllUsers(evt).catch(e => {
+				this.logger.error(`notifyAllUsers failed: ${e instanceof Error ? e.message : String(e)}`);
+			});
+		}
+	}
+
+	// 重要イベントのみ通知 (push) 対象にする。全serialをpushすると通知欄が埋まるため、
+	// (1) 警報級に達した最初の瞬間、(2) 最終報、(3) 警報発出後の取消、の3点に絞る。
+	@bindThis
+	private shouldNotify(evt: JmaEewAlert): boolean {
+		// isWarn と isFinal が同一serialで同時に立つケースもあるため、早期returnにせず
+		// 独立に判定する (warnedEventsの掃除漏れを防ぐ)。
+		let notify = false;
+
+		if (evt.isWarn && !this.warnedEvents.has(evt.EventID)) {
+			this.warnedEvents.add(evt.EventID);
+			notify = true;
+		}
+		if (evt.isFinal) {
+			this.warnedEvents.delete(evt.EventID);
+			notify = true;
+		}
+		if (evt.isCancel && this.warnedEvents.has(evt.EventID)) {
+			this.warnedEvents.delete(evt.EventID);
+			notify = true;
+		}
+
+		return notify;
+	}
+
+	@bindThis
+	private async notifyAllUsers(evt: JmaEewAlert): Promise<void> {
+		const localActiveUsers = await this.usersRepository.findBy({
+			host: IsNull(),
+			isSuspended: false,
+			isDeleted: false,
+		});
+
+		for (const user of localActiveUsers) {
+			this.notificationService.createNotification(user.id, 'earthquakeAlert', {
+				eventId: evt.EventID,
+				serial: evt.Serial,
+				title: evt.Title,
+				hypocenter: evt.Hypocenter,
+				magnitude: evt.Magunitude,
+				maxIntensity: evt.MaxIntensity,
+				isWarn: evt.isWarn,
+				isFinal: evt.isFinal,
+				isCancel: evt.isCancel,
+			});
+		}
 	}
 }
