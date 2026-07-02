@@ -105,6 +105,38 @@ describe('EarthquakeAlertService', () => {
 		expect(notificationService.createNotification).toHaveBeenCalledTimes(4);
 	});
 
+	test('MaxIntensity「不明」は同一イベントの直近の有効値で補完される', async () => {
+		await feed({ Serial: 1, MaxIntensity: '2' });
+		await feed({ Serial: 2, MaxIntensity: '3' });
+		await feed({ Serial: 3, MaxIntensity: '不明', isFinal: true });
+
+		const final = globalEventService.publishBroadcastStream.mock.calls[2][1].alert;
+		expect(final.MaxIntensity).toBe('3');
+		expect(service.getHistory()[0].MaxIntensity).toBe('3');
+	});
+
+	test('有効値が一度も無いイベントの「不明」はそのまま', async () => {
+		await feed({ Serial: 1, MaxIntensity: '不明' });
+
+		const alert = globalEventService.publishBroadcastStream.mock.calls[0][1].alert;
+		expect(alert.MaxIntensity).toBe('不明');
+	});
+
+	test('取消報の「不明」は補完しない', async () => {
+		await feed({ Serial: 1, MaxIntensity: '4', isWarn: true });
+		await feed({ Serial: 2, MaxIntensity: '不明', isCancel: true });
+
+		const cancel = globalEventService.publishBroadcastStream.mock.calls[1][1].alert;
+		expect(cancel.MaxIntensity).toBe('不明');
+	});
+
+	test('最終報・取消報で保持中の有効値を破棄する (EventID再利用時に持ち越さない)', async () => {
+		await feed({ Serial: 1, MaxIntensity: '5弱' });
+		await feed({ Serial: 2, MaxIntensity: '不明', isFinal: true });
+
+		expect((service as any).lastKnownIntensity.size).toBe(0);
+	});
+
 	test('訓練報 (isTraining) は履歴にも通知にも一切含めない', async () => {
 		await feed({ isTraining: true, isWarn: true });
 

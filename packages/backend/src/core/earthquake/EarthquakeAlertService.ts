@@ -70,6 +70,9 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 	private history: JmaEewAlert[] = [];
 	// isWarn が発報済みのEventIDを保持 (通知欄が埋まるのを防ぐため重要イベントのみpushする判定に使う)。
 	private warnedEvents = new Set<string>();
+	// EventIDごとの直近の有効な最大予測震度。深発地震などでJMAが震度予測を打ち切ると
+	// 後続serial (最終報含む) の MaxIntensity が「不明」になるため、表示用に引き継ぐ。
+	private lastKnownIntensity = new Map<string, string>();
 
 	constructor(
 		private loggerService: LoggerService,
@@ -227,6 +230,20 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 		const evt = parsed as JmaEewAlert;
 		// 訓練報は実際の地震ではないため、ユーザー向け通知・履歴には含めない。
 		if (evt.isTraining) return;
+
+		// 「不明」になった serial では同一イベントの直近の有効値で補完する。
+		// 取消報は震度自体が無意味になるため補完しない。
+		if (!evt.isCancel) {
+			if (evt.MaxIntensity !== '不明') {
+				this.lastKnownIntensity.set(evt.EventID, evt.MaxIntensity);
+			} else {
+				const known = this.lastKnownIntensity.get(evt.EventID);
+				if (known != null) evt.MaxIntensity = known;
+			}
+		}
+		if (evt.isFinal || evt.isCancel) {
+			this.lastKnownIntensity.delete(evt.EventID);
+		}
 
 		this.history.push(evt);
 		if (this.history.length > HISTORY_LIMIT) {

@@ -20,6 +20,7 @@
 - Feat: Wolfx (JMA EEW) の WebSocket feed をサーバー側で購読し、全接続中クライアントへ `earthquakeAlert` ブロードキャストストリームで配信する仕組みを追加 (bsky-fork 独自)。直近30件の速報履歴を返す `earthquake/history` エンドポイントも追加
 - Feat: 緊急地震速報を新規通知type `earthquakeAlert` として重要イベント (警報発表時・最終報・取消) のみ全ユーザーに配信し、既存の通知 / Web Push 基盤に接続 (bsky-fork 独自)
 - Enhance: `get-weather` エンドポイントが体感温度・本日の最高/最低気温・降水確率も返すように (bsky-fork 独自)
+- Fix: 緊急地震速報で深発地震などにより最大予測震度が「不明」になった続報・最終報を、同一イベントで直近に予測された震度で補完して表示するように (bsky-fork 独自)。取消報は補完しない
 
 ## 2026.7.0
 
