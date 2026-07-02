@@ -3,9 +3,10 @@
 # conflict 発生時は rebase --abort して Gitea Issue を立てて exit 1 (人間が手動 rebase)。
 name: Upstream Sync
 
+# 2026-07-03: bsky-integration を develop 系列の tag 2026.6.1-alpha.1 ベースに載せ替えたため、
+# upstream/master への nightly rebase は base を巻き戻してしまう。schedule を停止し、
+# master 追従へ戻す時 (2026.6.1 stable リリース時など) に schedule を復活させること。
 on:
-  schedule:
-    - cron: '0 18 * * *'
   workflow_dispatch:
 
 permissions:
