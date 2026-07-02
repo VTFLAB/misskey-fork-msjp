@@ -64,7 +64,8 @@ export function openChat(body: any, loginId: string): ReturnType<typeof openClie
 	if (body.toRoomId != null) {
 		return openClient('push', `/chat/room/${body.toRoomId}`, loginId, { body });
 	} else {
-		return openClient('push', `/chat/user/${body.toUserId}`, loginId, { body });
+		// pushは受信者にのみ届くため、開くべき1:1チャット相手は常に送信者 (toUserIdは受信者自身)
+		return openClient('push', `/chat/user/${body.fromUserId}`, loginId, { body });
 	}
 }
 

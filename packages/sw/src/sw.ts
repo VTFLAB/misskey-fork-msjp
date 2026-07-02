@@ -60,6 +60,11 @@ async function offlineContentHTML() {
 }
 
 globalThis.addEventListener('install', (ev) => {
+	// 旧SWがwaitingのまま残ると、新しいpush通知タイプ (earthquakeAlert等) が
+	// 旧SWで処理されて無音の空通知に化けるため、即時activateする。
+	// activate側のclients.claim()と対で機能する。
+	ev.waitUntil(globalThis.skipWaiting());
+
 	// 次の問題が発生するため、ServiceWorkerAutoPreload をオプトアウトする必要がある
 	// https://issues.chromium.org/issues/466790291
 	if ('addRoutes' in ev) {
