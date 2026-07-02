@@ -13,6 +13,8 @@ import { getNoteSummary } from '@/misc/get-note-summary.js';
 import type { MiMeta, MiSwSubscription, SwSubscriptionsRepository } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
 import { RedisKVCache } from '@/misc/cache.js';
+import type Logger from '@/logger.js';
+import { LoggerService } from '@/core/LoggerService.js';
 
 // Defined also packages/sw/types.ts#L13
 type PushNotificationsTypes = {
@@ -49,8 +51,11 @@ function truncateBody<T extends keyof PushNotificationsTypes>(type: T, body: Pus
 @Injectable()
 export class PushNotificationService implements OnApplicationShutdown {
 	private subscriptionsCache: RedisKVCache<MiSwSubscription[]>;
+	private logger: Logger;
 
 	constructor(
+		loggerService: LoggerService,
+
 		@Inject(DI.config)
 		private config: Config,
 
@@ -63,6 +68,7 @@ export class PushNotificationService implements OnApplicationShutdown {
 		@Inject(DI.swSubscriptionsRepository)
 		private swSubscriptionsRepository: SwSubscriptionsRepository,
 	) {
+		this.logger = loggerService.getLogger('push-notification');
 		this.subscriptionsCache = new RedisKVCache<MiSwSubscription[]>(this.redisClient, 'userSwSubscriptions', {
 			lifetime: 1000 * 60 * 60 * 1, // 1h
 			memoryCacheLifetime: 1000 * 60 * 3, // 3m
@@ -104,9 +110,10 @@ export class PushNotificationService implements OnApplicationShutdown {
 			}), {
 				proxy: this.config.proxy,
 			}).catch((err: any) => {
-				//swLogger.info(err.statusCode);
-				//swLogger.info(err.headers);
-				//swLogger.info(err.body);
+				// 410 (Gone) 以外の失敗は握りつぶすと配信不良に気づけないため記録する
+				if (err.statusCode !== 410) {
+					this.logger.warn(`push failed: type=${type} status=${err.statusCode ?? 'n/a'} endpoint=${new URL(subscription.endpoint).host}: ${err.message ?? err}`);
+				}
 
 				if (err.statusCode === 410) {
 					this.swSubscriptionsRepository.delete({
