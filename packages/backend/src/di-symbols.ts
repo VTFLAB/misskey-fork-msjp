@@ -94,5 +94,6 @@ export const DI = {
 	updateInfosRepository: Symbol('updateInfosRepository'),
 	twitchAccountsRepository: Symbol('twitchAccountsRepository'),
 	twitchStreamsRepository: Symbol('twitchStreamsRepository'),
+	twitchStreamCommentsRepository: Symbol('twitchStreamCommentsRepository'),
 	//#endregion
 };

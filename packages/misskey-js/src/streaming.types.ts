@@ -243,6 +243,24 @@ export type Channels = {
 			claimTimeIsUp: null | Record<string, never>;
 		}
 	};
+	twitchLiveStream: {
+		params: {
+			streamId: string;
+		};
+		events: {
+			comment: (payload: {
+				id: string;
+				createdAt: string;
+				source: 'misskey' | 'twitch';
+				text: string;
+				user: UserLite | null;
+				twitchUserName: string | null;
+				twitchDisplayName: string | null;
+			}) => void;
+			streamEnded: (payload: Record<string, never>) => void;
+		};
+		receives: null;
+	};
 	chatUser: {
 		params: {
 			otherId: string;

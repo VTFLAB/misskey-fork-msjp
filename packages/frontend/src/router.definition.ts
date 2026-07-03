@@ -226,6 +226,10 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/live-streams.vue')),
 	loginRequired: true,
 }, {
+	path: '/live/:acct',
+	component: page(() => import('@/pages/live-stream.vue')),
+	loginRequired: true,
+}, {
 	path: '/about',
 	component: page(() => import('@/pages/about.vue')),
 	hash: 'initialTab',

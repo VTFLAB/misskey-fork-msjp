@@ -327,7 +327,25 @@ export type GlobalEvents = {
 		name: `reversiGameStream:${MiReversiGame['id']}`;
 		payload: EventTypesToEventPayload<ReversiGameEventTypes>;
 	};
+	twitchLiveStream: {
+		name: `twitchLiveStream:${string}`;
+		payload: EventTypesToEventPayload<TwitchLiveStreamEventTypes>;
+	};
 };
+
+// Twitch 連携 (bsky-fork 独自): 視聴ページ用イベント
+export interface TwitchLiveStreamEventTypes {
+	comment: {
+		id: string;
+		createdAt: string;
+		source: 'misskey' | 'twitch';
+		text: string;
+		user: Packed<'UserLite'> | null;
+		twitchUserName: string | null;
+		twitchDisplayName: string | null;
+	};
+	streamEnded: Record<string, never>;
+}
 
 // API event definitions
 // ストリームごとのEmitterの辞書を用意
@@ -438,5 +456,10 @@ export class GlobalEventService {
 	@bindThis
 	public publishReversiGameStream<K extends keyof ReversiGameEventTypes>(gameId: MiReversiGame['id'], type: K, value?: ReversiGameEventTypes[K]): void {
 		this.publish(`reversiGameStream:${gameId}`, type, typeof value === 'undefined' ? null : value);
+	}
+
+	@bindThis
+	public publishTwitchLiveStream<K extends keyof TwitchLiveStreamEventTypes>(streamId: string, type: K, value?: TwitchLiveStreamEventTypes[K]): void {
+		this.publish(`twitchLiveStream:${streamId}`, type, typeof value === 'undefined' ? null : value);
 	}
 }
