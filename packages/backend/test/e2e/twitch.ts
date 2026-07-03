@@ -42,4 +42,22 @@ describe('Twitch連携', () => {
 		const res = await api('twitch/my-account', {});
 		assert.strictEqual(res.status, 401);
 	});
+
+	test('未連携ユーザーの streams/show は TWITCH_NOT_LINKED', async () => {
+		const res = await api('twitch/streams/show', { userId: alice.id }, alice);
+		assert.strictEqual(res.status, 400);
+		assert.strictEqual(castAsError(res.body as any).error.code, 'TWITCH_NOT_LINKED');
+	});
+
+	test('存在しない streamId のコメント履歴は空配列', async () => {
+		const res = await api('twitch/streams/comments', { streamId: alice.id }, alice);
+		assert.strictEqual(res.status, 200);
+		assert.deepStrictEqual(res.body, []);
+	});
+
+	test('存在しない streamId にはコメントを投稿できない', async () => {
+		const res = await api('twitch/streams/comments/create', { streamId: alice.id, text: 'hello' }, alice);
+		assert.strictEqual(res.status, 400);
+		assert.strictEqual(castAsError(res.body as any).error.code, 'NO_SUCH_STREAM');
+	});
 });
