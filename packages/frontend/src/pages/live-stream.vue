@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs" :hideTitle="narrow">
-	<div ref="spacerEl" class="_spacer" style="--MI_SPACER-w: 1400px; --MI_SPACER-min: 0px; --MI_SPACER-max: 12px;">
+<PageWithHeader :actions="headerActions" :tabs="headerTabs" :hideTitle="true">
+	<div class="_spacer" style="--MI_SPACER-w: 1400px; --MI_SPACER-min: 0px; --MI_SPACER-max: 12px;">
 		<MkLoading v-if="fetching"/>
 		<MkResult v-else-if="user == null || twitchInfo == null" type="notFound"/>
 		<div v-else-if="streamInfo == null" class="_gaps" :class="$style.offline">
@@ -50,7 +50,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch, useTemplateRef, onMounted, onUnmounted, onActivated, onDeactivated } from 'vue';
+import { computed, ref, watch, onMounted, onActivated, onDeactivated } from 'vue';
 import * as Misskey from 'misskey-js';
 import { hostname } from '@@/js/config.js';
 import XChat from '@/pages/live-stream.chat.vue';
@@ -69,14 +69,6 @@ const props = defineProps<{
 const fetching = ref(true);
 const user = ref<Misskey.entities.UserDetailed | null>(null);
 const twitchInfo = ref<Misskey.Endpoints['twitch/streams/show']['res'] | null>(null);
-
-// スマホ等の狭いペイン幅ではネイティブのページヘッダー (タイトル表示) を隠し、
-// 代わりにプレイヤー下の .info パネルにのみタイトルを出す (縦幅を無駄にしないため)。
-// CSS の @container (max-width: 700px) と同じ閾値を JS 側でも測る
-// (hideTitle は Vue の prop なので CSS だけでは切り替えられない)
-const spacerEl = useTemplateRef('spacerEl');
-const narrow = ref(false);
-let ro: ResizeObserver | null = null;
 
 const streamInfo = computed(() => twitchInfo.value?.stream ?? null);
 
@@ -114,17 +106,6 @@ watch(() => props.acct, reload);
 
 onMounted(() => {
 	reload();
-	if (spacerEl.value != null) {
-		narrow.value = spacerEl.value.offsetWidth < 700;
-		ro = new ResizeObserver(() => {
-			if (spacerEl.value != null) narrow.value = spacerEl.value.offsetWidth < 700;
-		});
-		ro.observe(spacerEl.value);
-	}
-});
-
-onUnmounted(() => {
-	ro?.disconnect();
 });
 
 const playerActive = ref(true);
@@ -165,9 +146,10 @@ definePage(() => ({
 .watch {
 	display: flex;
 	gap: 12px;
+	// PC: チャット欄の高さをビューポート基準の決め打ちにせず、プレイヤー+情報パネル
+	// (.main) の実際のコンテンツ高さに合わせる (align-items: stretch)。
+	// コメント数が少ない配信でチャット欄だけ縦に間延びして空白ができるのを防ぐ
 	align-items: stretch;
-	// PC: チャットをビューポート内に固定しつつプレイヤーと並べる
-	height: calc(100dvh - 140px);
 	min-height: 480px;
 }
 

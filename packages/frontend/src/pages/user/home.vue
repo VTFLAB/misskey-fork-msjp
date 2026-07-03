@@ -16,7 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkAccountMoved v-if="user.movedTo" :movedTo="user.movedTo"/>
 					<MkRemoteCaution v-if="user.host != null" :href="user.url ?? user.uri!"/>
 					<MkInfo v-if="user.host == null && user.username.includes('.')">{{ i18n.ts.isSystemAccount }}</MkInfo>
-					<MkA v-if="user.twitchLive" v-tooltip="i18n.ts._twitch.watchLive" :to="`/live/@${user.username}`" :class="$style.twitchLive">
+					<MkA v-if="user.twitchLive" v-tooltip="i18n.ts._twitch.watchLive" :to="`/live/@${user.username}?zen`" :class="$style.twitchLive">
 						<span :class="$style.twitchLiveBadge"><i class="ti ti-broadcast"></i> LIVE</span>
 						<span :class="$style.twitchLiveTitle">{{ user.twitchLive.title }}</span>
 						<span v-if="user.twitchLive.gameName" :class="$style.twitchLiveGame">{{ user.twitchLive.gameName }}</span>
