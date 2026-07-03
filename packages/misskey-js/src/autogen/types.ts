@@ -35912,6 +35912,7 @@ export interface operations {
                         source: 'misskey' | 'twitch';
                         text: string;
                         user: components['schemas']['UserLite'] | null;
+                        files: components['schemas']['DriveFile'][];
                         twitchUserName: string | null;
                         twitchDisplayName: string | null;
                     }[];
@@ -35970,7 +35971,8 @@ export interface operations {
                 'application/json': {
                     /** Format: misskey:id */
                     streamId: string;
-                    text: string;
+                    text?: string;
+                    fileIds?: string[];
                 };
             };
         };
