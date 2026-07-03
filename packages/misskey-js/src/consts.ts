@@ -39,6 +39,7 @@ export const notificationTypes = [
 	'createToken',
 	'updateInfo',
 	'earthquakeAlert',
+	'twitchLiveStreamStarted',
 ] as const;
 
 export const noteVisibilities = ['public', 'home', 'followers', 'specified'] as const;

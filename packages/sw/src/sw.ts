@@ -189,6 +189,9 @@ globalThis.addEventListener('notificationclick', (ev: ServiceWorkerGlobalScopeEv
 							case 'updateInfo':
 								client = await swos.openClient('push', `/updates/${data.body.updateInfo.id}`, loginId);
 								break;
+							case 'twitchLiveStreamStarted':
+								client = await swos.openClient('push', `/live/@${data.body.user.username}`, loginId);
+								break;
 							default:
 								if ('note' in data.body) {
 									client = await swos.openNote(data.body.note.id, loginId);

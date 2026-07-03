@@ -34,6 +34,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				[$style.t_chatRoomInvitationReceived]: notification.type === 'chatRoomInvitationReceived',
 				[$style.t_roleAssigned]: notification.type === 'roleAssigned' && notification.role.iconUrl == null,
 				[$style.t_updateInfo]: notification.type === 'updateInfo',
+				[$style.t_twitchLiveStreamStarted]: notification.type === 'twitchLiveStreamStarted',
 			}]"
 		>
 			<i v-if="notification.type === 'follow'" class="ti ti-plus"></i>
@@ -52,6 +53,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<i v-else-if="notification.type === 'createToken'" class="ti ti-key"></i>
 			<i v-else-if="notification.type === 'chatRoomInvitationReceived'" class="ti ti-messages"></i>
 			<i v-else-if="notification.type === 'updateInfo'" class="ti ti-speakerphone"></i>
+			<i v-else-if="notification.type === 'twitchLiveStreamStarted'" class="ti ti-broadcast"></i>
 			<template v-else-if="notification.type === 'roleAssigned'">
 				<img v-if="notification.role.iconUrl" style="height: 1.3em; vertical-align: -22%;" :src="notification.role.iconUrl" alt=""/>
 				<i v-else class="ti ti-badges"></i>
@@ -79,7 +81,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span v-else-if="notification.type === 'test'">{{ i18n.ts._notification.testNotification }}</span>
 			<span v-else-if="notification.type === 'earthquakeAlert'">{{ i18n.ts.earthquakeEarlyWarning }}</span>
 			<span v-else-if="notification.type === 'exportCompleted'">{{ i18n.tsx._notification.exportOfXCompleted({ x: exportEntityName[notification.exportedEntity] }) }}</span>
-			<MkA v-else-if="notification.type === 'follow' || notification.type === 'mention' || notification.type === 'reply' || notification.type === 'renote' || notification.type === 'quote' || notification.type === 'reaction' || notification.type === 'receiveFollowRequest' || notification.type === 'followRequestAccepted'" v-user-preview="notification.user.id" :class="$style.headerName" :to="userPage(notification.user)"><MkUserName :user="notification.user"/></MkA>
+			<MkA v-else-if="notification.type === 'follow' || notification.type === 'mention' || notification.type === 'reply' || notification.type === 'renote' || notification.type === 'quote' || notification.type === 'reaction' || notification.type === 'receiveFollowRequest' || notification.type === 'followRequestAccepted' || notification.type === 'twitchLiveStreamStarted'" v-user-preview="notification.user.id" :class="$style.headerName" :to="userPage(notification.user)"><MkUserName :user="notification.user"/></MkA>
 			<span v-else-if="notification.type === 'reaction:grouped' && notification.note.reactionAcceptance === 'likeOnly'">{{ i18n.tsx._notification.likedBySomeUsers({ n: getActualReactedUsersCount(notification) }) }}</span>
 			<span v-else-if="notification.type === 'reaction:grouped'">{{ i18n.tsx._notification.reactedBySomeUsers({ n: getActualReactedUsersCount(notification) }) }}</span>
 			<span v-else-if="notification.type === 'renote:grouped'">{{ i18n.tsx._notification.renotedBySomeUsers({ n: notification.users.length }) }}</span>
@@ -137,6 +139,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkA>
 			<template v-else-if="notification.type === 'follow'">
 				<span :class="$style.text" style="opacity: 0.6;">{{ i18n.ts.youGotNewFollower }}</span>
+			</template>
+			<template v-else-if="notification.type === 'twitchLiveStreamStarted'">
+				<span :class="$style.text" style="opacity: 0.6;">{{ i18n.ts._twitch.startedStreaming }}</span>
+				<MkA :class="$style.text" :to="`/live/@${notification.user.username}`" :title="notification.title">
+					<i class="ti ti-quote" :class="$style.quote"></i>
+					{{ notification.title }}
+					<i class="ti ti-quote" :class="$style.quote"></i>
+				</MkA>
 			</template>
 			<template v-else-if="notification.type === 'followRequestAccepted'">
 				<div :class="$style.text" style="opacity: 0.6;">{{ i18n.ts.followRequestAccepted }}</div>
@@ -413,6 +423,11 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 }
 
 .t_updateInfo {
+	background: var(--eventOther);
+	pointer-events: none;
+}
+
+.t_twitchLiveStreamStarted {
 	background: var(--eventOther);
 	pointer-events: none;
 }
