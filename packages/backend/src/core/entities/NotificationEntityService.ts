@@ -218,6 +218,10 @@ export class NotificationEntityService implements OnModuleInit {
 				isFinal: notification.isFinal,
 				isCancel: notification.isCancel,
 			} : {}),
+			...(notification.type === 'twitchLiveStreamStarted' ? {
+				streamId: notification.streamId,
+				title: notification.title,
+			} : {}),
 		});
 	}
 
