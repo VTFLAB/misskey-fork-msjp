@@ -3781,6 +3781,15 @@ export type paths = {
          */
         post: operations['twitch___generate-oauth-url'];
     };
+    '/twitch/live-streams': {
+        /**
+         * twitch/live-streams
+         * @description 現在配信中の Twitch 連携ユーザーの一覧を返す (視聴者数の多い順)。
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         */
+        post: operations['twitch___live-streams'];
+    };
     '/twitch/my-account': {
         /**
          * twitch/my-account
@@ -35695,6 +35704,73 @@ export interface operations {
             };
             /** @description Too many requests */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'twitch___live-streams': {
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        user: components['schemas']['UserLite'];
+                        twitchLogin: string;
+                        title: string;
+                        gameName: string | null;
+                        viewerCount: number;
+                        thumbnailUrl: string | null;
+                        /** Format: date-time */
+                        startedAt: string;
+                    }[];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
                 headers: {
                     [name: string]: unknown;
                 };

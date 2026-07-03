@@ -2210,6 +2210,7 @@ declare namespace entities {
         TestResponse,
         TwitchGenerateOauthUrlRequest,
         TwitchGenerateOauthUrlResponse,
+        TwitchLiveStreamsResponse,
         TwitchMyAccountResponse,
         UpdateInfoShowRequest,
         UpdateInfoShowResponse,
@@ -3850,6 +3851,9 @@ type TwitchGenerateOauthUrlRequest = operations['twitch___generate-oauth-url']['
 
 // @public (undocumented)
 type TwitchGenerateOauthUrlResponse = operations['twitch___generate-oauth-url']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchLiveStreamsResponse = operations['twitch___live-streams']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type TwitchMyAccountResponse = operations['twitch___my-account']['responses']['200']['content']['application/json'];
