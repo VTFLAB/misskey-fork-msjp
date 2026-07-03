@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader :actions="headerActions" :tabs="headerTabs" :hideTitle="true">
-	<div class="_spacer" style="--MI_SPACER-w: 1400px; --MI_SPACER-min: 0px; --MI_SPACER-max: 0px;">
+	<div class="_spacer" style="--MI_SPACER-min: 0px; --MI_SPACER-max: 0px;">
 		<MkLoading v-if="fetching"/>
 		<MkResult v-else-if="user == null || twitchInfo == null" type="notFound"/>
 		<div v-else-if="streamInfo == null" class="_gaps" :class="$style.offline">
