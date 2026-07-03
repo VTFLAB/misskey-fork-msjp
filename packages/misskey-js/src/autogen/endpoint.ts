@@ -621,6 +621,9 @@ import type {
 	SwUpdateRegistrationResponse,
 	TestRequest,
 	TestResponse,
+	TwitchGenerateOauthUrlRequest,
+	TwitchGenerateOauthUrlResponse,
+	TwitchMyAccountResponse,
 	UpdateInfoShowRequest,
 	UpdateInfoShowResponse,
 	UpdateInfosRequest,
@@ -1102,6 +1105,9 @@ export type Endpoints = {
 	'sw/unregister': { req: SwUnregisterRequest; res: EmptyResponse };
 	'sw/update-registration': { req: SwUpdateRegistrationRequest; res: SwUpdateRegistrationResponse };
 	'test': { req: TestRequest; res: TestResponse };
+	'twitch/generate-oauth-url': { req: TwitchGenerateOauthUrlRequest; res: TwitchGenerateOauthUrlResponse };
+	'twitch/my-account': { req: EmptyRequest; res: TwitchMyAccountResponse };
+	'twitch/unlink': { req: EmptyRequest; res: EmptyResponse };
 	'update-info/show': { req: UpdateInfoShowRequest; res: UpdateInfoShowResponse };
 	'update-infos': { req: UpdateInfosRequest; res: UpdateInfosResponse };
 	'username/available': { req: UsernameAvailableRequest; res: UsernameAvailableResponse };
