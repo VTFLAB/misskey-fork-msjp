@@ -11,6 +11,7 @@ import { MiRole } from './Role.js';
 import { MiDriveFile } from './DriveFile.js';
 import { MiNoteDraft } from './NoteDraft.js';
 import { MiUpdateInfo } from './UpdateInfo.js';
+import { MiTwitchStream } from './TwitchStream.js';
 
 // misskey-js の notificationTypes と同期すべし
 export type MiNotification = {
@@ -163,6 +164,14 @@ export type MiNotification = {
 	isWarn: boolean;
 	isFinal: boolean;
 	isCancel: boolean;
+} | {
+	// フォロー中ユーザーの Twitch 配信開始通知 (bsky-fork 独自)
+	type: 'twitchLiveStreamStarted';
+	id: string;
+	createdAt: string;
+	notifierId: MiUser['id'];
+	streamId: MiTwitchStream['id'];
+	title: string;
 };
 
 export type MiGroupedNotification = MiNotification | {
