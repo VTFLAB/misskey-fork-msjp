@@ -83,18 +83,38 @@ export class TwitchCommentService {
 	}
 
 	@bindThis
-	public async pack(comment: MiTwitchStreamComment, user?: MiUser | null): Promise<PackedTwitchStreamComment> {
+	public async pack(comment: MiTwitchStreamComment, user: MiUser | null): Promise<PackedTwitchStreamComment> {
 		return {
 			id: comment.id,
 			createdAt: this.idService.parse(comment.id).date.toISOString(),
 			source: comment.source,
 			text: comment.text,
-			user: comment.userId != null
-				? await this.userEntityService.pack(user ?? comment.userId).catch(() => null)
+			user: (comment.userId != null && user != null)
+				? await this.userEntityService.pack(user)
 				: null,
 			twitchUserName: comment.twitchUserName,
 			twitchDisplayName: comment.twitchDisplayName,
 		};
+	}
+
+	/**
+	 * 履歴取得用の一括 pack。ユーザーはまとめて解決する (N+1 回避)。
+	 * 退会済みユーザーのコメントは user: null で返る。
+	 */
+	@bindThis
+	public async packMany(comments: MiTwitchStreamComment[]): Promise<PackedTwitchStreamComment[]> {
+		const userIds = [...new Set(comments.flatMap(c => c.userId != null ? [c.userId] : []))];
+		const users = userIds.length > 0 ? await this.userEntityService.packMany(userIds) : [];
+		const userById = new Map(users.map(u => [u.id, u]));
+		return comments.map(c => ({
+			id: c.id,
+			createdAt: this.idService.parse(c.id).date.toISOString(),
+			source: c.source,
+			text: c.text,
+			user: c.userId != null ? (userById.get(c.userId) ?? null) : null,
+			twitchUserName: c.twitchUserName,
+			twitchDisplayName: c.twitchDisplayName,
+		}));
 	}
 
 	@bindThis
