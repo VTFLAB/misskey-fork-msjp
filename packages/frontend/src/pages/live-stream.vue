@@ -4,8 +4,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
-	<div class="_spacer" style="--MI_SPACER-w: 1400px; --MI_SPACER-min: 0px; --MI_SPACER-max: 12px;">
+<PageWithHeader :actions="headerActions" :tabs="headerTabs" :hideTitle="narrow">
+	<div ref="spacerEl" class="_spacer" style="--MI_SPACER-w: 1400px; --MI_SPACER-min: 0px; --MI_SPACER-max: 12px;">
 		<MkLoading v-if="fetching"/>
 		<MkResult v-else-if="user == null || twitchInfo == null" type="notFound"/>
 		<div v-else-if="streamInfo == null" class="_gaps" :class="$style.offline">
@@ -34,7 +34,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<div :class="$style.streamMeta">
 								<MkUserName :user="user"/>
 								<span v-if="streamInfo.gameName"> · {{ streamInfo.gameName }}</span>
-								<span> · <i class="ti ti-eye"></i> {{ number(streamInfo.viewerCount) }}</span>
 								<span> · <MkTime :time="streamInfo.startedAt" mode="relative"/></span>
 							</div>
 						</div>
@@ -51,7 +50,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch, onMounted, onActivated, onDeactivated } from 'vue';
+import { computed, ref, watch, useTemplateRef, onMounted, onUnmounted, onActivated, onDeactivated } from 'vue';
 import * as Misskey from 'misskey-js';
 import { hostname } from '@@/js/config.js';
 import XChat from '@/pages/live-stream.chat.vue';
@@ -62,7 +61,6 @@ import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import number from '@/filters/number.js';
 
 const props = defineProps<{
 	acct: string;
@@ -71,6 +69,14 @@ const props = defineProps<{
 const fetching = ref(true);
 const user = ref<Misskey.entities.UserDetailed | null>(null);
 const twitchInfo = ref<Misskey.Endpoints['twitch/streams/show']['res'] | null>(null);
+
+// スマホ等の狭いペイン幅ではネイティブのページヘッダー (タイトル表示) を隠し、
+// 代わりにプレイヤー下の .info パネルにのみタイトルを出す (縦幅を無駄にしないため)。
+// CSS の @container (max-width: 700px) と同じ閾値を JS 側でも測る
+// (hideTitle は Vue の prop なので CSS だけでは切り替えられない)
+const spacerEl = useTemplateRef('spacerEl');
+const narrow = ref(false);
+let ro: ResizeObserver | null = null;
 
 const streamInfo = computed(() => twitchInfo.value?.stream ?? null);
 
@@ -108,6 +114,17 @@ watch(() => props.acct, reload);
 
 onMounted(() => {
 	reload();
+	if (spacerEl.value != null) {
+		narrow.value = spacerEl.value.offsetWidth < 700;
+		ro = new ResizeObserver(() => {
+			if (spacerEl.value != null) narrow.value = spacerEl.value.offsetWidth < 700;
+		});
+		ro.observe(spacerEl.value);
+	}
+});
+
+onUnmounted(() => {
+	ro?.disconnect();
 });
 
 const playerActive = ref(true);
@@ -228,7 +245,10 @@ definePage(() => ({
 @container (max-width: 700px) {
 	.watch {
 		flex-direction: column;
-		height: auto;
+		// スマホアプリ的に画面サイズへ固定し、ページ全体はスクロールさせない。
+		// ネイティブヘッダーは hideTitle で隠しているので上部オフセットは実質 0、
+		// 下部はモバイルフッターナビの実測値 (非表示時は 0px) を差し引く
+		height: calc(100dvh - var(--MI-minBottomSpacing, 0px));
 		min-height: 0;
 	}
 
@@ -239,9 +259,11 @@ definePage(() => ({
 
 	.chat {
 		width: 100%;
-		height: 60dvh;
-		max-height: 600px;
-		min-height: 320px;
+		// 60dvh 等の決め打ちではなく、.watch の残り高さいっぱいに広げる。
+		// 内部のスクロール (チャット履歴) / 非スクロール (入力欄) は
+		// live-stream.chat.vue 側の flex レイアウトが担当する
+		flex: 1;
+		min-height: 0;
 	}
 }
 </style>
