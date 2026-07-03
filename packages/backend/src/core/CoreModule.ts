@@ -163,6 +163,8 @@ import { AtpJetstreamService } from './atproto/AtpJetstreamService.js';
 import { TwitchLoggerService } from './twitch/TwitchLoggerService.js';
 import { TwitchApiService } from './twitch/TwitchApiService.js';
 import { TwitchOAuthService } from './twitch/TwitchOAuthService.js';
+import { TwitchStreamService } from './twitch/TwitchStreamService.js';
+import { TwitchEventSubService } from './twitch/TwitchEventSubService.js';
 import { EarthquakeAlertService } from './earthquake/EarthquakeAlertService.js';
 import { QueueModule } from './QueueModule.js';
 import { QueueService } from './QueueService.js';
@@ -332,6 +334,8 @@ const $AtpJetstreamService: Provider = { provide: 'AtpJetstreamService', useExis
 const $TwitchLoggerService: Provider = { provide: 'TwitchLoggerService', useExisting: TwitchLoggerService };
 const $TwitchApiService: Provider = { provide: 'TwitchApiService', useExisting: TwitchApiService };
 const $TwitchOAuthService: Provider = { provide: 'TwitchOAuthService', useExisting: TwitchOAuthService };
+const $TwitchStreamService: Provider = { provide: 'TwitchStreamService', useExisting: TwitchStreamService };
+const $TwitchEventSubService: Provider = { provide: 'TwitchEventSubService', useExisting: TwitchEventSubService };
 //#endregion
 
 @Module({
@@ -499,6 +503,8 @@ const $TwitchOAuthService: Provider = { provide: 'TwitchOAuthService', useExisti
 		TwitchLoggerService,
 		TwitchApiService,
 		TwitchOAuthService,
+		TwitchStreamService,
+		TwitchEventSubService,
 		EarthquakeAlertService,
 
 		QueueService,
@@ -666,6 +672,8 @@ const $TwitchOAuthService: Provider = { provide: 'TwitchOAuthService', useExisti
 		$TwitchLoggerService,
 		$TwitchApiService,
 		$TwitchOAuthService,
+		$TwitchStreamService,
+		$TwitchEventSubService,
 		//#endregion
 	],
 	exports: [
@@ -829,6 +837,8 @@ const $TwitchOAuthService: Provider = { provide: 'TwitchOAuthService', useExisti
 		TwitchLoggerService,
 		TwitchApiService,
 		TwitchOAuthService,
+		TwitchStreamService,
+		TwitchEventSubService,
 		EarthquakeAlertService,
 
 		QueueService,
@@ -994,6 +1004,8 @@ const $TwitchOAuthService: Provider = { provide: 'TwitchOAuthService', useExisti
 		$TwitchLoggerService,
 		$TwitchApiService,
 		$TwitchOAuthService,
+		$TwitchStreamService,
+		$TwitchEventSubService,
 		//#endregion
 	],
 })

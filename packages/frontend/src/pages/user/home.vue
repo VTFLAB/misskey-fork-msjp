@@ -16,6 +16,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkAccountMoved v-if="user.movedTo" :movedTo="user.movedTo"/>
 					<MkRemoteCaution v-if="user.host != null" :href="user.url ?? user.uri!"/>
 					<MkInfo v-if="user.host == null && user.username.includes('.')">{{ i18n.ts.isSystemAccount }}</MkInfo>
+					<MkA v-if="user.twitchLive" v-tooltip="i18n.ts._twitch.watchLive" :to="`/live/@${user.username}`" :class="$style.twitchLive">
+						<span :class="$style.twitchLiveBadge"><i class="ti ti-broadcast"></i> LIVE</span>
+						<span :class="$style.twitchLiveTitle">{{ user.twitchLive.title }}</span>
+						<span v-if="user.twitchLive.gameName" :class="$style.twitchLiveGame">{{ user.twitchLive.gameName }}</span>
+					</MkA>
 
 					<div :key="user.id" class="main _panel">
 						<div ref="bannerEl" class="banner-container">
@@ -773,5 +778,44 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 .verifiedLink {
 	margin-left: 4px;
 	color: var(--MI_THEME-success);
+}
+
+.twitchLive {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 14px;
+	background: var(--MI_THEME-panel);
+	border-radius: var(--MI-radius);
+	overflow: hidden;
+
+	&:hover {
+		text-decoration: none;
+		background: var(--MI_THEME-panelHighlight);
+	}
+}
+
+.twitchLiveBadge {
+	flex-shrink: 0;
+	padding: 2px 8px;
+	border-radius: 4px;
+	background: #9146ff; // Twitch brand color
+	color: #fff;
+	font-size: 0.8em;
+	font-weight: bold;
+}
+
+.twitchLiveTitle {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-weight: bold;
+}
+
+.twitchLiveGame {
+	flex-shrink: 0;
+	opacity: 0.7;
+	font-size: 0.85em;
 }
 </style>
