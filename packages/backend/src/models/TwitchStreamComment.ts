@@ -9,6 +9,15 @@ import { MiUser } from './User.js';
 import { MiDriveFile } from './DriveFile.js';
 import { MiTwitchStream } from './TwitchStream.js';
 
+// Twitch EventSub の message.fragments を最小限に単純化したもの。
+// cheermote / mention は特別扱いせず text として扱う (絵文字表示にのみ対応する)
+export type TwitchChatFragment = {
+	type: 'text' | 'emote';
+	text: string;
+	// type === 'emote' のときのみ設定 (Twitch CDN 画像 URL の構築に使う)
+	emoteId?: string;
+};
+
 // 配信視聴ページのコメント。ノートとは完全に独立した専用モデルで、
 // Misskey ユーザーの投稿 (source=misskey) と Twitch チャット由来 (source=twitch) の
 // 両方を配信セッション単位で永続化する。配信ページ上でのみ表示され、連合しない。
@@ -71,6 +80,13 @@ export class MiTwitchStreamComment {
 		length: 1024,
 	})
 	public text: string;
+
+	// source=twitch のときの絵文字レンダリング情報 (Twitch EventSub の fragments 由来)。
+	// source=misskey や fragments 未取得の場合は null (プレーンテキストとして表示)
+	@Column('jsonb', {
+		nullable: true,
+	})
+	public fragments: TwitchChatFragment[] | null;
 
 	// source=misskey の添付メディア (ドライブファイル)。Twitch へは中継されない
 	@Column({
