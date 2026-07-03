@@ -467,4 +467,7 @@ export * as 'atproto/backfill' from './endpoints/atproto/backfill.js';
 export * as 'twitch/generate-oauth-url' from './endpoints/twitch/generate-oauth-url.js';
 export * as 'twitch/live-streams' from './endpoints/twitch/live-streams.js';
 export * as 'twitch/my-account' from './endpoints/twitch/my-account.js';
+export * as 'twitch/streams/show' from './endpoints/twitch/streams/show.js';
+export * as 'twitch/streams/comments' from './endpoints/twitch/streams/comments.js';
+export * as 'twitch/streams/comments/create' from './endpoints/twitch/streams/comments/create.js';
 export * as 'twitch/unlink' from './endpoints/twitch/unlink.js';
