@@ -17,7 +17,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-else ref="rootEl" :class="[$style.watch, { [$style.narrow]: narrow }]">
 			<div :class="$style.main">
 				<div :class="$style.playerContainer">
+					<!-- KeepAlive でページがキャッシュされても再生が続かないよう deactivate 中は iframe を落とす -->
 					<iframe
+						v-if="playerActive"
 						:src="playerUrl"
 						:class="$style.player"
 						allowfullscreen
@@ -41,7 +43,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</div>
 			<div :class="$style.chat">
-				<MkTwitchLiveChat :key="streamInfo.id" :streamId="streamInfo.id" :live="true" @streamEnded="onStreamEnded"/>
+				<XChat :key="streamInfo.id" :streamId="streamInfo.id" :live="true" @streamEnded="onStreamEnded"/>
 			</div>
 		</div>
 	</div>
@@ -49,10 +51,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch, useTemplateRef, onMounted, onUnmounted } from 'vue';
+import { computed, ref, watch, useTemplateRef, onMounted, onUnmounted, onActivated, onDeactivated } from 'vue';
 import * as Misskey from 'misskey-js';
 import { hostname } from '@@/js/config.js';
-import MkTwitchLiveChat from '@/components/MkTwitchLiveChat.vue';
+import XChat from '@/pages/live-stream.chat.vue';
 import MkButton from '@/components/MkButton.vue';
 import MkFollowButton from '@/components/MkFollowButton.vue';
 import { definePage } from '@/page.js';
@@ -118,6 +120,14 @@ onMounted(() => {
 
 onUnmounted(() => {
 	ro?.disconnect();
+});
+
+const playerActive = ref(true);
+onActivated(() => {
+	playerActive.value = true;
+});
+onDeactivated(() => {
+	playerActive.value = false;
 });
 
 const headerActions = computed(() => []);
