@@ -376,6 +376,33 @@ export const packedUserDetailedNotMeOnlySchema = {
 				ref: 'RoleLite',
 			},
 		},
+		twitchLive: {
+			type: 'object',
+			nullable: true, optional: true,
+			properties: {
+				twitchLogin: {
+					type: 'string',
+					nullable: false, optional: false,
+				},
+				title: {
+					type: 'string',
+					nullable: false, optional: false,
+				},
+				gameName: {
+					type: 'string',
+					nullable: true, optional: false,
+				},
+				viewerCount: {
+					type: 'number',
+					nullable: false, optional: false,
+				},
+				startedAt: {
+					type: 'string',
+					format: 'date-time',
+					nullable: false, optional: false,
+				},
+			},
+		},
 		followedMessage: {
 			type: 'string',
 			nullable: true, optional: true,

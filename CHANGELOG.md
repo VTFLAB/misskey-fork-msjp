@@ -15,6 +15,7 @@
 - Fix: 1:1チャットのプッシュ通知をタップすると、相手ではなく自分自身とのチャット画面 (`/chat/user/<自分のID>`) が開いてしまう問題を修正。送信者 (`fromUserId`) のチャット画面を開くようにした
 - Fix: Service Worker の更新が既存クライアントで長時間反映されず、新しいプッシュ通知タイプ (地震速報等) が無音の空通知に化ける問題を修正。新しい SW を install 時に即時 activate (`skipWaiting`) するようにした
 - Feat: Twitch アカウント連携の設定ページ (`/settings/twitch`) を追加 (bsky-fork 独自)。OAuth でアカウントを連携・解除でき、管理者はコメント中継用のサーバー共通 bot アカウントも連携できる
+- Feat: Twitch 連携ユーザーが配信中のとき、プロフィールに LIVE バッジ (配信タイトル・カテゴリ付き) を表示するように (bsky-fork 独自)
 
 ### Server
 
@@ -26,6 +27,7 @@
 - Fix: 緊急地震速報で深発地震などにより最大予測震度が「不明」になった続報・最終報を、同一イベントで直近に予測された震度で補完して表示するように (bsky-fork 独自)。取消報は補完しない
 - Enhance: Web Push の送信失敗 (410 Gone 以外) をログに記録するように。配信不良の調査を可能にする
 - Feat: Twitch 連携の基盤を追加 (bsky-fork 独自)。Twitch OAuth (認可コードフロー)・`twitch_account` テーブル・Helix API クライアント・連携用エンドポイント (`twitch/generate-oauth-url`, `twitch/my-account`, `twitch/unlink`)・callback ルート (`GET /twitch/oauth/callback`)。`.config/default.yml` に `twitch.clientId` / `twitch.clientSecret` を設定した場合のみ有効
+- Feat: Twitch 配信状態の追跡を追加 (bsky-fork 独自)。EventSub WebSocket (`stream.online` / `stream.offline`、bot アカウントの user token で購読) と 5 分間隔の Get Streams ポーリング補正で `twitch_stream` テーブルに配信セッションを記録し、ユーザー詳細 API に `twitchLive` フィールドを追加
 
 ## 2026.9.0
 
