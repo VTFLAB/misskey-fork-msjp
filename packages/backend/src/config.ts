@@ -120,6 +120,11 @@ type Source = {
 	deactivateAntennaThreshold?: number;
 	pidFile: string;
 
+	twitch?: {
+		clientId?: string;
+		clientSecret?: string;
+	};
+
 	logging?: {
 		format?: LogFormat;
 		level?: LogLevelSetting;
@@ -231,6 +236,12 @@ export type Config = {
 	perUserNotificationsMaxCount: number;
 	deactivateAntennaThreshold: number;
 	pidFile: string;
+
+	// Twitch 連携 (fork 独自)。未設定なら機能全体が無効。
+	twitch: {
+		clientId: string;
+		clientSecret: string;
+	} | undefined;
 };
 
 export type FulltextSearchProvider = 'sqlLike' | 'sqlPgroonga' | 'meilisearch';
@@ -358,6 +369,10 @@ export function loadConfig(): Config {
 		deactivateAntennaThreshold: config.deactivateAntennaThreshold ?? (1000 * 60 * 60 * 24 * 7),
 		pidFile: config.pidFile,
 		logging: config.logging,
+		twitch: (config.twitch?.clientId && config.twitch.clientSecret) ? {
+			clientId: config.twitch.clientId,
+			clientSecret: config.twitch.clientSecret,
+		} : undefined,
 	};
 }
 
