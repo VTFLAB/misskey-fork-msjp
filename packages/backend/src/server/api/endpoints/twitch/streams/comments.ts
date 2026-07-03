@@ -66,7 +66,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			const comments = await query.limit(ps.limit).getMany();
 
-			return await Promise.all(comments.map(c => this.twitchCommentService.pack(c)));
+			return await this.twitchCommentService.packMany(comments);
 		});
 	}
 }

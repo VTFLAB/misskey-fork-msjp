@@ -15,7 +15,7 @@ import type { MiUser } from '@/models/User.js';
 import { IdService } from '@/core/IdService.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
-import { TwitchApiService } from './TwitchApiService.js';
+import { TwitchApiService, TwitchApiError } from './TwitchApiService.js';
 import { TwitchLoggerService } from './TwitchLoggerService.js';
 
 const AUTHORIZE_URL = 'https://id.twitch.tv/oauth2/authorize';
@@ -217,9 +217,14 @@ export class TwitchOAuthService {
 			account.accessToken = token.access_token;
 			return token.access_token;
 		} catch (err) {
-			// refresh token が無効 = Twitch 側で許可が取り消されている → 連携を解除する
-			this.logger.warn(`token refresh failed, unlinking @${account.twitchLogin}: ${err instanceof Error ? err.message : err}`);
-			await this.twitchAccountsRepository.delete(account.id);
+			// invalid_grant (400/401) = Twitch 側で許可が取り消されている → 連携を解除する。
+			// ネットワーク断や Twitch 障害などの一時的エラーで連携を消さないよう、削除は明確な拒否時のみ
+			if (err instanceof TwitchApiError && (err.status === 400 || err.status === 401)) {
+				this.logger.warn(`token refresh rejected, unlinking @${account.twitchLogin}: ${err.message}`);
+				await this.twitchAccountsRepository.delete(account.id);
+			} else {
+				this.logger.warn(`token refresh failed (transient, keeping account) @${account.twitchLogin}: ${err instanceof Error ? err.message : err}`);
+			}
 			return null;
 		}
 	}

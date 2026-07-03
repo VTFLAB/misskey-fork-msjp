@@ -9,7 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div class="_gaps">
 			<MkLoading v-if="fetching"/>
 			<div v-else-if="streams.length > 0" :class="$style.grid">
-				<MkLiveStreamCard v-for="stream in streams" :key="stream.user.id" :stream="stream"/>
+				<XCard v-for="stream in streams" :key="stream.user.id" :stream="stream"/>
 			</div>
 			<MkResult v-else type="empty" :text="i18n.ts._twitch.noLiveStreams"/>
 		</div>
@@ -20,7 +20,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { computed, ref, onMounted, onActivated } from 'vue';
 import * as Misskey from 'misskey-js';
-import MkLiveStreamCard from '@/components/MkLiveStreamCard.vue';
+import XCard from '@/pages/live-streams.card.vue';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
@@ -29,8 +29,11 @@ const fetching = ref(true);
 const streams = ref<Misskey.Endpoints['twitch/live-streams']['res']>([]);
 
 async function fetchStreams() {
-	streams.value = await misskeyApi('twitch/live-streams', {});
-	fetching.value = false;
+	try {
+		streams.value = await misskeyApi('twitch/live-streams', {});
+	} finally {
+		fetching.value = false;
+	}
 }
 
 onMounted(fetchStreams);
