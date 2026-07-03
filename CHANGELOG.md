@@ -24,6 +24,7 @@
 - Fix: 配信視聴ページで、ネイティブのページヘッダー (タイトル表示) を常に非表示にするように (bsky-fork 独自)。プレイヤー下の情報パネルに既にタイトルを表示しているため冗長で、PC 表示でも上部の占有スペースが無駄になっていた
 - Fix: 配信視聴ページの PC 表示を、スマホ同様に画面サイズへ高さを固定するフルスクリーンアプリ的なレイアウトに変更 (bsky-fork 独自)。プレイヤーは情報パネルの残り高さいっぱいに広がり (Twitch のシアターモード相当)、コメント欄はプレイヤー欄と同じ高さでスクロールするようになり、ページ下部に無駄な余白ができる問題を解消。あわせて `_spacer` の最大幅制限 (1400px) を撤廃し、横幅もウィンドウいっぱいに広がるようにした
 - Fix: デッキ UI (非ルートページで簡易UI設定時) から配信視聴ページを開くと「デッキへ戻る」バナーが表示され、配信の視聴の妨げになっていた問題を修正 (bsky-fork 独自)。ページ側からデッキUIの復帰バナーを非表示にできる仕組み (`PageMetadata.hideDeckNav`) を追加し、遷移経路によらず確実に非表示になるようにした
+- Feat: 配信視聴ページで Twitch チャット由来のコメントに Twitch の絵文字 (エモート) 画像を表示するように (bsky-fork 独自)。テキストのみだった絵文字表記が実際の画像として描画される
 
 ### Server
 
@@ -38,6 +39,8 @@
 - Feat: Twitch 配信状態の追跡を追加 (bsky-fork 独自)。EventSub WebSocket (`stream.online` / `stream.offline`、bot アカウントの user token で購読) と 5 分間隔の Get Streams ポーリング補正で `twitch_stream` テーブルに配信セッションを記録し、ユーザー詳細 API に `twitchLive` フィールドを追加
 - Feat: 配信コメントの双方向 Twitch 連携を追加 (bsky-fork 独自)。Misskey 側のコメントは中継 bot が「名前: 本文」形式で Twitch チャットへ代理送信 (Twitch 未連携ユーザーのコメントも中継)、Twitch チャットは EventSub `channel.chat.message` で取り込んで視聴ページに表示・保存する。bot 自身の発言はループ防止のため再取り込みしない。コメントは `twitch_stream_comment` テーブルに配信セッション単位で保存され、ストリーミングチャンネル `twitchLiveStream` でリアルタイム配信される
 - Enhance: 配信コメントの中継 bot が MFM 装飾を平文に変換してから Twitch チャットへ送信するように (bsky-fork 独自)。`$[x2 ...]` / `**太字**` / `~~打消し~~` などの装飾記号が Twitch 側にそのまま流れるのを防ぐ。メディア添付のみのコメント (テキスト空) は Twitch へ中継せず Misskey 側のみに表示される
+- Feat: Twitch チャット由来のコメントに EventSub の `message.fragments` (絵文字位置情報) を保存するように (bsky-fork 独自)。`twitch_stream_comment` に `fragments` カラムを追加し、`twitchLiveStream` ストリームの `comment` イベントにも含めることで、フロントエンドが Twitch 絵文字を画像として描画できるようになった
+- Fix: 配信コメントの中継 bot が Misskey 側の絵文字 (カスタム絵文字コード・Unicode 絵文字) をそのまま Twitch チャットへ送信していた問題を修正 (bsky-fork 独自)。Twitch では表示できないため中継前にすべて除去し、除去後にできる連続空白・前後の空白も畳む。絵文字のみのコメントは中継自体をスキップする
 
 ## 2026.7.0
 

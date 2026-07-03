@@ -33,6 +33,13 @@ type ReversiUpdateSettings<K extends ReversiUpdateKey> = {
 	value: ReversiGameDetailed[K];
 };
 
+// Twitch 連携 (bsky-fork 独自): チャット由来コメントの絵文字レンダリング情報
+export type TwitchChatFragment = {
+	type: 'text' | 'emote';
+	text: string;
+	emoteId?: string;
+};
+
 export type Channels = {
 	main: {
 		params: null;
@@ -257,6 +264,7 @@ export type Channels = {
 				files: DriveFile[];
 				twitchUserName: string | null;
 				twitchDisplayName: string | null;
+				fragments: TwitchChatFragment[] | null;
 			}) => void;
 			streamEnded: (payload: Record<string, never>) => void;
 		};
