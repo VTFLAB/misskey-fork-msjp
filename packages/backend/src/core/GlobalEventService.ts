@@ -341,6 +341,7 @@ export interface TwitchLiveStreamEventTypes {
 		source: 'misskey' | 'twitch';
 		text: string;
 		user: Packed<'UserLite'> | null;
+		files: Packed<'DriveFile'>[];
 		twitchUserName: string | null;
 		twitchDisplayName: string | null;
 	};

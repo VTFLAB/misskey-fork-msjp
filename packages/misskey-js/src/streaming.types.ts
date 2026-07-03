@@ -254,6 +254,7 @@ export type Channels = {
 				source: 'misskey' | 'twitch';
 				text: string;
 				user: UserLite | null;
+				files: DriveFile[];
 				twitchUserName: string | null;
 				twitchDisplayName: string | null;
 			}) => void;
