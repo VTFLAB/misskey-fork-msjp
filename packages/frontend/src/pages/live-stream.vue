@@ -14,7 +14,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div>{{ i18n.ts._twitch.streamOffline }}</div>
 			<MkButton @click="reload">{{ i18n.ts.reload }}</MkButton>
 		</div>
-		<div v-else ref="rootEl" :class="[$style.watch, { [$style.narrow]: narrow }]">
+		<div v-else :class="$style.watch">
 			<div :class="$style.main">
 				<div :class="$style.playerContainer">
 					<!-- KeepAlive でページがキャッシュされても再生が続かないよう deactivate 中は iframe を落とす -->
@@ -51,7 +51,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch, useTemplateRef, onMounted, onUnmounted, onActivated, onDeactivated } from 'vue';
+import { computed, ref, watch, onMounted, onActivated, onDeactivated } from 'vue';
 import * as Misskey from 'misskey-js';
 import { hostname } from '@@/js/config.js';
 import XChat from '@/pages/live-stream.chat.vue';
@@ -83,10 +83,6 @@ const playerUrl = computed(() => {
 	return url.toString();
 });
 
-const rootEl = useTemplateRef('rootEl');
-const narrow = ref(window.innerWidth < 1000);
-let ro: ResizeObserver | null = null;
-
 async function reload() {
 	fetching.value = true;
 	user.value = null;
@@ -112,14 +108,6 @@ watch(() => props.acct, reload);
 
 onMounted(() => {
 	reload();
-	ro = new ResizeObserver(() => {
-		narrow.value = window.innerWidth < 1000;
-	});
-	ro.observe(window.document.body);
-});
-
-onUnmounted(() => {
-	ro?.disconnect();
 });
 
 const playerActive = ref(true);
@@ -231,10 +219,18 @@ definePage(() => ({
 	min-height: 0;
 }
 
-// スマホ / 縦画面: プレイヤー上部・チャット下部の縦積みに切り替え
-.narrow {
-	flex-direction: column;
-	height: auto;
+// スマホ / 縦画面相当の狭いペイン幅: プレイヤー上部・チャット下部の縦積みに切り替える。
+// window.innerWidth ではなく _spacer が張る container-type: inline-size を基準にする
+// (Misskey はデッキ表示等でペイン幅が実ビューポート幅と一致しないため、ここは他の
+// レスポンシブ分岐 (例: XMessage.vue の @container (max-width: 450px)) と同じ流儀に揃える)。
+// 同名クラスの上書きなので、CSS Modules 上も同じ詳細度になり、ソース順序が後にある
+// このブロックを末尾に置かないと上の基本定義に負けて narrow レイアウトが効かない
+@container (max-width: 700px) {
+	.watch {
+		flex-direction: column;
+		height: auto;
+		min-height: 0;
+	}
 
 	.main {
 		flex: none;
@@ -244,6 +240,7 @@ definePage(() => ({
 	.chat {
 		width: 100%;
 		height: 60dvh;
+		max-height: 600px;
 		min-height: 320px;
 	}
 }
