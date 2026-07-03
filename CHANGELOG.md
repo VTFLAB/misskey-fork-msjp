@@ -18,6 +18,7 @@
 - Feat: Twitch 連携ユーザーが配信中のとき、プロフィールに LIVE バッジ (配信タイトル・カテゴリ付き) を表示するように (bsky-fork 独自)
 - Feat: 配信中の Twitch 連携ユーザーを一覧するライブ配信ページ (`/live`) を追加 (bsky-fork 独自)。配信サムネイルを背景にしたカードで、Misskey のユーザー情報と Twitch の配信タイトル・カテゴリ・視聴者数を表示。ナビゲーションメニューに「ライブ配信」項目を追加
 - Feat: ライブ配信視聴ページ (`/live/@username`) を追加 (bsky-fork 独自)。Twitch 埋め込みプレイヤー + リアルタイムコメント欄で、PC では 2 ペイン・スマホ/縦画面では縦積みのレスポンシブレイアウト。コメントはノートとは独立した配信専用のもので、配信終了後も履歴としてさかのぼって閲覧できる
+- Enhance: 配信視聴ページのコメント投稿フォームをノート投稿と同等のエディタに強化 (bsky-fork 独自)。MFM 構文 (太字・打消し・関数など)・カスタム絵文字・オートコンプリート (メンション・ハッシュタグ・絵文字)・絵文字ピッカーに対応し、ドライブファイルの添付・ドラッグ&ドロップ・クリップボードペーストでのメディアアップロードが可能に。コメント表示に投稿時刻 (HH:mm・ツールチップにフル日時) を追加
 
 ### Server
 
@@ -31,6 +32,7 @@
 - Feat: Twitch 連携の基盤を追加 (bsky-fork 独自)。Twitch OAuth (認可コードフロー)・`twitch_account` テーブル・Helix API クライアント・連携用エンドポイント (`twitch/generate-oauth-url`, `twitch/my-account`, `twitch/unlink`)・callback ルート (`GET /twitch/oauth/callback`)。`.config/default.yml` に `twitch.clientId` / `twitch.clientSecret` を設定した場合のみ有効
 - Feat: Twitch 配信状態の追跡を追加 (bsky-fork 独自)。EventSub WebSocket (`stream.online` / `stream.offline`、bot アカウントの user token で購読) と 5 分間隔の Get Streams ポーリング補正で `twitch_stream` テーブルに配信セッションを記録し、ユーザー詳細 API に `twitchLive` フィールドを追加
 - Feat: 配信コメントの双方向 Twitch 連携を追加 (bsky-fork 独自)。Misskey 側のコメントは中継 bot が「名前: 本文」形式で Twitch チャットへ代理送信 (Twitch 未連携ユーザーのコメントも中継)、Twitch チャットは EventSub `channel.chat.message` で取り込んで視聴ページに表示・保存する。bot 自身の発言はループ防止のため再取り込みしない。コメントは `twitch_stream_comment` テーブルに配信セッション単位で保存され、ストリーミングチャンネル `twitchLiveStream` でリアルタイム配信される
+- Enhance: 配信コメントの中継 bot が MFM 装飾を平文に変換してから Twitch チャットへ送信するように (bsky-fork 独自)。`$[x2 ...]` / `**太字**` / `~~打消し~~` などの装飾記号が Twitch 側にそのまま流れるのを防ぐ。メディア添付のみのコメント (テキスト空) は Twitch へ中継せず Misskey 側のみに表示される
 
 ## 2026.9.0
 

@@ -30,6 +30,11 @@ export const meta = {
 				source: { type: 'string', enum: ['misskey', 'twitch'], optional: false, nullable: false },
 				text: { type: 'string', optional: false, nullable: false },
 				user: { type: 'object', ref: 'UserLite', optional: false, nullable: true },
+				files: {
+					type: 'array',
+					optional: false, nullable: false,
+					items: { type: 'object', ref: 'DriveFile', optional: false, nullable: false },
+				},
 				twitchUserName: { type: 'string', optional: false, nullable: true },
 				twitchDisplayName: { type: 'string', optional: false, nullable: true },
 			},
