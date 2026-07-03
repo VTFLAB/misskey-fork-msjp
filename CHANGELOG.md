@@ -48,6 +48,7 @@
 - Feat: フォロー中の Twitch 連携ユーザーが配信を開始したとき、フォロワー (ローカルユーザーのみ) に通知するように (bsky-fork 独自)。新規配信セッション検知 (EventSub / ポーリングいずれの経路でも) の 1 回のみ発火し、既存の通知 / Web Push 基盤に接続。既存の通知受信設定 (never/all) を尊重する
 - Feat: Twitch チャット由来のコメントに EventSub の `message.fragments` (絵文字位置情報) を保存するように (bsky-fork 独自)。`twitch_stream_comment` に `fragments` カラムを追加し、`twitchLiveStream` ストリームの `comment` イベントにも含めることで、フロントエンドが Twitch 絵文字を画像として描画できるようになった
 - Fix: 配信コメントの中継 bot が Misskey 側の絵文字 (カスタム絵文字コード・Unicode 絵文字) をそのまま Twitch チャットへ送信していた問題を修正 (bsky-fork 独自)。Twitch では表示できないため中継前にすべて除去し、除去後にできる連続空白・前後の空白も畳む。絵文字のみのコメントは中継自体をスキップする
+- Fix: Bluesky 統合の Jetstream 購読対象 (`wantedDids`) が、誰にもフォローされていない pseudo-user (引用・リプライ・repost 先の解決で自動生成されたもの) まで無制限に含んでしまい、購読が際限なく肥大化して無関係な投稿が GTL に漏出する問題を修正 (bsky-fork 独自)。`listAllDids()` を実際にフォローされている pseudo-user のみに絞るようにした
 
 ## 2026.9.0
 
