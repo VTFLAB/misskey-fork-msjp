@@ -66,6 +66,7 @@ import {
 	MiSystemAccount,
 	MiSystemWebhook,
 	MiTwitchAccount,
+	MiTwitchStream,
 	MiUpdateInfo,
 	MiUsedUsername,
 	MiUser,
@@ -558,6 +559,12 @@ const $twitchAccountsRepository: Provider = {
 	inject: [DI.db],
 };
 
+const $twitchStreamsRepository: Provider = {
+	provide: DI.twitchStreamsRepository,
+	useFactory: (db: DataSource) => db.getRepository(MiTwitchStream).extend(miRepository as MiRepository<MiTwitchStream>),
+	inject: [DI.db],
+};
+
 @Module({
 	imports: [],
 	providers: [
@@ -639,6 +646,7 @@ const $twitchAccountsRepository: Provider = {
 		$reversiGamesRepository,
 		$updateInfosRepository,
 		$twitchAccountsRepository,
+		$twitchStreamsRepository,
 	],
 	exports: [
 		$usersRepository,
@@ -719,6 +727,7 @@ const $twitchAccountsRepository: Provider = {
 		$reversiGamesRepository,
 		$updateInfosRepository,
 		$twitchAccountsRepository,
+		$twitchStreamsRepository,
 	],
 })
 export class RepositoryModule {
