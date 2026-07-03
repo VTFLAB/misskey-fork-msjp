@@ -35932,6 +35932,12 @@ export interface operations {
                         files: components['schemas']['DriveFile'][];
                         twitchUserName: string | null;
                         twitchDisplayName: string | null;
+                        fragments: {
+                            /** @enum {string} */
+                            type: 'text' | 'emote';
+                            text: string;
+                            emoteId?: string;
+                        }[] | null;
                     }[];
                 };
             };

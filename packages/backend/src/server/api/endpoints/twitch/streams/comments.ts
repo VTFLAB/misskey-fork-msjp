@@ -37,6 +37,19 @@ export const meta = {
 				},
 				twitchUserName: { type: 'string', optional: false, nullable: true },
 				twitchDisplayName: { type: 'string', optional: false, nullable: true },
+				fragments: {
+					type: 'array',
+					optional: false, nullable: true,
+					items: {
+						type: 'object',
+						optional: false, nullable: false,
+						properties: {
+							type: { type: 'string', enum: ['text', 'emote'], optional: false, nullable: false },
+							text: { type: 'string', optional: false, nullable: false },
+							emoteId: { type: 'string', optional: true, nullable: false },
+						},
+					},
+				},
 			},
 		},
 	},
