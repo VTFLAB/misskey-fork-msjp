@@ -462,3 +462,8 @@ export * as 'atproto/search' from './endpoints/atproto/search.js';
 export * as 'atproto/follow' from './endpoints/atproto/follow.js';
 export * as 'atproto/unfollow' from './endpoints/atproto/unfollow.js';
 export * as 'atproto/backfill' from './endpoints/atproto/backfill.js';
+
+// twitch (Twitch 連携、private fork 専用)
+export * as 'twitch/generate-oauth-url' from './endpoints/twitch/generate-oauth-url.js';
+export * as 'twitch/my-account' from './endpoints/twitch/my-account.js';
+export * as 'twitch/unlink' from './endpoints/twitch/unlink.js';

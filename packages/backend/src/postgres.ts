@@ -58,6 +58,7 @@ import { MiRegistryItem } from '@/models/RegistryItem.js';
 import { MiRelay } from '@/models/Relay.js';
 import { MiSignin } from '@/models/Signin.js';
 import { MiSwSubscription } from '@/models/SwSubscription.js';
+import { MiTwitchAccount } from '@/models/TwitchAccount.js';
 import { MiUpdateInfo } from '@/models/UpdateInfo.js';
 import { MiUsedUsername } from '@/models/UsedUsername.js';
 import { MiUser } from '@/models/User.js';
@@ -196,6 +197,7 @@ export const entities = [
 	MiUserListMembership,
 	MiUserNotePining,
 	MiUserSecurityKey,
+	MiTwitchAccount,
 	MiUpdateInfo,
 	MiUsedUsername,
 	MiFollowing,
