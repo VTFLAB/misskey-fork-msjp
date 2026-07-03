@@ -4,11 +4,12 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
-import { DataSource, EntityManager, IsNull, Not } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { FollowingsRepository, UserProfilesRepository, UsersRepository } from '@/models/_.js';
 import { MiUser } from '@/models/User.js';
 import type { MiLocalUser, MiRemoteUser } from '@/models/User.js';
+import { MiFollowing } from '@/models/Following.js';
 import { MiUserProfile } from '@/models/UserProfile.js';
 import { IdService } from '@/core/IdService.js';
 import { DriveService } from '@/core/DriveService.js';
@@ -378,11 +379,25 @@ export class AtpPersonService {
 	public async listAllDids(): Promise<string[]> {
 		// ORDER BY id ASC は AtpJetstreamService.refreshSubscription の join(',') 比較で
 		// 「行は同じだが順序が違う」だけで diff 判定 → spurious reconnect 発生を防ぐため必須。
-		const rows = await this.usersRepository.find({
-			where: { atDid: Not(IsNull()) },
-			select: { atDid: true },
-			order: { id: 'ASC' },
-		});
+		//
+		// 実際に followings テーブルに行がある (= 誰かに directFollow されている) pseudo-user
+		// のみ返す。quote/reply/repost 解決 (fetchOrIngestPostByUri/ingestRepost) は表示用に
+		// 未フォローアカウントの pseudo-user も作成するが、それらまで Jetstream 購読対象に
+		// 含めると購読が際限なく肥大化し、無関係な投稿が GTL に漏出するインシデントが発生した
+		// (2026-07-04)。これを防ぐため followee 側に絞る。
+		const rows = await this.usersRepository
+			.createQueryBuilder('user')
+			.select('user.atDid', 'atDid')
+			.where('user.atDid IS NOT NULL')
+			.andWhere(qb => {
+				const subQuery = qb.subQuery()
+					.select('following.followeeId')
+					.from(MiFollowing, 'following')
+					.getQuery();
+				return `user.id IN ${subQuery}`;
+			})
+			.orderBy('user.id', 'ASC')
+			.getRawMany<{ atDid: string | null }>();
 		return rows.map(r => r.atDid).filter((d): d is string => d != null);
 	}
 }
