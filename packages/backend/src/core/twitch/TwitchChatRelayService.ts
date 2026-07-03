@@ -56,8 +56,10 @@ export class TwitchChatRelayService {
 			const token = await this.twitchOAuthService.getValidAccessToken(bot);
 			if (token == null) return;
 
-			const prefix = `${user.name ?? user.username}: `;
-			const message = (prefix + text).slice(0, TWITCH_CHAT_MAX_LENGTH);
+			// username (不変・一意) を使うことで表示名による他ユーザーの発言偽装を防ぐ。
+			// 改行・制御文字は Twitch チャットに送れないため空白に潰す
+			const sanitized = text.replace(/[\u0000-\u001f\u007f]/g, ' ');
+			const message = `${user.username}: ${sanitized}`.slice(0, TWITCH_CHAT_MAX_LENGTH);
 
 			const res = await this.twitchApiService.helixPost<{ data: { is_sent: boolean; drop_reason?: { code: string; message: string } }[] }>('/helix/chat/messages', {
 				broadcaster_id: stream.twitchUserId,
