@@ -11210,6 +11210,10 @@ export interface Locale extends ILocale {
          * 心当たりがない場合は「{text}」を通じてアクセストークンを削除してください。
          */
         "createTokenDescription": ParameterizedString<"text">;
+        /**
+         * {name}が配信を開始しました
+         */
+        "twitchLiveStreamStarted": ParameterizedString<"name">;
         "_types": {
             /**
              * すべて
@@ -11303,6 +11307,10 @@ export interface Locale extends ILocale {
              * 緊急地震速報
              */
             "earthquakeAlert": string;
+            /**
+             * フォロー中ユーザーの配信開始
+             */
+            "twitchLiveStreamStarted": string;
         };
         "_actions": {
             /**
@@ -13707,6 +13715,10 @@ export interface Locale extends ILocale {
          * ホームに戻る
          */
         "backToHome": string;
+        /**
+         * 配信を開始しました。
+         */
+        "startedStreaming": string;
         /**
          * まだコメントはありません。
          */
