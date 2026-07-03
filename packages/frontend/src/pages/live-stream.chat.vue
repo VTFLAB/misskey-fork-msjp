@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div :class="$style.root">
-	<div ref="listEl" :class="$style.list" @scroll="onScroll">
+	<div ref="listEl" :class="$style.list">
 		<button v-if="hasOlder" class="_button" :class="$style.loadOlder" :disabled="loadingOlder" @click="loadOlder">
 			{{ i18n.ts.loadMore }}
 		</button>
@@ -33,9 +33,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:class="$style.input"
 			type="text"
 			:placeholder="i18n.ts._twitch.commentPlaceholder"
+			:aria-label="i18n.ts._twitch.commentPlaceholder"
 			maxlength="500"
 			:disabled="sending"
-			@keydown.enter="send"
+			@keydown="onKeydown"
 		>
 		<button class="_button" :class="$style.sendButton" :disabled="sending || text.trim().length === 0" :aria-label="i18n.ts.send" @click="send">
 			<i class="ti ti-send"></i>
@@ -89,15 +90,18 @@ function isNearBottom(): boolean {
 }
 
 async function fetchInitial() {
-	const res = await misskeyApi('twitch/streams/comments', {
-		streamId: props.streamId,
-		limit: 30,
-	});
-	// API は新しい順で返すので表示用に反転する
-	comments.value = res.reverse();
-	hasOlder.value = res.length >= 30;
-	fetching.value = false;
-	scrollToBottom();
+	try {
+		const res = await misskeyApi('twitch/streams/comments', {
+			streamId: props.streamId,
+			limit: 30,
+		});
+		// API は新しい順で返すので表示用に反転する
+		comments.value = res.reverse();
+		hasOlder.value = res.length >= 30;
+		scrollToBottom();
+	} finally {
+		fetching.value = false;
+	}
 }
 
 async function loadOlder() {
@@ -116,10 +120,6 @@ async function loadOlder() {
 	}
 }
 
-function onScroll() {
-	// noop (将来のスクロール位置保持用フック)
-}
-
 function onComment(comment: Comment) {
 	if (comments.value.some(c => c.id === comment.id)) return;
 	const shouldScroll = isNearBottom();
@@ -130,6 +130,13 @@ function onComment(comment: Comment) {
 		hasOlder.value = true;
 	}
 	if (shouldScroll) scrollToBottom();
+}
+
+function onKeydown(ev: KeyboardEvent) {
+	// IME 変換確定の Enter で送信しないようにガードする (MkInput.vue と同一パターン)
+	if (ev.isComposing || ev.key === 'Process' || ev.keyCode === 229) return;
+	if (ev.key !== 'Enter') return;
+	send();
 }
 
 async function send() {

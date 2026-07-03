@@ -12,7 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<span :class="$style.viewers"><i class="ti ti-eye"></i> {{ number(stream.viewerCount) }}</span>
 	</div>
 	<div :class="$style.body">
-		<MkAvatar :user="stream.user" :class="$style.avatar" link preview/>
+		<MkAvatar :user="stream.user" :class="$style.avatar"/>
 		<div :class="$style.info">
 			<div :class="$style.title">{{ stream.title !== '' ? stream.title : i18n.ts._twitch.liveStreams }}</div>
 			<div :class="$style.userName"><MkUserName :user="stream.user" :nowrap="true"/></div>
