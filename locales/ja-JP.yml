@@ -3673,6 +3673,7 @@ _twitch:
   streamOffline: "現在オフラインです。"
   streamEnded: "配信が終了しました。"
   noComments: "まだコメントはありません。"
+  newComments: "新しいコメント"
   commentPlaceholder: "コメントを送信..."
   notConfigured: "このサーバーではTwitch連携が設定されていません。"
   linkDescription: "Twitchアカウントを連携すると、配信中の表示やライブストリームページへの掲載、コメント連携が利用できるようになります。"
