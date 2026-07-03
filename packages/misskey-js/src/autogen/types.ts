@@ -4252,6 +4252,14 @@ export type components = {
             chatScope: 'everyone' | 'following' | 'followers' | 'mutual' | 'none';
             canChat: boolean;
             roles: components['schemas']['RoleLite'][];
+            twitchLive?: {
+                twitchLogin: string;
+                title: string;
+                gameName: string | null;
+                viewerCount: number;
+                /** Format: date-time */
+                startedAt: string;
+            } | null;
             followedMessage?: string | null;
             memo: string | null;
             moderationNote?: string;

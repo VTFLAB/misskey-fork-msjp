@@ -3665,6 +3665,7 @@ _atproto:
 _twitch:
   twitchIntegration: "Twitch連携"
   myAccount: "自分のアカウント"
+  watchLive: "ライブ配信を見る"
   notConfigured: "このサーバーではTwitch連携が設定されていません。"
   linkDescription: "Twitchアカウントを連携すると、配信中の表示やライブストリームページへの掲載、コメント連携が利用できるようになります。"
   linkAccount: "Twitchアカウントを連携する"
