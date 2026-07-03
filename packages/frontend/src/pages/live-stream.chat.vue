@@ -60,16 +60,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 			></textarea>
 			<button class="_button" :class="$style.formButton" :title="i18n.ts.attachFile" :aria-label="i18n.ts.attachFile" @click="chooseFile"><i class="ti ti-photo-plus"></i></button>
 			<button class="_button" :class="$style.formButton" :title="i18n.ts.emoji" :aria-label="i18n.ts.emoji" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
+			<button v-tooltip="i18n.ts._mfmToolbar.show" class="_button" :class="[$style.formButton, { [$style.formButtonActive]: showMfmToolbar }]" :aria-label="i18n.ts._mfmToolbar.show" @click="showMfmToolbar = !showMfmToolbar"><i class="ti ti-wand"></i></button>
 			<button class="_button" :class="[$style.formButton, $style.sendButton]" :disabled="sending || !canSend" :title="i18n.ts.send" :aria-label="i18n.ts.send" @click="send">
 				<template v-if="!sending"><i class="ti ti-send"></i></template><template v-else><MkLoading :em="true"/></template>
 			</button>
 		</div>
+		<MkMfmToolbar v-if="showMfmToolbar" v-model:show="showMfmToolbar" v-model:text="text" :textareaEl="textareaEl" @changed="onMfmToolbarChanged"/>
 	</div>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, useTemplateRef, onMounted, onBeforeUnmount, onUnmounted, nextTick } from 'vue';
+import { ref, computed, watch, useTemplateRef, onMounted, onBeforeUnmount, onUnmounted, nextTick } from 'vue';
 import * as Misskey from 'misskey-js';
 import { versatileLang, dateTimeFormat } from '@@/js/intl-const.js';
 import { i18n } from '@/i18n.js';
@@ -83,6 +85,8 @@ import { emojiPicker } from '@/utility/emoji-picker.js';
 import { formatTimeString } from '@/utility/format-time-string.js';
 import { checkDragDataType, getDragData } from '@/drag-and-drop.js';
 import MkMediaList from '@/components/MkMediaList.vue';
+import MkMfmToolbar from '@/components/MkMfmToolbar.vue';
+import { prefer } from '@/preferences.js';
 
 type Comment = Misskey.Endpoints['twitch/streams/comments']['res'][number];
 
@@ -105,6 +109,9 @@ const text = ref('');
 const files = ref<Misskey.entities.DriveFile[]>([]);
 const sending = ref(false);
 const textareaReadOnly = ref(false);
+// ノートエディタ (MkPostForm) と表示状態を共有する
+const showMfmToolbar = ref(prefer.s.showMfmToolbar);
+watch(showMfmToolbar, () => prefer.commit('showMfmToolbar', showMfmToolbar.value));
 const listEl = useTemplateRef('listEl');
 const textareaEl = useTemplateRef('textareaEl');
 let autocompleteInstance: Autocomplete | null = null;
@@ -261,6 +268,12 @@ function onDrop(ev: DragEvent) {
 		ev.preventDefault();
 		addFiles(droppedData);
 	}
+}
+
+function onMfmToolbarChanged() {
+	nextTick(() => {
+		textareaEl.value?.focus();
+	});
 }
 
 async function insertEmoji(ev: MouseEvent) {
@@ -474,6 +487,10 @@ onUnmounted(() => {
 	&:disabled {
 		opacity: 0.5;
 	}
+}
+
+.formButtonActive {
+	color: var(--MI_THEME-accent);
 }
 
 .sendButton {
