@@ -13807,6 +13807,10 @@ export interface Locale extends ILocale {
          */
         "noComments": string;
         /**
+         * 新しいコメント
+         */
+        "newComments": string;
+        /**
          * コメントを送信...
          */
         "commentPlaceholder": string;
