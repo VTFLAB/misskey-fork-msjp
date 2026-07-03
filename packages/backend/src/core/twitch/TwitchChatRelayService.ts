@@ -4,6 +4,7 @@
  */
 
 import { Injectable, Inject } from '@nestjs/common';
+import * as mfm from 'mfm-js';
 import { DI } from '@/di-symbols.js';
 import type { TwitchStreamsRepository } from '@/models/_.js';
 import type { MiTwitchStream } from '@/models/TwitchStream.js';
@@ -49,7 +50,11 @@ export class TwitchChatRelayService {
 	 * bot 未設定・失効時は静かにスキップ (Misskey 側の投稿は既に成立している)。
 	 */
 	@bindThis
-	public relayToTwitch(stream: MiTwitchStream, user: MiUser, text: string): void {
+	public relayToTwitch(
+		stream: MiTwitchStream,
+		user: MiUser,
+		text: string,
+	): void {
 		(async () => {
 			const bot = await this.twitchOAuthService.getBotAccount();
 			if (bot == null) return;
@@ -57,23 +62,97 @@ export class TwitchChatRelayService {
 			if (token == null) return;
 
 			// username (不変・一意) を使うことで表示名による他ユーザーの発言偽装を防ぐ。
-			// 改行・制御文字は Twitch チャットに送れないため空白に潰す
-			const sanitized = text.replace(/[\u0000-\u001f\u007f]/g, ' ');
-			const message = `${user.username}: ${sanitized}`.slice(0, TWITCH_CHAT_MAX_LENGTH);
+			// MFM 装飾は Twitch チャットで意味を持たないため平文に変換する
+			const plain = this.mfmToPlainText(text);
+			if (plain.length === 0) return;
 
-			const res = await this.twitchApiService.helixPost<{ data: { is_sent: boolean; drop_reason?: { code: string; message: string } }[] }>('/helix/chat/messages', {
-				broadcaster_id: stream.twitchUserId,
-				sender_id: bot.twitchUserId,
-				message,
-			}, token);
+			// 改行・制御文字は Twitch チャットに送れないため空白に潰す
+			const sanitized = plain.replace(/[\u0000-\u001f\u007f]/g, ' ');
+			const message = `${user.username}: ${sanitized}`.slice(
+				0,
+				TWITCH_CHAT_MAX_LENGTH,
+			);
+
+			const res = await this.twitchApiService.helixPost<{
+				data: {
+					is_sent: boolean;
+					drop_reason?: { code: string; message: string };
+				}[];
+			}>(
+				'/helix/chat/messages',
+				{
+					broadcaster_id: stream.twitchUserId,
+					sender_id: bot.twitchUserId,
+					message,
+				},
+				token,
+			);
 
 			const result = res.data[0];
 			if (result != null && !result.is_sent) {
-				this.logger.warn(`chat message dropped by Twitch: ${result.drop_reason?.code} ${result.drop_reason?.message}`);
+				this.logger.warn(
+					`chat message dropped by Twitch: ${result.drop_reason?.code} ${result.drop_reason?.message}`,
+				);
 			}
-		})().catch(err => {
-			this.logger.warn(`relay to Twitch failed (stream=${stream.id}): ${err instanceof Error ? err.message : err}`);
+		})().catch((err) => {
+			this.logger.warn(
+				`relay to Twitch failed (stream=${stream.id}): ${err instanceof Error ? err.message : err}`,
+			);
 		});
+	}
+
+	/**
+	 * MFM ソースを平文に変換する (Twitch チャット向け)。
+	 * 装飾や構文は取り除き、ユーザーが入力した文字列としての意図を残す。
+	 */
+	@bindThis
+	private mfmToPlainText(text: string): string {
+		const nodes = mfm.parse(text);
+		if (nodes.length === 0) return '';
+
+		const walk = (node: mfm.MfmNode): string => {
+			switch (node.type) {
+				case 'text':
+					return node.props.text;
+				case 'plain':
+					return node.children.map(walk).join('');
+				case 'unicodeEmoji':
+					return node.props.emoji;
+				case 'emojiCode':
+					return `:${node.props.name}:`;
+				case 'mention':
+					return `@${node.props.username}`;
+				case 'hashtag':
+					return `#${node.props.hashtag}`;
+				case 'url':
+					return node.props.url;
+				case 'link':
+					return node.props.url;
+				case 'inlineCode':
+					return node.props.code;
+				case 'mathInline':
+					return node.props.formula;
+				case 'fn':
+					return node.children.map(walk).join('');
+				case 'bold':
+				case 'italic':
+				case 'strike':
+				case 'small':
+				case 'quote':
+				case 'center':
+					return node.children.map(walk).join('');
+				case 'blockCode':
+					return node.props.code;
+				case 'mathBlock':
+					return node.props.formula;
+				case 'search':
+					return node.props.content;
+				default:
+					return '';
+			}
+		};
+
+		return nodes.map(walk).join('');
 	}
 
 	/**
