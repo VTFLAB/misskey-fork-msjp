@@ -625,6 +625,12 @@ import type {
 	TwitchGenerateOauthUrlResponse,
 	TwitchLiveStreamsResponse,
 	TwitchMyAccountResponse,
+	TwitchStreamsCommentsRequest,
+	TwitchStreamsCommentsResponse,
+	TwitchStreamsCommentsCreateRequest,
+	TwitchStreamsCommentsCreateResponse,
+	TwitchStreamsShowRequest,
+	TwitchStreamsShowResponse,
 	UpdateInfoShowRequest,
 	UpdateInfoShowResponse,
 	UpdateInfosRequest,
@@ -1109,6 +1115,9 @@ export type Endpoints = {
 	'twitch/generate-oauth-url': { req: TwitchGenerateOauthUrlRequest; res: TwitchGenerateOauthUrlResponse };
 	'twitch/live-streams': { req: EmptyRequest; res: TwitchLiveStreamsResponse };
 	'twitch/my-account': { req: EmptyRequest; res: TwitchMyAccountResponse };
+	'twitch/streams/comments': { req: TwitchStreamsCommentsRequest; res: TwitchStreamsCommentsResponse };
+	'twitch/streams/comments/create': { req: TwitchStreamsCommentsCreateRequest; res: TwitchStreamsCommentsCreateResponse };
+	'twitch/streams/show': { req: TwitchStreamsShowRequest; res: TwitchStreamsShowResponse };
 	'twitch/unlink': { req: EmptyRequest; res: EmptyResponse };
 	'update-info/show': { req: UpdateInfoShowRequest; res: UpdateInfoShowResponse };
 	'update-infos': { req: UpdateInfosRequest; res: UpdateInfosResponse };
