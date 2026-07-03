@@ -13696,6 +13696,22 @@ export interface Locale extends ILocale {
          */
         "noLiveStreams": string;
         /**
+         * 現在オフラインです。
+         */
+        "streamOffline": string;
+        /**
+         * 配信が終了しました。
+         */
+        "streamEnded": string;
+        /**
+         * まだコメントはありません。
+         */
+        "noComments": string;
+        /**
+         * コメントを送信...
+         */
+        "commentPlaceholder": string;
+        /**
          * このサーバーではTwitch連携が設定されていません。
          */
         "notConfigured": string;

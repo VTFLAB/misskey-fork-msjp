@@ -930,6 +930,24 @@ export type Channels = {
             claimTimeIsUp: null | Record<string, never>;
         };
     };
+    twitchLiveStream: {
+        params: {
+            streamId: string;
+        };
+        events: {
+            comment: (payload: {
+                id: string;
+                createdAt: string;
+                source: 'misskey' | 'twitch';
+                text: string;
+                user: UserLite | null;
+                twitchUserName: string | null;
+                twitchDisplayName: string | null;
+            }) => void;
+            streamEnded: (payload: Record<string, never>) => void;
+        };
+        receives: null;
+    };
     chatUser: {
         params: {
             otherId: string;
@@ -2212,6 +2230,12 @@ declare namespace entities {
         TwitchGenerateOauthUrlResponse,
         TwitchLiveStreamsResponse,
         TwitchMyAccountResponse,
+        TwitchStreamsCommentsRequest,
+        TwitchStreamsCommentsResponse,
+        TwitchStreamsCommentsCreateRequest,
+        TwitchStreamsCommentsCreateResponse,
+        TwitchStreamsShowRequest,
+        TwitchStreamsShowResponse,
         UpdateInfoShowRequest,
         UpdateInfoShowResponse,
         UpdateInfosRequest,
@@ -3857,6 +3881,24 @@ type TwitchLiveStreamsResponse = operations['twitch___live-streams']['responses'
 
 // @public (undocumented)
 type TwitchMyAccountResponse = operations['twitch___my-account']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsCommentsCreateRequest = operations['twitch___streams___comments___create']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsCommentsCreateResponse = operations['twitch___streams___comments___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsCommentsRequest = operations['twitch___streams___comments']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsCommentsResponse = operations['twitch___streams___comments']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsShowRequest = operations['twitch___streams___show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsShowResponse = operations['twitch___streams___show']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type UpdateInfo = components['schemas']['UpdateInfo'];
