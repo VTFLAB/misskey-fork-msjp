@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkA :to="`/live/@${stream.user.username}?zen`" :class="$style.root" class="_panel">
+<MkA :to="`/live/@${stream.user.username}`" :class="$style.root" class="_panel">
 	<div :class="$style.thumbnail">
 		<img v-if="thumbnailUrl" :src="thumbnailUrl" :class="$style.thumbnailImg" loading="lazy" decoding="async" alt=""/>
 		<div v-else :class="$style.thumbnailFallback"><i class="ti ti-broadcast"></i></div>
