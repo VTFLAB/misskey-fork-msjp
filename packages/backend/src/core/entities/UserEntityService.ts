@@ -48,6 +48,7 @@ import type { AnnouncementService } from '@/core/AnnouncementService.js';
 import type { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import { AvatarDecorationService } from '@/core/AvatarDecorationService.js';
 import { ChatService } from '@/core/ChatService.js';
+import type { TwitchStreamService } from '@/core/twitch/TwitchStreamService.js';
 import type { OnModuleInit } from '@nestjs/common';
 import type { NoteEntityService } from './NoteEntityService.js';
 import type { PageEntityService } from './PageEntityService.js';
@@ -95,6 +96,7 @@ export class UserEntityService implements OnModuleInit {
 	private idService: IdService;
 	private avatarDecorationService: AvatarDecorationService;
 	private chatService: ChatService;
+	private twitchStreamService: TwitchStreamService;
 
 	constructor(
 		private moduleRef: ModuleRef,
@@ -151,6 +153,7 @@ export class UserEntityService implements OnModuleInit {
 		this.idService = this.moduleRef.get('IdService');
 		this.avatarDecorationService = this.moduleRef.get('AvatarDecorationService');
 		this.chatService = this.moduleRef.get('ChatService');
+		this.twitchStreamService = this.moduleRef.get('TwitchStreamService');
 	}
 
 	//#region Validators
@@ -572,6 +575,14 @@ export class UserEntityService implements OnModuleInit {
 				}))),
 				memo: memo,
 				moderationNote: iAmModerator ? (profile!.moderationNote ?? '') : undefined,
+				// Twitch 連携 (bsky-fork 独自): 配信中のみ非 null。ローカルユーザーのみ対象
+				twitchLive: user.host == null ? this.twitchStreamService.getLiveStreamByUserId(user.id).then(s => s == null ? null : {
+					twitchLogin: s.twitchLogin,
+					title: s.title,
+					gameName: s.gameName,
+					viewerCount: s.viewerCount,
+					startedAt: s.startedAt.toISOString(),
+				}) : null,
 			} : {}),
 
 			...(isDetailed && (isMe || iAmModerator) ? {
