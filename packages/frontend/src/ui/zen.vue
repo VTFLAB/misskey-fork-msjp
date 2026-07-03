@@ -35,7 +35,20 @@ const isRoot = computed(() => mainRouter.currentRoute.value.name === 'index');
 
 const pageMetadata = ref<null | PageMetadata>(null);
 
-const showDeckNav = !(new URLSearchParams(window.location.search)).has('zen') && ui === 'deck';
+// 現在のページが hideDeckNav を宣言している場合は非表示にする (bsky-fork 独自)。
+// definePage 経由でリアクティブに更新されるため、クエリパラメータと違い
+// SPA 内遷移でも正しく反映される
+const showDeckNav = computed(() =>
+	!(new URLSearchParams(window.location.search)).has('zen')
+	&& ui === 'deck'
+	&& !pageMetadata.value?.hideDeckNav,
+);
+
+// zen UI には universal.vue / deck.vue のようなモバイルフッターメニューが無いため、
+// --MI-minBottomSpacing は :root のモバイル既定値のまま残ってしまう。
+// フルスクリーン表示を前提にするページ (配信視聴ページ等) の高さ計算がずれるので
+// ここで明示的に 0 にリセットする (bsky-fork 独自)
+window.document.body.style.setProperty('--MI-minBottomSpacing', '0px');
 
 provide(DI.router, mainRouter);
 provideMetadataReceiver((metadataGetter) => {
