@@ -10,6 +10,7 @@ import type { TwitchAccountsRepository } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { TwitchApiService } from './TwitchApiService.js';
+import { TwitchChatRelayService } from './TwitchChatRelayService.js';
 import { TwitchLoggerService } from './TwitchLoggerService.js';
 import { TwitchOAuthService } from './TwitchOAuthService.js';
 import { TwitchStreamService } from './TwitchStreamService.js';
@@ -75,6 +76,7 @@ export class TwitchEventSubService implements OnModuleInit, OnApplicationShutdow
 		private twitchApiService: TwitchApiService,
 		private twitchOAuthService: TwitchOAuthService,
 		private twitchStreamService: TwitchStreamService,
+		private twitchChatRelayService: TwitchChatRelayService,
 		private twitchLoggerService: TwitchLoggerService,
 	) {
 		this.logger = this.twitchLoggerService.child('eventsub');
@@ -315,6 +317,10 @@ export class TwitchEventSubService implements OnModuleInit, OnApplicationShutdow
 				await this.twitchStreamService.markOffline(twitchUserId);
 				break;
 			}
+			case 'channel.chat.message': {
+				await this.twitchChatRelayService.handleChatMessageEvent(event as Parameters<TwitchChatRelayService['handleChatMessageEvent']>[0]);
+				break;
+			}
 			default:
 				this.logger.debug(`unhandled notification type: ${type}`);
 		}
@@ -344,17 +350,22 @@ export class TwitchEventSubService implements OnModuleInit, OnApplicationShutdow
 		const targets = await this.listTargetTwitchUserIds();
 		let created = 0;
 		for (const twitchUserId of targets) {
-			for (const type of ['stream.online', 'stream.offline'] as const) {
+			// channel.chat.message は「bot として読む」ため user_id (chatter) に bot を指定する。
+			// websocket transport + bot user token (user:read:chat) で全 broadcaster のチャットを購読できる
+			const subscriptions = [
+				{ type: 'stream.online', version: '1', condition: { broadcaster_user_id: twitchUserId } },
+				{ type: 'stream.offline', version: '1', condition: { broadcaster_user_id: twitchUserId } },
+				{ type: 'channel.chat.message', version: '1', condition: { broadcaster_user_id: twitchUserId, user_id: bot.twitchUserId } },
+			];
+			for (const sub of subscriptions) {
 				try {
 					await this.twitchApiService.helixPost('/helix/eventsub/subscriptions', {
-						type,
-						version: '1',
-						condition: { broadcaster_user_id: twitchUserId },
+						...sub,
 						transport: { method: 'websocket', session_id: this.sessionId },
 					}, token);
 					created += 1;
 				} catch (e) {
-					this.logger.warn(`subscription create failed (${type}, broadcaster=${twitchUserId}): ${e instanceof Error ? e.message : e}`);
+					this.logger.warn(`subscription create failed (${sub.type}, broadcaster=${twitchUserId}): ${e instanceof Error ? e.message : e}`);
 				}
 			}
 		}
