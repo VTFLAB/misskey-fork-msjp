@@ -92,5 +92,6 @@ export const DI = {
 	reversiGamesRepository: Symbol('reversiGamesRepository'),
 	noteDraftsRepository: Symbol('noteDraftsRepository'),
 	updateInfosRepository: Symbol('updateInfosRepository'),
+	twitchAccountsRepository: Symbol('twitchAccountsRepository'),
 	//#endregion
 };
