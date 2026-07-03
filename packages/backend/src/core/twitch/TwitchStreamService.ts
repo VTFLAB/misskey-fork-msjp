@@ -5,12 +5,14 @@
 
 import cluster from 'node:cluster';
 import { Injectable, Inject, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
+import { IsNull } from 'typeorm';
 import { DI } from '@/di-symbols.js';
-import type { TwitchAccountsRepository, TwitchStreamsRepository } from '@/models/_.js';
+import type { FollowingsRepository, TwitchAccountsRepository, TwitchStreamsRepository } from '@/models/_.js';
 import { MiTwitchStream } from '@/models/TwitchStream.js';
 import type { MiUser } from '@/models/User.js';
 import { IdService } from '@/core/IdService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
+import { NotificationService } from '@/core/NotificationService.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { TwitchApiService } from './TwitchApiService.js';
@@ -33,8 +35,12 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 		@Inject(DI.twitchStreamsRepository)
 		private twitchStreamsRepository: TwitchStreamsRepository,
 
+		@Inject(DI.followingsRepository)
+		private followingsRepository: FollowingsRepository,
+
 		private idService: IdService,
 		private globalEventService: GlobalEventService,
+		private notificationService: NotificationService,
 		private twitchApiService: TwitchApiService,
 		private twitchLoggerService: TwitchLoggerService,
 	) {
@@ -86,7 +92,7 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 				endedAt: null,
 			});
 		} else {
-			await this.twitchStreamsRepository.insertOne(new MiTwitchStream({
+			const newStream = new MiTwitchStream({
 				id: this.idService.gen(),
 				userId,
 				twitchUserId: stream.user_id,
@@ -98,8 +104,38 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 				thumbnailUrl: stream.thumbnail_url === '' ? null : stream.thumbnail_url.slice(0, 1024),
 				viewerCount: stream.viewer_count,
 				startedAt: new Date(stream.started_at),
-			}));
+			});
+			await this.twitchStreamsRepository.insertOne(newStream);
 			this.logger.info(`stream online: user=${userId} twitch=@${stream.user_login} "${stream.title.slice(0, 40)}"`);
+			this.notifyFollowers(userId, newStream).catch(err => {
+				this.logger.error(`notifyFollowers failed: ${err instanceof Error ? err.message : err}`);
+			});
+		}
+	}
+
+	/**
+	 * 配信開始をフォロー中の (ローカル) ユーザーに通知する (bsky-fork 独自)。
+	 * 通知単位で受信設定 (全通知種別に共通の never/all 切り替え) を尊重するため、
+	 * フォロワー一覧を自前で解決したうえで1件ずつ NotificationService.createNotification を呼ぶ
+	 * (EarthquakeAlertService の全ユーザー配信と同じ fire-and-forget パターン)。
+	 */
+	@bindThis
+	private async notifyFollowers(streamerUserId: MiUser['id'], stream: MiTwitchStream): Promise<void> {
+		const followings = await this.followingsRepository.find({
+			where: {
+				followeeId: streamerUserId,
+				followerHost: IsNull(),
+			},
+			select: {
+				followerId: true,
+			},
+		});
+
+		for (const following of followings) {
+			this.notificationService.createNotification(following.followerId, 'twitchLiveStreamStarted', {
+				streamId: stream.id,
+				title: stream.title,
+			}, streamerUserId);
 		}
 	}
 
