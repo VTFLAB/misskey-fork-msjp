@@ -3670,6 +3670,7 @@ _twitch:
   noLiveStreams: "現在配信中のユーザーはいません。"
   streamOffline: "現在オフラインです。"
   streamEnded: "配信が終了しました。"
+  backToHome: "ホームに戻る"
   noComments: "まだコメントはありません。"
   newComments: "新しいコメント"
   commentPlaceholder: "コメントを送信..."
