@@ -165,6 +165,8 @@ import { TwitchApiService } from './twitch/TwitchApiService.js';
 import { TwitchOAuthService } from './twitch/TwitchOAuthService.js';
 import { TwitchStreamService } from './twitch/TwitchStreamService.js';
 import { TwitchEventSubService } from './twitch/TwitchEventSubService.js';
+import { TwitchCommentService } from './twitch/TwitchCommentService.js';
+import { TwitchChatRelayService } from './twitch/TwitchChatRelayService.js';
 import { EarthquakeAlertService } from './earthquake/EarthquakeAlertService.js';
 import { QueueModule } from './QueueModule.js';
 import { QueueService } from './QueueService.js';
@@ -336,6 +338,8 @@ const $TwitchApiService: Provider = { provide: 'TwitchApiService', useExisting: 
 const $TwitchOAuthService: Provider = { provide: 'TwitchOAuthService', useExisting: TwitchOAuthService };
 const $TwitchStreamService: Provider = { provide: 'TwitchStreamService', useExisting: TwitchStreamService };
 const $TwitchEventSubService: Provider = { provide: 'TwitchEventSubService', useExisting: TwitchEventSubService };
+const $TwitchCommentService: Provider = { provide: 'TwitchCommentService', useExisting: TwitchCommentService };
+const $TwitchChatRelayService: Provider = { provide: 'TwitchChatRelayService', useExisting: TwitchChatRelayService };
 //#endregion
 
 @Module({
@@ -505,6 +509,8 @@ const $TwitchEventSubService: Provider = { provide: 'TwitchEventSubService', use
 		TwitchOAuthService,
 		TwitchStreamService,
 		TwitchEventSubService,
+		TwitchCommentService,
+		TwitchChatRelayService,
 		EarthquakeAlertService,
 
 		QueueService,
@@ -674,6 +680,8 @@ const $TwitchEventSubService: Provider = { provide: 'TwitchEventSubService', use
 		$TwitchOAuthService,
 		$TwitchStreamService,
 		$TwitchEventSubService,
+		$TwitchCommentService,
+		$TwitchChatRelayService,
 		//#endregion
 	],
 	exports: [
@@ -839,6 +847,8 @@ const $TwitchEventSubService: Provider = { provide: 'TwitchEventSubService', use
 		TwitchOAuthService,
 		TwitchStreamService,
 		TwitchEventSubService,
+		TwitchCommentService,
+		TwitchChatRelayService,
 		EarthquakeAlertService,
 
 		QueueService,
@@ -1006,6 +1016,8 @@ const $TwitchEventSubService: Provider = { provide: 'TwitchEventSubService', use
 		$TwitchOAuthService,
 		$TwitchStreamService,
 		$TwitchEventSubService,
+		$TwitchCommentService,
+		$TwitchChatRelayService,
 		//#endregion
 	],
 })

@@ -10,6 +10,7 @@ import type { TwitchAccountsRepository, TwitchStreamsRepository } from '@/models
 import { MiTwitchStream } from '@/models/TwitchStream.js';
 import type { MiUser } from '@/models/User.js';
 import { IdService } from '@/core/IdService.js';
+import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { TwitchApiService } from './TwitchApiService.js';
@@ -33,6 +34,7 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 		private twitchStreamsRepository: TwitchStreamsRepository,
 
 		private idService: IdService,
+		private globalEventService: GlobalEventService,
 		private twitchApiService: TwitchApiService,
 		private twitchLoggerService: TwitchLoggerService,
 	) {
@@ -113,6 +115,7 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 				isLive: false,
 				endedAt: new Date(),
 			});
+			this.globalEventService.publishTwitchLiveStream(s.id, 'streamEnded', {});
 		}
 		this.logger.info(`stream offline: twitchUserId=${twitchUserId}`);
 	}
