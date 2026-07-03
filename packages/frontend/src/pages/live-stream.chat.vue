@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div :class="$style.root">
-	<div ref="listEl" :class="$style.list">
+	<div ref="listEl" :class="$style.list" @scroll.passive="onListScroll">
 		<button v-if="hasOlder" class="_button" :class="$style.loadOlder" :disabled="loadingOlder" @click="loadOlder">
 			{{ i18n.ts.loadMore }}
 		</button>
@@ -39,6 +39,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</div>
 		<div v-if="comments.length === 0 && !fetching" :class="$style.empty">{{ i18n.ts._twitch.noComments }}</div>
 	</div>
+	<button v-if="newCommentsCount > 0" class="_buttonPrimary" :class="$style.newComments" @click="jumpToLatest">
+		<i class="ti ti-arrow-down"></i> {{ i18n.ts._twitch.newComments }}
+	</button>
 	<div
 		v-if="$i != null && live"
 		:class="$style.form"
@@ -156,6 +159,12 @@ function twitchEmoteUrl(emoteId: string | undefined): string {
 	return `https://static-cdn.jtvnw.net/emoticons/v2/${encodeURIComponent(emoteId)}/static/dark/2.0`;
 }
 
+// Twitch/YouTube 等のライブチャットと同じ挙動: 最下部付近にいる間だけ新着で
+// 追従スクロールする。任意の位置まで上にスクロールしている間は自動スクロールを
+// 止め、代わりに「新着コメント」ボタンを表示する (最下部へ戻ると自動的に解除)
+const autoScroll = ref(true);
+const newCommentsCount = ref(0);
+
 function scrollToBottom() {
 	nextTick(() => {
 		if (listEl.value != null) {
@@ -167,6 +176,18 @@ function scrollToBottom() {
 function isNearBottom(): boolean {
 	if (listEl.value == null) return true;
 	return listEl.value.scrollHeight - listEl.value.scrollTop - listEl.value.clientHeight < 120;
+}
+
+function onListScroll() {
+	const nearBottom = isNearBottom();
+	autoScroll.value = nearBottom;
+	if (nearBottom) newCommentsCount.value = 0;
+}
+
+function jumpToLatest() {
+	autoScroll.value = true;
+	newCommentsCount.value = 0;
+	scrollToBottom();
 }
 
 async function fetchInitial() {
@@ -202,14 +223,19 @@ async function loadOlder() {
 
 function onComment(comment: Comment) {
 	if (comments.value.some(c => c.id === comment.id)) return;
-	const shouldScroll = isNearBottom();
 	comments.value.push(comment);
 	// メモリ節約: 表示は直近 300 件に制限 (履歴はさかのぼり読み込みで参照可能)
 	if (comments.value.length > 300) {
 		comments.value = comments.value.slice(-300);
 		hasOlder.value = true;
 	}
-	if (shouldScroll) scrollToBottom();
+	if (autoScroll.value) {
+		scrollToBottom();
+	} else {
+		// 過去コメントを閲覧中に新着が来てもスクロール位置は動かさない。
+		// 件数だけ増やして「新着コメント」ボタンに反映する
+		newCommentsCount.value++;
+	}
 }
 
 function onKeydown(ev: KeyboardEvent) {
@@ -443,6 +469,15 @@ onUnmounted(() => {
 	opacity: 0.6;
 	text-align: center;
 	padding: 24px 0;
+}
+
+.newComments {
+	flex-shrink: 0;
+	align-self: center;
+	margin: 6px 0;
+	padding: 6px 14px;
+	border-radius: 999px;
+	font-size: 0.85em;
 }
 
 .form {
