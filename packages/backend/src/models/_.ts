@@ -71,6 +71,7 @@ import { MiSwSubscription } from '@/models/SwSubscription.js';
 import { MiSystemAccount } from '@/models/SystemAccount.js';
 import { MiSystemWebhook } from '@/models/SystemWebhook.js';
 import { MiTwitchAccount } from '@/models/TwitchAccount.js';
+import { MiTwitchStream } from '@/models/TwitchStream.js';
 import { MiUpdateInfo } from '@/models/UpdateInfo.js';
 import { MiUsedUsername } from '@/models/UsedUsername.js';
 import { MiUser } from '@/models/User.js';
@@ -148,6 +149,7 @@ export {
 	MiSwSubscription,
 	MiSystemAccount,
 	MiTwitchAccount,
+	MiTwitchStream,
 	MiUpdateInfo,
 	MiUsedUsername,
 	MiUser,
@@ -230,6 +232,7 @@ export type SigninsRepository = Repository<MiSignin> & MiRepository<MiSignin>;
 export type SwSubscriptionsRepository = Repository<MiSwSubscription> & MiRepository<MiSwSubscription>;
 export type SystemAccountsRepository = Repository<MiSystemAccount> & MiRepository<MiSystemAccount>;
 export type TwitchAccountsRepository = Repository<MiTwitchAccount> & MiRepository<MiTwitchAccount>;
+export type TwitchStreamsRepository = Repository<MiTwitchStream> & MiRepository<MiTwitchStream>;
 export type UpdateInfosRepository = Repository<MiUpdateInfo> & MiRepository<MiUpdateInfo>;
 export type UsedUsernamesRepository = Repository<MiUsedUsername> & MiRepository<MiUsedUsername>;
 export type UsersRepository = Repository<MiUser> & MiRepository<MiUser>;

@@ -93,5 +93,6 @@ export const DI = {
 	noteDraftsRepository: Symbol('noteDraftsRepository'),
 	updateInfosRepository: Symbol('updateInfosRepository'),
 	twitchAccountsRepository: Symbol('twitchAccountsRepository'),
+	twitchStreamsRepository: Symbol('twitchStreamsRepository'),
 	//#endregion
 };
