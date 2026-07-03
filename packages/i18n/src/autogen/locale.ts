@@ -13795,6 +13795,10 @@ export interface Locale extends ILocale {
          */
         "myAccount": string;
         /**
+         * ライブ配信を見る
+         */
+        "watchLive": string;
+        /**
          * このサーバーではTwitch連携が設定されていません。
          */
         "notConfigured": string;
