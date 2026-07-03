@@ -273,6 +273,16 @@ async function composeNotification(data: PushNotificationDataMap[keyof PushNotif
 						renotify: true,
 					}];
 
+				case 'twitchLiveStreamStarted':
+					return [i18n.tsx._notification.twitchLiveStreamStarted({ name: getUserName(data.body.user) }), {
+						body: data.body.title,
+						icon: data.body.user.avatarUrl ?? undefined,
+						badge: iconUrl('bell'),
+						tag: `twitchLiveStreamStarted:${data.body.streamId}`,
+						data,
+						renotify: true,
+					}];
+
 				default:
 					return null;
 			}

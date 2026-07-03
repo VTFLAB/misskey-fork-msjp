@@ -508,5 +508,34 @@ export const packedNotificationSchema = {
 			isFinal: { type: 'boolean', optional: false, nullable: false },
 			isCancel: { type: 'boolean', optional: false, nullable: false },
 		},
+	}, {
+		type: 'object',
+		properties: {
+			...baseSchema.properties,
+			type: {
+				type: 'string',
+				optional: false, nullable: false,
+				enum: ['twitchLiveStreamStarted'],
+			},
+			user: {
+				type: 'object',
+				ref: 'UserLite',
+				optional: false, nullable: false,
+			},
+			userId: {
+				type: 'string',
+				optional: false, nullable: false,
+				format: 'id',
+			},
+			streamId: {
+				type: 'string',
+				optional: false, nullable: false,
+				format: 'id',
+			},
+			title: {
+				type: 'string',
+				optional: false, nullable: false,
+			},
+		},
 	}],
 } as const;
