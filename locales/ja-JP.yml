@@ -2962,6 +2962,7 @@ _notification:
   login: "ログインがありました"
   createToken: "アクセストークンが作成されました"
   createTokenDescription: "心当たりがない場合は「{text}」を通じてアクセストークンを削除してください。"
+  twitchLiveStreamStarted: "{name}が配信を開始しました"
 
   _types:
     all: "すべて"
@@ -2987,6 +2988,7 @@ _notification:
     app: "連携アプリからの通知"
     updateInfo: "アップデート情報"
     earthquakeAlert: "緊急地震速報"
+    twitchLiveStreamStarted: "フォロー中ユーザーの配信開始"
 
   _actions:
     followBack: "フォローバック"
@@ -3671,6 +3673,7 @@ _twitch:
   streamOffline: "現在オフラインです。"
   streamEnded: "配信が終了しました。"
   backToHome: "ホームに戻る"
+  startedStreaming: "配信を開始しました。"
   noComments: "まだコメントはありません。"
   newComments: "新しいコメント"
   commentPlaceholder: "コメントを送信..."
