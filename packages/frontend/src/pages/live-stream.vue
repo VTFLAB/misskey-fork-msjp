@@ -234,13 +234,24 @@ definePage(() => ({
 	min-height: 0;
 }
 
-// スマホ / 縦画面相当の狭いペイン幅: プレイヤー上部・チャット下部の縦積みに切り替える。
-// window.innerWidth ではなく _spacer が張る container-type: inline-size を基準にする
-// (Misskey はデッキ表示等でペイン幅が実ビューポート幅と一致しないため、ここは他の
-// レスポンシブ分岐 (例: XMessage.vue の @container (max-width: 450px)) と同じ流儀に揃える)。
+// スマホ / 縦画面相当の狭いペイン: プレイヤー上部・チャット下部の縦積みに切り替える。
+// 絶対的な幅だけでなく「ペインの縦横比」でも判定する。固定幅 360px のチャット欄を
+// 確保したまま 2 ペインで並べると、正方形〜縦長のペイン (例: 縦置きモニタ、デッキの
+// ポップアップウィンドウを正方形寄りにリサイズした場合) ではプレイヤーが極端に
+// 細長い領域に押し込まれ、Twitch 埋め込みプレイヤーが上下に大きくレターボックスされて
+// 実質的な表示サイズが小さくなってしまう。ペインが少しでも縦長 (aspect-ratio < 1/1)
+// になったら、幅に余裕があっても縦積みへ切り替え、プレイヤーが横幅いっぱいを使える
+// ようにする。
+// window.innerWidth ではなく container query を基準にする (Misskey はデッキ表示等で
+// ペイン幅が実ビューポート幅と一致しないため、他のレスポンシブ分岐 (例: XMessage.vue
+// の @container (max-width: 450px)) と同じ流儀に揃える)。aspect-ratio の評価には
+// block-size のコンテナ包含が必要なため、_spacer (container-type: inline-size のみ)
+// ではなく、より外側の _pageContainer (RouterView.vue, container-type: size) が
+// このクエリの基準コンテナになる (幅だけの条件なら _spacer が使われるところ、
+// aspect-ratio を含めることで自動的に size 対応の祖先まで遡って解決される)
 // 同名クラスの上書きなので、CSS Modules 上も同じ詳細度になり、ソース順序が後にある
 // このブロックを末尾に置かないと上の基本定義に負けて narrow レイアウトが効かない
-@container (max-width: 700px) {
+@container (max-width: 700px) or (aspect-ratio < 1/1) {
 	.watch {
 		flex-direction: column;
 		// 高さ固定 (100cqh 基準) は PC と共通の base 定義を流用し、ここでは
