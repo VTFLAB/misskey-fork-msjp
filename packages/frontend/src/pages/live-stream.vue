@@ -12,7 +12,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkAvatar :user="user" :class="$style.offlineAvatar" link preview/>
 			<MkUserName :user="user" :class="$style.offlineName"/>
 			<div>{{ i18n.ts._twitch.streamOffline }}</div>
-			<MkButton @click="reload">{{ i18n.ts.reload }}</MkButton>
+			<div :class="$style.offlineActions">
+				<MkButton @click="reload">{{ i18n.ts.reload }}</MkButton>
+				<MkButton primary @click="goHome">{{ i18n.ts._twitch.backToHome }}</MkButton>
+			</div>
 		</div>
 		<div v-else :class="$style.watch">
 			<div :class="$style.main">
@@ -61,10 +64,13 @@ import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { useRouter } from '@/router.js';
 
 const props = defineProps<{
 	acct: string;
 }>();
+
+const router = useRouter();
 
 const fetching = ref(true);
 const user = ref<Misskey.entities.UserDetailed | null>(null);
@@ -102,6 +108,10 @@ function onStreamEnded() {
 	reload();
 }
 
+function goHome() {
+	router.push('/');
+}
+
 watch(() => props.acct, reload);
 
 onMounted(() => {
@@ -123,8 +133,11 @@ const headerTabs = computed(() => []);
 definePage(() => ({
 	title: twitchInfo.value?.stream?.title ?? i18n.ts._twitch.liveStreams,
 	icon: 'ti ti-broadcast',
-	// フルスクリーンアプリ的な没入表示にするため、デッキ UI の「デッキへ戻る」バナーを隠す
-	hideDeckNav: true,
+	// フルスクリーンアプリ的な没入表示にするため、視聴中はデッキ UI の「デッキへ戻る」
+	// バナーを隠す。配信終了/オフライン/未フォロー等で視聴画面を出せない間は常時 true
+	// のままだと戻る手段が無くなる (デッキUIで詰み画面になる既知バグだった) ため、
+	// 実際に再生中のときだけ隠す
+	hideDeckNav: streamInfo.value != null,
 }));
 </script>
 
@@ -143,6 +156,12 @@ definePage(() => ({
 .offlineName {
 	font-weight: bold;
 	font-size: 1.1em;
+}
+
+.offlineActions {
+	display: flex;
+	justify-content: center;
+	gap: 8px;
 }
 
 .watch {
