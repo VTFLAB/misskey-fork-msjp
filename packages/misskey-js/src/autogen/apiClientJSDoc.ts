@@ -4611,6 +4611,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * 現在配信中の Twitch 連携ユーザーの一覧を返す (視聴者数の多い順)。
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'twitch/live-streams', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * 自分の Twitch 連携状態を返す。botLinked はインスタンス共通中継 bot が設定済みかどうか。
      * 
      * **Credential required**: *Yes* / **Permission**: *read:account*
