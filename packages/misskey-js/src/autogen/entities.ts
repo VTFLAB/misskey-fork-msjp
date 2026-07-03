@@ -626,6 +626,7 @@ export type TestRequest = operations['test']['requestBody']['content']['applicat
 export type TestResponse = operations['test']['responses']['200']['content']['application/json'];
 export type TwitchGenerateOauthUrlRequest = operations['twitch___generate-oauth-url']['requestBody']['content']['application/json'];
 export type TwitchGenerateOauthUrlResponse = operations['twitch___generate-oauth-url']['responses']['200']['content']['application/json'];
+export type TwitchLiveStreamsResponse = operations['twitch___live-streams']['responses']['200']['content']['application/json'];
 export type TwitchMyAccountResponse = operations['twitch___my-account']['responses']['200']['content']['application/json'];
 export type UpdateInfoShowRequest = operations['update-info___show']['requestBody']['content']['application/json'];
 export type UpdateInfoShowResponse = operations['update-info___show']['responses']['200']['content']['application/json'];
