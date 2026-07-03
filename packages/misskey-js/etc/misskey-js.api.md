@@ -2184,6 +2184,13 @@ declare namespace entities {
         SwUpdateRegistrationResponse,
         TestRequest,
         TestResponse,
+        TwitchGenerateOauthUrlRequest,
+        TwitchGenerateOauthUrlResponse,
+        TwitchMyAccountResponse,
+        UpdateInfoShowRequest,
+        UpdateInfoShowResponse,
+        UpdateInfosRequest,
+        UpdateInfosResponse,
         UsernameAvailableRequest,
         UsernameAvailableResponse,
         UsersRequest,
@@ -3651,6 +3658,30 @@ type TestResponse = operations['test']['responses']['200']['content']['applicati
 
 // @public (undocumented)
 function toString_2(acct: Acct): string;
+
+// @public (undocumented)
+type TwitchGenerateOauthUrlRequest = operations['twitch___generate-oauth-url']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchGenerateOauthUrlResponse = operations['twitch___generate-oauth-url']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchMyAccountResponse = operations['twitch___my-account']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type UpdateInfo = components['schemas']['UpdateInfo'];
+
+// @public (undocumented)
+type UpdateInfoShowRequest = operations['update-info___show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type UpdateInfoShowResponse = operations['update-info___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type UpdateInfosRequest = operations['update-infos']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type UpdateInfosResponse = operations['update-infos']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type User = components['schemas']['User'];

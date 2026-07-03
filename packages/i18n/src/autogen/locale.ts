@@ -13674,4 +13674,78 @@ export interface Locale extends ILocale {
          */
         "poweredBy": string;
     };
+    "_twitch": {
+        /**
+         * Twitch連携
+         */
+        "twitchIntegration": string;
+        /**
+         * 自分のアカウント
+         */
+        "myAccount": string;
+        /**
+         * このサーバーではTwitch連携が設定されていません。
+         */
+        "notConfigured": string;
+        /**
+         * Twitchアカウントを連携すると、配信中の表示やライブストリームページへの掲載、コメント連携が利用できるようになります。
+         */
+        "linkDescription": string;
+        /**
+         * Twitchアカウントを連携する
+         */
+        "linkAccount": string;
+        /**
+         * 連携中のアカウント
+         */
+        "linkedAs": string;
+        /**
+         * 連携を解除
+         */
+        "unlink": string;
+        /**
+         * Twitchアカウントの連携を解除しますか？
+         */
+        "unlinkConfirm": string;
+        /**
+         * Twitchアカウントを連携しました。
+         */
+        "linked": string;
+        /**
+         * Twitch連携がキャンセルされました。
+         */
+        "linkDenied": string;
+        /**
+         * Twitch連携に失敗しました。
+         */
+        "linkError": string;
+        /**
+         * 中継bot (管理者)
+         */
+        "relayBot": string;
+        /**
+         * コメント中継に使うサーバー共通のTwitch botアカウントです。連携するには、botとして使うTwitchアカウントでTwitchにログインした状態で下のボタンを押してください。
+         */
+        "relayBotDescription": string;
+        /**
+         * 現在Twitchにログインしているアカウントがbot用アカウントであることを確認してください。続行しますか？
+         */
+        "linkBotConfirm": string;
+        /**
+         * botアカウントを連携する
+         */
+        "linkBotAccount": string;
+        /**
+         * 連携中のbot
+         */
+        "botLinkedAs": string;
+        /**
+         * botアカウントは未連携です。コメントのTwitch側への中継は利用できません。
+         */
+        "botNotLinked": string;
+        /**
+         * 中継botアカウントを連携しました。
+         */
+        "botLinkedSuccess": string;
+    };
 }

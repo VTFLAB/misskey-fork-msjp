@@ -14,6 +14,7 @@
 - Fix: 天気予報ウィジェットで霧雨 (WMO codes 51,53,55,56,57) および晴れ/一部曇り (WMO codes 1,2) のときにお天気アイコンが表示されない問題を修正 (bsky-fork 独自)。インストール済み Tabler Icons (3.35.0) に存在しない `ti-cloud-drizzle` / `ti-cloud-sun` を参照していたため、サブセットフォントにグリフが含まれず空白表示になっていた。それぞれ `ti-cloud-rain` / `ti-sun-high` に置換
 - Fix: 1:1チャットのプッシュ通知をタップすると、相手ではなく自分自身とのチャット画面 (`/chat/user/<自分のID>`) が開いてしまう問題を修正。送信者 (`fromUserId`) のチャット画面を開くようにした
 - Fix: Service Worker の更新が既存クライアントで長時間反映されず、新しいプッシュ通知タイプ (地震速報等) が無音の空通知に化ける問題を修正。新しい SW を install 時に即時 activate (`skipWaiting`) するようにした
+- Feat: Twitch アカウント連携の設定ページ (`/settings/twitch`) を追加 (bsky-fork 独自)。OAuth でアカウントを連携・解除でき、管理者はコメント中継用のサーバー共通 bot アカウントも連携できる
 
 ### Server
 
@@ -24,6 +25,7 @@
 - Enhance: `get-weather` エンドポイントが体感温度・本日の最高/最低気温・降水確率も返すように (bsky-fork 独自)
 - Fix: 緊急地震速報で深発地震などにより最大予測震度が「不明」になった続報・最終報を、同一イベントで直近に予測された震度で補完して表示するように (bsky-fork 独自)。取消報は補完しない
 - Enhance: Web Push の送信失敗 (410 Gone 以外) をログに記録するように。配信不良の調査を可能にする
+- Feat: Twitch 連携の基盤を追加 (bsky-fork 独自)。Twitch OAuth (認可コードフロー)・`twitch_account` テーブル・Helix API クライアント・連携用エンドポイント (`twitch/generate-oauth-url`, `twitch/my-account`, `twitch/unlink`)・callback ルート (`GET /twitch/oauth/callback`)。`.config/default.yml` に `twitch.clientId` / `twitch.clientSecret` を設定した場合のみ有効
 
 ## 2026.7.0
 
