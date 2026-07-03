@@ -9,6 +9,7 @@ import { DI } from '@/di-symbols.js';
 import type { TwitchStreamsRepository } from '@/models/_.js';
 import type { MiTwitchStream } from '@/models/TwitchStream.js';
 import type { MiUser } from '@/models/User.js';
+import type { TwitchChatFragment } from '@/models/TwitchStreamComment.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { TwitchApiService } from './TwitchApiService.js';
@@ -19,13 +20,21 @@ import { TwitchLoggerService } from './TwitchLoggerService.js';
 // Twitch チャットの上限は 500 文字。「名前: 本文」の接頭辞込みで収める
 const TWITCH_CHAT_MAX_LENGTH = 500;
 
+// Twitch EventSub の message.fragments 生データ。cheermote / mention はこの fork では
+// 特別扱いせず text 相当として扱う (絵文字表示のみサポートする)
+type TwitchRawFragment = {
+	type: 'text' | 'cheermote' | 'emote' | 'mention';
+	text: string;
+	emote?: { id: string } | null;
+};
+
 type ChatMessageEvent = {
 	broadcaster_user_id: string;
 	chatter_user_id: string;
 	chatter_user_login: string;
 	chatter_user_name: string;
 	message_id: string;
-	message: { text: string };
+	message: { text: string; fragments?: TwitchRawFragment[] };
 };
 
 @Injectable()
@@ -66,8 +75,12 @@ export class TwitchChatRelayService {
 			const plain = this.mfmToPlainText(text);
 			if (plain.length === 0) return;
 
-			// 改行・制御文字は Twitch チャットに送れないため空白に潰す
-			const sanitized = plain.replace(/[\u0000-\u001f\u007f]/g, ' ');
+			// 改行・制御文字は Twitch チャットに送れないため空白に潰す。
+			// 絵文字除去で生じた連続空白・前後の空白も畳んでおく
+			const sanitized = plain.replace(/[\u0000-\u001f\u007f]/g, ' ')
+				.replace(/ {2,}/g, ' ')
+				.trim();
+			if (sanitized.length === 0) return;
 			const message = `${user.username}: ${sanitized}`.slice(
 				0,
 				TWITCH_CHAT_MAX_LENGTH,
@@ -117,9 +130,12 @@ export class TwitchChatRelayService {
 				case 'plain':
 					return node.children.map(walk).join('');
 				case 'unicodeEmoji':
-					return node.props.emoji;
 				case 'emojiCode':
-					return `:${node.props.name}:`;
+					// Misskey 側の絵文字は Twitch チャットで正しく表示できない
+					// (カスタム絵文字コードはそのまま ":name:" という無意味なテキストになり、
+					// Unicode 絵文字も配信ソフトのオーバーレイ等でグリフ欠落することがある)
+					// ため、Twitch へは渡さずまるごと除去する
+					return '';
 				case 'mention':
 					return `@${node.props.username}`;
 				case 'hashtag':
@@ -175,6 +191,33 @@ export class TwitchChatRelayService {
 			twitchUserName: event.chatter_user_login,
 			twitchDisplayName: event.chatter_user_name,
 			text: event.message.text,
+			fragments: this.sanitizeFragments(event.message.fragments),
 		});
+	}
+
+	/**
+	 * Twitch EventSub の生 fragments を表示用に単純化する。
+	 * cheermote / mention は絵文字ではないため text として畳み込む。
+	 * emote だけ id を保持し、フロントエンドで Twitch CDN 画像として描画する
+	 */
+	@bindThis
+	private sanitizeFragments(raw: TwitchRawFragment[] | undefined): TwitchChatFragment[] | null {
+		if (raw == null || raw.length === 0) return null;
+
+		const fragments: TwitchChatFragment[] = [];
+		for (const f of raw) {
+			if (f.type === 'emote' && f.emote?.id != null) {
+				fragments.push({ type: 'emote', text: f.text, emoteId: f.emote.id });
+			} else {
+				// 直前が text fragment ならまとめる (cheermote/mention の畳み込みで連続しうるため)
+				const last = fragments[fragments.length - 1];
+				if (last != null && last.type === 'text') {
+					last.text += f.text;
+				} else {
+					fragments.push({ type: 'text', text: f.text });
+				}
+			}
+		}
+		return fragments;
 	}
 }
