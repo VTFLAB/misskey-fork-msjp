@@ -623,6 +623,7 @@ import type {
 	TestResponse,
 	TwitchGenerateOauthUrlRequest,
 	TwitchGenerateOauthUrlResponse,
+	TwitchLiveStreamsResponse,
 	TwitchMyAccountResponse,
 	UpdateInfoShowRequest,
 	UpdateInfoShowResponse,
@@ -1106,6 +1107,7 @@ export type Endpoints = {
 	'sw/update-registration': { req: SwUpdateRegistrationRequest; res: SwUpdateRegistrationResponse };
 	'test': { req: TestRequest; res: TestResponse };
 	'twitch/generate-oauth-url': { req: TwitchGenerateOauthUrlRequest; res: TwitchGenerateOauthUrlResponse };
+	'twitch/live-streams': { req: EmptyRequest; res: TwitchLiveStreamsResponse };
 	'twitch/my-account': { req: EmptyRequest; res: TwitchMyAccountResponse };
 	'twitch/unlink': { req: EmptyRequest; res: EmptyResponse };
 	'update-info/show': { req: UpdateInfoShowRequest; res: UpdateInfoShowResponse };

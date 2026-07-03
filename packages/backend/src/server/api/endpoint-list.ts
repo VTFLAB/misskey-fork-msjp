@@ -465,5 +465,6 @@ export * as 'atproto/backfill' from './endpoints/atproto/backfill.js';
 
 // twitch (Twitch 連携、private fork 専用)
 export * as 'twitch/generate-oauth-url' from './endpoints/twitch/generate-oauth-url.js';
+export * as 'twitch/live-streams' from './endpoints/twitch/live-streams.js';
 export * as 'twitch/my-account' from './endpoints/twitch/my-account.js';
 export * as 'twitch/unlink' from './endpoints/twitch/unlink.js';

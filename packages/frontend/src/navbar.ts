@@ -70,6 +70,12 @@ export const navbarItemDef = reactive<{
 		icon: 'ti ti-speakerphone',
 		to: '/updates',
 	},
+	liveStreams: {
+		title: i18n.ts._twitch.liveStreams,
+		icon: 'ti ti-broadcast',
+		show: computed(() => $i != null),
+		to: '/live',
+	},
 	search: {
 		title: i18n.ts.search,
 		icon: 'ti ti-search',
