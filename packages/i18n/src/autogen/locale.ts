@@ -13799,6 +13799,10 @@ export interface Locale extends ILocale {
          */
         "streamEnded": string;
         /**
+         * ホームに戻る
+         */
+        "backToHome": string;
+        /**
          * まだコメントはありません。
          */
         "noComments": string;
