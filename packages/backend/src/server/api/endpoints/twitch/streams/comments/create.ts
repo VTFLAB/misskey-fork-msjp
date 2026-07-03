@@ -16,6 +16,7 @@ export const meta = {
 
 	requireCredential: true,
 	kind: 'write:account',
+	prohibitMoved: true,
 
 	description: '配信にコメントを投稿する。ノートとは独立した専用コメントで、配信ページ上でのみ表示される。中継 bot が設定されていれば Twitch チャットにも送信される。',
 
@@ -34,6 +35,11 @@ export const meta = {
 			message: 'The stream has already ended.',
 			code: 'STREAM_ENDED',
 			id: 'b79d4514-119d-4e16-aaf2-665085558459',
+		},
+		invalidText: {
+			message: 'Comment text is empty.',
+			code: 'INVALID_TEXT',
+			id: '7f54d8a0-bea9-43ac-a085-1494d0c9a9b4',
 		},
 	},
 
@@ -70,7 +76,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (!stream.isLive) throw new ApiError(meta.errors.streamEnded);
 
 			const text = ps.text.trim().slice(0, MAX_COMMENT_LENGTH);
-			if (text.length === 0) throw new ApiError(meta.errors.noSuchStream, { reason: 'empty text' });
+			if (text.length === 0) throw new ApiError(meta.errors.invalidText);
 
 			const comment = await this.twitchCommentService.createMisskeyComment(stream, me, text);
 
