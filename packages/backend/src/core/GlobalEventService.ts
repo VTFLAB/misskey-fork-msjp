@@ -24,6 +24,7 @@ import type { MiMeta } from '@/models/Meta.js';
 import { MiAvatarDecoration, MiChatMessage, MiChatRoom, MiReversiGame, MiRole, MiRoleAssignment } from '@/models/_.js';
 import type { Packed } from '@/misc/json-schema.js';
 import type { JmaEewAlert } from '@/core/earthquake/EarthquakeAlertService.js';
+import type { TwitchChatFragment } from '@/models/TwitchStreamComment.js';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import { bindThis } from '@/decorators.js';
@@ -354,6 +355,7 @@ export interface TwitchLiveStreamEventTypes {
 		files: Packed<'DriveFile'>[];
 		twitchUserName: string | null;
 		twitchDisplayName: string | null;
+		fragments: TwitchChatFragment[] | null;
 	};
 	streamEnded: Record<string, never>;
 }

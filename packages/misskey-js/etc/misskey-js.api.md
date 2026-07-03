@@ -936,6 +936,7 @@ export type Channels = {
                 files: DriveFile[];
                 twitchUserName: string | null;
                 twitchDisplayName: string | null;
+                fragments: TwitchChatFragment[] | null;
             }) => void;
             streamEnded: (payload: Record<string, never>) => void;
         };

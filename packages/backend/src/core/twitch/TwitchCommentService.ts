@@ -7,6 +7,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { DI } from '@/di-symbols.js';
 import type { TwitchStreamCommentsRepository } from '@/models/_.js';
 import { MiTwitchStreamComment } from '@/models/TwitchStreamComment.js';
+import type { TwitchChatFragment } from '@/models/TwitchStreamComment.js';
 import type { MiTwitchStream } from '@/models/TwitchStream.js';
 import type { MiUser } from '@/models/User.js';
 import { IdService } from '@/core/IdService.js';
@@ -67,6 +68,7 @@ export class TwitchCommentService {
 		twitchUserName: string;
 		twitchDisplayName: string;
 		text: string;
+		fragments?: TwitchChatFragment[] | null;
 	}): Promise<MiTwitchStreamComment | null> {
 		const existing = await this.twitchStreamCommentsRepository.findOneBy({ twitchMessageId: data.twitchMessageId });
 		if (existing != null) return null;
@@ -79,6 +81,7 @@ export class TwitchCommentService {
 			twitchUserName: data.twitchUserName,
 			twitchDisplayName: data.twitchDisplayName,
 			text: data.text.slice(0, 1024),
+			fragments: data.fragments ?? null,
 		}));
 
 		await this.publishComment(stream.id, comment, null);
@@ -98,6 +101,7 @@ export class TwitchCommentService {
 			files: await this.driveFileEntityService.packManyByIds(comment.fileIds),
 			twitchUserName: comment.twitchUserName,
 			twitchDisplayName: comment.twitchDisplayName,
+			fragments: comment.fragments,
 		};
 	}
 
@@ -120,6 +124,7 @@ export class TwitchCommentService {
 			files: c.fileIds.map(fileId => fileById.get(fileId)).filter(f => f != null),
 			twitchUserName: c.twitchUserName,
 			twitchDisplayName: c.twitchDisplayName,
+			fragments: c.fragments,
 		}));
 	}
 

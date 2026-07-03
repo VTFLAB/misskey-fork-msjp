@@ -28,7 +28,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<span :class="$style.commentName">{{ comment.twitchDisplayName ?? comment.twitchUserName ?? '?' }}</span>
 						<time :class="$style.commentTime" :title="formatTimeFull(comment.createdAt)">{{ formatTime(comment.createdAt) }}</time>
 					</div>
-					<span :class="$style.commentText">{{ comment.text }}</span>
+					<span :class="$style.commentText">
+						<template v-for="(frag, fi) in twitchFragments(comment)" :key="fi">
+							<img v-if="frag.type === 'emote'" :src="twitchEmoteUrl(frag.emoteId)" :alt="frag.text" :title="frag.text" :class="$style.twitchEmote"/>
+							<template v-else>{{ frag.text }}</template>
+						</template>
+					</span>
 				</div>
 			</template>
 		</div>
@@ -135,6 +140,20 @@ function formatTime(time: string): string {
 
 function formatTimeFull(time: string): string {
 	return dateTimeFormat.format(new Date(time));
+}
+
+type TwitchFragment = NonNullable<Comment['fragments']>[number];
+
+// fragments が取得できていない (旧データ・パース失敗等) 場合は全文を text 扱いにフォールバックする
+function twitchFragments(comment: Comment): TwitchFragment[] {
+	return comment.fragments ?? [{ type: 'text', text: comment.text }];
+}
+
+// Twitch の絵文字画像 CDN (公開・認証不要)。static を使うことで、アニメ絵文字かどうかを
+// 事前に Helix API で調べる必要をなくす (静止画は全絵文字が必ず持っている)
+function twitchEmoteUrl(emoteId: string | undefined): string {
+	if (emoteId == null) return '';
+	return `https://static-cdn.jtvnw.net/emoticons/v2/${encodeURIComponent(emoteId)}/static/dark/2.0`;
 }
 
 function scrollToBottom() {
@@ -407,6 +426,12 @@ onUnmounted(() => {
 
 .commentText {
 	white-space: pre-wrap;
+}
+
+.twitchEmote {
+	height: 1.6em;
+	vertical-align: middle;
+	margin: -2px 1px;
 }
 
 .commentFiles {
