@@ -149,11 +149,20 @@ definePage(() => ({
 	display: flex;
 	gap: 12px;
 	align-items: stretch;
-	// フルスクリーンアプリ的に画面サイズへ高さを固定し、ページ全体はスクロール
-	// させない (スマホ側と同じ考え方)。ネイティブヘッダーは hideTitle で常に
-	// 隠しているので上部オフセットは実質 0、下部はモバイルフッターナビの
-	// 実測値 (非表示時は 0px) を差し引く
-	height: calc(100dvh - var(--MI-minBottomSpacing, 0px));
+	// フルスクリーンアプリ的に実際に使える高さへ固定し、ページ全体はスクロール
+	// させない (スマホ側と同じ考え方)。100dvh (ブラウザビューポート基準) ではなく
+	// 100cqh (コンテナクエリ基準) を使うことで、通常ページだけでなく MkPageWindow
+	// (デッキ上でリンクを開いたときのポップアップウィンドウ) のような、ブラウザ
+	// ビューポートより小さい枠内に表示される場合でも正しい高さに解決される。
+	// _pageContainer (RouterView.vue) が container-type: size を張っており、
+	// 通常ページ・ウィンドウどちらの場合もそれが実際の表示枠の高さと一致する
+	// (PageWithHeader.vue の .body { min-height: calc(100cqh - ...) } と同じ考え方)。
+	// --MI-minBottomSpacing は差し引かない: universal.vue では RouterView と
+	// XMobileFooterMenu は同じ flex 列の兄弟要素で、_pageContainer の高さは
+	// flex レイアウトの時点でモバイルフッター分を既に除いた値になっている
+	// (100dvh 基準だった旧実装ではビューポート全体を指していたため差し引きが
+	// 必要だったが、100cqh に切り替えた今は二重減算になり下部に余白ができる)
+	height: 100cqh;
 	min-height: 480px;
 }
 
@@ -234,7 +243,7 @@ definePage(() => ({
 @container (max-width: 700px) {
 	.watch {
 		flex-direction: column;
-		// 高さ固定 (100dvh 基準) は PC と共通の base 定義を流用し、ここでは
+		// 高さ固定 (100cqh 基準) は PC と共通の base 定義を流用し、ここでは
 		// 縦積みへの向き変更と min-height の解除のみ行う
 		min-height: 0;
 	}
