@@ -6,6 +6,7 @@
 import { Entity, Column, Index, PrimaryColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { id } from './util/id.js';
 import { MiUser } from './User.js';
+import { MiDriveFile } from './DriveFile.js';
 import { MiTwitchStream } from './TwitchStream.js';
 
 // 配信視聴ページのコメント。ノートとは完全に独立した専用モデルで、
@@ -70,6 +71,13 @@ export class MiTwitchStreamComment {
 		length: 1024,
 	})
 	public text: string;
+
+	// source=misskey の添付メディア (ドライブファイル)。Twitch へは中継されない
+	@Column({
+		...id(),
+		array: true, default: '{}',
+	})
+	public fileIds: MiDriveFile['id'][];
 
 	constructor(data: Partial<MiTwitchStreamComment>) {
 		if (data == null) return;

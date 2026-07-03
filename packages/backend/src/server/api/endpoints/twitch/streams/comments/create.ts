@@ -4,10 +4,11 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import { In } from 'typeorm';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { ApiError } from '@/server/api/error.js';
 import { DI } from '@/di-symbols.js';
-import type { TwitchStreamsRepository } from '@/models/_.js';
+import type { TwitchStreamsRepository, DriveFilesRepository } from '@/models/_.js';
 import { TwitchCommentService, MAX_COMMENT_LENGTH } from '@/core/twitch/TwitchCommentService.js';
 import { TwitchChatRelayService } from '@/core/twitch/TwitchChatRelayService.js';
 
@@ -41,6 +42,11 @@ export const meta = {
 			code: 'INVALID_TEXT',
 			id: '7f54d8a0-bea9-43ac-a085-1494d0c9a9b4',
 		},
+		noSuchFile: {
+			message: 'Some attached files are not found.',
+			code: 'NO_SUCH_FILE',
+			id: '2dc2cd7f-5b4f-4a5e-8fa8-4e534ffa4f6b',
+		},
 	},
 
 	res: {
@@ -57,8 +63,15 @@ export const paramDef = {
 	properties: {
 		streamId: { type: 'string', format: 'misskey:id' },
 		text: { type: 'string', minLength: 1, maxLength: 500 },
+		fileIds: {
+			type: 'array',
+			uniqueItems: true,
+			minItems: 1,
+			maxItems: 16,
+			items: { type: 'string', format: 'misskey:id' },
+		},
 	},
-	required: ['streamId', 'text'],
+	required: ['streamId'],
 } as const;
 
 @Injectable()
@@ -66,6 +79,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	constructor(
 		@Inject(DI.twitchStreamsRepository)
 		private twitchStreamsRepository: TwitchStreamsRepository,
+
+		@Inject(DI.driveFilesRepository)
+		private driveFilesRepository: DriveFilesRepository,
 
 		private twitchCommentService: TwitchCommentService,
 		private twitchChatRelayService: TwitchChatRelayService,
@@ -75,13 +91,24 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (stream == null) throw new ApiError(meta.errors.noSuchStream);
 			if (!stream.isLive) throw new ApiError(meta.errors.streamEnded);
 
-			const text = ps.text.trim().slice(0, MAX_COMMENT_LENGTH);
-			if (text.length === 0) throw new ApiError(meta.errors.invalidText);
+			const text = (ps.text ?? '').trim().slice(0, MAX_COMMENT_LENGTH);
+			const fileIds = ps.fileIds ?? [];
+			// テキストか添付のどちらかは必須
+			if (text.length === 0 && fileIds.length === 0) throw new ApiError(meta.errors.invalidText);
 
-			const comment = await this.twitchCommentService.createMisskeyComment(stream, me, text);
+			if (fileIds.length > 0) {
+				// 自分のドライブファイルのみ添付可 (他人のファイル ID 指定を拒否)
+				const count = await this.driveFilesRepository.countBy({ id: In(fileIds), userId: me.id });
+				if (count !== fileIds.length) throw new ApiError(meta.errors.noSuchFile);
+			}
 
-			// Twitch への中継は fire-and-forget (Twitch 障害時も投稿自体は成功させる)
-			this.twitchChatRelayService.relayToTwitch(stream, me, text);
+			const comment = await this.twitchCommentService.createMisskeyComment(stream, me, text, fileIds);
+
+			// Twitch への中継は fire-and-forget (Twitch 障害時も投稿自体は成功させる)。
+			// メディアは中継できないため、テキストがある場合のみ送る
+			if (text.length > 0) {
+				this.twitchChatRelayService.relayToTwitch(stream, me, text);
+			}
 
 			return { id: comment.id };
 		});
