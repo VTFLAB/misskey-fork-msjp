@@ -4,7 +4,7 @@
  */
 
 import * as Misskey from 'misskey-js';
-import { inject, isRef, onActivated, onBeforeUnmount, provide, ref, toValue, watch } from 'vue';
+import { inject, onActivated, onBeforeUnmount, provide, ref, toValue, watch } from 'vue';
 import { DI } from './di.js';
 import type { MaybeRefOrGetter, Ref } from 'vue';
 
@@ -15,6 +15,9 @@ export type PageMetadata = {
 	avatar?: Misskey.entities.User | null;
 	userName?: Misskey.entities.User | null;
 	needWideArea?: boolean;
+	// zen UI の「デッキへ戻る」バナーを非表示にする (bsky-fork 独自)。
+	// フルスクリーンアプリ的な没入表示にしたいページ (配信視聴ページ等) が使う
+	hideDeckNav?: boolean;
 };
 
 type PageMetadataGetter = () => PageMetadata;

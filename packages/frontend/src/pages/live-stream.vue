@@ -5,7 +5,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <PageWithHeader :actions="headerActions" :tabs="headerTabs" :hideTitle="true">
-	<div class="_spacer" style="--MI_SPACER-w: 1400px; --MI_SPACER-min: 0px; --MI_SPACER-max: 12px;">
+	<div class="_spacer" style="--MI_SPACER-w: 1400px; --MI_SPACER-min: 0px; --MI_SPACER-max: 0px;">
 		<MkLoading v-if="fetching"/>
 		<MkResult v-else-if="user == null || twitchInfo == null" type="notFound"/>
 		<div v-else-if="streamInfo == null" class="_gaps" :class="$style.offline">
@@ -123,6 +123,8 @@ const headerTabs = computed(() => []);
 definePage(() => ({
 	title: twitchInfo.value?.stream?.title ?? i18n.ts._twitch.liveStreams,
 	icon: 'ti ti-broadcast',
+	// フルスクリーンアプリ的な没入表示にするため、デッキ UI の「デッキへ戻る」バナーを隠す
+	hideDeckNav: true,
 }));
 </script>
 
@@ -146,10 +148,12 @@ definePage(() => ({
 .watch {
 	display: flex;
 	gap: 12px;
-	// PC: チャット欄の高さをビューポート基準の決め打ちにせず、プレイヤー+情報パネル
-	// (.main) の実際のコンテンツ高さに合わせる (align-items: stretch)。
-	// コメント数が少ない配信でチャット欄だけ縦に間延びして空白ができるのを防ぐ
 	align-items: stretch;
+	// フルスクリーンアプリ的に画面サイズへ高さを固定し、ページ全体はスクロール
+	// させない (スマホ側と同じ考え方)。ネイティブヘッダーは hideTitle で常に
+	// 隠しているので上部オフセットは実質 0、下部はモバイルフッターナビの
+	// 実測値 (非表示時は 0px) を差し引く
+	height: calc(100dvh - var(--MI-minBottomSpacing, 0px));
 	min-height: 480px;
 }
 
@@ -159,11 +163,14 @@ definePage(() => ({
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
-	overflow-y: auto;
+	min-height: 0;
 }
 
 .playerContainer {
-	aspect-ratio: 16 / 9;
+	// PC: 情報パネルの残りの縦幅いっぱいにプレイヤーを広げる (Twitch のシアターモード相当)。
+	// aspect-ratio は使わず、埋め込みプレイヤー自身が与えられた領域に合わせて描画する
+	flex: 1;
+	min-height: 0;
 	background: #000;
 	border-radius: var(--MI-radius);
 	overflow: clip;
@@ -227,16 +234,20 @@ definePage(() => ({
 @container (max-width: 700px) {
 	.watch {
 		flex-direction: column;
-		// スマホアプリ的に画面サイズへ固定し、ページ全体はスクロールさせない。
-		// ネイティブヘッダーは hideTitle で隠しているので上部オフセットは実質 0、
-		// 下部はモバイルフッターナビの実測値 (非表示時は 0px) を差し引く
-		height: calc(100dvh - var(--MI-minBottomSpacing, 0px));
+		// 高さ固定 (100dvh 基準) は PC と共通の base 定義を流用し、ここでは
+		// 縦積みへの向き変更と min-height の解除のみ行う
 		min-height: 0;
 	}
 
 	.main {
+		// PC 版はプレイヤーが残り高さいっぱいに広がる (flex: 1) が、スマホでは
+		// 通常のアスペクト比固定の動画として上部に収め、残りをチャットに譲る
 		flex: none;
-		overflow-y: visible;
+	}
+
+	.playerContainer {
+		flex: none;
+		aspect-ratio: 16 / 9;
 	}
 
 	.chat {
