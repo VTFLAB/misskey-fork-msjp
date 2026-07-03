@@ -16,6 +16,7 @@
 - Fix: Service Worker の更新が既存クライアントで長時間反映されず、新しいプッシュ通知タイプ (地震速報等) が無音の空通知に化ける問題を修正。新しい SW を install 時に即時 activate (`skipWaiting`) するようにした
 - Feat: Twitch アカウント連携の設定ページ (`/settings/twitch`) を追加 (bsky-fork 独自)。OAuth でアカウントを連携・解除でき、管理者はコメント中継用のサーバー共通 bot アカウントも連携できる
 - Feat: Twitch 連携ユーザーが配信中のとき、プロフィールに LIVE バッジ (配信タイトル・カテゴリ付き) を表示するように (bsky-fork 独自)
+- Feat: 配信中の Twitch 連携ユーザーを一覧するライブ配信ページ (`/live`) を追加 (bsky-fork 独自)。配信サムネイルを背景にしたカードで、Misskey のユーザー情報と Twitch の配信タイトル・カテゴリ・視聴者数を表示。ナビゲーションメニューに「ライブ配信」項目を追加
 
 ### Server
 
