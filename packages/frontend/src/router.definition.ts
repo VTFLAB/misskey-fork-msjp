@@ -222,6 +222,10 @@ export const ROUTE_DEF = [{
 	path: '/updates/:updateInfoId',
 	component: page(() => import('@/pages/update-info.vue')),
 }, {
+	path: '/live',
+	component: page(() => import('@/pages/live-streams.vue')),
+	loginRequired: true,
+}, {
 	path: '/about',
 	component: page(() => import('@/pages/about.vue')),
 	hash: 'initialTab',
