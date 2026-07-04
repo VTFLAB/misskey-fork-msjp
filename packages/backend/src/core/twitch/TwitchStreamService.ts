@@ -21,7 +21,8 @@ import { TwitchLoggerService } from './TwitchLoggerService.js';
 
 // EventSub の取り逃しを自己修復するための全件ポーリング間隔。
 // 連携ユーザーが 100 人以下なら Get Streams 1 リクエストで済む。
-const POLL_INTERVAL_MS = 5 * 60_000;
+// EventSub 切断中の取り逃しを早めるため 5 分 → 2 分に短縮 (bsky-fork 独自)。
+const POLL_INTERVAL_MS = 2 * 60_000;
 
 @Injectable()
 export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown {
