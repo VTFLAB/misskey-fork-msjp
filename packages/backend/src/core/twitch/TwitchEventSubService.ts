@@ -270,6 +270,12 @@ export class TwitchEventSubService implements OnModuleInit, OnApplicationShutdow
 				this.sessionId = msg.payload.session?.id ?? null;
 				this.logger.info(`EventSub session established (session=${this.sessionId})`);
 				await this.createSubscriptions();
+				// 再接続時に EventSub が取り逃した配信開始を即座に自己修復する。
+				// pollAll は Helix Get Streams を叩いて DB と同期するため、切断中に
+				// 開始された配信が最大2分のポーリング間隔を待たずに検知される。
+				this.twitchStreamService.pollAll().catch(e => {
+					this.logger.error(`post-reconnect pollAll failed: ${e instanceof Error ? e.message : e}`);
+				});
 				break;
 			}
 			case 'session_keepalive': {
