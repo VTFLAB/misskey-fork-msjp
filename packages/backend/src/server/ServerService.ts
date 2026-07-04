@@ -34,6 +34,7 @@ import { OpenApiServerService } from './api/openapi/OpenApiServerService.js';
 import { OAuth2ProviderService } from './oauth/OAuth2ProviderService.js';
 import { registerHttpServerInstrumentation } from './http-server-instrumentation.js';
 import { TwitchServerService } from './twitch/TwitchServerService.js';
+import { RemoteGuestServerService } from './remote-guest/RemoteGuestServerService.js';
 
 const _dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -72,6 +73,7 @@ export class ServerService implements OnApplicationShutdown {
 		private loggerService: LoggerService,
 		private oauth2ProviderService: OAuth2ProviderService,
 		private twitchServerService: TwitchServerService,
+		private remoteGuestServerService: RemoteGuestServerService,
 	) {
 		this.logger = this.loggerService.getLogger('server', 'gray');
 	}
@@ -163,6 +165,7 @@ export class ServerService implements OnApplicationShutdown {
 		fastify.register(this.oauth2ProviderService.createServer, { prefix: '/oauth' });
 		fastify.register(this.oauth2ProviderService.createTokenServer, { prefix: '/oauth/token' });
 		fastify.register(this.twitchServerService.createServer, { prefix: '/twitch' });
+		fastify.register(this.remoteGuestServerService.createServer, { prefix: '/remote-guest' });
 		fastify.register(this.healthServerService.createServer, { prefix: '/healthz' });
 
 		fastify.get<{ Params: { path: string }; Querystring: { static?: any; badge?: any; }; }>('/emoji/:path(.*)', async (request, reply) => {
