@@ -95,5 +95,7 @@ export const DI = {
 	twitchAccountsRepository: Symbol('twitchAccountsRepository'),
 	twitchStreamsRepository: Symbol('twitchStreamsRepository'),
 	twitchStreamCommentsRepository: Symbol('twitchStreamCommentsRepository'),
+	remoteGuestAccountsRepository: Symbol('remoteGuestAccountsRepository'),
+	remoteGuestSessionsRepository: Symbol('remoteGuestSessionsRepository'),
 	//#endregion
 };

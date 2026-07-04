@@ -61,6 +61,8 @@ import { MiPromoRead } from '@/models/PromoRead.js';
 import { MiRegistrationTicket } from '@/models/RegistrationTicket.js';
 import { MiRegistryItem } from '@/models/RegistryItem.js';
 import { MiRelay } from '@/models/Relay.js';
+import { MiRemoteGuestAccount } from '@/models/RemoteGuestAccount.js';
+import { MiRemoteGuestSession } from '@/models/RemoteGuestSession.js';
 import { MiRenoteMuting } from '@/models/RenoteMuting.js';
 import { MiRetentionAggregation } from '@/models/RetentionAggregation.js';
 import { MiReversiGame } from '@/models/ReversiGame.js';
@@ -146,6 +148,8 @@ export {
 	MiRegistrationTicket,
 	MiRegistryItem,
 	MiRelay,
+	MiRemoteGuestAccount,
+	MiRemoteGuestSession,
 	MiSignin,
 	MiSwSubscription,
 	MiSystemAccount,
@@ -230,6 +234,8 @@ export type PromoReadsRepository = Repository<MiPromoRead> & MiRepository<MiProm
 export type RegistrationTicketsRepository = Repository<MiRegistrationTicket> & MiRepository<MiRegistrationTicket>;
 export type RegistryItemsRepository = Repository<MiRegistryItem> & MiRepository<MiRegistryItem>;
 export type RelaysRepository = Repository<MiRelay> & MiRepository<MiRelay>;
+export type RemoteGuestAccountsRepository = Repository<MiRemoteGuestAccount> & MiRepository<MiRemoteGuestAccount>;
+export type RemoteGuestSessionsRepository = Repository<MiRemoteGuestSession> & MiRepository<MiRemoteGuestSession>;
 export type SigninsRepository = Repository<MiSignin> & MiRepository<MiSignin>;
 export type SwSubscriptionsRepository = Repository<MiSwSubscription> & MiRepository<MiSwSubscription>;
 export type SystemAccountsRepository = Repository<MiSystemAccount> & MiRepository<MiSystemAccount>;

@@ -27,7 +27,7 @@ export const meta = {
 			properties: {
 				id: { type: 'string', format: 'misskey:id', optional: false, nullable: false },
 				createdAt: { type: 'string', format: 'date-time', optional: false, nullable: false },
-				source: { type: 'string', enum: ['misskey', 'twitch'], optional: false, nullable: false },
+				source: { type: 'string', enum: ['misskey', 'twitch', 'remote-guest'], optional: false, nullable: false },
 				text: { type: 'string', optional: false, nullable: false },
 				user: { type: 'object', ref: 'UserLite', optional: false, nullable: true },
 				files: {
@@ -48,6 +48,14 @@ export const meta = {
 							text: { type: 'string', optional: false, nullable: false },
 							emoteId: { type: 'string', optional: true, nullable: false },
 						},
+					},
+				},
+				remoteGuest: {
+					type: 'object',
+					optional: false, nullable: true,
+					properties: {
+						username: { type: 'string', optional: false, nullable: false },
+						host: { type: 'string', optional: false, nullable: false },
 					},
 				},
 			},

@@ -925,18 +925,23 @@ export type Channels = {
     twitchLiveStream: {
         params: {
             streamId: string;
+            guestToken?: string;
         };
         events: {
             comment: (payload: {
                 id: string;
                 createdAt: string;
-                source: 'misskey' | 'twitch';
+                source: 'misskey' | 'twitch' | 'remote-guest';
                 text: string;
                 user: UserLite | null;
                 files: DriveFile[];
                 twitchUserName: string | null;
                 twitchDisplayName: string | null;
                 fragments: TwitchChatFragment[] | null;
+                remoteGuest: {
+                    username: string;
+                    host: string;
+                } | null;
             }) => void;
             streamEnded: (payload: Record<string, never>) => void;
         };
@@ -2178,6 +2183,14 @@ declare namespace entities {
         PingResponse,
         PinnedUsersResponse,
         PromoReadRequest,
+        RemoteGuestLoginStartRequest,
+        RemoteGuestLoginStartResponse,
+        RemoteGuestSessionRevokeRequest,
+        RemoteGuestSessionRevokeResponse,
+        RemoteGuestTwitchCommentsRequest,
+        RemoteGuestTwitchCommentsResponse,
+        RemoteGuestTwitchCommentsCreateRequest,
+        RemoteGuestTwitchCommentsCreateResponse,
         RenoteMuteCreateRequest,
         RenoteMuteDeleteRequest,
         RenoteMuteListRequest,
@@ -3387,6 +3400,30 @@ type QueueStatsLog = QueueStats[];
 
 // @public (undocumented)
 export const queueTypes: readonly ["system", "endedPollNotification", "postScheduledNote", "deliver", "inbox", "db", "relationship", "objectStorage", "userWebhookDeliver", "systemWebhookDeliver"];
+
+// @public (undocumented)
+type RemoteGuestLoginStartRequest = operations['remote-guest___login___start']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type RemoteGuestLoginStartResponse = operations['remote-guest___login___start']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type RemoteGuestSessionRevokeRequest = operations['remote-guest___session___revoke']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type RemoteGuestSessionRevokeResponse = operations['remote-guest___session___revoke']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type RemoteGuestTwitchCommentsCreateRequest = operations['remote-guest___twitch-comments___create']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type RemoteGuestTwitchCommentsCreateResponse = operations['remote-guest___twitch-comments___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type RemoteGuestTwitchCommentsRequest = operations['remote-guest___twitch-comments']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type RemoteGuestTwitchCommentsResponse = operations['remote-guest___twitch-comments']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type RenoteMuteCreateRequest = operations['renote-mute___create']['requestBody']['content']['application/json'];
