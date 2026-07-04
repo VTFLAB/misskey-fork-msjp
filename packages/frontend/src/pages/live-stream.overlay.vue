@@ -156,7 +156,7 @@ let overlayStyleEl: HTMLStyleElement | null = null;
 onMounted(() => {
 	overlayStyleEl = window.document.createElement('style');
 	overlayStyleEl.textContent = `
-		html, body, #misskey_app, #misskey_app > * {
+		html, body, #misskey_app, #misskey_app * {
 			background: transparent !important;
 			background-color: transparent !important;
 		}
