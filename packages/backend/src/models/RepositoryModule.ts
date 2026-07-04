@@ -70,6 +70,7 @@ import {
 	MiTwitchAccount,
 	MiTwitchStream,
 	MiTwitchStreamComment,
+	MiTwitchStreamBlock,
 	MiUpdateInfo,
 	MiUsedUsername,
 	MiUser,
@@ -574,6 +575,12 @@ const $twitchStreamCommentsRepository: Provider = {
 	inject: [DI.db],
 };
 
+const $twitchStreamBlocksRepository: Provider = {
+	provide: DI.twitchStreamBlocksRepository,
+	useFactory: (db: DataSource) => db.getRepository(MiTwitchStreamBlock).extend(miRepository as MiRepository<MiTwitchStreamBlock>),
+	inject: [DI.db],
+};
+
 const $remoteGuestAccountsRepository: Provider = {
 	provide: DI.remoteGuestAccountsRepository,
 	useFactory: (db: DataSource) => db.getRepository(MiRemoteGuestAccount).extend(miRepository as MiRepository<MiRemoteGuestAccount>),
@@ -669,6 +676,7 @@ const $remoteGuestSessionsRepository: Provider = {
 		$twitchAccountsRepository,
 		$twitchStreamsRepository,
 		$twitchStreamCommentsRepository,
+		$twitchStreamBlocksRepository,
 		$remoteGuestAccountsRepository,
 		$remoteGuestSessionsRepository,
 	],
@@ -753,6 +761,7 @@ const $remoteGuestSessionsRepository: Provider = {
 		$twitchAccountsRepository,
 		$twitchStreamsRepository,
 		$twitchStreamCommentsRepository,
+		$twitchStreamBlocksRepository,
 		$remoteGuestAccountsRepository,
 		$remoteGuestSessionsRepository,
 	],

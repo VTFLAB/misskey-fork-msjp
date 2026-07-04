@@ -63,6 +63,7 @@ import { MiSwSubscription } from '@/models/SwSubscription.js';
 import { MiTwitchAccount } from '@/models/TwitchAccount.js';
 import { MiTwitchStream } from '@/models/TwitchStream.js';
 import { MiTwitchStreamComment } from '@/models/TwitchStreamComment.js';
+import { MiTwitchStreamBlock } from '@/models/TwitchStreamBlock.js';
 import { MiUpdateInfo } from '@/models/UpdateInfo.js';
 import { MiUsedUsername } from '@/models/UsedUsername.js';
 import { MiUser } from '@/models/User.js';
@@ -204,6 +205,7 @@ export const entities = [
 	MiTwitchAccount,
 	MiTwitchStream,
 	MiTwitchStreamComment,
+	MiTwitchStreamBlock,
 	MiRemoteGuestAccount,
 	MiRemoteGuestSession,
 	MiUpdateInfo,
