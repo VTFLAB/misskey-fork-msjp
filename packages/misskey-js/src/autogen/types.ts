@@ -3834,12 +3834,39 @@ export type paths = {
          */
         post: operations['twitch___my-account'];
     };
+    '/twitch/streams/blocks/create': {
+        /**
+         * twitch/streams/blocks/create
+         * @description 自分の配信チャットからコメントの投稿者をブロックする (配信者専用)。対象はコメント行から導出され、以後この配信者の配信にコメントできなくなる。Twitch 由来コメントの場合は Misskey 側への取り込みが止まる。
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['twitch___streams___blocks___create'];
+    };
+    '/twitch/streams/blocks/delete': {
+        /**
+         * twitch/streams/blocks/delete
+         * @description 自分の配信チャットのブロックを解除する (配信者専用)。
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['twitch___streams___blocks___delete'];
+    };
+    '/twitch/streams/blocks/list': {
+        /**
+         * twitch/streams/blocks/list
+         * @description 自分の配信チャットのブロック一覧を取得する (配信者専用)。
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         */
+        post: operations['twitch___streams___blocks___list'];
+    };
     '/twitch/streams/comments': {
         /**
          * twitch/streams/comments
-         * @description 配信セッションのコメント履歴を返す (Misskey ユーザー投稿 + Twitch チャット由来)。
+         * @description 配信セッションのコメント履歴を返す (Misskey ユーザー投稿 + Twitch チャット由来)。OBS オーバーレイ等から匿名でも取得できる。
          *
-         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         *     **Credential required**: *No*
          */
         post: operations['twitch___streams___comments'];
     };
@@ -36228,6 +36255,233 @@ export interface operations {
                         botLinked: boolean;
                         botLogin: string | null;
                     };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    twitch___streams___blocks___create: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    commentId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** Format: misskey:id */
+                        id: string;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    twitch___streams___blocks___delete: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    blockId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (without any results) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    twitch___streams___blocks___list: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    sinceId?: string;
+                    /** Format: misskey:id */
+                    untilId?: string;
+                    /** @default 30 */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** Format: misskey:id */
+                        id: string;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** @enum {string} */
+                        targetType: 'misskey' | 'remote-guest' | 'twitch';
+                        targetUser: components['schemas']['UserLite'] | null;
+                        targetRemoteGuest: {
+                            username: string;
+                            host: string;
+                        } | null;
+                        targetTwitch: {
+                            userName: string;
+                            displayName: string | null;
+                        } | null;
+                    }[];
                 };
             };
             /** @description Client error */

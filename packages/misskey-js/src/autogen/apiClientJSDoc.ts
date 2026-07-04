@@ -4676,9 +4676,42 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * 配信セッションのコメント履歴を返す (Misskey ユーザー投稿 + Twitch チャット由来)。
+     * 自分の配信チャットからコメントの投稿者をブロックする (配信者専用)。対象はコメント行から導出され、以後この配信者の配信にコメントできなくなる。Twitch 由来コメントの場合は Misskey 側への取り込みが止まる。
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'twitch/streams/blocks/create', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * 自分の配信チャットのブロックを解除する (配信者専用)。
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'twitch/streams/blocks/delete', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * 自分の配信チャットのブロック一覧を取得する (配信者専用)。
      * 
      * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'twitch/streams/blocks/list', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * 配信セッションのコメント履歴を返す (Misskey ユーザー投稿 + Twitch チャット由来)。OBS オーバーレイ等から匿名でも取得できる。
+     * 
+     * **Credential required**: *No*
      */
     request<E extends 'twitch/streams/comments', P extends Endpoints[E]['req']>(
       endpoint: E,
