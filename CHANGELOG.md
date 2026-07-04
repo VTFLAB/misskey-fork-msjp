@@ -30,6 +30,7 @@
 - Feat: 配信視聴ページのコメント欄に Twitch/YouTube ライブチャット相当の自動スクロールを追加 (bsky-fork 独自)。最下部付近にいる間だけ新着コメントで自動的に追従し、任意の位置までさかのぼって過去コメントを閲覧している間は自動スクロールを止めて「新しいコメント」ボタンを表示する (クリックまたは自分で最下部へ戻ると自動追従を再開)。閲覧中に勝手にスクロール位置が動くことはない
 - Fix: 配信終了時に視聴ページから戻る手段が無くなる問題を修正 (bsky-fork 独自)。デッキ UI では「デッキへ戻る」バナーが配信終了後も `hideDeckNav` により隠れたままになっていたため、実際に視聴中のときだけ隠すように変更。あわせてオフライン表示に、どの UI でも使える中央揃えの「ホームに戻る」ボタンを追加した
 - Feat: フォロー中の Twitch 連携ユーザーが配信を開始したときに通知が届くように (bsky-fork 独自、新規通知type `twitchLiveStreamStarted`)。通知設定 (`/settings/notifications`) に受け取る/受け取らないの切り替え項目を追加し、PWA/OS のプッシュ通知にも対応。通知をクリックすると配信視聴ページ (`/live/@username`) が開く
+- Feat: 配信視聴ページ (`/live/@username`) を、このサーバーにアカウントを持たない他の Misskey インスタンスのユーザーにも開放 (bsky-fork 独自)。事前に許可されたインスタンスのアカウントで MiAuth ログインすると、視聴専用の軽量なゲストアカウントとしてコメント投稿もできるようになる (フォロー・DM 等のフルアカウント機能は対象外)
 
 ### Server
 
@@ -49,6 +50,9 @@
 - Feat: Twitch チャット由来のコメントに EventSub の `message.fragments` (絵文字位置情報) を保存するように (bsky-fork 独自)。`twitch_stream_comment` に `fragments` カラムを追加し、`twitchLiveStream` ストリームの `comment` イベントにも含めることで、フロントエンドが Twitch 絵文字を画像として描画できるようになった
 - Fix: 配信コメントの中継 bot が Misskey 側の絵文字 (カスタム絵文字コード・Unicode 絵文字) をそのまま Twitch チャットへ送信していた問題を修正 (bsky-fork 独自)。Twitch では表示できないため中継前にすべて除去し、除去後にできる連続空白・前後の空白も畳む。絵文字のみのコメントは中継自体をスキップする
 - Fix: Bluesky 統合の Jetstream 購読対象 (`wantedDids`) が、誰にもフォローされていない pseudo-user (引用・リプライ・repost 先の解決で自動生成されたもの) まで無制限に含んでしまい、購読が際限なく肥大化して無関係な投稿が GTL に漏出する問題を修正 (bsky-fork 独自)。`listAllDids()` を実際にフォローされている pseudo-user のみに絞るようにした
+- Feat: リモート Misskey インスタンスのユーザー向けゲストログイン基盤を追加 (bsky-fork 独自)。相手インスタンスの MiAuth を当インスタンスがクライアントとして消費し、本人性確認済みの `remote_guest_account` / 有効期限付きセッション `remote_guest_session` を発行する。許可対象ホストは `.config/default.yml` の `remoteGuestLogin.allowedHosts` で事前定義した固定リストのみ (SSRF・スパムアカウント量産対策)。ログイン開始 (`remote-guest/login/start`)・コールバック (`GET /remote-guest/callback`)・ログアウト (`remote-guest/session/revoke`) のエンドポイントを追加
+- Feat: 配信視聴ページのコメント一覧・投稿にリモートゲスト向けエンドポイント (`remote-guest/twitch-comments`, `remote-guest/twitch-comments/create`) を追加し、`twitchLiveStream` ストリーミングチャンネルもリモートゲストの `guestToken` による購読を受け付けるように (bsky-fork 独自)。既存のローカルユーザー向けエンドポイントは無改造。ゲストのコメントは Twitch チャットへも `username@host` 表記で中継される (添付ファイルは非対応)
+- Enhance: `twitch/streams/show` エンドポイントを認証不要に変更 (bsky-fork 独自)。配信視聴ページが未ログイン・リモートゲストからも到達可能になったことに伴う、副作用のない読み取り専用エンドポイントの読み取り開放
 
 ## 2026.7.0
 

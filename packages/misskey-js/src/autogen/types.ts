@@ -3543,6 +3543,42 @@ export type paths = {
          */
         post: operations['promo___read'];
     };
+    '/remote-guest/login/start': {
+        /**
+         * remote-guest/login/start
+         * @description リモート Misskey インスタンスのアカウントで視聴+コメント用のゲストログインを開始する。相手インスタンスの MiAuth へリダイレクトする URL を返す。
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['remote-guest___login___start'];
+    };
+    '/remote-guest/session/revoke': {
+        /**
+         * remote-guest/session/revoke
+         * @description リモートゲストログインセッションをログアウトする。
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['remote-guest___session___revoke'];
+    };
+    '/remote-guest/twitch-comments': {
+        /**
+         * remote-guest/twitch-comments
+         * @description リモートゲストログイン用のコメント履歴取得 (twitch/streams/comments の視聴専用版)。
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['remote-guest___twitch-comments'];
+    };
+    '/remote-guest/twitch-comments/create': {
+        /**
+         * remote-guest/twitch-comments/create
+         * @description リモートゲストログイン用のコメント投稿 (twitch/streams/comments/create の視聴専用版)。添付ファイルは使えない。
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['remote-guest___twitch-comments___create'];
+    };
     '/renote-mute/create': {
         /**
          * renote-mute/create
@@ -3820,9 +3856,9 @@ export type paths = {
     '/twitch/streams/show': {
         /**
          * twitch/streams/show
-         * @description 指定ユーザーの Twitch 配信状態を返す。連携済みなら twitchLogin は常に返り、配信中なら stream が非 null。
+         * @description 指定ユーザーの Twitch 配信状態を返す。連携済みなら twitchLogin は常に返り、配信中なら stream が非 null。視聴ページ (/live/:acct) が未ログイン・リモートゲストからも到達可能なため認証不要 (副作用のない読み取り専用エンドポイント)。
          *
-         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         *     **Credential required**: *No*
          */
         post: operations['twitch___streams___show'];
     };
@@ -33985,6 +34021,334 @@ export interface operations {
             };
         };
     };
+    'remote-guest___login___start': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    acct: string;
+                    returnTo: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        url: string;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'remote-guest___session___revoke': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    guestToken: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        success: boolean;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'remote-guest___twitch-comments': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    guestToken: string;
+                    /** Format: misskey:id */
+                    streamId: string;
+                    /** @default 30 */
+                    limit?: number;
+                    /** Format: misskey:id */
+                    sinceId?: string;
+                    /** Format: misskey:id */
+                    untilId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** Format: misskey:id */
+                        id: string;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** @enum {string} */
+                        source: 'misskey' | 'twitch' | 'remote-guest';
+                        text: string;
+                        user: components['schemas']['UserLite'] | null;
+                        files: components['schemas']['DriveFile'][];
+                        twitchUserName: string | null;
+                        twitchDisplayName: string | null;
+                        fragments: {
+                            /** @enum {string} */
+                            type: 'text' | 'emote';
+                            text: string;
+                            emoteId?: string;
+                        }[] | null;
+                        remoteGuest: {
+                            username: string;
+                            host: string;
+                        } | null;
+                    }[];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'remote-guest___twitch-comments___create': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    guestToken: string;
+                    /** Format: misskey:id */
+                    streamId: string;
+                    text: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** Format: misskey:id */
+                        id: string;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     'renote-mute___create': {
         requestBody: {
             content: {
@@ -35931,7 +36295,7 @@ export interface operations {
                         /** Format: date-time */
                         createdAt: string;
                         /** @enum {string} */
-                        source: 'misskey' | 'twitch';
+                        source: 'misskey' | 'twitch' | 'remote-guest';
                         text: string;
                         user: components['schemas']['UserLite'] | null;
                         files: components['schemas']['DriveFile'][];
@@ -35943,6 +36307,10 @@ export interface operations {
                             text: string;
                             emoteId?: string;
                         }[] | null;
+                        remoteGuest: {
+                            username: string;
+                            host: string;
+                        } | null;
                     }[];
                 };
             };
