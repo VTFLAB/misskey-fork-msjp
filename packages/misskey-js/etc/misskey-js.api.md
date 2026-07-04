@@ -949,6 +949,7 @@ export type Channels = {
                 remoteGuest: {
                     username: string;
                     host: string;
+                    avatarUrl: string | null;
                 } | null;
             }) => void;
             streamEnded: (payload: Record<string, never>) => void;
@@ -4162,9 +4163,9 @@ type VerifyEmailRequest = operations['verify-email']['requestBody']['content']['
 //
 // src/entities.ts:60:2 - (ae-forgotten-export) The symbol "ModerationLogPayloads" needs to be exported by the entry point index.d.ts
 // src/streaming.ts:57:3 - (ae-forgotten-export) The symbol "ReconnectingWebSocket" needs to be exported by the entry point index.d.ts
-// src/streaming.types.ts:234:4 - (ae-forgotten-export) The symbol "ReversiUpdateKey" needs to be exported by the entry point index.d.ts
-// src/streaming.types.ts:249:4 - (ae-forgotten-export) The symbol "ReversiUpdateSettings" needs to be exported by the entry point index.d.ts
-// src/streaming.types.ts:269:5 - (ae-forgotten-export) The symbol "TwitchChatFragment" needs to be exported by the entry point index.d.ts
+// src/streaming.types.ts:235:4 - (ae-forgotten-export) The symbol "ReversiUpdateKey" needs to be exported by the entry point index.d.ts
+// src/streaming.types.ts:250:4 - (ae-forgotten-export) The symbol "ReversiUpdateSettings" needs to be exported by the entry point index.d.ts
+// src/streaming.types.ts:270:5 - (ae-forgotten-export) The symbol "TwitchChatFragment" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)
 
