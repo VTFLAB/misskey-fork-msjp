@@ -11,6 +11,7 @@ import { DI } from '@/di-symbols.js';
 import type { TwitchStreamsRepository, DriveFilesRepository } from '@/models/_.js';
 import { TwitchCommentService, MAX_COMMENT_LENGTH } from '@/core/twitch/TwitchCommentService.js';
 import { TwitchChatRelayService } from '@/core/twitch/TwitchChatRelayService.js';
+import { TwitchStreamBlockService } from '@/core/twitch/TwitchStreamBlockService.js';
 
 export const meta = {
 	tags: ['twitch'],
@@ -46,6 +47,12 @@ export const meta = {
 			message: 'Some attached files are not found.',
 			code: 'NO_SUCH_FILE',
 			id: '2dc2cd7f-5b4f-4a5e-8fa8-4e534ffa4f6b',
+		},
+		blocked: {
+			message: 'You are blocked by the broadcaster.',
+			code: 'BLOCKED_BY_BROADCASTER',
+			id: '98346cfb-2c63-48e6-9038-5fc97e08beec',
+			httpStatusCode: 403,
 		},
 	},
 
@@ -85,11 +92,16 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		private twitchCommentService: TwitchCommentService,
 		private twitchChatRelayService: TwitchChatRelayService,
+		private twitchStreamBlockService: TwitchStreamBlockService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const stream = await this.twitchStreamsRepository.findOneBy({ id: ps.streamId });
 			if (stream == null) throw new ApiError(meta.errors.noSuchStream);
 			if (!stream.isLive) throw new ApiError(meta.errors.streamEnded);
+
+			if (await this.twitchStreamBlockService.isBlockedMisskeyUser(stream.userId, me.id)) {
+				throw new ApiError(meta.errors.blocked);
+			}
 
 			const text = (ps.text ?? '').trim().slice(0, MAX_COMMENT_LENGTH);
 			const fileIds = ps.fileIds ?? [];

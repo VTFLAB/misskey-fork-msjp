@@ -93,6 +93,7 @@ export class TwitchCommentService {
 		twitchMessageId: string;
 		twitchUserName: string;
 		twitchDisplayName: string;
+		twitchChatterUserId?: string | null;
 		text: string;
 		fragments?: TwitchChatFragment[] | null;
 	}): Promise<MiTwitchStreamComment | null> {
@@ -106,6 +107,7 @@ export class TwitchCommentService {
 			twitchMessageId: data.twitchMessageId,
 			twitchUserName: data.twitchUserName,
 			twitchDisplayName: data.twitchDisplayName,
+			twitchChatterUserId: data.twitchChatterUserId ?? null,
 			text: data.text.slice(0, 1024),
 			fragments: data.fragments ?? null,
 		}));

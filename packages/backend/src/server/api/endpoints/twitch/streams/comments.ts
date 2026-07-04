@@ -13,10 +13,18 @@ import { TwitchCommentService } from '@/core/twitch/TwitchCommentService.js';
 export const meta = {
 	tags: ['twitch'],
 
-	requireCredential: true,
-	kind: 'read:account',
+	// OBS 用オーバーレイページ (認証不能なブラウザソース) から参照するため認証不要。
+	// コメントは公開の配信ページに表示される情報であり、秘匿性はない
+	requireCredential: false,
 
-	description: '配信セッションのコメント履歴を返す (Misskey ユーザー投稿 + Twitch チャット由来)。',
+	description: '配信セッションのコメント履歴を返す (Misskey ユーザー投稿 + Twitch チャット由来)。OBS オーバーレイ等から匿名でも取得できる。',
+
+	// 匿名開放に伴う保険。リアルタイム分は streaming チャンネルで受ける前提なので、
+	// 履歴のポーリングとしては十分緩い値
+	limit: {
+		duration: 60 * 1000,
+		max: 120,
+	},
 
 	res: {
 		type: 'array',
@@ -85,7 +93,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private queryService: QueryService,
 		private twitchCommentService: TwitchCommentService,
 	) {
-		super(meta, paramDef, async (ps, me) => {
+		super(meta, paramDef, async (ps) => {
 			const query = this.queryService.makePaginationQuery(
 				this.twitchStreamCommentsRepository.createQueryBuilder('comment'),
 				ps.sinceId,

@@ -167,6 +167,7 @@ import { TwitchStreamService } from './twitch/TwitchStreamService.js';
 import { TwitchEventSubService } from './twitch/TwitchEventSubService.js';
 import { TwitchCommentService } from './twitch/TwitchCommentService.js';
 import { TwitchChatRelayService } from './twitch/TwitchChatRelayService.js';
+import { TwitchStreamBlockService } from './twitch/TwitchStreamBlockService.js';
 import { RemoteGuestLoggerService } from './remote-guest/RemoteGuestLoggerService.js';
 import { RemoteGuestHostAllowlistService } from './remote-guest/RemoteGuestHostAllowlistService.js';
 import { RemoteGuestAccountService } from './remote-guest/RemoteGuestAccountService.js';
@@ -345,6 +346,7 @@ const $TwitchStreamService: Provider = { provide: 'TwitchStreamService', useExis
 const $TwitchEventSubService: Provider = { provide: 'TwitchEventSubService', useExisting: TwitchEventSubService };
 const $TwitchCommentService: Provider = { provide: 'TwitchCommentService', useExisting: TwitchCommentService };
 const $TwitchChatRelayService: Provider = { provide: 'TwitchChatRelayService', useExisting: TwitchChatRelayService };
+const $TwitchStreamBlockService: Provider = { provide: 'TwitchStreamBlockService', useExisting: TwitchStreamBlockService };
 
 const $RemoteGuestLoggerService: Provider = { provide: 'RemoteGuestLoggerService', useExisting: RemoteGuestLoggerService };
 const $RemoteGuestHostAllowlistService: Provider = { provide: 'RemoteGuestHostAllowlistService', useExisting: RemoteGuestHostAllowlistService };
@@ -522,6 +524,7 @@ const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthC
 		TwitchEventSubService,
 		TwitchCommentService,
 		TwitchChatRelayService,
+		TwitchStreamBlockService,
 		RemoteGuestLoggerService,
 		RemoteGuestHostAllowlistService,
 		RemoteGuestAccountService,
@@ -698,6 +701,7 @@ const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthC
 		$TwitchEventSubService,
 		$TwitchCommentService,
 		$TwitchChatRelayService,
+		$TwitchStreamBlockService,
 		$RemoteGuestLoggerService,
 		$RemoteGuestHostAllowlistService,
 		$RemoteGuestAccountService,
@@ -870,6 +874,7 @@ const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthC
 		TwitchEventSubService,
 		TwitchCommentService,
 		TwitchChatRelayService,
+		TwitchStreamBlockService,
 		RemoteGuestLoggerService,
 		RemoteGuestHostAllowlistService,
 		RemoteGuestAccountService,
@@ -1044,6 +1049,7 @@ const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthC
 		$TwitchEventSubService,
 		$TwitchCommentService,
 		$TwitchChatRelayService,
+		$TwitchStreamBlockService,
 		$RemoteGuestLoggerService,
 		$RemoteGuestHostAllowlistService,
 		$RemoteGuestAccountService,

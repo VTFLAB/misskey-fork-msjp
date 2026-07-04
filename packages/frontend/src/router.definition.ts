@@ -226,6 +226,9 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/live-streams.vue')),
 	loginRequired: true,
 }, {
+	path: '/live/:acct/overlay',
+	component: page(() => import('@/pages/live-stream.overlay.vue')),
+}, {
 	path: '/live/:acct',
 	component: page(() => import('@/pages/live-stream.vue')),
 }, {
