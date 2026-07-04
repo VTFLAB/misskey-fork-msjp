@@ -37,6 +37,10 @@
 - Fix: リモートゲストログイン中、配信視聴ページのグローバルレイアウトが未ログイン状態のままで、ログアウトする手段も無かった問題を修正 (bsky-fork 独自)。配信者カードにログイン中のアカウント表示とログアウトメニューを追加。フル機能のアカウントメニューではなく、視聴+コメント専用スコープに沿った簡易メニューとした
 - Enhance: 配信視聴ページで Twitch チャット由来のコメントのアニメーション絵文字 (エモート) を、静止画ではなくアニメーション画像 (ループ再生) で表示するように (bsky-fork 独自)。対応フォーマットを持たない絵文字は従来通り静止画で表示される。カスタム絵文字と同様、アニメーション画像を無効化する設定が有効な間は静止画にフォールバックする
 - Fix: 配信視聴ページの Twitch 絵文字 (エモート) の左右余白が詰まりすぎていた問題を修正 (bsky-fork 独自)。左右のマージンを 1px から 3px に広げた
+- Feat: 配信視聴ページに配信者専用の設定メニューを追加 (bsky-fork 独自)。自分の配信ページを開くと配信者カードに歯車ボタンが表示され、OBS 用コメント欄 URL のコピー・コメント読み上げ設定・ブロックユーザー管理にアクセスできる (オフライン表示中も利用可能)
+- Feat: OBS のブラウザソースに貼れるコメント専用オーバーレイページ (`/live/@username/overlay`) を追加 (bsky-fork 独自)。透過背景・コメント表示のみの最軽量ページで、認証なしで表示できる。配信オフライン時は自動で待機し、配信開始・終了・再開を自動追従する
+- Feat: 配信視聴ページにコメント読み上げ機能を追加 (bsky-fork 独自)。配信者本人のブラウザから同一端末で稼働する AivisSpeech Engine (VOICEVOX 互換 API) を直接呼び出して新着コメントを順次読み上げる。エンジン URL・話者・速度・音量を設定でき、設定は端末 (ブラウザ) ごとに保存される。エンジン側で CORS の許可 (`--cors_policy_mode all`) が必要
+- Feat: 配信ページ単位のブロック機能を追加 (bsky-fork 独自)。配信者はコメントのメニューから投稿者 (Misskey ユーザー・リモートゲスト・Twitch チャッター) を自分の配信からブロックでき、設定メニューのブロックユーザー管理から一覧・解除できる。Misskey 本体のブロックとは独立した配信チャット専用のブロックで、配信セッションを跨いで永続する
 
 ### Server
 
@@ -62,6 +66,8 @@
 - Enhance: `get-weather` エンドポイントが Open-Meteo への通信失敗時に原因をサーバーログへ記録するように (bsky-fork 独自)。従来は例外を握りつぶしてクライアントへ一律 `WEATHER_API_ERROR` を返すのみで、恒常的な障害の原因調査ができなかった
 - Fix: 配信コメントの `remoteGuest` 情報にアバター URL (`avatarUrl`) が含まれておらず、フロントエンドで常に汎用アイコン表示になっていた問題を修正 (bsky-fork 独自)。`remote-guest/twitch-comments` / `twitch/streams/comments` のレスポンス、および `twitchLiveStream` ストリームの `comment` イベントに追加した
 - Enhance: Twitch チャット由来のコメントの絵文字 (エモート) fragment に、アニメーション対応かどうか (`animated`) を含めるように (bsky-fork 独自)。EventSub の `emote.format` に `animated` が含まれるかで判定し、`remote-guest/twitch-comments` / `twitch/streams/comments` のレスポンス、および `twitchLiveStream` ストリームの `comment` イベントに追加した
+- Feat: 配信ページ単位のブロック機能のエンドポイント (`twitch/streams/blocks/create`, `twitch/streams/blocks/delete`, `twitch/streams/blocks/list`) と `twitch_stream_block` テーブルを追加 (bsky-fork 独自)。ブロック対象はコメント行から導出され (識別子の混同・偽装防止)、ブロックされた投稿者はコメント投稿 API で拒否される。Twitch チャッターのブロックは EventSub 受信時に適用され、以後そのチャッターの発言は Misskey 側へ取り込まれない (Twitch 側のチャット欄には残る)。対象同定のため `twitch_stream_comment` に `chatter_user_id` (`twitchChatterUserId`) も保存するようにした
+- Enhance: `twitch/streams/comments` (コメント履歴) を認証不要に変更し、`twitchLiveStream` ストリーミングチャンネルの購読を匿名にも開放 (bsky-fork 独自)。OBS 用オーバーレイページ (ログインできないブラウザソース) がコメントを表示するための変更で、配信コメントは公開ページに表示される情報のため秘匿性はない。投稿系 API は従来通り認証必須
 
 ## 2026.7.0
 
