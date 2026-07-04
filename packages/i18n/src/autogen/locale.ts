@@ -13795,6 +13795,86 @@ export interface Locale extends ILocale {
          * 中継botアカウントを連携しました。
          */
         "botLinkedSuccess": string;
+        /**
+         * 配信者設定
+         */
+        "streamerSettings": string;
+        /**
+         * OBS用コメント欄URLをコピー
+         */
+        "copyObsOverlayUrl": string;
+        /**
+         * コメント読み上げ設定
+         */
+        "ttsSettings": string;
+        /**
+         * コメントを読み上げる
+         */
+        "ttsEnable": string;
+        /**
+         * 新着コメントをAivisSpeech Engineで読み上げます。このブラウザでのみ有効です。
+         */
+        "ttsEnableDescription": string;
+        /**
+         * エンジンURL
+         */
+        "ttsEngineUrl": string;
+        /**
+         * この端末で稼働しているAivisSpeech EngineのURL。エンジン側でCORSの許可 (--cors_policy_mode all) が必要です。
+         */
+        "ttsEngineUrlDescription": string;
+        /**
+         * 話者
+         */
+        "ttsSpeaker": string;
+        /**
+         * 話者が未取得です
+         */
+        "ttsSpeakerNotLoaded": string;
+        /**
+         * 話者一覧を取得
+         */
+        "ttsFetchSpeakers": string;
+        /**
+         * 話者一覧を取得できませんでした。エンジンが起動しているか、CORSが許可されているか確認してください。
+         */
+        "ttsFetchSpeakersFailed": string;
+        /**
+         * 読み上げ速度
+         */
+        "ttsSpeed": string;
+        /**
+         * 音量
+         */
+        "ttsVolume": string;
+        /**
+         * テスト再生
+         */
+        "ttsTest": string;
+        /**
+         * 読み上げのテストです。
+         */
+        "ttsTestText": string;
+        /**
+         * ブロックしたユーザーの管理
+         */
+        "manageBlocks": string;
+        /**
+         * この配信からブロック
+         */
+        "blockUser": string;
+        /**
+         * {name} をこの配信からブロックしますか？以後この配信にコメントできなくなります。
+         */
+        "blockConfirm": ParameterizedString<"name">;
+        /**
+         * ブロックを解除しますか？
+         */
+        "unblockConfirm": string;
+        /**
+         * ブロックしたユーザーはいません。
+         */
+        "noBlockedUsers": string;
     };
     "_remoteGuestLogin": {
         /**

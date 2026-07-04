@@ -15,6 +15,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div :class="$style.offlineActions">
 				<MkButton @click="reload">{{ i18n.ts.reload }}</MkButton>
 				<MkButton primary @click="goHome">{{ i18n.ts._twitch.backToHome }}</MkButton>
+				<!-- オフライン中でも OBS URL コピーや読み上げ・ブロックの設定はできるようにする -->
+				<MkButton v-if="isOwner" :title="i18n.ts._twitch.streamerSettings" :aria-label="i18n.ts._twitch.streamerSettings" @click="openStreamerSettings"><i class="ti ti-settings"></i></MkButton>
 			</div>
 		</div>
 		<div v-else :class="$style.watch">
@@ -40,7 +42,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<span> · <MkTime :time="streamInfo.startedAt" mode="relative"/></span>
 							</div>
 						</div>
-						<MkFollowButton v-if="$i != null && $i.id !== user.id" v-model:user="user" :inline="true" :transparent="false" :full="true"/>
+						<button v-if="isOwner" class="_button" :class="$style.streamerSettingsButton" :title="i18n.ts._twitch.streamerSettings" :aria-label="i18n.ts._twitch.streamerSettings" @click="openStreamerSettings">
+							<i class="ti ti-settings"></i>
+						</button>
+						<MkFollowButton v-else-if="$i != null && $i.id !== user.id" v-model:user="user" :inline="true" :transparent="false" :full="true"/>
 						<button v-else-if="remoteGuestSession != null" class="_button" :class="$style.remoteGuestMenu" @click="openRemoteGuestMenu">
 							<i class="ti ti-user-circle"></i>
 							<span :class="$style.remoteGuestAcct">{{ remoteGuestSession.acct }}</span>
@@ -50,7 +55,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</div>
 			<div :class="$style.chat">
-				<XChat :key="streamInfo.id" :streamId="streamInfo.id" :live="true" :returnTo="`/live/${props.acct}`" @streamEnded="onStreamEnded"/>
+				<XChat :key="streamInfo.id" :streamId="streamInfo.id" :live="true" :returnTo="`/live/${props.acct}`" :canModerate="isOwner" @streamEnded="onStreamEnded"/>
 			</div>
 		</div>
 	</div>
@@ -60,7 +65,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { computed, ref, watch, onMounted, onActivated, onDeactivated } from 'vue';
 import * as Misskey from 'misskey-js';
-import { hostname } from '@@/js/config.js';
+import { hostname, url as serverUrl } from '@@/js/config.js';
 import XChat from '@/pages/live-stream.chat.vue';
 import MkButton from '@/components/MkButton.vue';
 import MkFollowButton from '@/components/MkFollowButton.vue';
@@ -71,6 +76,7 @@ import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { useRouter } from '@/router.js';
 import { remoteGuestSession, saveRemoteGuestSession, clearRemoteGuestSession } from '@/composables/use-remote-guest-session.js';
+import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 
 const props = defineProps<{
 	acct: string;
@@ -83,6 +89,10 @@ const user = ref<Misskey.entities.UserDetailed | null>(null);
 const twitchInfo = ref<Misskey.Endpoints['twitch/streams/show']['res'] | null>(null);
 
 const streamInfo = computed(() => twitchInfo.value?.stream ?? null);
+
+// 自分の配信ページかどうか。配信者専用の設定メニュー (OBS オーバーレイ URL・
+// コメント読み上げ・配信ブロック管理) の表示条件
+const isOwner = computed(() => $i != null && user.value != null && $i.id === user.value.id);
 
 const playerUrl = computed(() => {
 	if (twitchInfo.value == null) return '';
@@ -116,6 +126,38 @@ function onStreamEnded() {
 
 function goHome() {
 	router.push('/');
+}
+
+function openStreamerSettings(ev: MouseEvent) {
+	os.popupMenu([{
+		text: i18n.ts._twitch.copyObsOverlayUrl,
+		icon: 'ti ti-copy',
+		action: () => {
+			// ?zen で最小レイアウト (ヘッダー等なし) になる。OBS のブラウザソースは
+			// ログインできないため、オーバーレイページは匿名アクセス前提
+			copyToClipboard(`${serverUrl}/live/${props.acct}/overlay?zen`);
+		},
+	}, {
+		text: i18n.ts._twitch.ttsSettings,
+		icon: 'ti ti-speakerphone',
+		action: async () => {
+			const { dispose } = await os.popupAsyncWithDialog(
+				import('@/pages/live-stream.tts-settings.vue').then(x => x.default),
+				{},
+				{ closed: () => dispose() },
+			);
+		},
+	}, {
+		text: i18n.ts._twitch.manageBlocks,
+		icon: 'ti ti-ban',
+		action: async () => {
+			const { dispose } = await os.popupAsyncWithDialog(
+				import('@/pages/live-stream.blocks.vue').then(x => x.default),
+				{},
+				{ closed: () => dispose() },
+			);
+		},
+	}], ev.currentTarget ?? ev.target);
 }
 
 // リモートゲストログイン中のみ表示する簡易メニュー。フル機能のアカウントメニューとは
@@ -304,6 +346,19 @@ definePage(() => ({
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+.streamerSettingsButton {
+	flex-shrink: 0;
+	width: 36px;
+	height: 36px;
+	border: solid 1px var(--MI_THEME-divider);
+	border-radius: 999px;
+
+	&:hover {
+		color: var(--MI_THEME-accent);
+		border-color: var(--MI_THEME-accent);
+	}
 }
 
 .remoteGuestMenu {
