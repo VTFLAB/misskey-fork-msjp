@@ -24,7 +24,8 @@ const TWITCH_CHAT_MAX_LENGTH = 500;
 type TwitchRawFragment = {
 	type: 'text' | 'cheermote' | 'emote' | 'mention';
 	text: string;
-	emote?: { id: string } | null;
+	// format: Twitch が絵文字の対応フォーマットを返す (例: ['static'] または ['static', 'animated'])
+	emote?: { id: string; format?: string[] | null } | null;
 };
 
 type ChatMessageEvent = {
@@ -208,7 +209,12 @@ export class TwitchChatRelayService {
 		const fragments: TwitchChatFragment[] = [];
 		for (const f of raw) {
 			if (f.type === 'emote' && f.emote?.id != null) {
-				fragments.push({ type: 'emote', text: f.text, emoteId: f.emote.id });
+				fragments.push({
+					type: 'emote',
+					text: f.text,
+					emoteId: f.emote.id,
+					animated: Array.isArray(f.emote.format) && f.emote.format.includes('animated'),
+				});
 			} else {
 				// 直前が text fragment ならまとめる (cheermote/mention の畳み込みで連続しうるため)
 				const last = fragments[fragments.length - 1];

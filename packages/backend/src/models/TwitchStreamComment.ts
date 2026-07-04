@@ -17,6 +17,8 @@ export type TwitchChatFragment = {
 	text: string;
 	// type === 'emote' のときのみ設定 (Twitch CDN 画像 URL の構築に使う)
 	emoteId?: string;
+	// type === 'emote' のときのみ設定。true ならアニメーション (GIF) 版の画像 URL を使う
+	animated?: boolean;
 };
 
 // 配信視聴ページのコメント。ノートとは完全に独立した専用モデルで、

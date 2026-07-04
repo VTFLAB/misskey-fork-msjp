@@ -38,6 +38,7 @@ export type TwitchChatFragment = {
 	type: 'text' | 'emote';
 	text: string;
 	emoteId?: string;
+	animated?: boolean;
 };
 
 export type Channels = {
@@ -267,7 +268,7 @@ export type Channels = {
 				twitchUserName: string | null;
 				twitchDisplayName: string | null;
 				fragments: TwitchChatFragment[] | null;
-				remoteGuest: { username: string; host: string } | null;
+				remoteGuest: { username: string; host: string; avatarUrl: string | null } | null;
 			}) => void;
 			streamEnded: (payload: Record<string, never>) => void;
 		};

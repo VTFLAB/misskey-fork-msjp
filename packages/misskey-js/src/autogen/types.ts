@@ -34231,10 +34231,12 @@ export interface operations {
                             type: 'text' | 'emote';
                             text: string;
                             emoteId?: string;
+                            animated?: boolean;
                         }[] | null;
                         remoteGuest: {
                             username: string;
                             host: string;
+                            avatarUrl: string | null;
                         } | null;
                     }[];
                 };
@@ -36334,10 +36336,12 @@ export interface operations {
                             type: 'text' | 'emote';
                             text: string;
                             emoteId?: string;
+                            animated?: boolean;
                         }[] | null;
                         remoteGuest: {
                             username: string;
                             host: string;
+                            avatarUrl: string | null;
                         } | null;
                     }[];
                 };
