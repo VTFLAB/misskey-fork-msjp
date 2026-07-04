@@ -187,6 +187,16 @@ function twitchFragments(comment: Comment): TwitchFragment[] {
 	return comment.fragments ?? [{ type: 'text', text: comment.text }];
 }
 
+// 読み上げ用テキストを取り出す。Twitch 絵文字 (emote) は fragments で text/emote 分離済みなので
+// text フラグメントのみを繋ぐ。Misskey / remote-guest は comment.text をそのまま渡し
+// toReadableText() 側で MFM 絵文字を除去する
+function readableCommentText(comment: Comment): string {
+	if (comment.source === 'twitch' && comment.fragments != null) {
+		return comment.fragments.filter(f => f.type === 'text').map(f => f.text).join('');
+	}
+	return comment.text;
+}
+
 // Twitch の絵文字画像 CDN (公開・認証不要)。animated (GIF、無限ループで提供される) は
 // EventSub の emote.format に 'animated' が含まれる場合のみ選べる (静止画は全絵文字が必ず持つ)。
 // カスタム絵文字と同様、アニメーション画像を無効化する設定が有効な間は静止画にフォールバックする
@@ -277,7 +287,7 @@ function onComment(comment: Comment) {
 	comments.value.push(comment);
 	// コメント読み上げは配信者本人のブラウザでのみ動かす (視聴者側では読み上げない)
 	if (props.canModerate && twitchTtsSettings.value.enabled) {
-		enqueueTtsSpeech(comment.text);
+		enqueueTtsSpeech(readableCommentText(comment));
 	}
 	// メモリ節約: 表示は直近 300 件に制限 (履歴はさかのぼり読み込みで参照可能)
 	if (comments.value.length > 300) {
