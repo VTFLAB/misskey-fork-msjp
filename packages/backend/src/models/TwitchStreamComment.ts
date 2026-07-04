@@ -67,6 +67,13 @@ export class MiTwitchStreamComment {
 	})
 	public twitchUserName: string | null;
 
+	// source=twitch のときの chatter_user_id (安定 ID)。配信ブロックの対象同定に使う。
+	// カラム追加以前の旧コメントは null
+	@Column('varchar', {
+		length: 64, nullable: true,
+	})
+	public twitchChatterUserId: string | null;
+
 	@Column('varchar', {
 		length: 128, nullable: true,
 	})
