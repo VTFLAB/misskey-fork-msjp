@@ -167,6 +167,11 @@ import { TwitchStreamService } from './twitch/TwitchStreamService.js';
 import { TwitchEventSubService } from './twitch/TwitchEventSubService.js';
 import { TwitchCommentService } from './twitch/TwitchCommentService.js';
 import { TwitchChatRelayService } from './twitch/TwitchChatRelayService.js';
+import { RemoteGuestLoggerService } from './remote-guest/RemoteGuestLoggerService.js';
+import { RemoteGuestHostAllowlistService } from './remote-guest/RemoteGuestHostAllowlistService.js';
+import { RemoteGuestAccountService } from './remote-guest/RemoteGuestAccountService.js';
+import { RemoteGuestSessionService } from './remote-guest/RemoteGuestSessionService.js';
+import { RemoteGuestMiAuthClientService } from './remote-guest/RemoteGuestMiAuthClientService.js';
 import { EarthquakeAlertService } from './earthquake/EarthquakeAlertService.js';
 import { QueueModule } from './QueueModule.js';
 import { QueueService } from './QueueService.js';
@@ -340,6 +345,12 @@ const $TwitchStreamService: Provider = { provide: 'TwitchStreamService', useExis
 const $TwitchEventSubService: Provider = { provide: 'TwitchEventSubService', useExisting: TwitchEventSubService };
 const $TwitchCommentService: Provider = { provide: 'TwitchCommentService', useExisting: TwitchCommentService };
 const $TwitchChatRelayService: Provider = { provide: 'TwitchChatRelayService', useExisting: TwitchChatRelayService };
+
+const $RemoteGuestLoggerService: Provider = { provide: 'RemoteGuestLoggerService', useExisting: RemoteGuestLoggerService };
+const $RemoteGuestHostAllowlistService: Provider = { provide: 'RemoteGuestHostAllowlistService', useExisting: RemoteGuestHostAllowlistService };
+const $RemoteGuestAccountService: Provider = { provide: 'RemoteGuestAccountService', useExisting: RemoteGuestAccountService };
+const $RemoteGuestSessionService: Provider = { provide: 'RemoteGuestSessionService', useExisting: RemoteGuestSessionService };
+const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthClientService', useExisting: RemoteGuestMiAuthClientService };
 //#endregion
 
 @Module({
@@ -511,6 +522,11 @@ const $TwitchChatRelayService: Provider = { provide: 'TwitchChatRelayService', u
 		TwitchEventSubService,
 		TwitchCommentService,
 		TwitchChatRelayService,
+		RemoteGuestLoggerService,
+		RemoteGuestHostAllowlistService,
+		RemoteGuestAccountService,
+		RemoteGuestSessionService,
+		RemoteGuestMiAuthClientService,
 		EarthquakeAlertService,
 
 		QueueService,
@@ -682,6 +698,11 @@ const $TwitchChatRelayService: Provider = { provide: 'TwitchChatRelayService', u
 		$TwitchEventSubService,
 		$TwitchCommentService,
 		$TwitchChatRelayService,
+		$RemoteGuestLoggerService,
+		$RemoteGuestHostAllowlistService,
+		$RemoteGuestAccountService,
+		$RemoteGuestSessionService,
+		$RemoteGuestMiAuthClientService,
 		//#endregion
 	],
 	exports: [
@@ -849,6 +870,11 @@ const $TwitchChatRelayService: Provider = { provide: 'TwitchChatRelayService', u
 		TwitchEventSubService,
 		TwitchCommentService,
 		TwitchChatRelayService,
+		RemoteGuestLoggerService,
+		RemoteGuestHostAllowlistService,
+		RemoteGuestAccountService,
+		RemoteGuestSessionService,
+		RemoteGuestMiAuthClientService,
 		EarthquakeAlertService,
 
 		QueueService,
@@ -1018,6 +1044,11 @@ const $TwitchChatRelayService: Provider = { provide: 'TwitchChatRelayService', u
 		$TwitchEventSubService,
 		$TwitchCommentService,
 		$TwitchChatRelayService,
+		$RemoteGuestLoggerService,
+		$RemoteGuestHostAllowlistService,
+		$RemoteGuestAccountService,
+		$RemoteGuestSessionService,
+		$RemoteGuestMiAuthClientService,
 		//#endregion
 	],
 })

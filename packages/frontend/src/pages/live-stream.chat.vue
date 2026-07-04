@@ -9,46 +9,59 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<button v-if="hasOlder" class="_button" :class="$style.loadOlder" :disabled="loadingOlder" @click="loadOlder">
 			{{ i18n.ts.loadMore }}
 		</button>
-		<div v-for="comment in comments" :key="comment.id" :class="$style.comment">
-			<template v-if="comment.source === 'misskey' && comment.user != null">
-				<MkAvatar :user="comment.user" :class="$style.avatar" link preview/>
-				<div :class="$style.commentBody">
-					<div>
-						<span :class="$style.commentName"><MkUserName :user="comment.user" :nowrap="true"/></span>
-						<time :class="$style.commentTime" :title="formatTimeFull(comment.createdAt)">{{ formatTime(comment.createdAt) }}</time>
+		<template v-if="canParticipate">
+			<div v-for="comment in comments" :key="comment.id" :class="$style.comment">
+				<template v-if="comment.source === 'misskey' && comment.user != null">
+					<MkAvatar :user="comment.user" :class="$style.avatar" link preview/>
+					<div :class="$style.commentBody">
+						<div>
+							<span :class="$style.commentName"><MkUserName :user="comment.user" :nowrap="true"/></span>
+							<time :class="$style.commentTime" :title="formatTimeFull(comment.createdAt)">{{ formatTime(comment.createdAt) }}</time>
+						</div>
+						<Mfm v-if="comment.text" :class="$style.commentText" :text="comment.text" :author="comment.user" :i="$i"/>
+						<MkMediaList v-if="comment.files.length > 0" :class="$style.commentFiles" :mediaList="comment.files"/>
 					</div>
-					<Mfm v-if="comment.text" :class="$style.commentText" :text="comment.text" :author="comment.user" :i="$i"/>
-					<MkMediaList v-if="comment.files.length > 0" :class="$style.commentFiles" :mediaList="comment.files"/>
-				</div>
-			</template>
-			<template v-else>
-				<i class="ti ti-brand-twitch" :class="$style.twitchIcon"></i>
-				<div :class="$style.commentBody">
-					<div>
-						<span :class="$style.commentName">{{ comment.twitchDisplayName ?? comment.twitchUserName ?? '?' }}</span>
-						<time :class="$style.commentTime" :title="formatTimeFull(comment.createdAt)">{{ formatTime(comment.createdAt) }}</time>
+				</template>
+				<template v-else-if="comment.source === 'remote-guest'">
+					<i class="ti ti-user" :class="$style.remoteGuestIcon"></i>
+					<div :class="$style.commentBody">
+						<div>
+							<span :class="$style.commentName">{{ comment.remoteGuest != null ? `${comment.remoteGuest.username}@${comment.remoteGuest.host}` : '?' }}</span>
+							<time :class="$style.commentTime" :title="formatTimeFull(comment.createdAt)">{{ formatTime(comment.createdAt) }}</time>
+						</div>
+						<span :class="$style.commentText">{{ comment.text }}</span>
 					</div>
-					<span :class="$style.commentText">
-						<template v-for="(frag, fi) in twitchFragments(comment)" :key="fi">
-							<img v-if="frag.type === 'emote'" :src="twitchEmoteUrl(frag.emoteId)" :alt="frag.text" :title="frag.text" :class="$style.twitchEmote"/>
-							<template v-else>{{ frag.text }}</template>
-						</template>
-					</span>
-				</div>
-			</template>
-		</div>
-		<div v-if="comments.length === 0 && !fetching" :class="$style.empty">{{ i18n.ts._twitch.noComments }}</div>
+				</template>
+				<template v-else>
+					<i class="ti ti-brand-twitch" :class="$style.twitchIcon"></i>
+					<div :class="$style.commentBody">
+						<div>
+							<span :class="$style.commentName">{{ comment.twitchDisplayName ?? comment.twitchUserName ?? '?' }}</span>
+							<time :class="$style.commentTime" :title="formatTimeFull(comment.createdAt)">{{ formatTime(comment.createdAt) }}</time>
+						</div>
+						<span :class="$style.commentText">
+							<template v-for="(frag, fi) in twitchFragments(comment)" :key="fi">
+								<img v-if="frag.type === 'emote'" :src="twitchEmoteUrl(frag.emoteId)" :alt="frag.text" :title="frag.text" :class="$style.twitchEmote"/>
+								<template v-else>{{ frag.text }}</template>
+							</template>
+						</span>
+					</div>
+				</template>
+			</div>
+			<div v-if="comments.length === 0 && !fetching" :class="$style.empty">{{ i18n.ts._twitch.noComments }}</div>
+		</template>
 	</div>
-	<button v-if="newCommentsCount > 0" class="_buttonPrimary" :class="$style.newComments" @click="jumpToLatest">
+	<button v-if="canParticipate && newCommentsCount > 0" class="_buttonPrimary" :class="$style.newComments" @click="jumpToLatest">
 		<i class="ti ti-arrow-down"></i> {{ i18n.ts._twitch.newComments }}
 	</button>
+	<XRemoteGuestLogin v-if="!canParticipate && live" :returnTo="returnTo"/>
 	<div
-		v-if="$i != null && live"
+		v-else-if="canParticipate && live"
 		:class="$style.form"
 		@dragover.stop="onDragover"
 		@drop.stop="onDrop"
 	>
-		<div v-if="files.length > 0" :class="$style.attaches">
+		<div v-if="$i != null && files.length > 0" :class="$style.attaches">
 			<button v-for="file in files" :key="file.id" class="_button" :class="$style.attach" :title="i18n.ts.attachCancel" @click="removeFile(file.id)">
 				<i class="ti ti-paperclip"></i> {{ file.name }}
 			</button>
@@ -66,7 +79,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				@keydown="onKeydown"
 				@paste="onPaste"
 			></textarea>
-			<button class="_button" :class="$style.formButton" :title="i18n.ts.attachFile" :aria-label="i18n.ts.attachFile" @click="chooseFile"><i class="ti ti-photo-plus"></i></button>
+			<button v-if="$i != null" class="_button" :class="$style.formButton" :title="i18n.ts.attachFile" :aria-label="i18n.ts.attachFile" @click="chooseFile"><i class="ti ti-photo-plus"></i></button>
 			<button class="_button" :class="$style.formButton" :title="i18n.ts.emoji" :aria-label="i18n.ts.emoji" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
 			<button v-tooltip="i18n.ts._mfmToolbar.show" class="_button" :class="[$style.formButton, { [$style.formButtonActive]: showMfmToolbar }]" :aria-label="i18n.ts._mfmToolbar.show" @click="showMfmToolbar = !showMfmToolbar"><i class="ti ti-wand"></i></button>
 			<button class="_button" :class="[$style.formButton, $style.sendButton]" :disabled="sending || !canSend" :title="i18n.ts.send" :aria-label="i18n.ts.send" @click="send">
@@ -94,7 +107,9 @@ import { formatTimeString } from '@/utility/format-time-string.js';
 import { checkDragDataType, getDragData } from '@/drag-and-drop.js';
 import MkMediaList from '@/components/MkMediaList.vue';
 import MkMfmToolbar from '@/components/MkMfmToolbar.vue';
+import XRemoteGuestLogin from '@/pages/live-stream.remote-guest-login.vue';
 import { prefer } from '@/preferences.js';
+import { remoteGuestSession } from '@/composables/use-remote-guest-session.js';
 
 type Comment = Misskey.Endpoints['twitch/streams/comments']['res'][number];
 
@@ -103,6 +118,7 @@ const MAX_FILES = 16;
 const props = defineProps<{
 	streamId: string;
 	live: boolean;
+	returnTo: string;
 }>();
 
 const emit = defineEmits<{
@@ -125,6 +141,11 @@ const textareaEl = useTemplateRef('textareaEl');
 let autocompleteInstance: Autocomplete | null = null;
 
 const canSend = computed(() => text.value.trim().length > 0 || files.value.length > 0);
+
+// ローカルログイン中、またはリモートゲストログイン中のみ視聴+コメントに参加できる。
+// どちらでもない場合はコメント履歴を取得できないため、ログイン導線のみ表示する
+const guestToken = computed(() => remoteGuestSession.value?.token ?? null);
+const canParticipate = computed(() => $i != null || guestToken.value != null);
 
 const stream = useStream();
 let connection: Misskey.IChannelConnection<Misskey.Channels['twitchLiveStream']> | null = null;
@@ -190,12 +211,30 @@ function jumpToLatest() {
 	scrollToBottom();
 }
 
-async function fetchInitial() {
-	try {
-		const res = await misskeyApi('twitch/streams/comments', {
+async function fetchComments(untilId?: string): Promise<Comment[]> {
+	if ($i != null) {
+		return await misskeyApi('twitch/streams/comments', {
 			streamId: props.streamId,
 			limit: 30,
+			untilId,
 		});
+	}
+	// canParticipate.value が true の時点で guestToken.value は非null
+	return await misskeyApi('remote-guest/twitch-comments', {
+		guestToken: guestToken.value!,
+		streamId: props.streamId,
+		limit: 30,
+		untilId,
+	});
+}
+
+async function fetchInitial() {
+	if (!canParticipate.value) {
+		fetching.value = false;
+		return;
+	}
+	try {
+		const res = await fetchComments();
 		// API は新しい順で返すので表示用に反転する
 		comments.value = res.reverse();
 		hasOlder.value = res.length >= 30;
@@ -209,11 +248,7 @@ async function loadOlder() {
 	if (comments.value.length === 0) return;
 	loadingOlder.value = true;
 	try {
-		const res = await misskeyApi('twitch/streams/comments', {
-			streamId: props.streamId,
-			limit: 30,
-			untilId: comments.value[0].id,
-		});
+		const res = await fetchComments(comments.value[0].id);
 		comments.value = [...res.reverse(), ...comments.value];
 		hasOlder.value = res.length >= 30;
 	} finally {
@@ -351,11 +386,20 @@ async function send() {
 	const t = text.value.trim();
 	sending.value = true;
 	try {
-		await misskeyApi('twitch/streams/comments/create', {
-			streamId: props.streamId,
-			text: t.length > 0 ? t : undefined,
-			fileIds: files.value.length > 0 ? files.value.map(f => f.id) : undefined,
-		});
+		if ($i != null) {
+			await misskeyApi('twitch/streams/comments/create', {
+				streamId: props.streamId,
+				text: t.length > 0 ? t : undefined,
+				fileIds: files.value.length > 0 ? files.value.map(f => f.id) : undefined,
+			});
+		} else {
+			// canParticipate.value が true の時点で guestToken.value は非null。添付ファイルは非対応
+			await misskeyApi('remote-guest/twitch-comments/create', {
+				guestToken: guestToken.value!,
+				streamId: props.streamId,
+				text: t,
+			});
+		}
 		text.value = '';
 		files.value = [];
 	} catch (err) {
@@ -370,9 +414,11 @@ onMounted(() => {
 	if (textareaEl.value != null) {
 		autocompleteInstance = new Autocomplete(textareaEl.value, text);
 	}
-	connection = stream.useChannel('twitchLiveStream', { streamId: props.streamId });
-	connection.on('comment', onComment);
-	connection.on('streamEnded', () => emit('streamEnded'));
+	if (canParticipate.value) {
+		connection = stream.useChannel('twitchLiveStream', { streamId: props.streamId, guestToken: guestToken.value ?? undefined });
+		connection.on('comment', onComment);
+		connection.on('streamEnded', () => emit('streamEnded'));
+	}
 });
 
 onBeforeUnmount(() => {
@@ -432,6 +478,13 @@ onUnmounted(() => {
 	width: 24px;
 	text-align: center;
 	color: #9146ff; // Twitch ブランドカラー
+}
+
+.remoteGuestIcon {
+	flex-shrink: 0;
+	width: 24px;
+	text-align: center;
+	color: var(--MI_THEME-accent);
 }
 
 .commentBody {

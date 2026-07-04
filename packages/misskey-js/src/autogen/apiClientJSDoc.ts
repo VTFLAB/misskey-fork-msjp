@@ -4320,6 +4320,50 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * リモート Misskey インスタンスのアカウントで視聴+コメント用のゲストログインを開始する。相手インスタンスの MiAuth へリダイレクトする URL を返す。
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'remote-guest/login/start', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * リモートゲストログインセッションをログアウトする。
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'remote-guest/session/revoke', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * リモートゲストログイン用のコメント履歴取得 (twitch/streams/comments の視聴専用版)。
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'remote-guest/twitch-comments', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * リモートゲストログイン用のコメント投稿 (twitch/streams/comments/create の視聴専用版)。添付ファイルは使えない。
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'remote-guest/twitch-comments/create', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * No description provided.
      * 
      * **Credential required**: *Yes* / **Permission**: *write:mutes*
@@ -4654,9 +4698,9 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * 指定ユーザーの Twitch 配信状態を返す。連携済みなら twitchLogin は常に返り、配信中なら stream が非 null。
+     * 指定ユーザーの Twitch 配信状態を返す。連携済みなら twitchLogin は常に返り、配信中なら stream が非 null。視聴ページ (/live/:acct) が未ログイン・リモートゲストからも到達可能なため認証不要 (副作用のない読み取り専用エンドポイント)。
      * 
-     * **Credential required**: *Yes* / **Permission**: *read:account*
+     * **Credential required**: *No*
      */
     request<E extends 'twitch/streams/show', P extends Endpoints[E]['req']>(
       endpoint: E,

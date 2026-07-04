@@ -13,10 +13,10 @@ import { TwitchStreamService } from '@/core/twitch/TwitchStreamService.js';
 export const meta = {
 	tags: ['twitch'],
 
-	requireCredential: true,
-	kind: 'read:account',
+	requireCredential: false,
 
-	description: '指定ユーザーの Twitch 配信状態を返す。連携済みなら twitchLogin は常に返り、配信中なら stream が非 null。',
+	description: '指定ユーザーの Twitch 配信状態を返す。連携済みなら twitchLogin は常に返り、配信中なら stream が非 null。' +
+		'視聴ページ (/live/:acct) が未ログイン・リモートゲストからも到達可能なため認証不要 (副作用のない読み取り専用エンドポイント)。',
 
 	errors: {
 		notLinked: {
@@ -64,7 +64,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		private twitchStreamService: TwitchStreamService,
 	) {
-		super(meta, paramDef, async (ps, me) => {
+		super(meta, paramDef, async (ps) => {
 			const account = await this.twitchAccountsRepository.findOneBy({ userId: ps.userId });
 			if (account == null) throw new ApiError(meta.errors.notLinked);
 

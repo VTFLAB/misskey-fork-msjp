@@ -253,18 +253,21 @@ export type Channels = {
 	twitchLiveStream: {
 		params: {
 			streamId: string;
+			// リモートゲストログイン中のみ指定 (ローカルユーザーは接続認証で判定されるため不要)
+			guestToken?: string;
 		};
 		events: {
 			comment: (payload: {
 				id: string;
 				createdAt: string;
-				source: 'misskey' | 'twitch';
+				source: 'misskey' | 'twitch' | 'remote-guest';
 				text: string;
 				user: UserLite | null;
 				files: DriveFile[];
 				twitchUserName: string | null;
 				twitchDisplayName: string | null;
 				fragments: TwitchChatFragment[] | null;
+				remoteGuest: { username: string; host: string } | null;
 			}) => void;
 			streamEnded: (payload: Record<string, never>) => void;
 		};

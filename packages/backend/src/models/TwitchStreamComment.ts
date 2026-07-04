@@ -8,6 +8,7 @@ import { id } from './util/id.js';
 import { MiUser } from './User.js';
 import { MiDriveFile } from './DriveFile.js';
 import { MiTwitchStream } from './TwitchStream.js';
+import { MiRemoteGuestAccount } from './RemoteGuestAccount.js';
 
 // Twitch EventSub の message.fragments を最小限に単純化したもの。
 // cheermote / mention は特別扱いせず text として扱う (絵文字表示にのみ対応する)
@@ -41,9 +42,9 @@ export class MiTwitchStreamComment {
 
 	@Column('varchar', {
 		length: 16,
-		comment: 'Comment origin: misskey | twitch.',
+		comment: 'Comment origin: misskey | twitch | remote-guest.',
 	})
-	public source: 'misskey' | 'twitch';
+	public source: 'misskey' | 'twitch' | 'remote-guest';
 
 	// source=misskey の投稿者。退会時は null になりコメントは「削除されたユーザー」として残る
 	@Column({
@@ -75,6 +76,29 @@ export class MiTwitchStreamComment {
 		length: 64, nullable: true,
 	})
 	public twitchMessageId: string | null;
+
+	// source=remote-guest の投稿者。ゲストアカウント削除後も "user@host" 表示を残すためスナップショットも持つ
+	@Column({
+		...id(),
+		nullable: true,
+	})
+	public remoteGuestAccountId: MiRemoteGuestAccount['id'] | null;
+
+	@ManyToOne(type => MiRemoteGuestAccount, {
+		onDelete: 'SET NULL',
+	})
+	@JoinColumn()
+	public remoteGuestAccount: MiRemoteGuestAccount | null;
+
+	@Column('varchar', {
+		length: 128, nullable: true,
+	})
+	public remoteGuestUsername: string | null;
+
+	@Column('varchar', {
+		length: 512, nullable: true,
+	})
+	public remoteGuestHost: string | null;
 
 	@Column('varchar', {
 		length: 1024,
