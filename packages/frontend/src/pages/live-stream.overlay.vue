@@ -4,9 +4,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="$style.root">
+<div ref="rootEl" :class="$style.root">
 	<div v-for="comment in comments" :key="comment.id" :class="$style.comment">
-		<span :class="[$style.name, nameClass(comment)]">{{ commentName(comment) }}</span>
+		<span :class="[$style.name, nameClass(comment)]">
+			<template v-if="comment.source === 'misskey' && comment.user != null">
+				<MkUserName :user="comment.user" :nowrap="true"/>
+			</template>
+			<template v-else>{{ commentName(comment) }}</template>
+		</span>
 		<span :class="$style.text">
 			<template v-if="comment.source === 'twitch'">
 				<template v-for="(frag, fi) in twitchFragments(comment)" :key="fi">
@@ -21,7 +26,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, onUnmounted, nextTick, useCssModule } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, useCssModule, useTemplateRef } from 'vue';
 import * as Misskey from 'misskey-js';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
@@ -49,6 +54,8 @@ const stream = useStream();
 let connection: Misskey.IChannelConnection<Misskey.Channels['twitchLiveStream']> | null = null;
 let pollTimer: number | null = null;
 let unmounted = false;
+
+const rootEl = useTemplateRef('rootEl');
 
 type TwitchFragment = NonNullable<Comment['fragments']>[number];
 
@@ -79,7 +86,9 @@ function nameClass(comment: Comment): string {
 
 function scrollToBottom() {
 	nextTick(() => {
-		window.document.scrollingElement?.scrollTo(0, window.document.scrollingElement.scrollHeight);
+		if (rootEl.value != null) {
+			rootEl.value.scrollTop = rootEl.value.scrollHeight;
+		}
 	});
 }
 
@@ -169,11 +178,18 @@ definePage(() => ({
 	justify-content: flex-end;
 	gap: 6px;
 	box-sizing: border-box;
-	min-height: 100cqh;
+	height: 100cqh;
 	padding: 12px;
-	overflow: hidden;
+	overflow-y: auto;
+	overflow-x: hidden;
+	scrollbar-width: none;
 	font-size: 1.1em;
 	line-height: 1.5;
+
+	&::-webkit-scrollbar {
+		display: none;
+	}
+
 	// テーマに依存せず配信画面上で読めるよう固定色 + 縁取り
 	color: #fff;
 	text-shadow: 0 0 3px #000, 0 1px 2px #000, 1px 0 2px #000, -1px 0 2px #000;
