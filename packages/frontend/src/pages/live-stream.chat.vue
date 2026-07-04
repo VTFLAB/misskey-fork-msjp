@@ -23,13 +23,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 				</template>
 				<template v-else-if="comment.source === 'remote-guest'">
-					<i class="ti ti-user" :class="$style.remoteGuestIcon"></i>
+					<img v-if="comment.remoteGuest?.avatarUrl" :src="comment.remoteGuest.avatarUrl" :class="$style.remoteGuestAvatar" alt=""/>
+					<i v-else class="ti ti-user" :class="$style.remoteGuestIcon"></i>
 					<div :class="$style.commentBody">
 						<div>
 							<span :class="$style.commentName">{{ comment.remoteGuest != null ? `${comment.remoteGuest.username}@${comment.remoteGuest.host}` : '?' }}</span>
 							<time :class="$style.commentTime" :title="formatTimeFull(comment.createdAt)">{{ formatTime(comment.createdAt) }}</time>
 						</div>
-						<span :class="$style.commentText">{{ comment.text }}</span>
+						<Mfm v-if="comment.text" :class="$style.commentText" :text="comment.text"/>
 					</div>
 				</template>
 				<template v-else>
@@ -41,7 +42,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 						<span :class="$style.commentText">
 							<template v-for="(frag, fi) in twitchFragments(comment)" :key="fi">
-								<img v-if="frag.type === 'emote'" :src="twitchEmoteUrl(frag.emoteId)" :alt="frag.text" :title="frag.text" :class="$style.twitchEmote"/>
+								<img v-if="frag.type === 'emote'" :src="twitchEmoteUrl(frag.emoteId, frag.animated)" :alt="frag.text" :title="frag.text" :class="$style.twitchEmote"/>
 								<template v-else>{{ frag.text }}</template>
 							</template>
 						</span>
@@ -173,11 +174,13 @@ function twitchFragments(comment: Comment): TwitchFragment[] {
 	return comment.fragments ?? [{ type: 'text', text: comment.text }];
 }
 
-// Twitch の絵文字画像 CDN (公開・認証不要)。static を使うことで、アニメ絵文字かどうかを
-// 事前に Helix API で調べる必要をなくす (静止画は全絵文字が必ず持っている)
-function twitchEmoteUrl(emoteId: string | undefined): string {
+// Twitch の絵文字画像 CDN (公開・認証不要)。animated (GIF、無限ループで提供される) は
+// EventSub の emote.format に 'animated' が含まれる場合のみ選べる (静止画は全絵文字が必ず持つ)。
+// カスタム絵文字と同様、アニメーション画像を無効化する設定が有効な間は静止画にフォールバックする
+function twitchEmoteUrl(emoteId: string | undefined, animated: boolean | undefined): string {
 	if (emoteId == null) return '';
-	return `https://static-cdn.jtvnw.net/emoticons/v2/${encodeURIComponent(emoteId)}/static/dark/2.0`;
+	const format = animated && !prefer.s.disableShowingAnimatedImages ? 'animated' : 'static';
+	return `https://static-cdn.jtvnw.net/emoticons/v2/${encodeURIComponent(emoteId)}/${format}/dark/2.0`;
 }
 
 // Twitch/YouTube 等のライブチャットと同じ挙動: 最下部付近にいる間だけ新着で
@@ -487,6 +490,14 @@ onUnmounted(() => {
 	color: var(--MI_THEME-accent);
 }
 
+.remoteGuestAvatar {
+	flex-shrink: 0;
+	width: 24px;
+	height: 24px;
+	border-radius: 100%;
+	object-fit: cover;
+}
+
 .commentBody {
 	min-width: 0;
 	overflow-wrap: anywhere;
@@ -510,7 +521,7 @@ onUnmounted(() => {
 .twitchEmote {
 	height: 1.6em;
 	vertical-align: middle;
-	margin: -2px 1px;
+	margin: -2px 3px;
 }
 
 .commentFiles {
