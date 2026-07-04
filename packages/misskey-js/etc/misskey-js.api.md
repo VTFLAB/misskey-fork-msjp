@@ -2222,6 +2222,11 @@ declare namespace entities {
         TwitchGenerateOauthUrlResponse,
         TwitchLiveStreamsResponse,
         TwitchMyAccountResponse,
+        TwitchStreamsBlocksCreateRequest,
+        TwitchStreamsBlocksCreateResponse,
+        TwitchStreamsBlocksDeleteRequest,
+        TwitchStreamsBlocksListRequest,
+        TwitchStreamsBlocksListResponse,
         TwitchStreamsCommentsRequest,
         TwitchStreamsCommentsResponse,
         TwitchStreamsCommentsCreateRequest,
@@ -3735,6 +3740,21 @@ type TwitchLiveStreamsResponse = operations['twitch___live-streams']['responses'
 
 // @public (undocumented)
 type TwitchMyAccountResponse = operations['twitch___my-account']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsBlocksCreateRequest = operations['twitch___streams___blocks___create']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsBlocksCreateResponse = operations['twitch___streams___blocks___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsBlocksDeleteRequest = operations['twitch___streams___blocks___delete']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsBlocksListRequest = operations['twitch___streams___blocks___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsBlocksListResponse = operations['twitch___streams___blocks___list']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type TwitchStreamsCommentsCreateRequest = operations['twitch___streams___comments___create']['requestBody']['content']['application/json'];

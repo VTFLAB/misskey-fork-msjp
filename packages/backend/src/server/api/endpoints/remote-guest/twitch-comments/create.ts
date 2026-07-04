@@ -11,6 +11,7 @@ import type { TwitchStreamsRepository } from '@/models/_.js';
 import { TwitchCommentService, MAX_COMMENT_LENGTH } from '@/core/twitch/TwitchCommentService.js';
 import { TwitchChatRelayService } from '@/core/twitch/TwitchChatRelayService.js';
 import { RemoteGuestSessionService } from '@/core/remote-guest/RemoteGuestSessionService.js';
+import { TwitchStreamBlockService } from '@/core/twitch/TwitchStreamBlockService.js';
 
 export const meta = {
 	tags: ['remote-guest', 'twitch'],
@@ -47,6 +48,12 @@ export const meta = {
 			code: 'INVALID_TEXT',
 			id: '79c68560-e3e1-44cc-94bf-23ac130f8139',
 		},
+		blocked: {
+			message: 'You are blocked by the broadcaster.',
+			code: 'BLOCKED_BY_BROADCASTER',
+			id: 'c4aa92f3-ecd8-473b-84fd-239a3f7005be',
+			httpStatusCode: 403,
+		},
 	},
 
 	res: {
@@ -77,6 +84,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private twitchCommentService: TwitchCommentService,
 		private twitchChatRelayService: TwitchChatRelayService,
 		private remoteGuestSessionService: RemoteGuestSessionService,
+		private twitchStreamBlockService: TwitchStreamBlockService,
 	) {
 		super(meta, paramDef, async (ps) => {
 			const guest = await this.remoteGuestSessionService.validate(ps.guestToken);
@@ -85,6 +93,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const stream = await this.twitchStreamsRepository.findOneBy({ id: ps.streamId });
 			if (stream == null) throw new ApiError(meta.errors.noSuchStream);
 			if (!stream.isLive) throw new ApiError(meta.errors.streamEnded);
+
+			if (await this.twitchStreamBlockService.isBlockedRemoteGuest(stream.userId, guest.username, guest.host)) {
+				throw new ApiError(meta.errors.blocked);
+			}
 
 			const text = ps.text.trim().slice(0, MAX_COMMENT_LENGTH);
 			if (text.length === 0) throw new ApiError(meta.errors.invalidText);
