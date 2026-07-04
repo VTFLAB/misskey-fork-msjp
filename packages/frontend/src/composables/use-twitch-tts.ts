@@ -79,7 +79,7 @@ export async function fetchTtsSpeakers(engineUrl: string): Promise<TtsSpeakerSty
 }
 
 /**
- * MFM や URL を読み上げ用の平文に落とす。読めない装飾・URL・カスタム絵文字は除去する
+ * MFM や URL を読み上げ用の平文に落とす。読めない装飾・URL・絵文字は除去する
  */
 export function toReadableText(text: string): string {
 	let plain: string;
@@ -87,7 +87,7 @@ export function toReadableText(text: string): string {
 		const walk = (node: mfm.MfmNode): string => {
 			switch (node.type) {
 				case 'text': return node.props.text;
-				case 'unicodeEmoji': return node.props.emoji;
+				case 'unicodeEmoji': return '';
 				case 'emojiCode': return '';
 				case 'mention': return node.props.username;
 				case 'hashtag': return node.props.hashtag;
