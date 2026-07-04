@@ -147,13 +147,21 @@ function schedulePoll() {
 	}, OFFLINE_POLL_INTERVAL);
 }
 
-// OBS で配信画面に重ねるため、テーマ由来のページ背景を透過させる。
-// html 要素の背景 (style.scss で --MI_THEME-bg が張られる) を上書きし、離脱時に戻す
-let prevHtmlBackground: string | null = null;
+// OBS で配信画面に重ねるため、テーマ由来のページ背景を全レイヤーで透過させる。
+// html 要素だけ透過しても universal/deck/zen UI のラッパー div に
+// background: var(--MI_THEME-bg) 等が設定されており塗り潰されるため、
+// style 要素を注入して全祖先レイヤーの背景を強制的に透過する。
+let overlayStyleEl: HTMLStyleElement | null = null;
 
 onMounted(() => {
-	prevHtmlBackground = window.document.documentElement.style.background;
-	window.document.documentElement.style.setProperty('background', 'transparent', 'important');
+	overlayStyleEl = window.document.createElement('style');
+	overlayStyleEl.textContent = `
+		html, body, #misskey_app, #misskey_app > * {
+			background: transparent !important;
+			background-color: transparent !important;
+		}
+	`;
+	window.document.head.appendChild(overlayStyleEl);
 	connect();
 });
 
@@ -161,7 +169,10 @@ onUnmounted(() => {
 	unmounted = true;
 	disconnect();
 	if (pollTimer != null) window.clearTimeout(pollTimer);
-	window.document.documentElement.style.background = prevHtmlBackground ?? '';
+	if (overlayStyleEl != null) {
+		overlayStyleEl.remove();
+		overlayStyleEl = null;
+	}
 });
 
 definePage(() => ({

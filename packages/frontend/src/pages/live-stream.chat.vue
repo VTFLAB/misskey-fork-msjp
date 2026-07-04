@@ -121,7 +121,7 @@ import MkMfmToolbar from '@/components/MkMfmToolbar.vue';
 import XRemoteGuestLogin from '@/pages/live-stream.remote-guest-login.vue';
 import { prefer } from '@/preferences.js';
 import { remoteGuestSession } from '@/composables/use-remote-guest-session.js';
-import { twitchTtsSettings, enqueueTtsSpeech } from '@/composables/use-twitch-tts.js';
+import { twitchTtsSettings, enqueueTtsSpeech, stopTtsSpeech } from '@/composables/use-twitch-tts.js';
 
 type Comment = Misskey.Endpoints['twitch/streams/comments']['res'][number];
 
@@ -504,6 +504,9 @@ onBeforeUnmount(() => {
 
 onUnmounted(() => {
 	if (connection != null) connection.dispose();
+	// ページ離脱時に読み上げキューを破棄し、進行中の AivisSpeech Engine
+	// への合成リクエストを中断する (エンジン側プロセスの蓄積を防ぐ)
+	stopTtsSpeech();
 });
 </script>
 
