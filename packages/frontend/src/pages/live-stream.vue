@@ -41,6 +41,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 							</div>
 						</div>
 						<MkFollowButton v-if="$i != null && $i.id !== user.id" v-model:user="user" :inline="true" :transparent="false" :full="true"/>
+						<button v-else-if="remoteGuestSession != null" class="_button" :class="$style.remoteGuestMenu" @click="openRemoteGuestMenu">
+							<i class="ti ti-user-circle"></i>
+							<span :class="$style.remoteGuestAcct">{{ remoteGuestSession.acct }}</span>
+							<i class="ti ti-chevron-down"></i>
+						</button>
 					</div>
 				</div>
 			</div>
@@ -65,7 +70,7 @@ import { $i } from '@/i.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { useRouter } from '@/router.js';
-import { saveRemoteGuestSession } from '@/composables/use-remote-guest-session.js';
+import { remoteGuestSession, saveRemoteGuestSession, clearRemoteGuestSession } from '@/composables/use-remote-guest-session.js';
 
 const props = defineProps<{
 	acct: string;
@@ -111,6 +116,24 @@ function onStreamEnded() {
 
 function goHome() {
 	router.push('/');
+}
+
+// リモートゲストログイン中のみ表示する簡易メニュー。フル機能のアカウントメニューとは
+// 別体系 (MiUser を持たない第3のアイデンティティのため) で、視聴+コメント専用スコープに
+// 留める設計判断のもと、ログアウトのみを提供する
+function openRemoteGuestMenu(ev: MouseEvent) {
+	if (remoteGuestSession.value == null) return;
+	os.popupMenu([{
+		type: 'label',
+		text: i18n.tsx._remoteGuestLogin.loggedInAs({ acct: remoteGuestSession.value.acct }),
+	}, {
+		text: i18n.ts._remoteGuestLogin.logout,
+		icon: 'ti ti-logout',
+		danger: true,
+		action: () => {
+			clearRemoteGuestSession();
+		},
+	}], ev.currentTarget ?? ev.target);
 }
 
 // リモートゲストログインのコールバック結果を処理する (settings/twitch.vue の
@@ -278,6 +301,29 @@ definePage(() => ({
 .streamMeta {
 	font-size: 0.9em;
 	opacity: 0.8;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.remoteGuestMenu {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 12px;
+	border: solid 1px var(--MI_THEME-divider);
+	border-radius: 999px;
+	font-size: 0.9em;
+
+	&:hover {
+		color: var(--MI_THEME-accent);
+		border-color: var(--MI_THEME-accent);
+	}
+}
+
+.remoteGuestAcct {
+	max-width: 160px;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
