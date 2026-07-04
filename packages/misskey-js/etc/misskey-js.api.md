@@ -941,6 +941,7 @@ export type Channels = {
                 remoteGuest: {
                     username: string;
                     host: string;
+                    avatarUrl: string | null;
                 } | null;
             }) => void;
             streamEnded: (payload: Record<string, never>) => void;
