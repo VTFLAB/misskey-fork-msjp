@@ -53,6 +53,7 @@
 - Feat: リモート Misskey インスタンスのユーザー向けゲストログイン基盤を追加 (bsky-fork 独自)。相手インスタンスの MiAuth を当インスタンスがクライアントとして消費し、本人性確認済みの `remote_guest_account` / 有効期限付きセッション `remote_guest_session` を発行する。許可対象ホストは `.config/default.yml` の `remoteGuestLogin.allowedHosts` で事前定義した固定リストのみ (SSRF・スパムアカウント量産対策)。ログイン開始 (`remote-guest/login/start`)・コールバック (`GET /remote-guest/callback`)・ログアウト (`remote-guest/session/revoke`) のエンドポイントを追加
 - Feat: 配信視聴ページのコメント一覧・投稿にリモートゲスト向けエンドポイント (`remote-guest/twitch-comments`, `remote-guest/twitch-comments/create`) を追加し、`twitchLiveStream` ストリーミングチャンネルもリモートゲストの `guestToken` による購読を受け付けるように (bsky-fork 独自)。既存のローカルユーザー向けエンドポイントは無改造。ゲストのコメントは Twitch チャットへも `username@host` 表記で中継される (添付ファイルは非対応)
 - Enhance: `twitch/streams/show` エンドポイントを認証不要に変更 (bsky-fork 独自)。配信視聴ページが未ログイン・リモートゲストからも到達可能になったことに伴う、副作用のない読み取り専用エンドポイントの読み取り開放
+- Enhance: `get-weather` エンドポイントが Open-Meteo への通信失敗時に原因をサーバーログへ記録するように (bsky-fork 独自)。従来は例外を握りつぶしてクライアントへ一律 `WEATHER_API_ERROR` を返すのみで、恒常的な障害の原因調査ができなかった
 
 ## 2026.9.0
 
