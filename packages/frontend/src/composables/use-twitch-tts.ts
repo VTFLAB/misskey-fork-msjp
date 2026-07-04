@@ -116,6 +116,11 @@ export function toReadableText(text: string): string {
 const queue: string[] = [];
 let playing = false;
 let currentAudio: HTMLAudioElement | null = null;
+// 進行中の合成リクエストを中断するための AbortController。
+// stopTtsSpeech() で abort することで、AivisSpeech Engine 側の
+// ONNX Runtime 推論プロセスの蓄積を防ぐ (ページ離脱後もリクエストが
+// 残り続けてエンジン側のリソースが解放されない問題の対策)
+let currentAbortController: AbortController | null = null;
 
 export function enqueueTtsSpeech(text: string) {
 	const readable = toReadableText(text);
@@ -130,6 +135,12 @@ export function stopTtsSpeech() {
 	if (currentAudio != null) {
 		currentAudio.pause();
 		currentAudio = null;
+	}
+	// 進行中の AivisSpeech Engine への fetch を中断し、
+	// エンジン側の推論プロセスが残続しないようにする
+	if (currentAbortController != null) {
+		currentAbortController.abort();
+		currentAbortController = null;
 	}
 	playing = false;
 }
@@ -157,33 +168,45 @@ async function synthesizeAndPlay(text: string): Promise<void> {
 	const base = settings.engineUrl.replace(/\/$/, '');
 	const speaker = encodeURIComponent(String(settings.styleId));
 
-	const queryRes = await window.fetch(`${base}/audio_query?speaker=${speaker}&text=${encodeURIComponent(text)}`, { method: 'POST' });
-	if (!queryRes.ok) throw new Error(`/audio_query returned ${queryRes.status}`);
-	const audioQuery = await queryRes.json();
-	audioQuery.speedScale = settings.speedScale;
-	audioQuery.volumeScale = settings.volumeScale;
-
-	const synthRes = await window.fetch(`${base}/synthesis?speaker=${speaker}`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify(audioQuery),
-	});
-	if (!synthRes.ok) throw new Error(`/synthesis returned ${synthRes.status}`);
-	const wav = await synthRes.blob();
-
-	const url = URL.createObjectURL(wav);
+	// この1件の合成〜再生サイクルで共有する AbortController。
+	// stopTtsSpeech() や次の stopTtsSpeech() 呼出で中断される
+	const ac = new AbortController();
+	currentAbortController = ac;
 	try {
-		await new Promise<void>((resolve, reject) => {
-			const audio = new window.Audio(url);
-			currentAudio = audio;
-			audio.onended = () => resolve();
-			audio.onerror = () => reject(new Error('audio playback failed'));
-			// stopTtsSpeech() で pause された場合も次へ進む
-			audio.onpause = () => resolve();
-			audio.play().catch(reject);
+		const queryRes = await window.fetch(`${base}/audio_query?speaker=${speaker}&text=${encodeURIComponent(text)}`, {
+			method: 'POST',
+			signal: ac.signal,
 		});
+		if (!queryRes.ok) throw new Error(`/audio_query returned ${queryRes.status}`);
+		const audioQuery = await queryRes.json();
+		audioQuery.speedScale = settings.speedScale;
+		audioQuery.volumeScale = settings.volumeScale;
+
+		const synthRes = await window.fetch(`${base}/synthesis?speaker=${speaker}`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(audioQuery),
+			signal: ac.signal,
+		});
+		if (!synthRes.ok) throw new Error(`/synthesis returned ${synthRes.status}`);
+		const wav = await synthRes.blob();
+
+		const url = URL.createObjectURL(wav);
+		try {
+			await new Promise<void>((resolve, reject) => {
+				const audio = new window.Audio(url);
+				currentAudio = audio;
+				audio.onended = () => resolve();
+				audio.onerror = () => reject(new Error('audio playback failed'));
+				// stopTtsSpeech() で pause された場合も次へ進む
+				audio.onpause = () => resolve();
+				audio.play().catch(reject);
+			});
+		} finally {
+			currentAudio = null;
+			URL.revokeObjectURL(url);
+		}
 	} finally {
-		currentAudio = null;
-		URL.revokeObjectURL(url);
+		if (currentAbortController === ac) currentAbortController = null;
 	}
 }
