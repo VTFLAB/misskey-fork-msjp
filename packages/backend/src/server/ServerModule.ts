@@ -30,6 +30,7 @@ import { UrlPreviewService } from './web/UrlPreviewService.js';
 import { ClientLoggerService } from './web/ClientLoggerService.js';
 import { OAuth2ProviderService } from './oauth/OAuth2ProviderService.js';
 import { TwitchServerService } from './twitch/TwitchServerService.js';
+import { RemoteGuestServerService } from './remote-guest/RemoteGuestServerService.js';
 
 import MainStreamConnection from '@/server/api/stream/Connection.js';
 import { MainChannel } from './api/stream/channels/main.js';
@@ -106,6 +107,7 @@ import { SigninWithPasskeyApiService } from './api/SigninWithPasskeyApiService.j
 		OpenApiServerService,
 		OAuth2ProviderService,
 		TwitchServerService,
+		RemoteGuestServerService,
 	],
 	exports: [
 		ServerService,

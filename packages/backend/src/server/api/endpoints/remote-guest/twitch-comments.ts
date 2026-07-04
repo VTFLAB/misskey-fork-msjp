@@ -5,18 +5,28 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
+import { ApiError } from '@/server/api/error.js';
 import { DI } from '@/di-symbols.js';
 import type { TwitchStreamCommentsRepository } from '@/models/_.js';
 import { QueryService } from '@/core/QueryService.js';
 import { TwitchCommentService } from '@/core/twitch/TwitchCommentService.js';
+import { RemoteGuestSessionService } from '@/core/remote-guest/RemoteGuestSessionService.js';
 
 export const meta = {
-	tags: ['twitch'],
+	tags: ['remote-guest', 'twitch'],
 
-	requireCredential: true,
-	kind: 'read:account',
+	requireCredential: false,
 
-	description: '配信セッションのコメント履歴を返す (Misskey ユーザー投稿 + Twitch チャット由来)。',
+	description: 'リモートゲストログイン用のコメント履歴取得 (twitch/streams/comments の視聴専用版)。',
+
+	errors: {
+		guestSessionInvalid: {
+			message: 'Invalid or expired guest session.',
+			code: 'GUEST_SESSION_INVALID',
+			id: '52fe49eb-6ea5-4d57-a655-5b15cf9cef38',
+			httpStatusCode: 401,
+		},
+	},
 
 	res: {
 		type: 'array',
@@ -66,12 +76,13 @@ export const meta = {
 export const paramDef = {
 	type: 'object',
 	properties: {
+		guestToken: { type: 'string', minLength: 1, maxLength: 128 },
 		streamId: { type: 'string', format: 'misskey:id' },
 		limit: { type: 'integer', minimum: 1, maximum: 100, default: 30 },
 		sinceId: { type: 'string', format: 'misskey:id' },
 		untilId: { type: 'string', format: 'misskey:id' },
 	},
-	required: ['streamId'],
+	required: ['guestToken', 'streamId'],
 } as const;
 
 @Injectable()
@@ -82,8 +93,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		private queryService: QueryService,
 		private twitchCommentService: TwitchCommentService,
+		private remoteGuestSessionService: RemoteGuestSessionService,
 	) {
-		super(meta, paramDef, async (ps, me) => {
+		super(meta, paramDef, async (ps) => {
+			const guest = await this.remoteGuestSessionService.validate(ps.guestToken);
+			if (guest == null) throw new ApiError(meta.errors.guestSessionInvalid);
+
 			const query = this.queryService.makePaginationQuery(
 				this.twitchStreamCommentsRepository.createQueryBuilder('comment'),
 				ps.sinceId,

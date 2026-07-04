@@ -13804,4 +13804,54 @@ export interface Locale extends ILocale {
          */
         "botLinkedSuccess": string;
     };
+    "_remoteGuestLogin": {
+        /**
+         * 他インスタンスのアカウントでログイン
+         */
+        "title": string;
+        /**
+         * 他のMisskeyインスタンスのアカウントでログインすると、視聴とコメント投稿ができます。
+         */
+        "description": string;
+        /**
+         * username@example.com
+         */
+        "acctPlaceholder": string;
+        /**
+         * ログイン
+         */
+        "loginButton": string;
+        /**
+         * ログインの開始に失敗しました。
+         */
+        "loginError": string;
+        /**
+         * ログインしました。
+         */
+        "linked": string;
+        /**
+         * ログインがキャンセルされました。
+         */
+        "denied": string;
+        /**
+         * ログインの有効期限が切れました。もう一度お試しください。
+         */
+        "expired": string;
+        /**
+         * 入力したアカウントと実際にログインしたアカウントが一致しませんでした。
+         */
+        "usernameMismatch": string;
+        /**
+         * このホストは許可されていません。
+         */
+        "hostNotAllowed": string;
+        /**
+         * {acct} としてログイン中
+         */
+        "loggedInAs": ParameterizedString<"acct">;
+        /**
+         * ログアウト
+         */
+        "logout": string;
+    };
 }

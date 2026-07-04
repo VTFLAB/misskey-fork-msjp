@@ -45,7 +45,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</div>
 			<div :class="$style.chat">
-				<XChat :key="streamInfo.id" :streamId="streamInfo.id" :live="true" @streamEnded="onStreamEnded"/>
+				<XChat :key="streamInfo.id" :streamId="streamInfo.id" :live="true" :returnTo="`/live/${props.acct}`" @streamEnded="onStreamEnded"/>
 			</div>
 		</div>
 	</div>
@@ -65,6 +65,7 @@ import { $i } from '@/i.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { useRouter } from '@/router.js';
+import { saveRemoteGuestSession } from '@/composables/use-remote-guest-session.js';
 
 const props = defineProps<{
 	acct: string;
@@ -112,9 +113,44 @@ function goHome() {
 	router.push('/');
 }
 
+// リモートゲストログインのコールバック結果を処理する (settings/twitch.vue の
+// handleCallbackResult と同一パターン)。未ログイン時のみ意味を持つが、
+// query を消す処理自体は毎回実行して問題ない
+function handleRemoteGuestLoginResult() {
+	const params = new URLSearchParams(window.location.search);
+	const result = params.get('remoteGuestResult');
+	if (result == null) return;
+
+	const token = params.get('remoteGuestToken');
+	const expiresAt = params.get('remoteGuestExpiresAt');
+	const acct = params.get('remoteGuestAcct');
+
+	// query を消してリロード/共有時の再表示を防ぐ (トークンを URL に残さない)
+	window.history.replaceState(null, '', window.location.pathname);
+
+	switch (result) {
+		case 'linked':
+			if (token != null && expiresAt != null) {
+				saveRemoteGuestSession({ token, expiresAt, acct: acct ?? '' });
+				os.alert({ type: 'success', text: i18n.ts._remoteGuestLogin.linked });
+			}
+			break;
+		case 'denied':
+			os.alert({ type: 'warning', text: i18n.ts._remoteGuestLogin.denied });
+			break;
+		case 'usernameMismatch':
+			os.alert({ type: 'error', text: i18n.ts._remoteGuestLogin.usernameMismatch });
+			break;
+		case 'expired':
+			os.alert({ type: 'warning', text: i18n.ts._remoteGuestLogin.expired });
+			break;
+	}
+}
+
 watch(() => props.acct, reload);
 
 onMounted(() => {
+	handleRemoteGuestLoginResult();
 	reload();
 });
 

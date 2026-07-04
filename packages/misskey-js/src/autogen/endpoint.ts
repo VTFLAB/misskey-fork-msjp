@@ -585,6 +585,14 @@ import type {
 	PingResponse,
 	PinnedUsersResponse,
 	PromoReadRequest,
+	RemoteGuestLoginStartRequest,
+	RemoteGuestLoginStartResponse,
+	RemoteGuestSessionRevokeRequest,
+	RemoteGuestSessionRevokeResponse,
+	RemoteGuestTwitchCommentsRequest,
+	RemoteGuestTwitchCommentsResponse,
+	RemoteGuestTwitchCommentsCreateRequest,
+	RemoteGuestTwitchCommentsCreateResponse,
 	RenoteMuteCreateRequest,
 	RenoteMuteDeleteRequest,
 	RenoteMuteListRequest,
@@ -1087,6 +1095,10 @@ export type Endpoints = {
 	'ping': { req: EmptyRequest; res: PingResponse };
 	'pinned-users': { req: EmptyRequest; res: PinnedUsersResponse };
 	'promo/read': { req: PromoReadRequest; res: EmptyResponse };
+	'remote-guest/login/start': { req: RemoteGuestLoginStartRequest; res: RemoteGuestLoginStartResponse };
+	'remote-guest/session/revoke': { req: RemoteGuestSessionRevokeRequest; res: RemoteGuestSessionRevokeResponse };
+	'remote-guest/twitch-comments': { req: RemoteGuestTwitchCommentsRequest; res: RemoteGuestTwitchCommentsResponse };
+	'remote-guest/twitch-comments/create': { req: RemoteGuestTwitchCommentsCreateRequest; res: RemoteGuestTwitchCommentsCreateResponse };
 	'renote-mute/create': { req: RenoteMuteCreateRequest; res: EmptyResponse };
 	'renote-mute/delete': { req: RenoteMuteDeleteRequest; res: EmptyResponse };
 	'renote-mute/list': { req: RenoteMuteListRequest; res: RenoteMuteListResponse };

@@ -54,6 +54,8 @@ import {
 	MiRegistrationTicket,
 	MiRegistryItem,
 	MiRelay,
+	MiRemoteGuestAccount,
+	MiRemoteGuestSession,
 	MiRenoteMuting,
 	MiRepository,
 	miRepository,
@@ -572,6 +574,18 @@ const $twitchStreamCommentsRepository: Provider = {
 	inject: [DI.db],
 };
 
+const $remoteGuestAccountsRepository: Provider = {
+	provide: DI.remoteGuestAccountsRepository,
+	useFactory: (db: DataSource) => db.getRepository(MiRemoteGuestAccount).extend(miRepository as MiRepository<MiRemoteGuestAccount>),
+	inject: [DI.db],
+};
+
+const $remoteGuestSessionsRepository: Provider = {
+	provide: DI.remoteGuestSessionsRepository,
+	useFactory: (db: DataSource) => db.getRepository(MiRemoteGuestSession).extend(miRepository as MiRepository<MiRemoteGuestSession>),
+	inject: [DI.db],
+};
+
 @Module({
 	imports: [],
 	providers: [
@@ -655,6 +669,8 @@ const $twitchStreamCommentsRepository: Provider = {
 		$twitchAccountsRepository,
 		$twitchStreamsRepository,
 		$twitchStreamCommentsRepository,
+		$remoteGuestAccountsRepository,
+		$remoteGuestSessionsRepository,
 	],
 	exports: [
 		$usersRepository,
@@ -737,6 +753,8 @@ const $twitchStreamCommentsRepository: Provider = {
 		$twitchAccountsRepository,
 		$twitchStreamsRepository,
 		$twitchStreamCommentsRepository,
+		$remoteGuestAccountsRepository,
+		$remoteGuestSessionsRepository,
 	],
 })
 export class RepositoryModule {
