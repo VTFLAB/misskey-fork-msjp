@@ -339,13 +339,15 @@ export interface TwitchLiveStreamEventTypes {
 	comment: {
 		id: string;
 		createdAt: string;
-		source: 'misskey' | 'twitch';
+		source: 'misskey' | 'twitch' | 'remote-guest';
 		text: string;
 		user: Packed<'UserLite'> | null;
 		files: Packed<'DriveFile'>[];
 		twitchUserName: string | null;
 		twitchDisplayName: string | null;
 		fragments: TwitchChatFragment[] | null;
+		// source=remote-guest のときのみ設定 (リモートインスタンスのユーザー表示用)
+		remoteGuest: { username: string; host: string } | null;
 	};
 	streamEnded: Record<string, never>;
 }

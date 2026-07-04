@@ -10,6 +10,7 @@ import { MiTwitchStreamComment } from '@/models/TwitchStreamComment.js';
 import type { TwitchChatFragment } from '@/models/TwitchStreamComment.js';
 import type { MiTwitchStream } from '@/models/TwitchStream.js';
 import type { MiUser } from '@/models/User.js';
+import type { MiRemoteGuestAccount } from '@/models/RemoteGuestAccount.js';
 import { IdService } from '@/core/IdService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import type { TwitchLiveStreamEventTypes } from '@/core/GlobalEventService.js';
@@ -60,6 +61,27 @@ export class TwitchCommentService {
 	}
 
 	/**
+	 * リモートMisskeyインスタンスのゲストユーザーのコメントを投稿する。
+	 * ノートとは完全分離、fileIds/fragments は使わない (misskey/twitch 専用の機能のため)。
+	 */
+	@bindThis
+	public async createRemoteGuestComment(stream: MiTwitchStream, guest: MiRemoteGuestAccount, text: string): Promise<MiTwitchStreamComment> {
+		const comment = await this.twitchStreamCommentsRepository.insertOne(new MiTwitchStreamComment({
+			id: this.idService.gen(),
+			streamId: stream.id,
+			source: 'remote-guest',
+			remoteGuestAccountId: guest.id,
+			remoteGuestUsername: guest.username,
+			remoteGuestHost: guest.host,
+			text,
+			fileIds: [],
+		}));
+
+		await this.publishComment(stream.id, comment, null);
+		return comment;
+	}
+
+	/**
 	 * Twitch チャット由来のコメントを取り込む。twitchMessageId で重複排除する。
 	 */
 	@bindThis
@@ -102,6 +124,9 @@ export class TwitchCommentService {
 			twitchUserName: comment.twitchUserName,
 			twitchDisplayName: comment.twitchDisplayName,
 			fragments: comment.fragments,
+			remoteGuest: (comment.remoteGuestUsername != null && comment.remoteGuestHost != null)
+				? { username: comment.remoteGuestUsername, host: comment.remoteGuestHost }
+				: null,
 		};
 	}
 
@@ -125,6 +150,9 @@ export class TwitchCommentService {
 			twitchUserName: c.twitchUserName,
 			twitchDisplayName: c.twitchDisplayName,
 			fragments: c.fragments,
+			remoteGuest: (c.remoteGuestUsername != null && c.remoteGuestHost != null)
+				? { username: c.remoteGuestUsername, host: c.remoteGuestHost }
+				: null,
 		}));
 	}
 

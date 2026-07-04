@@ -124,6 +124,10 @@ type Source = {
 		clientSecret?: string;
 	};
 
+	remoteGuestLogin?: {
+		allowedHosts?: string[];
+	};
+
 	logging?: {
 		format?: LogFormat;
 		level?: LogLevelSetting;
@@ -240,6 +244,12 @@ export type Config = {
 	twitch: {
 		clientId: string;
 		clientSecret: string;
+	} | undefined;
+
+	// リモートMisskeyインスタンスのユーザー向けゲストログイン (fork 独自)。
+	// allowedHosts が空/未設定なら機能全体が無効。事前精査済みホストのみを想定した固定リスト運用。
+	remoteGuestLogin: {
+		allowedHosts: string[];
 	} | undefined;
 };
 
@@ -372,6 +382,13 @@ export function loadConfig(): Config {
 		twitch: (config.twitch?.clientId && config.twitch.clientSecret) ? {
 			clientId: config.twitch.clientId,
 			clientSecret: config.twitch.clientSecret,
+		} : undefined,
+		remoteGuestLogin: (config.remoteGuestLogin?.allowedHosts && config.remoteGuestLogin.allowedHosts.length > 0) ? {
+			allowedHosts: config.remoteGuestLogin.allowedHosts.map(host => {
+				const normalized = host.trim().toLowerCase().replace(/\.$/, '');
+				tryCreateUrl(`https://${normalized}`); // 不正なホスト名なら起動時に例外を投げる
+				return normalized;
+			}),
 		} : undefined,
 	};
 }
