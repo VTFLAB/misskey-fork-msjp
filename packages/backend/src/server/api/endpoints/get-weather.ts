@@ -7,6 +7,7 @@ import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { ApiError } from '@/server/api/error.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
+import { ApiLoggerService } from '@/server/api/ApiLoggerService.js';
 
 type OpenMeteoResponse = {
 	current?: {
@@ -103,6 +104,7 @@ export const paramDef = {
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
 		private httpRequestService: HttpRequestService,
+		private apiLoggerService: ApiLoggerService,
 	) {
 		super(meta, paramDef, async (ps) => {
 			const url = new URL('https://api.open-meteo.com/v1/forecast');
@@ -123,11 +125,16 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					timeout: 5000,
 				});
 				json = await res.json() as OpenMeteoResponse;
-			} catch {
+			} catch (err) {
+				// 原因不明のまま握りつぶさない。ネットワーク層 (PMTUD blackhole 等) の
+				// 恒常的な障害はクライアント側からは "問題が発生しました" としか見えないため、
+				// 少なくともサーバーログには実際の例外を残す
+				this.apiLoggerService.logger.warn(`get-weather: failed to fetch Open-Meteo (${url.searchParams.get('latitude')},${url.searchParams.get('longitude')}): ${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}`);
 				throw new ApiError(meta.errors.weatherApiError);
 			}
 
 			if (json.current == null) {
+				this.apiLoggerService.logger.warn(`get-weather: Open-Meteo response missing 'current' field (${url.searchParams.get('latitude')},${url.searchParams.get('longitude')})`);
 				throw new ApiError(meta.errors.weatherApiError);
 			}
 
