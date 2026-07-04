@@ -56,6 +56,8 @@ import { MiPromoRead } from '@/models/PromoRead.js';
 import { MiRegistrationTicket } from '@/models/RegistrationTicket.js';
 import { MiRegistryItem } from '@/models/RegistryItem.js';
 import { MiRelay } from '@/models/Relay.js';
+import { MiRemoteGuestAccount } from '@/models/RemoteGuestAccount.js';
+import { MiRemoteGuestSession } from '@/models/RemoteGuestSession.js';
 import { MiSignin } from '@/models/Signin.js';
 import { MiSwSubscription } from '@/models/SwSubscription.js';
 import { MiTwitchAccount } from '@/models/TwitchAccount.js';
@@ -202,6 +204,8 @@ export const entities = [
 	MiTwitchAccount,
 	MiTwitchStream,
 	MiTwitchStreamComment,
+	MiRemoteGuestAccount,
+	MiRemoteGuestSession,
 	MiUpdateInfo,
 	MiUsedUsername,
 	MiFollowing,

@@ -471,3 +471,7 @@ export * as 'twitch/streams/show' from './endpoints/twitch/streams/show.js';
 export * as 'twitch/streams/comments' from './endpoints/twitch/streams/comments.js';
 export * as 'twitch/streams/comments/create' from './endpoints/twitch/streams/comments/create.js';
 export * as 'twitch/unlink' from './endpoints/twitch/unlink.js';
+export * as 'remote-guest/login/start' from './endpoints/remote-guest/login/start.js';
+export * as 'remote-guest/session/revoke' from './endpoints/remote-guest/session/revoke.js';
+export * as 'remote-guest/twitch-comments' from './endpoints/remote-guest/twitch-comments.js';
+export * as 'remote-guest/twitch-comments/create' from './endpoints/remote-guest/twitch-comments/create.js';
