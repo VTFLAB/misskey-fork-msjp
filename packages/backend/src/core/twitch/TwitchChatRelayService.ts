@@ -8,7 +8,6 @@ import * as mfm from 'mfm-js';
 import { DI } from '@/di-symbols.js';
 import type { TwitchStreamsRepository } from '@/models/_.js';
 import type { MiTwitchStream } from '@/models/TwitchStream.js';
-import type { MiUser } from '@/models/User.js';
 import type { TwitchChatFragment } from '@/models/TwitchStreamComment.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
@@ -57,11 +56,13 @@ export class TwitchChatRelayService {
 	 * Misskey 側コメントを bot 経由で Twitch チャットへ送信する (fire-and-forget)。
 	 * Twitch 未連携ユーザーのコメントも bot が代理発言することで全コメントが中継される。
 	 * bot 未設定・失効時は静かにスキップ (Misskey 側の投稿は既に成立している)。
+	 * @param user 表示名の代わりに username (不変・一意) だけを使う。ローカルユーザーの
+	 * MiUser、またはリモートゲストの "username@host" 表記など、username 文字列のみで足りる
 	 */
 	@bindThis
 	public relayToTwitch(
 		stream: MiTwitchStream,
-		user: MiUser,
+		user: { username: string },
 		text: string,
 	): void {
 		(async () => {

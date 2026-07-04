@@ -9,6 +9,7 @@ export type Keys = (
 	'instance' |
 	'instanceCachedAt' |
 	'account' |
+	'remoteGuestSession' |
 	'latestDonationInfoShownAt' |
 	'neverShowDonationInfo' |
 	'neverShowLocalOnlyInfo' |
