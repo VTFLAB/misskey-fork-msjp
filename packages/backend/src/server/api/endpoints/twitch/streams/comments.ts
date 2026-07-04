@@ -47,6 +47,7 @@ export const meta = {
 							type: { type: 'string', enum: ['text', 'emote'], optional: false, nullable: false },
 							text: { type: 'string', optional: false, nullable: false },
 							emoteId: { type: 'string', optional: true, nullable: false },
+							animated: { type: 'boolean', optional: true, nullable: false },
 						},
 					},
 				},
@@ -56,6 +57,7 @@ export const meta = {
 					properties: {
 						username: { type: 'string', optional: false, nullable: false },
 						host: { type: 'string', optional: false, nullable: false },
+						avatarUrl: { type: 'string', optional: false, nullable: true },
 					},
 				},
 			},
