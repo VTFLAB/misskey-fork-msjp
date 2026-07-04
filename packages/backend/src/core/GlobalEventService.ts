@@ -347,7 +347,7 @@ export interface TwitchLiveStreamEventTypes {
 		twitchDisplayName: string | null;
 		fragments: TwitchChatFragment[] | null;
 		// source=remote-guest のときのみ設定 (リモートインスタンスのユーザー表示用)
-		remoteGuest: { username: string; host: string } | null;
+		remoteGuest: { username: string; host: string; avatarUrl: string | null } | null;
 	};
 	streamEnded: Record<string, never>;
 }

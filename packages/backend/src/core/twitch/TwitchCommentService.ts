@@ -4,8 +4,9 @@
  */
 
 import { Injectable, Inject } from '@nestjs/common';
+import { In } from 'typeorm';
 import { DI } from '@/di-symbols.js';
-import type { TwitchStreamCommentsRepository } from '@/models/_.js';
+import type { TwitchStreamCommentsRepository, RemoteGuestAccountsRepository } from '@/models/_.js';
 import { MiTwitchStreamComment } from '@/models/TwitchStreamComment.js';
 import type { TwitchChatFragment } from '@/models/TwitchStreamComment.js';
 import type { MiTwitchStream } from '@/models/TwitchStream.js';
@@ -31,6 +32,9 @@ export class TwitchCommentService {
 	constructor(
 		@Inject(DI.twitchStreamCommentsRepository)
 		private twitchStreamCommentsRepository: TwitchStreamCommentsRepository,
+
+		@Inject(DI.remoteGuestAccountsRepository)
+		private remoteGuestAccountsRepository: RemoteGuestAccountsRepository,
 
 		private idService: IdService,
 		private globalEventService: GlobalEventService,
@@ -77,7 +81,7 @@ export class TwitchCommentService {
 			fileIds: [],
 		}));
 
-		await this.publishComment(stream.id, comment, null);
+		await this.publishComment(stream.id, comment, null, guest);
 		return comment;
 	}
 
@@ -111,7 +115,12 @@ export class TwitchCommentService {
 	}
 
 	@bindThis
-	public async pack(comment: MiTwitchStreamComment, user: MiUser | null): Promise<PackedTwitchStreamComment> {
+	public async pack(comment: MiTwitchStreamComment, user: MiUser | null, guest?: MiRemoteGuestAccount | null): Promise<PackedTwitchStreamComment> {
+		// guest が明示的に渡されなかった場合のみ都度引く (投稿直後の publish は呼び出し側が既に持っているインスタンスを渡すため引き直さない)
+		const remoteGuestAccount = guest !== undefined
+			? guest
+			: (comment.remoteGuestAccountId != null ? await this.remoteGuestAccountsRepository.findOneBy({ id: comment.remoteGuestAccountId }) : null);
+
 		return {
 			id: comment.id,
 			createdAt: this.idService.parse(comment.id).date.toISOString(),
@@ -125,7 +134,7 @@ export class TwitchCommentService {
 			twitchDisplayName: comment.twitchDisplayName,
 			fragments: comment.fragments,
 			remoteGuest: (comment.remoteGuestUsername != null && comment.remoteGuestHost != null)
-				? { username: comment.remoteGuestUsername, host: comment.remoteGuestHost }
+				? { username: comment.remoteGuestUsername, host: comment.remoteGuestHost, avatarUrl: remoteGuestAccount?.avatarUrl ?? null }
 				: null,
 		};
 	}
@@ -140,6 +149,11 @@ export class TwitchCommentService {
 		const users = userIds.length > 0 ? await this.userEntityService.packMany(userIds) : [];
 		const userById = new Map(users.map(u => [u.id, u]));
 		const fileById = await this.driveFileEntityService.packManyByIdsMap([...new Set(comments.flatMap(c => c.fileIds))]);
+		const remoteGuestAccountIds = [...new Set(comments.flatMap(c => c.remoteGuestAccountId != null ? [c.remoteGuestAccountId] : []))];
+		const remoteGuestAccounts = remoteGuestAccountIds.length > 0
+			? await this.remoteGuestAccountsRepository.findBy({ id: In(remoteGuestAccountIds) })
+			: [];
+		const avatarUrlByRemoteGuestAccountId = new Map(remoteGuestAccounts.map(a => [a.id, a.avatarUrl]));
 		return comments.map(c => ({
 			id: c.id,
 			createdAt: this.idService.parse(c.id).date.toISOString(),
@@ -151,14 +165,14 @@ export class TwitchCommentService {
 			twitchDisplayName: c.twitchDisplayName,
 			fragments: c.fragments,
 			remoteGuest: (c.remoteGuestUsername != null && c.remoteGuestHost != null)
-				? { username: c.remoteGuestUsername, host: c.remoteGuestHost }
+				? { username: c.remoteGuestUsername, host: c.remoteGuestHost, avatarUrl: (c.remoteGuestAccountId != null ? avatarUrlByRemoteGuestAccountId.get(c.remoteGuestAccountId) : null) ?? null }
 				: null,
 		}));
 	}
 
 	@bindThis
-	private async publishComment(streamId: string, comment: MiTwitchStreamComment, user: MiUser | null): Promise<void> {
-		const packed = await this.pack(comment, user);
+	private async publishComment(streamId: string, comment: MiTwitchStreamComment, user: MiUser | null, guest: MiRemoteGuestAccount | null = null): Promise<void> {
+		const packed = await this.pack(comment, user, guest);
 		this.globalEventService.publishTwitchLiveStream(streamId, 'comment', packed);
 	}
 }
