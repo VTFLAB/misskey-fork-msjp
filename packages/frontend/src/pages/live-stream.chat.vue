@@ -11,6 +11,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</button>
 		<template v-if="canParticipate">
 			<div v-for="comment in comments" :key="comment.id" :class="$style.comment">
+				<button
+					v-if="canModerate && isBlockableComment(comment)"
+					class="_button"
+					:class="$style.commentMenuButton"
+					:title="i18n.ts.menu"
+					:aria-label="i18n.ts.menu"
+					@click="openCommentMenu(comment, $event)"
+				>
+					<i class="ti ti-dots"></i>
+				</button>
 				<template v-if="comment.source === 'misskey' && comment.user != null">
 					<MkAvatar :user="comment.user" :class="$style.avatar" link preview/>
 					<div :class="$style.commentBody">
@@ -111,6 +121,7 @@ import MkMfmToolbar from '@/components/MkMfmToolbar.vue';
 import XRemoteGuestLogin from '@/pages/live-stream.remote-guest-login.vue';
 import { prefer } from '@/preferences.js';
 import { remoteGuestSession } from '@/composables/use-remote-guest-session.js';
+import { twitchTtsSettings, enqueueTtsSpeech } from '@/composables/use-twitch-tts.js';
 
 type Comment = Misskey.Endpoints['twitch/streams/comments']['res'][number];
 
@@ -120,6 +131,8 @@ const props = defineProps<{
 	streamId: string;
 	live: boolean;
 	returnTo: string;
+	// 配信者本人のみ true。コメントのブロックメニューと読み上げの有効化条件
+	canModerate?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -262,6 +275,10 @@ async function loadOlder() {
 function onComment(comment: Comment) {
 	if (comments.value.some(c => c.id === comment.id)) return;
 	comments.value.push(comment);
+	// コメント読み上げは配信者本人のブラウザでのみ動かす (視聴者側では読み上げない)
+	if (props.canModerate && twitchTtsSettings.value.enabled) {
+		enqueueTtsSpeech(comment.text);
+	}
 	// メモリ節約: 表示は直近 300 件に制限 (履歴はさかのぼり読み込みで参照可能)
 	if (comments.value.length > 300) {
 		comments.value = comments.value.slice(-300);
@@ -274,6 +291,50 @@ function onComment(comment: Comment) {
 		// 件数だけ増やして「新着コメント」ボタンに反映する
 		newCommentsCount.value++;
 	}
+}
+
+// 配信者用: コメント投稿者を配信からブロックする。自分のコメントと、
+// 対象を導出できないコメント (退会済みユーザー等) はメニュー自体を出さない
+function isBlockableComment(comment: Comment): boolean {
+	if (comment.source === 'misskey') return comment.user != null && comment.user.id !== $i?.id;
+	if (comment.source === 'remote-guest') return comment.remoteGuest != null;
+	return comment.twitchUserName != null;
+}
+
+function commentAuthorName(comment: Comment): string {
+	if (comment.source === 'misskey') return comment.user?.name ?? comment.user?.username ?? '?';
+	if (comment.source === 'remote-guest') return comment.remoteGuest != null ? `${comment.remoteGuest.username}@${comment.remoteGuest.host}` : '?';
+	return comment.twitchDisplayName ?? comment.twitchUserName ?? '?';
+}
+
+// ブロック後、表示中の同一投稿者のコメントもまとめて消す (サーバー側の履歴には残る)
+function isSameAuthor(a: Comment, b: Comment): boolean {
+	if (a.source !== b.source) return false;
+	if (a.source === 'misskey') return a.user != null && b.user != null && a.user.id === b.user.id;
+	if (a.source === 'remote-guest') {
+		return a.remoteGuest != null && b.remoteGuest != null
+			&& a.remoteGuest.username === b.remoteGuest.username
+			&& a.remoteGuest.host === b.remoteGuest.host;
+	}
+	return a.twitchUserName != null && a.twitchUserName === b.twitchUserName;
+}
+
+function openCommentMenu(comment: Comment, ev: MouseEvent) {
+	os.popupMenu([{
+		text: i18n.ts._twitch.blockUser,
+		icon: 'ti ti-ban',
+		danger: true,
+		action: async () => {
+			const { canceled } = await os.confirm({
+				type: 'warning',
+				text: i18n.tsx._twitch.blockConfirm({ name: commentAuthorName(comment) }),
+			});
+			if (canceled) return;
+
+			await os.apiWithDialog('twitch/streams/blocks/create', { commentId: comment.id });
+			comments.value = comments.value.filter(c => !isSameAuthor(comment, c));
+		},
+	}], ev.currentTarget ?? ev.target);
 }
 
 function onKeydown(ev: KeyboardEvent) {
@@ -468,6 +529,29 @@ onUnmounted(() => {
 	gap: 8px;
 	align-items: flex-start;
 	font-size: 0.92em;
+	position: relative;
+
+	&:hover .commentMenuButton,
+	&:focus-within .commentMenuButton {
+		opacity: 1;
+	}
+}
+
+// 配信者専用のコメントメニュー (ブロック)。ホバー時のみ右上に浮かせて表示し、
+// 通常のコメント表示を邪魔しない
+.commentMenuButton {
+	position: absolute;
+	top: 0;
+	right: 0;
+	width: 24px;
+	height: 24px;
+	border-radius: var(--MI-radius-sm, 4px);
+	background: var(--MI_THEME-panel);
+	opacity: 0;
+
+	&:hover {
+		color: var(--MI_THEME-accent);
+	}
 }
 
 .avatar {

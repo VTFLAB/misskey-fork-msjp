@@ -14,6 +14,7 @@ import type Logger from '@/logger.js';
 import { TwitchApiService } from './TwitchApiService.js';
 import { TwitchOAuthService } from './TwitchOAuthService.js';
 import { TwitchCommentService } from './TwitchCommentService.js';
+import { TwitchStreamBlockService } from './TwitchStreamBlockService.js';
 import { TwitchLoggerService } from './TwitchLoggerService.js';
 
 // Twitch チャットの上限は 500 文字。「名前: 本文」の接頭辞込みで収める
@@ -48,6 +49,7 @@ export class TwitchChatRelayService {
 		private twitchApiService: TwitchApiService,
 		private twitchOAuthService: TwitchOAuthService,
 		private twitchCommentService: TwitchCommentService,
+		private twitchStreamBlockService: TwitchStreamBlockService,
 		private twitchLoggerService: TwitchLoggerService,
 	) {
 		this.logger = this.twitchLoggerService.child('chat-relay');
@@ -188,10 +190,17 @@ export class TwitchChatRelayService {
 		});
 		if (stream == null) return;
 
+		// 配信者にブロックされたチャッターの発言は取り込まない (永続化も配信もしない)。
+		// Twitch 側のチャット欄には残るが、Misskey 側の視聴ページ・OBS オーバーレイには出ない
+		if (await this.twitchStreamBlockService.isBlockedTwitchChatter(stream.userId, event.chatter_user_id, event.chatter_user_login)) {
+			return;
+		}
+
 		await this.twitchCommentService.createTwitchComment(stream, {
 			twitchMessageId: event.message_id,
 			twitchUserName: event.chatter_user_login,
 			twitchDisplayName: event.chatter_user_name,
+			twitchChatterUserId: event.chatter_user_id,
 			text: event.message.text,
 			fragments: this.sanitizeFragments(event.message.fragments),
 		});

@@ -10,6 +10,7 @@ export type Keys = (
 	'instanceCachedAt' |
 	'account' |
 	'remoteGuestSession' |
+	'twitchTts' |
 	'latestDonationInfoShownAt' |
 	'neverShowDonationInfo' |
 	'neverShowLocalOnlyInfo' |
