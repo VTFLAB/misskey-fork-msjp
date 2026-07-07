@@ -81,6 +81,7 @@
 		limit: clampNumber(query.get('limit'), 8, 1, 50),
 		duration: clampNumber(query.get('duration'), 12000, 0, 600000),
 		order: pickEnum(query.get('order'), ['bottom', 'top'], 'bottom'),
+		align: pickEnum(query.get('align'), ['left', 'center', 'right'], 'left'),
 		animIn: pickEnum(query.get('animIn'), ['slide', 'slideRight', 'fade', 'pop', 'none'], 'slide'),
 		animOut: pickEnum(query.get('animOut'), ['fade', 'slideLeft', 'none'], 'fade'),
 		animTime: clampNumber(query.get('animTime'), 300, 0, 5000),
@@ -135,6 +136,7 @@
 
 	const containerEl = document.getElementById('comments');
 	containerEl.classList.add(`cg-order-${config.order}`);
+	containerEl.classList.add(`cg-align-${config.align}`);
 
 	//#region acct
 

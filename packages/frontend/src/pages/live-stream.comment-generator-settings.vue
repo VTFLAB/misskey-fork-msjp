@@ -67,8 +67,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkSelect v-model="draft.mode" :items="modeItems">
 						<template #label>{{ i18n.ts._twitch.commentGenMode }}</template>
 					</MkSelect>
+					<div :class="$style.positionGroupLabel">{{ i18n.ts._twitch.commentGenPositionGroup }}</div>
 					<MkSelect v-model="draft.order" :items="orderItems">
 						<template #label>{{ i18n.ts._twitch.commentGenOrder }}</template>
+					</MkSelect>
+					<MkSelect v-model="draft.align" :items="alignItems">
+						<template #label>{{ i18n.ts._twitch.commentGenAlign }}</template>
 					</MkSelect>
 					<MkInput v-model="draft.limit" type="number" :min="1" :max="50">
 						<template #label>{{ i18n.ts._twitch.commentGenLimit }}</template>
@@ -253,6 +257,7 @@ const presetPickerButtonEl = useTemplateRef('presetPickerButtonEl');
 // backend/HTMLページ側の実装には立ち入らない
 type CommentGenMode = 'fade' | 'stack';
 type CommentGenOrder = 'bottom' | 'top';
+type CommentGenAlign = 'left' | 'center' | 'right';
 type CommentGenAnimIn = 'slide' | 'slideRight' | 'fade' | 'pop' | 'none';
 type CommentGenAnimOut = 'fade' | 'slideLeft' | 'none';
 
@@ -261,6 +266,7 @@ type CommentGenSettings = {
 	limit: number;
 	duration: number;
 	order: CommentGenOrder;
+	align: CommentGenAlign;
 	animIn: CommentGenAnimIn;
 	animOut: CommentGenAnimOut;
 	animTime: number;
@@ -301,6 +307,7 @@ const DEFAULT_SETTINGS: CommentGenSettings = {
 	limit: 8,
 	duration: 12000,
 	order: 'bottom',
+	align: 'left',
 	animIn: 'slide',
 	animOut: 'fade',
 	animTime: 300,
@@ -330,6 +337,7 @@ const SETTINGS_KEYS = Object.keys(DEFAULT_SETTINGS) as (keyof CommentGenSettings
 
 const MODE_VALUES: readonly CommentGenMode[] = ['fade', 'stack'];
 const ORDER_VALUES: readonly CommentGenOrder[] = ['bottom', 'top'];
+const ALIGN_VALUES: readonly CommentGenAlign[] = ['left', 'center', 'right'];
 const ANIM_IN_VALUES: readonly CommentGenAnimIn[] = ['slide', 'slideRight', 'fade', 'pop', 'none'];
 const ANIM_OUT_VALUES: readonly CommentGenAnimOut[] = ['fade', 'slideLeft', 'none'];
 
@@ -371,6 +379,7 @@ function sanitizeSettings(raw: unknown): CommentGenSettings {
 		limit: clampNumber(src.limit, DEFAULT_SETTINGS.limit, 1, 50),
 		duration: clampNumber(src.duration, DEFAULT_SETTINGS.duration, 0, 600000),
 		order: pickEnum(src.order, ORDER_VALUES, DEFAULT_SETTINGS.order),
+		align: pickEnum(src.align, ALIGN_VALUES, DEFAULT_SETTINGS.align),
 		animIn: pickEnum(src.animIn, ANIM_IN_VALUES, DEFAULT_SETTINGS.animIn),
 		animOut: pickEnum(src.animOut, ANIM_OUT_VALUES, DEFAULT_SETTINGS.animOut),
 		animTime: clampNumber(src.animTime, DEFAULT_SETTINGS.animTime, 0, 5000),
@@ -487,6 +496,12 @@ const modeItems = [
 const orderItems = [
 	{ value: 'bottom', label: i18n.ts._twitch.commentGenOrderBottom },
 	{ value: 'top', label: i18n.ts._twitch.commentGenOrderTop },
+];
+
+const alignItems = [
+	{ value: 'left', label: i18n.ts._twitch.commentGenAlignLeft },
+	{ value: 'center', label: i18n.ts._twitch.commentGenAlignCenter },
+	{ value: 'right', label: i18n.ts._twitch.commentGenAlignRight },
 ];
 
 const animInItems = [
@@ -935,6 +950,13 @@ function openPreviewUrl() {
 .presetPickerLabel {
 	font-size: 0.85em;
 	opacity: 0.8;
+}
+
+.positionGroupLabel {
+	font-size: 0.85em;
+	opacity: 0.8;
+	padding-top: 4px;
+	border-top: solid 1px var(--MI_THEME-divider);
 }
 
 .presetPickerButton {
