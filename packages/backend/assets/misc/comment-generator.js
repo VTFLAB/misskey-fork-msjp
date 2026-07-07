@@ -57,6 +57,23 @@
 		return raw;
 	}
 
+	// http/https のみ許可。それ以外 (javascript: 等) は無視する
+	function sanitizeFontUrl(raw) {
+		if (typeof raw !== 'string' || raw.length === 0 || raw.length > 2048) return null;
+		try {
+			const u = new URL(raw, location.href);
+			if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+			return u.href;
+		} catch {
+			return null;
+		}
+	}
+
+	// FontFace の src は url("...") として埋め込むため " と \ をエスケープする
+	function cssUrlEscape(raw) {
+		return raw.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+	}
+
 	const query = new URLSearchParams(location.search);
 
 	const config = {
@@ -78,7 +95,24 @@
 	};
 
 	const root = document.documentElement;
-	root.style.setProperty('--cg-font-family', sanitizeFontFamily(query.get('font'), '"Hiragino Sans", "Segoe UI", Roboto, sans-serif'));
+
+	const fontFallbackFamily = sanitizeFontFamily(query.get('font'), '"Hiragino Sans", "Segoe UI", Roboto, sans-serif');
+	const fontUrl = sanitizeFontUrl(query.get('fontUrl'));
+	if (fontUrl != null) {
+		// カスタムフォントのロードが失敗してもフォールバックのフォントスタックで通常動作する
+		root.style.setProperty('--cg-font-family', `'cg-custom-font', ${fontFallbackFamily}`);
+		try {
+			const fontFace = new FontFace('cg-custom-font', `url("${cssUrlEscape(fontUrl)}")`);
+			fontFace.load()
+				.then(loaded => document.fonts.add(loaded))
+				.catch(() => {});
+		} catch {
+			// FontFace 未対応環境などはフォールバックのまま
+		}
+	} else {
+		root.style.setProperty('--cg-font-family', fontFallbackFamily);
+	}
+
 	root.style.setProperty('--cg-font-size', `${clampNumber(query.get('fontSize'), 16, 8, 96)}px`);
 	root.style.setProperty('--cg-font-weight', /^(normal|bold|bolder|lighter|[1-9]00)$/.test(query.get('fontWeight') ?? '') ? query.get('fontWeight') : '700');
 	root.style.setProperty('--cg-text-color', sanitizeColor(query.get('textColor'), '#ffffff'));
