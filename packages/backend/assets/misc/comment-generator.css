@@ -53,9 +53,25 @@ html, body {
 	justify-content: flex-start;
 }
 
+/* align-items が stretch (デフォルト) のままだと .cg-comment が横幅いっぱいに
+   伸びてしまい、寄せ (align) を変えても .cg-body が常に左端に見えてしまうため、
+   横位置ごとに cross-axis の揃え方を切り替える */
+#comments.cg-align-left {
+	align-items: flex-start;
+}
+
+#comments.cg-align-center {
+	align-items: center;
+}
+
+#comments.cg-align-right {
+	align-items: flex-end;
+}
+
 .cg-comment {
 	display: flex;
 	flex-shrink: 0;
+	max-width: 100%;
 }
 
 .cg-body {
