@@ -143,4 +143,10 @@ export type TwitchCommentTranslateJobData = {
 	commentId: string;
 	streamId: string;
 	targetLang: 'ja' | 'en';
+	/**
+	 * 翻訳完了後に翻訳文を Twitch チャットへ中継する (投稿翻訳の日本語入力用)。
+	 * 同期翻訳待ちはリバースプロキシのタイムアウトでレスポンスが壊れるため中継までキューに委ねる。
+	 * 翻訳失敗時は原文を中継する (コメントを取りこぼさない)
+	 */
+	relayToTwitch?: boolean;
 };
