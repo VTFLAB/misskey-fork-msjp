@@ -14275,6 +14275,22 @@ export interface Locale extends ILocale {
          * 未適用の変更があります。破棄してテンプレートを適用しますか？
          */
         "commentGenDiscardConfirm": string;
+        /**
+         * 設定を反映
+         */
+        "commentGenCommit": string;
+        /**
+         * 未反映の変更あり
+         */
+        "commentGenUncommittedBadge": string;
+        /**
+         * フォームに未プレビューの変更があります。「プレビューに適用」を行うと、その内容もあわせて反映できます。
+         */
+        "commentGenCommitHint": string;
+        /**
+         * 設定に反映されていない変更があります。破棄して閉じますか？
+         */
+        "commentGenCloseConfirm": string;
     };
     "_remoteGuestLogin": {
         /**
