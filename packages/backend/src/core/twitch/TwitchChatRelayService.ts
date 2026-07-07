@@ -184,10 +184,19 @@ export class TwitchChatRelayService {
 		const bot = await this.twitchOAuthService.getBotAccount();
 		if (bot != null && event.chatter_user_id === bot.twitchUserId) return;
 
-		const stream = await this.twitchStreamsRepository.findOneBy({
+		let stream = await this.twitchStreamsRepository.findOneBy({
 			twitchUserId: event.broadcaster_user_id,
 			isLive: true,
 		});
+		if (stream == null) {
+			// 配信していない間はプレビュー行があればそこへ取り込む。
+			// EventSub の chat 購読は配信状態と無関係に常設のため、オフライン中の
+			// Twitch チャットもプレビューモード (配信前の機能検証) で確認できる
+			stream = await this.twitchStreamsRepository.findOneBy({
+				twitchUserId: event.broadcaster_user_id,
+				isPreview: true,
+			});
+		}
 		if (stream == null) return;
 
 		// 配信者にブロックされたチャッターの発言は取り込まない (永続化も配信もしない)。
