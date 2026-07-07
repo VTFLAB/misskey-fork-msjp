@@ -268,7 +268,14 @@ export type Channels = {
 				twitchUserName: string | null;
 				twitchDisplayName: string | null;
 				fragments: TwitchChatFragment[] | null;
+				translatedText: string | null;
+				translatedLang: string | null;
 				remoteGuest: { username: string; host: string; avatarUrl: string | null } | null;
+			}) => void;
+			commentTranslated: (payload: {
+				id: string;
+				translatedText: string;
+				translatedLang: string;
 			}) => void;
 			streamEnded: (payload: Record<string, never>) => void;
 		};

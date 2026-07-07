@@ -6,7 +6,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { In } from 'typeorm';
 import { DI } from '@/di-symbols.js';
-import type { TwitchStreamCommentsRepository, RemoteGuestAccountsRepository } from '@/models/_.js';
+import type { TwitchStreamCommentsRepository, RemoteGuestAccountsRepository, TwitchAccountsRepository } from '@/models/_.js';
 import { MiTwitchStreamComment } from '@/models/TwitchStreamComment.js';
 import type { TwitchChatFragment } from '@/models/TwitchStreamComment.js';
 import type { MiTwitchStream } from '@/models/TwitchStream.js';
@@ -17,6 +17,8 @@ import { GlobalEventService } from '@/core/GlobalEventService.js';
 import type { TwitchLiveStreamEventTypes } from '@/core/GlobalEventService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
+import { QueueService } from '@/core/QueueService.js';
+import { detectJaEn } from '@/misc/detect-ja-en.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { TwitchLoggerService } from './TwitchLoggerService.js';
@@ -36,10 +38,14 @@ export class TwitchCommentService {
 		@Inject(DI.remoteGuestAccountsRepository)
 		private remoteGuestAccountsRepository: RemoteGuestAccountsRepository,
 
+		@Inject(DI.twitchAccountsRepository)
+		private twitchAccountsRepository: TwitchAccountsRepository,
+
 		private idService: IdService,
 		private globalEventService: GlobalEventService,
 		private userEntityService: UserEntityService,
 		private driveFileEntityService: DriveFileEntityService,
+		private queueService: QueueService,
 		private twitchLoggerService: TwitchLoggerService,
 	) {
 		this.logger = this.twitchLoggerService.child('comment');
@@ -48,9 +54,11 @@ export class TwitchCommentService {
 	/**
 	 * Misskey ユーザーのコメントを投稿する。永続化 → 視聴ページへリアルタイム配信。
 	 * Twitch への中継は呼び出し側 (TwitchChatRelayService) が行う。
+	 * @param translation 呼び出し側 (endpoint) が同期翻訳済みの場合のみ渡す。Misskey投稿の翻訳は
+	 * ユーザー明示の `translate` パラメータに一元化しており、このメソッド自体は非同期翻訳キューへは投入しない
 	 */
 	@bindThis
-	public async createMisskeyComment(stream: MiTwitchStream, user: MiUser, text: string, fileIds: string[] = []): Promise<MiTwitchStreamComment> {
+	public async createMisskeyComment(stream: MiTwitchStream, user: MiUser, text: string, fileIds: string[] = [], translation?: { text: string; lang: 'ja' | 'en' } | null): Promise<MiTwitchStreamComment> {
 		const comment = await this.twitchStreamCommentsRepository.insertOne(new MiTwitchStreamComment({
 			id: this.idService.gen(),
 			streamId: stream.id,
@@ -58,6 +66,8 @@ export class TwitchCommentService {
 			userId: user.id,
 			text,
 			fileIds,
+			translatedText: translation?.text ?? null,
+			translatedLang: translation?.lang ?? null,
 		}));
 
 		await this.publishComment(stream.id, comment, user);
@@ -82,6 +92,7 @@ export class TwitchCommentService {
 		}));
 
 		await this.publishComment(stream.id, comment, null, guest);
+		await this.enqueueTranslationIfNeeded(stream, comment);
 		return comment;
 	}
 
@@ -113,7 +124,27 @@ export class TwitchCommentService {
 		}));
 
 		await this.publishComment(stream.id, comment, null);
+		await this.enqueueTranslationIfNeeded(stream, comment);
 		return comment;
+	}
+
+	/**
+	 * 配信者が翻訳機能を有効にしている場合のみ、非日本語コメントを日本語への非同期翻訳キューに投入する。
+	 * source=misskey は対象外 (ユーザー明示の `translate` パラメータによる同期翻訳に一元化済み)。
+	 */
+	@bindThis
+	private async enqueueTranslationIfNeeded(stream: MiTwitchStream, comment: MiTwitchStreamComment): Promise<void> {
+		const detected = detectJaEn(comment.text);
+		if (detected !== 'en') return; // 日本語 or 判定不能はキュー投入しない
+
+		const account = await this.twitchAccountsRepository.findOneBy({ userId: stream.userId });
+		if (account == null || !account.translationEnabled) return;
+
+		await this.queueService.twitchCommentTranslate({
+			commentId: comment.id,
+			streamId: stream.id,
+			targetLang: 'ja',
+		});
 	}
 
 	@bindThis
@@ -135,6 +166,8 @@ export class TwitchCommentService {
 			twitchUserName: comment.twitchUserName,
 			twitchDisplayName: comment.twitchDisplayName,
 			fragments: comment.fragments,
+			translatedText: comment.translatedText,
+			translatedLang: comment.translatedLang,
 			remoteGuest: (comment.remoteGuestUsername != null && comment.remoteGuestHost != null)
 				? { username: comment.remoteGuestUsername, host: comment.remoteGuestHost, avatarUrl: remoteGuestAccount?.avatarUrl ?? null }
 				: null,
@@ -166,6 +199,8 @@ export class TwitchCommentService {
 			twitchUserName: c.twitchUserName,
 			twitchDisplayName: c.twitchDisplayName,
 			fragments: c.fragments,
+			translatedText: c.translatedText,
+			translatedLang: c.translatedLang,
 			remoteGuest: (c.remoteGuestUsername != null && c.remoteGuestHost != null)
 				? { username: c.remoteGuestUsername, host: c.remoteGuestHost, avatarUrl: (c.remoteGuestAccountId != null ? avatarUrlByRemoteGuestAccountId.get(c.remoteGuestAccountId) : null) ?? null }
 				: null,
@@ -176,5 +211,17 @@ export class TwitchCommentService {
 	private async publishComment(streamId: string, comment: MiTwitchStreamComment, user: MiUser | null, guest: MiRemoteGuestAccount | null = null): Promise<void> {
 		const packed = await this.pack(comment, user, guest);
 		this.globalEventService.publishTwitchLiveStream(streamId, 'comment', packed);
+	}
+
+	/**
+	 * 非同期翻訳完了イベントを配信する (bsky-fork 独自)。既表示済みコメントの翻訳フィールドを後埋めする。
+	 */
+	@bindThis
+	public async publishTranslation(streamId: string, commentId: string, translatedText: string, translatedLang: string): Promise<void> {
+		this.globalEventService.publishTwitchLiveStream(streamId, 'commentTranslated', {
+			id: commentId,
+			translatedText,
+			translatedLang,
+		});
 	}
 }

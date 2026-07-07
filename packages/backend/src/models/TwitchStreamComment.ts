@@ -128,6 +128,19 @@ export class MiTwitchStreamComment {
 	})
 	public fileIds: MiDriveFile['id'][];
 
+	// 翻訳結果 (bsky-fork 独自)。未翻訳/翻訳失敗時は null。source=misskey の同期翻訳、
+	// または非同期翻訳キュー (TwitchCommentTranslateProcessorService) のいずれかで設定される
+	@Column('varchar', {
+		length: 1024, nullable: true,
+	})
+	public translatedText: string | null;
+
+	// 翻訳結果の言語 ('ja' | 'en' 等)。translatedText と対で設定される
+	@Column('varchar', {
+		length: 8, nullable: true,
+	})
+	public translatedLang: string | null;
+
 	constructor(data: Partial<MiTwitchStreamComment>) {
 		if (data == null) return;
 

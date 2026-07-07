@@ -10,6 +10,8 @@ import { MiUser } from './User.js';
 // Twitch の配信セッション。stream.online 〜 stream.offline を 1 レコードで表す。
 // 過去セッションも履歴として残す (視聴ページのコメント履歴が streamId で紐づくため)。
 @Entity('twitch_stream')
+// 配信者 1 人につきプレビュー行 (isPreview = true) は最大 1 件 (bsky-fork 独自)
+@Index(['userId'], { unique: true, where: '"isPreview" = true' })
 export class MiTwitchStream {
 	@PrimaryColumn(id())
 	public id: string;
@@ -52,6 +54,14 @@ export class MiTwitchStream {
 		default: false,
 	})
 	public isLive: boolean;
+
+	// 配信者が配信開始前にチャット動作確認を行うためのプレビュー行 (bsky-fork 独自)。
+	// isLive は常に false のまま保つ (getLiveStreamByUserId 等の live 判定クエリから自動除外するため)。
+	// 配信者 1 人につき最大 1 行 (partial unique index、migration 1783396235871 側で定義)
+	@Column('boolean', {
+		default: false,
+	})
+	public isPreview: boolean;
 
 	@Column('varchar', {
 		length: 512, default: '',

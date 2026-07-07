@@ -26,6 +26,7 @@ export const meta = {
 			twitchDisplayName: { type: 'string', optional: false, nullable: true },
 			botLinked: { type: 'boolean', optional: false, nullable: false },
 			botLogin: { type: 'string', optional: false, nullable: true },
+			translationEnabled: { type: 'boolean', optional: false, nullable: false },
 		},
 	},
 } as const;
@@ -51,6 +52,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					twitchDisplayName: null,
 					botLinked: false,
 					botLogin: null,
+					translationEnabled: false,
 				};
 			}
 
@@ -66,6 +68,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				twitchDisplayName: account?.twitchDisplayName ?? null,
 				botLinked: bot != null,
 				botLogin: bot?.twitchLogin ?? null,
+				translationEnabled: account?.translationEnabled ?? false,
 			};
 		});
 	}
