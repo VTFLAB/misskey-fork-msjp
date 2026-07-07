@@ -12,6 +12,7 @@ export type Keys = (
 	'remoteGuestSession' |
 	'twitchTts' |
 	'twitchTranslationDisplay' |
+	'twitchCommentGen' |
 	'latestDonationInfoShownAt' |
 	'neverShowDonationInfo' |
 	'neverShowLocalOnlyInfo' |
