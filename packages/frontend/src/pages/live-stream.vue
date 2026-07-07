@@ -168,6 +168,16 @@ function openStreamerSettings(ev: MouseEvent) {
 			);
 		},
 	}, {
+		text: i18n.ts._twitch.commentGenSettings,
+		icon: 'ti ti-message-2-cog',
+		action: async () => {
+			const { dispose } = await os.popupAsyncWithDialog(
+				import('@/pages/live-stream.comment-generator-settings.vue').then(x => x.default),
+				{ acct: props.acct },
+				{ closed: () => dispose() },
+			);
+		},
+	}, {
 		text: i18n.ts._twitch.manageBlocks,
 		icon: 'ti ti-ban',
 		action: async () => {
