@@ -23,6 +23,8 @@
 	//#region query params -> --cg-* CSS variables / behavior config
 
 	function clampNumber(raw, def, min, max) {
+		// Number(null) === 0 のため、パラメータ省略時は必ずデフォルトに落とす
+		if (raw == null || raw === '') return def;
 		const n = Number(raw);
 		if (!Number.isFinite(n)) return def;
 		return Math.min(max, Math.max(min, n));
