@@ -138,7 +138,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					if (detected === 'ja' || detected === 'en') {
 						const targetLang = detected === 'ja' ? 'en' : 'ja';
 						try {
-							const translatedText = await this.twitchTranslationService.translate(text, targetLang);
+							// 長文は CPU 推論で数十秒かかる。投稿者が明示的にONにした操作なので
+							// レスポンスを待たせてでも翻訳を成立させる (上限30秒、超過はフォールバック)
+							const translatedText = await this.twitchTranslationService.translate(text, targetLang, 30_000);
 							translation = { text: translatedText, lang: targetLang };
 							// Twitch へは常に英語で中継する (日本語入力は翻訳結果、英語入力は原文のまま)
 							twitchRelayText = detected === 'ja' ? translatedText : text;
