@@ -14064,7 +14064,7 @@ export interface Locale extends ILocale {
          */
         "commentGenFont": string;
         /**
-         * CSSのfont-familyとして扱われます。空欄でデフォルトのフォントを使用します。
+         * 選択したフォントはCSSのfont-familyとして扱われます。
          */
         "commentGenFontDescription": string;
         /**
@@ -14088,6 +14088,42 @@ export interface Locale extends ILocale {
          */
         "commentGenFontWeightBlack": string;
         /**
+         * デフォルト
+         */
+        "commentGenFontPresetDefault": string;
+        /**
+         * ゴシック体
+         */
+        "commentGenFontPresetGothic": string;
+        /**
+         * 明朝体
+         */
+        "commentGenFontPresetMincho": string;
+        /**
+         * 丸ゴシック体
+         */
+        "commentGenFontPresetRounded": string;
+        /**
+         * 等幅
+         */
+        "commentGenFontPresetMonospace": string;
+        /**
+         * Driveからフォントを選択...
+         */
+        "commentGenFontDriveSelect": string;
+        /**
+         * Drive: {name}
+         */
+        "commentGenFontDriveLabel": ParameterizedString<"name">;
+        /**
+         * Drive: (選択済みのフォント)
+         */
+        "commentGenFontDriveLabelUnknown": string;
+        /**
+         * フォントファイルとして認識できない形式です。woff2/woff/ttf/otf形式のファイルを選択してください。
+         */
+        "commentGenFontDriveInvalidType": string;
+        /**
          * 色
          */
         "commentGenColorGroup": string;
@@ -14108,7 +14144,15 @@ export interface Locale extends ILocale {
          */
         "commentGenBgColor": string;
         /**
-         * "none"で背景を透過します。
+         * 背景を透過する
+         */
+        "commentGenBgTransparent": string;
+        /**
+         * 背景の不透明度
+         */
+        "commentGenBgOpacity": string;
+        /**
+         * オンにすると背景色を透過します。
          */
         "commentGenBgColorDescription": string;
         /**
@@ -14219,6 +14263,18 @@ export interface Locale extends ILocale {
          * プレビューを開く
          */
         "commentGenOpenPreview": string;
+        /**
+         * プレビューに適用
+         */
+        "commentGenApply": string;
+        /**
+         * 未適用の変更があります
+         */
+        "commentGenUnappliedChanges": string;
+        /**
+         * 未適用の変更があります。破棄してテンプレートを適用しますか？
+         */
+        "commentGenDiscardConfirm": string;
     };
     "_remoteGuestLogin": {
         /**
