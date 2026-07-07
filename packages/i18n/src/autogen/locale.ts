@@ -13883,6 +13883,46 @@ export interface Locale extends ILocale {
          * ブロックしたユーザーはいません。
          */
         "noBlockedUsers": string;
+        /**
+         * コメント翻訳設定
+         */
+        "translationSettings": string;
+        /**
+         * コメントを自動翻訳する
+         */
+        "translationEnable": string;
+        /**
+         * 有効にすると、日本語↔英語のコメントを自動翻訳して視聴者・Twitch双方に表示します。
+         */
+        "translationEnableDescription": string;
+        /**
+         * 翻訳を表示
+         */
+        "showTranslation": string;
+        /**
+         * 翻訳済みのコメントを原文の下に表示します。このブラウザでのみ有効です。
+         */
+        "showTranslationDescription": string;
+        /**
+         * 投稿を翻訳する
+         */
+        "translateMyComment": string;
+        /**
+         * 送信するコメントを自動翻訳します。配信者が翻訳機能を有効にしている場合のみ動作します。
+         */
+        "translateMyCommentDescription": string;
+        /**
+         * プレビューモードで開く
+         */
+        "openPreview": string;
+        /**
+         * 配信を開始せずに、視聴レイアウトとチャットの動作確認ができます。
+         */
+        "openPreviewDescription": string;
+        /**
+         * プレビューモード (配信は開始されていません)
+         */
+        "previewModeNotice": string;
     };
     "_remoteGuestLogin": {
         /**

@@ -79,6 +79,15 @@ export async function fetchTtsSpeakers(engineUrl: string): Promise<TtsSpeakerSty
 }
 
 /**
+ * 日本語 (ひらがな・カタカナ・CJK漢字) を含むかの軽量判定。
+ * backend の detect-ja-en.ts と同等の文字レンジ判定で、翻訳読み上げの
+ * 「日本語コメントは即読み・非日本語は訳文を待つ」の振り分けに使う
+ */
+export function containsJapanese(text: string): boolean {
+	return /[぀-ゟ゠-ヿ一-鿿]/.test(text);
+}
+
+/**
  * MFM や URL を読み上げ用の平文に落とす。読めない装飾・URL・絵文字は除去する
  */
 export function toReadableText(text: string): string {
