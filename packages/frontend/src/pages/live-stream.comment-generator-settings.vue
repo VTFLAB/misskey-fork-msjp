@@ -22,14 +22,31 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<iframe :class="$style.previewFrame" :src="previewSrc" :title="i18n.ts._twitch.commentGenLivePreview" frameborder="0"></iframe>
 			</div>
 
+			<div :class="$style.applySection">
+				<MkButton :primary="hasUnappliedChanges" @click="applyDraft">
+					<i class="ti ti-device-floppy"></i> {{ i18n.ts._twitch.commentGenApply }}
+				</MkButton>
+				<span v-if="hasUnappliedChanges" :class="$style.unappliedBadge">
+					<i class="ti ti-alert-circle"></i> {{ i18n.ts._twitch.commentGenUnappliedChanges }}
+				</span>
+			</div>
+
 			<MkFolder :defaultOpen="true">
 				<template #icon><i class="ti ti-template"></i></template>
 				<template #label>{{ i18n.ts._twitch.commentGenTemplateGroup }}</template>
 
 				<div class="_gaps_s">
-					<MkSelect v-model="selectedPresetId" :items="presetItems">
-						<template #label>{{ i18n.ts._twitch.commentGenTemplateSelect }}</template>
-					</MkSelect>
+					<div :class="$style.presetPickerLabel">{{ i18n.ts._twitch.commentGenTemplateSelect }}</div>
+					<button
+						ref="presetPickerButtonEl"
+						type="button"
+						class="_button"
+						:class="$style.presetPickerButton"
+						@click="showPresetMenu"
+					>
+						<span>{{ selectedPresetLabel }}</span>
+						<i class="ti ti-chevron-down"></i>
+					</button>
 					<div class="_buttons">
 						<MkButton @click="saveAsNewTemplate"><i class="ti ti-device-floppy"></i> {{ i18n.ts._twitch.commentGenTemplateSave }}</MkButton>
 						<MkButton :disabled="!isUserTemplateSelected" @click="overwriteSelectedTemplate"><i class="ti ti-refresh"></i> {{ i18n.ts._twitch.commentGenTemplateOverwrite }}</MkButton>
@@ -47,21 +64,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template #label>{{ i18n.ts._twitch.commentGenModeGroup }}</template>
 
 				<div class="_gaps_s">
-					<MkSelect v-model="settings.mode" :items="modeItems">
+					<MkSelect v-model="draft.mode" :items="modeItems">
 						<template #label>{{ i18n.ts._twitch.commentGenMode }}</template>
 					</MkSelect>
-					<MkSelect v-model="settings.order" :items="orderItems">
+					<MkSelect v-model="draft.order" :items="orderItems">
 						<template #label>{{ i18n.ts._twitch.commentGenOrder }}</template>
 					</MkSelect>
-					<MkInput v-model="settings.limit" type="number" :min="1" :max="50">
+					<MkInput v-model="draft.limit" type="number" :min="1" :max="50">
 						<template #label>{{ i18n.ts._twitch.commentGenLimit }}</template>
 					</MkInput>
-					<MkInput v-if="settings.mode === 'fade'" v-model="settings.duration" type="number" :min="0" :max="600000" :step="500">
+					<MkInput v-if="draft.mode === 'fade'" v-model="draft.duration" type="number" :min="0" :max="600000" :step="500">
 						<template #label>{{ i18n.ts._twitch.commentGenDuration }}</template>
 						<template #suffix>ms</template>
 						<template #caption>{{ i18n.ts._twitch.commentGenDurationDescription }}</template>
 					</MkInput>
-					<MkInput v-model="settings.history" type="number" :min="0" :max="30">
+					<MkInput v-model="draft.history" type="number" :min="0" :max="30">
 						<template #label>{{ i18n.ts._twitch.commentGenHistory }}</template>
 						<template #caption>{{ i18n.ts._twitch.commentGenHistoryDescription }}</template>
 					</MkInput>
@@ -73,15 +90,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template #label>{{ i18n.ts._twitch.commentGenFontGroup }}</template>
 
 				<div class="_gaps_s">
-					<MkInput v-model="settings.font">
+					<MkSelect v-model="selectedFontId" :items="fontPresetItems" @update:modelValue="onSelectFont">
 						<template #label>{{ i18n.ts._twitch.commentGenFont }}</template>
 						<template #caption>{{ i18n.ts._twitch.commentGenFontDescription }}</template>
-					</MkInput>
-					<MkInput v-model="settings.fontSize" type="number" :min="8" :max="96">
+					</MkSelect>
+					<MkInput v-model="draft.fontSize" type="number" :min="8" :max="96">
 						<template #label>{{ i18n.ts._twitch.commentGenFontSize }}</template>
 						<template #suffix>px</template>
 					</MkInput>
-					<MkSelect v-model="settings.fontWeight" :items="fontWeightItems">
+					<MkSelect v-model="draft.fontWeight" :items="fontWeightItems">
 						<template #label>{{ i18n.ts._twitch.commentGenFontWeight }}</template>
 					</MkSelect>
 				</div>
@@ -92,22 +109,31 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template #label>{{ i18n.ts._twitch.commentGenColorGroup }}</template>
 
 				<div class="_gaps_s">
-					<MkInput v-model="settings.textColor">
+					<MkColorInput v-model="textColorHex">
 						<template #label>{{ i18n.ts._twitch.commentGenTextColor }}</template>
-					</MkInput>
-					<MkInput v-model="settings.nameColor">
+					</MkColorInput>
+					<MkColorInput v-model="nameColorHex">
 						<template #label>{{ i18n.ts._twitch.commentGenNameColor }}</template>
-					</MkInput>
-					<MkInput v-model="settings.transColor">
+					</MkColorInput>
+					<MkColorInput v-model="transColorHex">
 						<template #label>{{ i18n.ts._twitch.commentGenTransColor }}</template>
-					</MkInput>
-					<MkInput v-model="settings.bgColor">
-						<template #label>{{ i18n.ts._twitch.commentGenBgColor }}</template>
+					</MkColorInput>
+					<MkSwitch v-model="bgTransparent">
+						{{ i18n.ts._twitch.commentGenBgTransparent }}
 						<template #caption>{{ i18n.ts._twitch.commentGenBgColorDescription }}</template>
-					</MkInput>
-					<MkInput v-model="settings.outlineColor">
+					</MkSwitch>
+					<template v-if="!bgTransparent">
+						<MkColorInput v-model="bgColorHex">
+							<template #label>{{ i18n.ts._twitch.commentGenBgColor }}</template>
+						</MkColorInput>
+						<MkRange v-model="bgOpacity" :min="0" :max="100" :step="1">
+							<template #label>{{ i18n.ts._twitch.commentGenBgOpacity }}</template>
+							<template #suffix>%</template>
+						</MkRange>
+					</template>
+					<MkColorInput v-model="outlineColorHex">
 						<template #label>{{ i18n.ts._twitch.commentGenOutlineColor }}</template>
-					</MkInput>
+					</MkColorInput>
 				</div>
 			</MkFolder>
 
@@ -116,28 +142,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template #label>{{ i18n.ts._twitch.commentGenLayoutGroup }}</template>
 
 				<div class="_gaps_s">
-					<MkInput v-model="settings.outline" type="number" :min="0" :max="20">
+					<MkInput v-model="draft.outline" type="number" :min="0" :max="20">
 						<template #label>{{ i18n.ts._twitch.commentGenOutline }}</template>
 						<template #suffix>px</template>
 						<template #caption>{{ i18n.ts._twitch.commentGenOutlineDescription }}</template>
 					</MkInput>
-					<MkInput v-model="settings.radius" type="number" :min="0" :max="100">
+					<MkInput v-model="draft.radius" type="number" :min="0" :max="100">
 						<template #label>{{ i18n.ts._twitch.commentGenRadius }}</template>
 						<template #suffix>px</template>
 					</MkInput>
-					<MkInput v-model="settings.padding" type="number" :min="0" :max="100">
+					<MkInput v-model="draft.padding" type="number" :min="0" :max="100">
 						<template #label>{{ i18n.ts._twitch.commentGenPadding }}</template>
 						<template #suffix>px</template>
 					</MkInput>
-					<MkInput v-model="settings.gap" type="number" :min="0" :max="100">
+					<MkInput v-model="draft.gap" type="number" :min="0" :max="100">
 						<template #label>{{ i18n.ts._twitch.commentGenGap }}</template>
 						<template #suffix>px</template>
 					</MkInput>
-					<MkInput v-model="settings.iconSize" type="number" :min="12" :max="128">
+					<MkInput v-model="draft.iconSize" type="number" :min="12" :max="128">
 						<template #label>{{ i18n.ts._twitch.commentGenIconSize }}</template>
 						<template #suffix>px</template>
 					</MkInput>
-					<MkInput v-model="settings.emojiScale" type="number" :min="0.5" :max="4" :step="0.1">
+					<MkInput v-model="draft.emojiScale" type="number" :min="0.5" :max="4" :step="0.1">
 						<template #label>{{ i18n.ts._twitch.commentGenEmojiScale }}</template>
 					</MkInput>
 				</div>
@@ -148,13 +174,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template #label>{{ i18n.ts._twitch.commentGenAnimGroup }}</template>
 
 				<div class="_gaps_s">
-					<MkSelect v-model="settings.animIn" :items="animInItems">
+					<MkSelect v-model="draft.animIn" :items="animInItems">
 						<template #label>{{ i18n.ts._twitch.commentGenAnimIn }}</template>
 					</MkSelect>
-					<MkSelect v-model="settings.animOut" :items="animOutItems">
+					<MkSelect v-model="draft.animOut" :items="animOutItems">
 						<template #label>{{ i18n.ts._twitch.commentGenAnimOut }}</template>
 					</MkSelect>
-					<MkInput v-model="settings.animTime" type="number" :min="0" :max="5000" :step="50">
+					<MkInput v-model="draft.animTime" type="number" :min="0" :max="5000" :step="50">
 						<template #label>{{ i18n.ts._twitch.commentGenAnimTime }}</template>
 						<template #suffix>ms</template>
 					</MkInput>
@@ -166,10 +192,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<template #label>{{ i18n.ts._twitch.commentGenElementsGroup }}</template>
 
 				<div class="_gaps_s">
-					<MkSwitch v-model="settings.icon">{{ i18n.ts._twitch.commentGenShowIcon }}</MkSwitch>
-					<MkSwitch v-model="settings.name">{{ i18n.ts._twitch.commentGenShowName }}</MkSwitch>
-					<MkSwitch v-model="settings.translation">{{ i18n.ts._twitch.commentGenShowTranslation }}</MkSwitch>
-					<MkSwitch v-model="settings.media">{{ i18n.ts._twitch.commentGenShowMedia }}</MkSwitch>
+					<MkSwitch v-model="draft.icon">{{ i18n.ts._twitch.commentGenShowIcon }}</MkSwitch>
+					<MkSwitch v-model="draft.name">{{ i18n.ts._twitch.commentGenShowName }}</MkSwitch>
+					<MkSwitch v-model="draft.translation">{{ i18n.ts._twitch.commentGenShowTranslation }}</MkSwitch>
+					<MkSwitch v-model="draft.media">{{ i18n.ts._twitch.commentGenShowMedia }}</MkSwitch>
 				</div>
 			</MkFolder>
 
@@ -187,7 +213,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, reactive, ref, useTemplateRef, watch } from 'vue';
+import { computed, reactive, ref, useTemplateRef } from 'vue';
 import { url as serverUrl } from '@@/js/config.js';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkFolder from '@/components/MkFolder.vue';
@@ -196,9 +222,12 @@ import MkInput from '@/components/MkInput.vue';
 import MkSelect from '@/components/MkSelect.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
 import MkButton from '@/components/MkButton.vue';
+import MkColorInput from '@/components/MkColorInput.vue';
+import MkRange from '@/components/MkRange.vue';
 import { i18n } from '@/i18n.js';
 import { miLocalStorage } from '@/local-storage.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
+import { chooseDriveFile } from '@/utility/drive.js';
 import * as os from '@/os.js';
 
 const props = defineProps<{
@@ -210,6 +239,7 @@ const emit = defineEmits<{
 }>();
 
 const dialog = useTemplateRef('dialog');
+const presetPickerButtonEl = useTemplateRef('presetPickerButtonEl');
 
 // OBS用コメントジェネレーターページ (backend側で実装、素のHTML + URLクエリパラメータ駆動) の
 // 設定ビルダー。backend実装と合意済みのクエリパラメータ契約はこのファイルのみが把握しており、
@@ -228,6 +258,7 @@ type CommentGenSettings = {
 	animOut: CommentGenAnimOut;
 	animTime: number;
 	font: string;
+	fontUrl: string;
 	fontSize: number;
 	fontWeight: string;
 	textColor: string;
@@ -267,6 +298,7 @@ const DEFAULT_SETTINGS: CommentGenSettings = {
 	animOut: 'fade',
 	animTime: 300,
 	font: '',
+	fontUrl: '',
 	fontSize: 16,
 	fontWeight: '700',
 	textColor: '',
@@ -287,6 +319,8 @@ const DEFAULT_SETTINGS: CommentGenSettings = {
 	history: 0,
 };
 
+const SETTINGS_KEYS = Object.keys(DEFAULT_SETTINGS) as (keyof CommentGenSettings)[];
+
 const MODE_VALUES: readonly CommentGenMode[] = ['fade', 'stack'];
 const ORDER_VALUES: readonly CommentGenOrder[] = ['bottom', 'top'];
 const ANIM_IN_VALUES: readonly CommentGenAnimIn[] = ['slide', 'slideRight', 'fade', 'pop', 'none'];
@@ -298,6 +332,17 @@ function pickEnum<T extends string>(value: unknown, allowed: readonly T[], fallb
 
 function pickString(value: unknown, fallback: string): string {
 	return typeof value === 'string' ? value : fallback;
+}
+
+function pickUrlString(value: unknown, fallback: string): string {
+	if (typeof value !== 'string' || value.length === 0) return fallback;
+	try {
+		const u = new URL(value);
+		if (u.protocol !== 'http:' && u.protocol !== 'https:') return fallback;
+		return value;
+	} catch {
+		return fallback;
+	}
 }
 
 function pickBoolean(value: unknown, fallback: boolean): boolean {
@@ -323,6 +368,7 @@ function sanitizeSettings(raw: unknown): CommentGenSettings {
 		animOut: pickEnum(src.animOut, ANIM_OUT_VALUES, DEFAULT_SETTINGS.animOut),
 		animTime: clampNumber(src.animTime, DEFAULT_SETTINGS.animTime, 0, 5000),
 		font: pickString(src.font, DEFAULT_SETTINGS.font),
+		fontUrl: pickUrlString(src.fontUrl, DEFAULT_SETTINGS.fontUrl),
 		fontSize: clampNumber(src.fontSize, DEFAULT_SETTINGS.fontSize, 8, 96),
 		fontWeight: pickString(src.fontWeight, DEFAULT_SETTINGS.fontWeight),
 		textColor: pickString(src.textColor, DEFAULT_SETTINGS.textColor),
@@ -370,16 +416,37 @@ function load(): CommentGenStoredData {
 	}
 }
 
-const stored = load();
-const settings = reactive<CommentGenSettings>(stored.current);
-const templates = ref<CommentGenTemplate[]>(stored.templates);
+function settingsEqual(a: CommentGenSettings, b: CommentGenSettings): boolean {
+	return SETTINGS_KEYS.every(key => a[key] === b[key]);
+}
 
-watch([settings, templates], () => {
+function persist() {
 	miLocalStorage.setItem('twitchCommentGen', JSON.stringify({
-		current: { ...settings },
+		current: { ...applied },
 		templates: templates.value,
 	}));
-}, { deep: true });
+}
+
+const stored = load();
+
+// フォーム編集は「下書き」(draft) にのみ反映される。「プレビューに適用」ボタンを押すまでは
+// iframe / 生成URL / miLocalStorage への保存には反映しない (デバウンス自動反映は撤去した)
+const draft = reactive<CommentGenSettings>({ ...stored.current });
+// 実際に適用済み (プレビュー・URL・永続化に使われる) の設定値
+const applied = reactive<CommentGenSettings>({ ...stored.current });
+const templates = ref<CommentGenTemplate[]>(stored.templates);
+
+// 「最後に適用したテンプレート or 保存済み値」を表す基準値。draft がこれと異なる状態で
+// 別のテンプレートを選択しようとしたら確認ダイアログを出す
+const templateBaseline = reactive<CommentGenSettings>({ ...stored.current });
+
+const hasUnappliedChanges = computed(() => !settingsEqual(draft, applied));
+
+function applyDraft() {
+	Object.assign(applied, draft);
+	Object.assign(templateBaseline, draft);
+	persist();
+}
 
 const modeItems = [
 	{ value: 'fade', label: i18n.ts._twitch.commentGenModeFade },
@@ -410,6 +477,188 @@ const fontWeightItems = [
 	{ value: '700', label: i18n.ts._twitch.commentGenFontWeightBold },
 	{ value: '900', label: i18n.ts._twitch.commentGenFontWeightBlack },
 ];
+
+//#region フォント (汎用フォントスタックのプリセット + Driveのカスタムフォント)
+type FontPreset = {
+	id: string;
+	family: string;
+	label: string;
+};
+
+// backend (comment-generator.js) 側の sanitizeFontFamily が許可する文字種
+// ([a-zA-Z0-9 ,._'"-]) の範囲内でのみ定義する
+const FONT_PRESETS: FontPreset[] = [
+	{ id: 'default', family: '', label: i18n.ts._twitch.commentGenFontPresetDefault },
+	{ id: 'gothic', family: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif', label: i18n.ts._twitch.commentGenFontPresetGothic },
+	{ id: 'mincho', family: '"Hiragino Mincho ProN", "Yu Mincho", "MS PMincho", serif', label: i18n.ts._twitch.commentGenFontPresetMincho },
+	{ id: 'rounded', family: '"Zen Maru Gothic", "Rounded Mplus 1c", sans-serif', label: i18n.ts._twitch.commentGenFontPresetRounded },
+	{ id: 'monospace', family: '"SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace', label: i18n.ts._twitch.commentGenFontPresetMonospace },
+];
+
+const DRIVE_FONT_ID = 'drive-custom';
+const SELECT_DRIVE_FONT_ID = 'select-drive';
+const LEGACY_FONT_ID = 'legacy-custom';
+
+// Driveから選んだフォントファイルの表示名 (見た目のみ、URLパラメータ契約には含めない)
+const driveFontFileName = ref('');
+
+const fontPresetItems = computed(() => {
+	const items = FONT_PRESETS.map(p => ({ value: p.id, label: p.label }));
+	if (draft.fontUrl.length > 0) {
+		items.push({
+			value: DRIVE_FONT_ID,
+			label: driveFontFileName.value.length > 0
+				? i18n.tsx._twitch.commentGenFontDriveLabel({ name: driveFontFileName.value })
+				: i18n.ts._twitch.commentGenFontDriveLabelUnknown,
+		});
+	} else if (draft.font.length > 0 && !FONT_PRESETS.some(p => p.family === draft.font)) {
+		// このコンポーネント導入前に自由入力されていたフォント文字列との互換用
+		items.push({ value: LEGACY_FONT_ID, label: `${i18n.ts._twitch.commentGenFontPresetDefault} (${draft.font})` });
+	}
+	items.push({ value: SELECT_DRIVE_FONT_ID, label: i18n.ts._twitch.commentGenFontDriveSelect });
+	return items;
+});
+
+const selectedFontId = computed(() => {
+	if (draft.fontUrl.length > 0) return DRIVE_FONT_ID;
+	const preset = FONT_PRESETS.find(p => p.family === draft.font);
+	if (preset != null) return preset.id;
+	if (draft.font.length > 0) return LEGACY_FONT_ID;
+	return 'default';
+});
+
+function isFontDriveFile(file: { name: string; type: string }): boolean {
+	if (/\.(woff2|woff|ttf|otf)$/i.test(file.name)) return true;
+	const type = file.type.toLowerCase();
+	return type.startsWith('font/') || type.startsWith('application/font-');
+}
+
+async function pickDriveFont() {
+	const files = await chooseDriveFile({ multiple: false });
+	const file = files[0];
+	if (file == null) return;
+	if (!isFontDriveFile(file)) {
+		os.alert({ type: 'error', text: i18n.ts._twitch.commentGenFontDriveInvalidType });
+		return;
+	}
+	draft.fontUrl = file.url;
+	driveFontFileName.value = file.name;
+}
+
+function onSelectFont(id: string) {
+	if (id === SELECT_DRIVE_FONT_ID) {
+		pickDriveFont();
+		return;
+	}
+	if (id === DRIVE_FONT_ID || id === LEGACY_FONT_ID) return; // 見た目のみの選択肢、実際の値は変えない
+	const preset = FONT_PRESETS.find(p => p.id === id);
+	if (preset == null) return;
+	draft.font = preset.family;
+	draft.fontUrl = '';
+	driveFontFileName.value = '';
+}
+//#endregion
+
+//#region 色 (input type=color + rgba/none 変換)
+const DEFAULT_TEXT_COLOR_HEX = '#ffffff';
+const DEFAULT_NAME_COLOR_HEX = '#ffe08a';
+const DEFAULT_TRANS_COLOR_HEX = '#b9e3ff';
+const DEFAULT_OUTLINE_COLOR_HEX = '#000000';
+const DEFAULT_BG_COLOR_HEX = '#000000';
+const DEFAULT_BG_OPACITY = 55; // %
+
+function normalizeCssColor(input: string): string | null {
+	const opt = window.document.createElement('option');
+	opt.style.color = '';
+	opt.style.color = input;
+	return opt.style.color.length > 0 ? opt.style.color : null;
+}
+
+function parseCssColor(input: string): { r: number; g: number; b: number; a: number } | null {
+	const normalized = normalizeCssColor(input);
+	if (normalized == null) return null;
+	const m = normalized.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)$/);
+	if (m == null) return null;
+	return {
+		r: Number(m[1]),
+		g: Number(m[2]),
+		b: Number(m[3]),
+		a: m[4] !== undefined ? Number(m[4]) : 1,
+	};
+}
+
+function toHex2(n: number): string {
+	return Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+	return `#${toHex2(r)}${toHex2(g)}${toHex2(b)}`;
+}
+
+// パースできない既存値はデフォルトにフォールバックする単純な色 (透過なし) 用の v-model プロキシ
+function makeHexColorProxy(key: 'textColor' | 'nameColor' | 'transColor' | 'outlineColor', fallbackHex: string) {
+	return computed<string>({
+		get: () => {
+			if (draft[key].length === 0) return fallbackHex;
+			const parsed = parseCssColor(draft[key]);
+			return parsed != null ? rgbToHex(parsed.r, parsed.g, parsed.b) : fallbackHex;
+		},
+		set: (hex: string) => {
+			draft[key] = hex;
+		},
+	});
+}
+
+const textColorHex = makeHexColorProxy('textColor', DEFAULT_TEXT_COLOR_HEX);
+const nameColorHex = makeHexColorProxy('nameColor', DEFAULT_NAME_COLOR_HEX);
+const transColorHex = makeHexColorProxy('transColor', DEFAULT_TRANS_COLOR_HEX);
+const outlineColorHex = makeHexColorProxy('outlineColor', DEFAULT_OUTLINE_COLOR_HEX);
+
+// bgColor は "none" (透過) を持つため、hex + 不透明度 + 透過スイッチの複合 UI にする。
+// 透過をオンにしても直前の色/不透明度を記憶しておき、オフに戻したときに復元する
+function initialBgMemory(): { hex: string; opacity: number } {
+	if (draft.bgColor.length === 0 || draft.bgColor === 'none') {
+		return { hex: DEFAULT_BG_COLOR_HEX, opacity: DEFAULT_BG_OPACITY };
+	}
+	const parsed = parseCssColor(draft.bgColor);
+	if (parsed == null) return { hex: DEFAULT_BG_COLOR_HEX, opacity: DEFAULT_BG_OPACITY };
+	return { hex: rgbToHex(parsed.r, parsed.g, parsed.b), opacity: Math.round(parsed.a * 100) };
+}
+
+const bgMemory = reactive(initialBgMemory());
+
+function applyBgColorFromMemory() {
+	const parsed = parseCssColor(bgMemory.hex) ?? { r: 0, g: 0, b: 0 };
+	draft.bgColor = `rgba(${parsed.r}, ${parsed.g}, ${parsed.b}, ${(bgMemory.opacity / 100).toFixed(2)})`;
+}
+
+const bgTransparent = computed<boolean>({
+	get: () => draft.bgColor === 'none',
+	set: (transparent: boolean) => {
+		if (transparent) {
+			draft.bgColor = 'none';
+		} else {
+			applyBgColorFromMemory();
+		}
+	},
+});
+
+const bgColorHex = computed<string>({
+	get: () => bgMemory.hex,
+	set: (hex: string) => {
+		bgMemory.hex = hex;
+		if (draft.bgColor !== 'none') applyBgColorFromMemory();
+	},
+});
+
+const bgOpacity = computed<number>({
+	get: () => bgMemory.opacity,
+	set: (opacity: number) => {
+		bgMemory.opacity = opacity;
+		if (draft.bgColor !== 'none') applyBgColorFromMemory();
+	},
+});
+//#endregion
 
 //#region テンプレート (組み込みプリセット + ユーザー保存分)
 type CommentGenPreset = {
@@ -460,26 +709,52 @@ const presetItems = computed(() => [
 	...templates.value.map((t, i) => ({ value: `${USER_ID_PREFIX}${i}`, label: t.name })),
 ]);
 
+const selectedPresetLabel = computed(() => presetItems.value.find(item => item.value === selectedPresetId.value)?.label ?? '');
+
 function findSelectedUserTemplateIndex(): number | null {
 	if (!selectedPresetId.value.startsWith(USER_ID_PREFIX)) return null;
 	const idx = Number(selectedPresetId.value.slice(USER_ID_PREFIX.length));
 	return templates.value[idx] != null ? idx : null;
 }
 
-function applyPreset(id: string) {
+function applyPresetToDraft(id: string) {
 	if (id.startsWith(USER_ID_PREFIX)) {
 		const idx = Number(id.slice(USER_ID_PREFIX.length));
 		const template = templates.value[idx];
 		if (template == null) return;
-		Object.assign(settings, sanitizeSettings(template.settings));
+		Object.assign(draft, sanitizeSettings(template.settings));
 		return;
 	}
 	const preset = BUILTIN_PRESETS.find(p => p.id === id);
 	if (preset == null) return;
-	Object.assign(settings, DEFAULT_SETTINGS, preset.overrides);
+	Object.assign(draft, DEFAULT_SETTINGS, preset.overrides);
 }
 
-watch(selectedPresetId, id => applyPreset(id));
+// テンプレート選択は os.popupMenu で直接実装する (MkSelect の v-model / defineModel は
+// 「選択中の値と同じ値を選び直す」ケースで emit そのものを抑止してしまい、既に選択中の
+// テンプレートを選び直しても何も起きないバグの原因だった。ここでは menu の action が
+// 常にクリックのたびに呼ばれるため、再選択でも確実に再適用できる)
+async function onSelectPreset(id: string) {
+	if (!settingsEqual(draft, templateBaseline)) {
+		const { canceled } = await os.confirm({
+			type: 'warning',
+			text: i18n.ts._twitch.commentGenDiscardConfirm,
+		});
+		if (canceled) return;
+	}
+	selectedPresetId.value = id;
+	applyPresetToDraft(id);
+	Object.assign(templateBaseline, draft);
+}
+
+function showPresetMenu() {
+	const menu = presetItems.value.map(item => ({
+		text: item.label,
+		active: item.value === selectedPresetId.value,
+		action: () => onSelectPreset(item.value),
+	}));
+	os.popupMenu(menu, presetPickerButtonEl.value);
+}
 
 async function saveAsNewTemplate() {
 	const { canceled, result } = await os.inputText({
@@ -499,19 +774,23 @@ async function saveAsNewTemplate() {
 			text: i18n.tsx._twitch.commentGenTemplateOverwriteConfirm({ name }),
 		});
 		if (overwriteCanceled) return;
-		templates.value[existingIndex] = { name, settings: { ...settings } };
+		templates.value[existingIndex] = { name, settings: { ...draft } };
 		selectedPresetId.value = `${USER_ID_PREFIX}${existingIndex}`;
 	} else {
-		templates.value.push({ name, settings: { ...settings } });
+		templates.value.push({ name, settings: { ...draft } });
 		selectedPresetId.value = `${USER_ID_PREFIX}${templates.value.length - 1}`;
 	}
+	Object.assign(templateBaseline, draft);
+	persist();
 	os.toast(i18n.ts._twitch.commentGenTemplateSaved);
 }
 
 function overwriteSelectedTemplate() {
 	const idx = findSelectedUserTemplateIndex();
 	if (idx == null) return;
-	templates.value[idx] = { name: templates.value[idx].name, settings: { ...settings } };
+	templates.value[idx] = { name: templates.value[idx].name, settings: { ...draft } };
+	Object.assign(templateBaseline, draft);
+	persist();
 	os.toast(i18n.ts._twitch.commentGenTemplateSaved);
 }
 
@@ -526,10 +805,11 @@ async function deleteSelectedTemplate() {
 	if (canceled) return;
 	templates.value.splice(idx, 1);
 	selectedPresetId.value = 'builtin:standard';
+	persist();
 }
 
 function exportSettings() {
-	copyToClipboard(JSON.stringify(settings));
+	copyToClipboard(JSON.stringify(draft));
 }
 
 async function importSettings() {
@@ -540,9 +820,10 @@ async function importSettings() {
 	if (canceled || result == null) return;
 	try {
 		const parsed = JSON.parse(result);
-		Object.assign(settings, sanitizeSettings(parsed));
+		Object.assign(draft, sanitizeSettings(parsed));
 		// インポートした内容はどの組み込み/保存済テンプレートとも一致しないため選択状態を外す
 		selectedPresetId.value = 'builtin:standard';
+		Object.assign(templateBaseline, draft);
 		os.toast(i18n.ts._twitch.commentGenImported);
 	} catch {
 		os.alert({ type: 'error', text: i18n.ts._twitch.commentGenImportFailed });
@@ -551,10 +832,11 @@ async function importSettings() {
 //#endregion
 
 // デフォルト値と同じ項目はURLに含めない (短いURLを保つ)。真偽値は 1/0 で表現する
+// プレビュー/コピー/新規タブいずれも「適用済み」(applied) の値からのみ生成する
 function buildUrl(demo: boolean): string {
 	const params = new URLSearchParams();
-	for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof CommentGenSettings)[]) {
-		const value = settings[key];
+	for (const key of SETTINGS_KEYS) {
+		const value = applied[key];
 		const defaultValue = DEFAULT_SETTINGS[key];
 		if (value === defaultValue) continue;
 		params.set(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value));
@@ -565,17 +847,7 @@ function buildUrl(demo: boolean): string {
 }
 
 const generatedUrl = computed(() => buildUrl(false));
-
-// プレビュー用iframeのsrc。設定変更のたびに毎回reloadすると重いため500msデバウンスして差し替える
-const previewSrc = ref(buildUrl(true));
-let previewDebounceTimer: number | null = null;
-
-watch(generatedUrl, () => {
-	if (previewDebounceTimer != null) window.clearTimeout(previewDebounceTimer);
-	previewDebounceTimer = window.setTimeout(() => {
-		previewSrc.value = buildUrl(true);
-	}, 500);
-});
+const previewSrc = computed(() => buildUrl(true));
 
 function copyUrl() {
 	copyToClipboard(generatedUrl.value);
@@ -611,6 +883,50 @@ function openPreviewUrl() {
 		linear-gradient(-45deg, transparent 75%, var(--MI_THEME-divider) 75%);
 	background-size: 20px 20px;
 	background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+}
+
+.applySection {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.unappliedBadge {
+	font-size: 0.85em;
+	color: var(--MI_THEME-warn);
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.presetPickerLabel {
+	font-size: 0.85em;
+	opacity: 0.8;
+}
+
+.presetPickerButton {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	width: 100%;
+	height: 42px;
+	padding: 0 12px;
+	box-sizing: border-box;
+	background: var(--MI_THEME-panel);
+	border: solid 1px var(--MI_THEME-panel);
+	border-radius: 6px;
+	color: var(--MI_THEME-fg);
+
+	&:hover {
+		border-color: var(--MI_THEME-inputBorderHover);
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--MI_THEME-accent);
+		outline-offset: -2px;
+	}
 }
 
 .urlSection {
