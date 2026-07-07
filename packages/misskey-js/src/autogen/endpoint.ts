@@ -642,8 +642,11 @@ import type {
 	TwitchStreamsCommentsResponse,
 	TwitchStreamsCommentsCreateRequest,
 	TwitchStreamsCommentsCreateResponse,
+	TwitchStreamsPreviewResponse,
 	TwitchStreamsShowRequest,
 	TwitchStreamsShowResponse,
+	TwitchUpdateSettingsRequest,
+	TwitchUpdateSettingsResponse,
 	UpdateInfoShowRequest,
 	UpdateInfoShowResponse,
 	UpdateInfosRequest,
@@ -1137,8 +1140,10 @@ export type Endpoints = {
 	'twitch/streams/blocks/list': { req: TwitchStreamsBlocksListRequest; res: TwitchStreamsBlocksListResponse };
 	'twitch/streams/comments': { req: TwitchStreamsCommentsRequest; res: TwitchStreamsCommentsResponse };
 	'twitch/streams/comments/create': { req: TwitchStreamsCommentsCreateRequest; res: TwitchStreamsCommentsCreateResponse };
+	'twitch/streams/preview': { req: EmptyRequest; res: TwitchStreamsPreviewResponse };
 	'twitch/streams/show': { req: TwitchStreamsShowRequest; res: TwitchStreamsShowResponse };
 	'twitch/unlink': { req: EmptyRequest; res: EmptyResponse };
+	'twitch/update-settings': { req: TwitchUpdateSettingsRequest; res: TwitchUpdateSettingsResponse };
 	'update-info/show': { req: UpdateInfoShowRequest; res: UpdateInfoShowResponse };
 	'update-infos': { req: UpdateInfosRequest; res: UpdateInfosResponse };
 	'username/available': { req: UsernameAvailableRequest; res: UsernameAvailableResponse };

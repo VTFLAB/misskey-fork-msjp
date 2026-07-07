@@ -18,6 +18,8 @@ export const QUEUE = {
 	OBJECT_STORAGE: 'objectStorage',
 	USER_WEBHOOK_DELIVER: 'userWebhookDeliver',
 	SYSTEM_WEBHOOK_DELIVER: 'systemWebhookDeliver',
+	// Twitch 配信コメント翻訳 (bsky-fork 独自)
+	TWITCH_COMMENT_TRANSLATE: 'twitchCommentTranslate',
 };
 
 export function baseQueueOptions(config: Config, queueName: typeof QUEUE[keyof typeof QUEUE]): Bull.QueueOptions {

@@ -5,6 +5,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div :class="$style.root">
+	<div v-if="canParticipate" :class="$style.toolbar">
+		<button
+			class="_button"
+			:class="[$style.translationToggle, { [$style.translationToggleActive]: twitchTranslationDisplaySettings.showTranslation }]"
+			:aria-pressed="twitchTranslationDisplaySettings.showTranslation"
+			:title="i18n.ts._twitch.showTranslationDescription"
+			:aria-label="i18n.ts._twitch.showTranslation"
+			@click="twitchTranslationDisplaySettings.showTranslation = !twitchTranslationDisplaySettings.showTranslation"
+		>
+			<i class="ti ti-language"></i> {{ i18n.ts._twitch.showTranslation }}
+		</button>
+	</div>
 	<div ref="listEl" :class="$style.list" @scroll.passive="onListScroll">
 		<button v-if="hasOlder" class="_button" :class="$style.loadOlder" :disabled="loadingOlder" @click="loadOlder">
 			{{ i18n.ts.loadMore }}
@@ -30,6 +42,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 						<Mfm v-if="comment.text" :class="$style.commentText" :text="comment.text" :author="comment.user" :i="$i"/>
 						<MkMediaList v-if="comment.files.length > 0" :class="$style.commentFiles" :mediaList="comment.files"/>
+						<div v-if="twitchTranslationDisplaySettings.showTranslation && comment.translatedText" :class="$style.translation">
+							<span :class="$style.translationText">{{ comment.translatedText }}</span>
+						</div>
 					</div>
 				</template>
 				<template v-else-if="comment.source === 'remote-guest'">
@@ -41,6 +56,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<time :class="$style.commentTime" :title="formatTimeFull(comment.createdAt)">{{ formatTime(comment.createdAt) }}</time>
 						</div>
 						<Mfm v-if="comment.text" :class="$style.commentText" :text="comment.text"/>
+						<div v-if="twitchTranslationDisplaySettings.showTranslation && comment.translatedText" :class="$style.translation">
+							<span :class="$style.translationText">{{ comment.translatedText }}</span>
+						</div>
 					</div>
 				</template>
 				<template v-else>
@@ -56,6 +74,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<template v-else>{{ frag.text }}</template>
 							</template>
 						</span>
+						<div v-if="twitchTranslationDisplaySettings.showTranslation && comment.translatedText" :class="$style.translation">
+							<span :class="$style.translationText">{{ comment.translatedText }}</span>
+						</div>
 					</div>
 				</template>
 			</div>
@@ -91,6 +112,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				@paste="onPaste"
 			></textarea>
 			<button v-if="$i != null" class="_button" :class="$style.formButton" :title="i18n.ts.attachFile" :aria-label="i18n.ts.attachFile" @click="chooseFile"><i class="ti ti-photo-plus"></i></button>
+			<button v-if="$i != null" v-tooltip="i18n.ts._twitch.translateMyCommentDescription" class="_button" :class="[$style.formButton, { [$style.formButtonActive]: twitchTranslationDisplaySettings.translateMyComment }]" :aria-pressed="twitchTranslationDisplaySettings.translateMyComment" :aria-label="i18n.ts._twitch.translateMyComment" @click="twitchTranslationDisplaySettings.translateMyComment = !twitchTranslationDisplaySettings.translateMyComment"><i class="ti ti-language"></i></button>
 			<button class="_button" :class="$style.formButton" :title="i18n.ts.emoji" :aria-label="i18n.ts.emoji" @click="insertEmoji"><i class="ti ti-mood-happy"></i></button>
 			<button v-tooltip="i18n.ts._mfmToolbar.show" class="_button" :class="[$style.formButton, { [$style.formButtonActive]: showMfmToolbar }]" :aria-label="i18n.ts._mfmToolbar.show" @click="showMfmToolbar = !showMfmToolbar"><i class="ti ti-wand"></i></button>
 			<button class="_button" :class="[$style.formButton, $style.sendButton]" :disabled="sending || !canSend" :title="i18n.ts.send" :aria-label="i18n.ts.send" @click="send">
@@ -121,7 +143,8 @@ import MkMfmToolbar from '@/components/MkMfmToolbar.vue';
 import XRemoteGuestLogin from '@/pages/live-stream.remote-guest-login.vue';
 import { prefer } from '@/preferences.js';
 import { remoteGuestSession } from '@/composables/use-remote-guest-session.js';
-import { twitchTtsSettings, enqueueTtsSpeech, stopTtsSpeech } from '@/composables/use-twitch-tts.js';
+import { twitchTtsSettings, enqueueTtsSpeech, stopTtsSpeech, containsJapanese } from '@/composables/use-twitch-tts.js';
+import { twitchTranslationDisplaySettings } from '@/composables/use-twitch-translation-display.js';
 
 type Comment = Misskey.Endpoints['twitch/streams/comments']['res'][number];
 
@@ -282,12 +305,37 @@ async function loadOlder() {
 	}
 }
 
+// 非日本語コメントの読み上げは翻訳結果 (日本語) を優先する。翻訳はキュー式で
+// 後追い配信されるため、commentTranslated を待ってから読み上げ、この時間内に
+// 訳が来なければ原文をそのまま読む (翻訳機能無効・翻訳失敗時のフォールバック)
+const TTS_TRANSLATION_WAIT_MS = 20000;
+const ttsPendingTranslation = new Map<string, number>();
+
+function enqueueCommentTts(comment: Comment) {
+	const original = readableCommentText(comment);
+	if (containsJapanese(original)) {
+		enqueueTtsSpeech(original);
+		return;
+	}
+	// 履歴・翻訳キャッシュヒットで到着時点から訳文を持っている場合は即読み上げ
+	if (comment.translatedText != null) {
+		enqueueTtsSpeech(comment.translatedText);
+		return;
+	}
+	const timer = window.setTimeout(() => {
+		ttsPendingTranslation.delete(comment.id);
+		// 待機中に読み上げが無効化された場合は発話しない (遅延発火対策)
+		if (twitchTtsSettings.value.enabled) enqueueTtsSpeech(original);
+	}, TTS_TRANSLATION_WAIT_MS);
+	ttsPendingTranslation.set(comment.id, timer);
+}
+
 function onComment(comment: Comment) {
 	if (comments.value.some(c => c.id === comment.id)) return;
 	comments.value.push(comment);
 	// コメント読み上げは配信者本人のブラウザでのみ動かす (視聴者側では読み上げない)
 	if (props.canModerate && twitchTtsSettings.value.enabled) {
-		enqueueTtsSpeech(readableCommentText(comment));
+		enqueueCommentTts(comment);
 	}
 	// メモリ節約: 表示は直近 300 件に制限 (履歴はさかのぼり読み込みで参照可能)
 	if (comments.value.length > 300) {
@@ -301,6 +349,25 @@ function onComment(comment: Comment) {
 		// 件数だけ増やして「新着コメント」ボタンに反映する
 		newCommentsCount.value++;
 	}
+}
+
+// 翻訳完了イベント (commentTranslated) の受信ハンドラ。翻訳は非同期キューで
+// 後追いになるため、表示済みの comments 配列から id 一致のエントリを探して
+// translatedText/translatedLang を後埋めする (reactive な ref 配列内オブジェクトの
+// プロパティ書き換えなので、これだけで再描画される)
+function onCommentTranslated(payload: { id: string; translatedText: string; translatedLang: string }) {
+	// 翻訳待ちだったコメントは訳文 (日本語) で読み上げる。表示リストから
+	// 既に落ちたコメント (300件制限) でもタイマーだけは確実に解放する
+	const timer = ttsPendingTranslation.get(payload.id);
+	if (timer != null) {
+		window.clearTimeout(timer);
+		ttsPendingTranslation.delete(payload.id);
+		if (twitchTtsSettings.value.enabled) enqueueTtsSpeech(payload.translatedText);
+	}
+	const comment = comments.value.find(c => c.id === payload.id);
+	if (comment == null) return;
+	comment.translatedText = payload.translatedText;
+	comment.translatedLang = payload.translatedLang;
 }
 
 // 配信者用: コメント投稿者を配信からブロックする。自分のコメントと、
@@ -465,6 +532,7 @@ async function send() {
 				streamId: props.streamId,
 				text: t.length > 0 ? t : undefined,
 				fileIds: files.value.length > 0 ? files.value.map(f => f.id) : undefined,
+				translate: twitchTranslationDisplaySettings.value.translateMyComment,
 			});
 		} else {
 			// canParticipate.value が true の時点で guestToken.value は非null。添付ファイルは非対応
@@ -491,6 +559,7 @@ onMounted(() => {
 	if (canParticipate.value) {
 		connection = stream.useChannel('twitchLiveStream', { streamId: props.streamId, guestToken: guestToken.value ?? undefined });
 		connection.on('comment', onComment);
+		connection.on('commentTranslated', onCommentTranslated);
 		connection.on('streamEnded', () => emit('streamEnded'));
 	}
 });
@@ -506,6 +575,8 @@ onUnmounted(() => {
 	if (connection != null) connection.dispose();
 	// ページ離脱時に読み上げキューを破棄し、進行中の AivisSpeech Engine
 	// への合成リクエストを中断する (エンジン側プロセスの蓄積を防ぐ)
+	for (const timer of ttsPendingTranslation.values()) window.clearTimeout(timer);
+	ttsPendingTranslation.clear();
 	stopTtsSpeech();
 });
 </script>
@@ -519,6 +590,33 @@ onUnmounted(() => {
 	background: var(--MI_THEME-panel);
 	border-radius: var(--MI-radius);
 	overflow: clip;
+}
+
+.toolbar {
+	flex-shrink: 0;
+	display: flex;
+	justify-content: flex-end;
+	padding: 4px 8px;
+	border-bottom: solid 0.5px var(--MI_THEME-divider);
+}
+
+.translationToggle {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 8px;
+	font-size: 0.85em;
+	border-radius: 999px;
+	opacity: 0.7;
+
+	&:hover {
+		opacity: 1;
+	}
+}
+
+.translationToggleActive {
+	opacity: 1;
+	color: var(--MI_THEME-accent);
 }
 
 .list {
@@ -612,6 +710,20 @@ onUnmounted(() => {
 }
 
 .commentText {
+	white-space: pre-wrap;
+}
+
+// 原文の下に「区切り + 翻訳文」の2段表示を作る (MkNote.vue の翻訳表示ブロックと
+// 同じ考え方だが、狭いチャット欄に収まるよう罫線1本の簡易版にしている)
+.translation {
+	margin-top: 4px;
+	padding-top: 4px;
+	border-top: solid 0.5px var(--MI_THEME-divider);
+}
+
+.translationText {
+	display: block;
+	opacity: 0.85;
 	white-space: pre-wrap;
 }
 
