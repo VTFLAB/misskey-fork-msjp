@@ -3815,6 +3815,10 @@ _twitch:
   commentGenApply: "プレビューに適用"
   commentGenUnappliedChanges: "未適用の変更があります"
   commentGenDiscardConfirm: "未適用の変更があります。破棄してテンプレートを適用しますか？"
+  commentGenCommit: "設定を反映"
+  commentGenUncommittedBadge: "未反映の変更あり"
+  commentGenCommitHint: "フォームに未プレビューの変更があります。「プレビューに適用」を行うと、その内容もあわせて反映できます。"
+  commentGenCloseConfirm: "設定に反映されていない変更があります。破棄して閉じますか？"
 _remoteGuestLogin:
   title: "他インスタンスのアカウントでログイン"
   description: "他のMisskeyインスタンスのアカウントでログインすると、視聴とコメント投稿ができます。"
