@@ -13,6 +13,7 @@ import { TwitchCommentService, MAX_COMMENT_LENGTH } from '@/core/twitch/TwitchCo
 import { TwitchChatRelayService } from '@/core/twitch/TwitchChatRelayService.js';
 import { TwitchStreamBlockService } from '@/core/twitch/TwitchStreamBlockService.js';
 import { TwitchTranslationService } from '@/core/twitch/TwitchTranslationService.js';
+import { QueueService } from '@/core/QueueService.js';
 import { detectJaEn } from '@/misc/detect-ja-en.js';
 
 export const meta = {
@@ -103,6 +104,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private twitchChatRelayService: TwitchChatRelayService,
 		private twitchStreamBlockService: TwitchStreamBlockService,
 		private twitchTranslationService: TwitchTranslationService,
+		private queueService: QueueService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const stream = await this.twitchStreamsRepository.findOneBy({ id: ps.streamId });
@@ -127,39 +129,34 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				if (count !== fileIds.length) throw new ApiError(meta.errors.noSuchFile);
 			}
 
-			// 投稿翻訳 (bsky-fork 独自): 配信者が翻訳機能を有効にしていて、かつ投稿者が明示的にONにした場合のみ、
-			// 同期的に翻訳を取得する。タイムアウト/エラー時は翻訳なしで従来動作 (投稿はブロックしない)
-			let translation: { text: string; lang: 'ja' | 'en' } | null = null;
-			let twitchRelayText = text;
-			if (ps.translate && text.length > 0) {
+			// 投稿翻訳 (bsky-fork 独自): 日本語入力かつ投稿者が明示的にONにした場合、Twitch への中継を
+			// 翻訳キューに委ね、翻訳完了後に英訳を中継する (キュー側は翻訳失敗時に原文を中継)。
+			// レスポンス内で同期的に翻訳を待つ方式はリバースプロキシのタイムアウトで
+			// レスポンスが壊れるため廃止した。英語入力は原文をそのまま即時中継し、
+			// 表示用の和訳は createMisskeyComment のフォールバックキューが付与する
+			let deferRelayToTranslation = false;
+			if (ps.translate && text.length > 0 && this.twitchTranslationService.isEnabled && detectJaEn(text) === 'ja') {
 				const broadcasterAccount = await this.twitchAccountsRepository.findOneBy({ userId: stream.userId });
-				if (broadcasterAccount?.translationEnabled) {
-					const detected = detectJaEn(text);
-					if (detected === 'ja' || detected === 'en') {
-						const targetLang = detected === 'ja' ? 'en' : 'ja';
-						try {
-							// 長文は CPU 推論で数十秒かかる。投稿者が明示的にONにした操作なので
-							// レスポンスを待たせてでも翻訳を成立させる (上限30秒、超過はフォールバック)
-							const translatedText = await this.twitchTranslationService.translate(text, targetLang, 30_000);
-							translation = { text: translatedText, lang: targetLang };
-							// Twitch へは常に英語で中継する (日本語入力は翻訳結果、英語入力は原文のまま)
-							twitchRelayText = detected === 'ja' ? translatedText : text;
-						} catch {
-							// 翻訳失敗時は翻訳なしで従来動作にフォールバックする (投稿自体はブロックしない)
-						}
-					}
-				}
+				deferRelayToTranslation = broadcasterAccount?.translationEnabled === true;
 			}
 
-			const comment = await this.twitchCommentService.createMisskeyComment(stream, me, text, fileIds, translation);
+			const comment = await this.twitchCommentService.createMisskeyComment(stream, me, text, fileIds, null);
 
-			// Twitch への中継は fire-and-forget (Twitch 障害時も投稿自体は成功させる)。
-			// メディアは中継できないため、テキストがある場合のみ送る
-			if (twitchRelayText.length > 0) {
-				this.twitchChatRelayService.relayToTwitch(stream, me, twitchRelayText);
+			if (deferRelayToTranslation) {
+				await this.queueService.twitchCommentTranslate({
+					commentId: comment.id,
+					streamId: stream.id,
+					targetLang: 'en',
+					relayToTwitch: true,
+				});
+			} else if (text.length > 0) {
+				// Twitch への中継は fire-and-forget (Twitch 障害時も投稿自体は成功させる)。
+				// メディアは中継できないため、テキストがある場合のみ送る
+				this.twitchChatRelayService.relayToTwitch(stream, me, text);
 			}
 
-			return { id: comment.id, translatedText: translation?.text ?? null, translatedLang: translation?.lang ?? null };
+			// 翻訳は非同期 (commentTranslated イベントで後埋め) のためレスポンスには含めない
+			return { id: comment.id, translatedText: null, translatedLang: null };
 		});
 	}
 }

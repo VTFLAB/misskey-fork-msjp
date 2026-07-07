@@ -48,6 +48,7 @@
 
 ### Server
 
+- Fix: 配信コメントの投稿翻訳 (日本語入力) で翻訳を同期的に待つ間にリバースプロキシがタイムアウトし、投稿は成功しているのにクライアントにエラーモーダルが出る問題を修正 (bsky-fork 独自)。投稿は即時応答し、翻訳と Twitch への英訳中継は翻訳キューが完了後に行う (翻訳失敗時は原文を中継してコメントを取りこぼさない)
 - Feat: アップデート情報の管理用エンドポイント (`admin/update-info/*`) と閲覧用エンドポイント (`update-info/show`, `update-infos`) を追加 (bsky-fork 独自)
 - Feat: 天気予報ウィジェット向けの `get-weather` エンドポイントを追加 (bsky-fork 独自)。Open-Meteo API (無料・APIキー不要) をサーバー側でプロキシし、緯度・経度から現在の天気情報を返す
 - Feat: Wolfx (JMA EEW) の WebSocket feed をサーバー側で購読し、全接続中クライアントへ `earthquakeAlert` ブロードキャストストリームで配信する仕組みを追加 (bsky-fork 独自)。直近30件の速報履歴を返す `earthquake/history` エンドポイントも追加
