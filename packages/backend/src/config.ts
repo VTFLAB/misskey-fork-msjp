@@ -120,6 +120,11 @@ type Source = {
 		clientSecret?: string;
 	};
 
+	twitchTranslation?: {
+		url?: string;
+		timeout?: number;
+	};
+
 	remoteGuestLogin?: {
 		allowedHosts?: string[];
 	};
@@ -232,6 +237,12 @@ export type Config = {
 	twitch: {
 		clientId: string;
 		clientSecret: string;
+	} | undefined;
+
+	// Twitch 配信コメント翻訳 (fork 独自)。LibreTranslate互換 (LTEngine) サーバーの URL。未設定なら機能全体が無効。
+	twitchTranslation: {
+		url: string;
+		timeout: number;
 	} | undefined;
 
 	// リモートMisskeyインスタンスのユーザー向けゲストログイン (fork 独自)。
@@ -370,6 +381,10 @@ export function loadConfig(): Config {
 		twitch: (config.twitch?.clientId && config.twitch.clientSecret) ? {
 			clientId: config.twitch.clientId,
 			clientSecret: config.twitch.clientSecret,
+		} : undefined,
+		twitchTranslation: config.twitchTranslation?.url ? {
+			url: config.twitchTranslation.url,
+			timeout: config.twitchTranslation.timeout ?? 8000,
 		} : undefined,
 		remoteGuestLogin: (config.remoteGuestLogin?.allowedHosts && config.remoteGuestLogin.allowedHosts.length > 0) ? {
 			allowedHosts: config.remoteGuestLogin.allowedHosts.map(host => {

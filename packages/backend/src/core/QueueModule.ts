@@ -17,6 +17,7 @@ import {
 	UserWebhookDeliverJobData,
 	SystemWebhookDeliverJobData,
 	PostScheduledNoteJobData,
+	TwitchCommentTranslateJobData,
 } from '../queue/types.js';
 import type { Provider } from '@nestjs/common';
 
@@ -30,6 +31,7 @@ export type RelationshipQueue = Bull.Queue<RelationshipJobData>;
 export type ObjectStorageQueue = Bull.Queue;
 export type UserWebhookDeliverQueue = Bull.Queue<UserWebhookDeliverJobData>;
 export type SystemWebhookDeliverQueue = Bull.Queue<SystemWebhookDeliverJobData>;
+export type TwitchCommentTranslateQueue = Bull.Queue<TwitchCommentTranslateJobData>;
 
 const $system: Provider = {
 	provide: 'queue:system',
@@ -91,6 +93,12 @@ const $systemWebhookDeliver: Provider = {
 	inject: [DI.config],
 };
 
+const $twitchCommentTranslate: Provider = {
+	provide: 'queue:twitchCommentTranslate',
+	useFactory: (config: Config) => new Bull.Queue(QUEUE.TWITCH_COMMENT_TRANSLATE, baseQueueOptions(config, QUEUE.TWITCH_COMMENT_TRANSLATE)),
+	inject: [DI.config],
+};
+
 @Module({
 	imports: [
 	],
@@ -105,6 +113,7 @@ const $systemWebhookDeliver: Provider = {
 		$objectStorage,
 		$userWebhookDeliver,
 		$systemWebhookDeliver,
+		$twitchCommentTranslate,
 	],
 	exports: [
 		$system,
@@ -117,6 +126,7 @@ const $systemWebhookDeliver: Provider = {
 		$objectStorage,
 		$userWebhookDeliver,
 		$systemWebhookDeliver,
+		$twitchCommentTranslate,
 	],
 })
 export class QueueModule implements OnApplicationShutdown {
@@ -131,6 +141,7 @@ export class QueueModule implements OnApplicationShutdown {
 		@Inject('queue:objectStorage') public objectStorageQueue: ObjectStorageQueue,
 		@Inject('queue:userWebhookDeliver') public userWebhookDeliverQueue: UserWebhookDeliverQueue,
 		@Inject('queue:systemWebhookDeliver') public systemWebhookDeliverQueue: SystemWebhookDeliverQueue,
+		@Inject('queue:twitchCommentTranslate') public twitchCommentTranslateQueue: TwitchCommentTranslateQueue,
 	) {}
 
 	public async dispose(): Promise<void> {
@@ -148,6 +159,7 @@ export class QueueModule implements OnApplicationShutdown {
 			this.objectStorageQueue.close(),
 			this.userWebhookDeliverQueue.close(),
 			this.systemWebhookDeliverQueue.close(),
+			this.twitchCommentTranslateQueue.close(),
 		]);
 	}
 

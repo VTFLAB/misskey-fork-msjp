@@ -346,8 +346,17 @@ export interface TwitchLiveStreamEventTypes {
 		twitchUserName: string | null;
 		twitchDisplayName: string | null;
 		fragments: TwitchChatFragment[] | null;
+		// 翻訳結果 (bsky-fork 独自)。初回配信時は未翻訳のため null、後から commentTranslated で埋まる
+		translatedText: string | null;
+		translatedLang: string | null;
 		// source=remote-guest のときのみ設定 (リモートインスタンスのユーザー表示用)
 		remoteGuest: { username: string; host: string; avatarUrl: string | null } | null;
+	};
+	// 非同期翻訳完了時に既表示コメントへ後埋めするためのイベント (bsky-fork 独自)
+	commentTranslated: {
+		id: string;
+		translatedText: string;
+		translatedLang: string;
 	};
 	streamEnded: Record<string, never>;
 }

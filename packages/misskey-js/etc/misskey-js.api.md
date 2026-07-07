@@ -946,11 +946,18 @@ export type Channels = {
                 twitchUserName: string | null;
                 twitchDisplayName: string | null;
                 fragments: TwitchChatFragment[] | null;
+                translatedText: string | null;
+                translatedLang: string | null;
                 remoteGuest: {
                     username: string;
                     host: string;
                     avatarUrl: string | null;
                 } | null;
+            }) => void;
+            commentTranslated: (payload: {
+                id: string;
+                translatedText: string;
+                translatedLang: string;
             }) => void;
             streamEnded: (payload: Record<string, never>) => void;
         };
@@ -2255,8 +2262,11 @@ declare namespace entities {
         TwitchStreamsCommentsResponse,
         TwitchStreamsCommentsCreateRequest,
         TwitchStreamsCommentsCreateResponse,
+        TwitchStreamsPreviewResponse,
         TwitchStreamsShowRequest,
         TwitchStreamsShowResponse,
+        TwitchUpdateSettingsRequest,
+        TwitchUpdateSettingsResponse,
         UpdateInfoShowRequest,
         UpdateInfoShowResponse,
         UpdateInfosRequest,
@@ -3581,7 +3591,7 @@ type QueueStats = {
 type QueueStatsLog = QueueStats[];
 
 // @public (undocumented)
-export const queueTypes: readonly ["system", "endedPollNotification", "postScheduledNote", "deliver", "inbox", "db", "relationship", "objectStorage", "userWebhookDeliver", "systemWebhookDeliver"];
+export const queueTypes: readonly ["system", "endedPollNotification", "postScheduledNote", "deliver", "inbox", "db", "relationship", "objectStorage", "userWebhookDeliver", "systemWebhookDeliver", "twitchCommentTranslate"];
 
 // @public (undocumented)
 type RemoteGuestLoginStartRequest = operations['remote-guest___login___start']['requestBody']['content']['application/json'];
@@ -3955,10 +3965,19 @@ type TwitchStreamsCommentsRequest = operations['twitch___streams___comments']['r
 type TwitchStreamsCommentsResponse = operations['twitch___streams___comments']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type TwitchStreamsPreviewResponse = operations['twitch___streams___preview']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type TwitchStreamsShowRequest = operations['twitch___streams___show']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
 type TwitchStreamsShowResponse = operations['twitch___streams___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchUpdateSettingsRequest = operations['twitch___update-settings']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchUpdateSettingsResponse = operations['twitch___update-settings']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type UpdateInfo = components['schemas']['UpdateInfo'];
