@@ -13923,6 +13923,310 @@ export interface Locale extends ILocale {
          * プレビューモード (配信は開始されていません)
          */
         "previewModeNotice": string;
+        /**
+         * コメントジェネレーター設定
+         */
+        "commentGenSettings": string;
+        /**
+         * OBSのブラウザソースにこのURLを設定してください。推奨サイズ: 幅450×高さ800程度。詳細な見た目はOBSのカスタムCSSで --cg-* 変数を上書きして調整できます。
+         */
+        "commentGenDescription": string;
+        /**
+         * ライブプレビュー
+         */
+        "commentGenLivePreview": string;
+        /**
+         * テンプレート
+         */
+        "commentGenTemplateGroup": string;
+        /**
+         * テンプレートを選択
+         */
+        "commentGenTemplateSelect": string;
+        /**
+         * 名前を付けて保存
+         */
+        "commentGenTemplateSave": string;
+        /**
+         * 選択中のテンプレートを上書き
+         */
+        "commentGenTemplateOverwrite": string;
+        /**
+         * 選択中のテンプレートを削除
+         */
+        "commentGenTemplateDelete": string;
+        /**
+         * 設定をエクスポート
+         */
+        "commentGenTemplateExport": string;
+        /**
+         * 設定をインポート
+         */
+        "commentGenTemplateImport": string;
+        /**
+         * テンプレート名
+         */
+        "commentGenTemplateNamePrompt": string;
+        /**
+         * テンプレート「{name}」を上書きしますか？
+         */
+        "commentGenTemplateOverwriteConfirm": ParameterizedString<"name">;
+        /**
+         * テンプレート「{name}」を削除しますか？
+         */
+        "commentGenTemplateDeleteConfirm": ParameterizedString<"name">;
+        /**
+         * テンプレートを保存しました。
+         */
+        "commentGenTemplateSaved": string;
+        /**
+         * 設定のJSONを貼り付けてください
+         */
+        "commentGenImportPrompt": string;
+        /**
+         * 設定をインポートしました。
+         */
+        "commentGenImported": string;
+        /**
+         * インポートに失敗しました。JSONの形式を確認してください。
+         */
+        "commentGenImportFailed": string;
+        /**
+         * スタンダード
+         */
+        "commentGenPresetStandard": string;
+        /**
+         * シンプル白文字
+         */
+        "commentGenPresetSimpleWhite": string;
+        /**
+         * ダークバブル
+         */
+        "commentGenPresetDarkBubble": string;
+        /**
+         * ポップ
+         */
+        "commentGenPresetPop": string;
+        /**
+         * 積み上げ型
+         */
+        "commentGenPresetStack": string;
+        /**
+         * ミニマル
+         */
+        "commentGenPresetMinimal": string;
+        /**
+         * 表示モード
+         */
+        "commentGenModeGroup": string;
+        /**
+         * 表示モード
+         */
+        "commentGenMode": string;
+        /**
+         * フェードアウト
+         */
+        "commentGenModeFade": string;
+        /**
+         * 積み上げ
+         */
+        "commentGenModeStack": string;
+        /**
+         * 新着コメントの位置
+         */
+        "commentGenOrder": string;
+        /**
+         * 下
+         */
+        "commentGenOrderBottom": string;
+        /**
+         * 上
+         */
+        "commentGenOrderTop": string;
+        /**
+         * 最大表示数
+         */
+        "commentGenLimit": string;
+        /**
+         * 表示時間
+         */
+        "commentGenDuration": string;
+        /**
+         * 0にするとコメントが自動的に消えなくなります。
+         */
+        "commentGenDurationDescription": string;
+        /**
+         * 履歴保持件数
+         */
+        "commentGenHistory": string;
+        /**
+         * 配信画面を開いた際に遡って表示する過去コメント数です。0で無効。
+         */
+        "commentGenHistoryDescription": string;
+        /**
+         * 文字とフォント
+         */
+        "commentGenFontGroup": string;
+        /**
+         * フォント
+         */
+        "commentGenFont": string;
+        /**
+         * CSSのfont-familyとして扱われます。空欄でデフォルトのフォントを使用します。
+         */
+        "commentGenFontDescription": string;
+        /**
+         * 文字サイズ
+         */
+        "commentGenFontSize": string;
+        /**
+         * 文字の太さ
+         */
+        "commentGenFontWeight": string;
+        /**
+         * 普通 (400)
+         */
+        "commentGenFontWeightNormal": string;
+        /**
+         * 太字 (700)
+         */
+        "commentGenFontWeightBold": string;
+        /**
+         * 特太 (900)
+         */
+        "commentGenFontWeightBlack": string;
+        /**
+         * 色
+         */
+        "commentGenColorGroup": string;
+        /**
+         * 本文の色
+         */
+        "commentGenTextColor": string;
+        /**
+         * 名前の色
+         */
+        "commentGenNameColor": string;
+        /**
+         * 翻訳文の色
+         */
+        "commentGenTransColor": string;
+        /**
+         * 背景色
+         */
+        "commentGenBgColor": string;
+        /**
+         * "none"で背景を透過します。
+         */
+        "commentGenBgColorDescription": string;
+        /**
+         * 縁取りの色
+         */
+        "commentGenOutlineColor": string;
+        /**
+         * レイアウト
+         */
+        "commentGenLayoutGroup": string;
+        /**
+         * 縁取りの太さ
+         */
+        "commentGenOutline": string;
+        /**
+         * 0で縁取りなし。
+         */
+        "commentGenOutlineDescription": string;
+        /**
+         * 角丸
+         */
+        "commentGenRadius": string;
+        /**
+         * 内側の余白
+         */
+        "commentGenPadding": string;
+        /**
+         * コメント間の間隔
+         */
+        "commentGenGap": string;
+        /**
+         * アイコンサイズ
+         */
+        "commentGenIconSize": string;
+        /**
+         * 絵文字の拡大率
+         */
+        "commentGenEmojiScale": string;
+        /**
+         * アニメーション
+         */
+        "commentGenAnimGroup": string;
+        /**
+         * 登場アニメーション
+         */
+        "commentGenAnimIn": string;
+        /**
+         * 退場アニメーション
+         */
+        "commentGenAnimOut": string;
+        /**
+         * アニメーション時間
+         */
+        "commentGenAnimTime": string;
+        /**
+         * スライド
+         */
+        "commentGenAnimSlide": string;
+        /**
+         * スライド (右から)
+         */
+        "commentGenAnimSlideRight": string;
+        /**
+         * フェード
+         */
+        "commentGenAnimFade": string;
+        /**
+         * ポップ
+         */
+        "commentGenAnimPop": string;
+        /**
+         * なし
+         */
+        "commentGenAnimNone": string;
+        /**
+         * スライド (左へ)
+         */
+        "commentGenAnimSlideLeft": string;
+        /**
+         * 表示要素
+         */
+        "commentGenElementsGroup": string;
+        /**
+         * アイコンを表示
+         */
+        "commentGenShowIcon": string;
+        /**
+         * 名前を表示
+         */
+        "commentGenShowName": string;
+        /**
+         * 翻訳を表示
+         */
+        "commentGenShowTranslation": string;
+        /**
+         * 画像・動画を表示
+         */
+        "commentGenShowMedia": string;
+        /**
+         * 生成されたURL
+         */
+        "commentGenGeneratedUrl": string;
+        /**
+         * URLをコピー
+         */
+        "commentGenCopyUrl": string;
+        /**
+         * プレビューを開く
+         */
+        "commentGenOpenPreview": string;
     };
     "_remoteGuestLogin": {
         /**
