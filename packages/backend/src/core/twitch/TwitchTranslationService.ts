@@ -67,9 +67,13 @@ export class TwitchTranslationService {
 	 * text を targetLang へ翻訳する。同一 (text, targetLang) の組は Redis に24時間キャッシュされる。
 	 * 未設定・タイムアウト・サーバーエラー時は TwitchTranslationError を投げる。
 	 * 呼び出し側は必ず catch して「翻訳なしで従来動作」にフォールバックすること。
+	 *
+	 * timeoutMs: CPU 推論のため長文は数十秒かかる (実測: 90語の英文で約23秒)。
+	 * 非同期キュー経由は長め、投稿レスポンスを待たせる同期呼び出しは短めを
+	 * 呼び出し側が指定する。省略時は config の timeout
 	 */
 	@bindThis
-	public async translate(text: string, targetLang: 'ja' | 'en'): Promise<string> {
+	public async translate(text: string, targetLang: 'ja' | 'en', timeoutMs?: number): Promise<string> {
 		if (!this.isEnabled || this.cache == null) {
 			throw new TwitchTranslationError('Twitch comment translation is not configured.');
 		}
@@ -79,20 +83,20 @@ export class TwitchTranslationService {
 		const cached = await this.cache.get(key);
 		if (cached !== undefined) return cached;
 
-		const translated = await this.callLtEngine(text, targetLang);
+		const translated = await this.callLtEngine(text, targetLang, timeoutMs);
 		await this.cache.set(key, translated);
 		return translated;
 	}
 
 	@bindThis
-	private async callLtEngine(text: string, targetLang: 'ja' | 'en'): Promise<string> {
+	private async callLtEngine(text: string, targetLang: 'ja' | 'en', timeoutMs?: number): Promise<string> {
 		const twitchTranslation = this.config.twitchTranslation;
 		if (twitchTranslation == null) {
 			throw new TwitchTranslationError('Twitch comment translation is not configured.');
 		}
 
 		const ac = new AbortController();
-		const timer = setTimeout(() => ac.abort(), twitchTranslation.timeout);
+		const timer = setTimeout(() => ac.abort(), timeoutMs ?? twitchTranslation.timeout);
 		try {
 			const res = await fetch(new URL('/translate', twitchTranslation.url).toString(), {
 				method: 'POST',
