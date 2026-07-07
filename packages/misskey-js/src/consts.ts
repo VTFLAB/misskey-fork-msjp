@@ -253,6 +253,7 @@ export const queueTypes = [
 	'objectStorage',
 	'userWebhookDeliver',
 	'systemWebhookDeliver',
+	'twitchCommentTranslate',
 ] as const;
 
 // See: packages/backend/src/core/ReversiService.ts@L410
