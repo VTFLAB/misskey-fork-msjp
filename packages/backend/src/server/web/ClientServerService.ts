@@ -61,6 +61,7 @@ import { InfoCardPage } from './views/info-card.js';
 import { BiosPage } from './views/bios.js';
 import { CliPage } from './views/cli.js';
 import { FlushPage } from './views/flush.js';
+import { CommentGeneratorPage } from './views/comment-generator.js';
 import { ErrorPage } from './views/error.js';
 
 import type { FastifyError, FastifyInstance, FastifyPluginOptions, FastifyReply } from 'fastify';
@@ -896,6 +897,12 @@ export class ClientServerService {
 			return await HtmlTemplateService.replyHtml(reply, CliPage({
 				version: this.config.version,
 			}));
+		});
+
+		// OBS ブラウザソース用の匿名コメントジェネレーター (bsky-fork 独自)。
+		// SPA (frontend) と完全に隔絶した素の HTML/CSS/JS で、Vue のビルド・認証状態に依存しない。
+		fastify.get('/live/:acct/comment-generator', async (request, reply) => {
+			return await HtmlTemplateService.replyHtml(reply, CommentGeneratorPage());
 		});
 
 		fastify.get('/flush', async (request, reply) => {
