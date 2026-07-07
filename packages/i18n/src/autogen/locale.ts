@@ -14032,7 +14032,11 @@ export interface Locale extends ILocale {
          */
         "commentGenModeStack": string;
         /**
-         * 新着コメントの位置
+         * 表示位置
+         */
+        "commentGenPositionGroup": string;
+        /**
+         * 縦位置 (新着コメントが上/下どちらに来るか)
          */
         "commentGenOrder": string;
         /**
@@ -14043,6 +14047,22 @@ export interface Locale extends ILocale {
          * 上
          */
         "commentGenOrderTop": string;
+        /**
+         * 横位置 (コメントの寄せ)
+         */
+        "commentGenAlign": string;
+        /**
+         * 左寄せ
+         */
+        "commentGenAlignLeft": string;
+        /**
+         * 中央
+         */
+        "commentGenAlignCenter": string;
+        /**
+         * 右寄せ
+         */
+        "commentGenAlignRight": string;
         /**
          * 最大表示数
          */
