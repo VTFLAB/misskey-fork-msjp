@@ -9,6 +9,7 @@ import { IsNull } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { FollowingsRepository, TwitchAccountsRepository, TwitchStreamsRepository } from '@/models/_.js';
 import { MiTwitchStream } from '@/models/TwitchStream.js';
+import type { MiTwitchAccount } from '@/models/TwitchAccount.js';
 import type { MiUser } from '@/models/User.js';
 import { IdService } from '@/core/IdService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
@@ -223,6 +224,34 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 			where: { isLive: true },
 			order: { viewerCount: 'DESC' },
 		});
+	}
+
+	/**
+	 * 配信者が配信開始前にチャット動作確認を行うためのプレビュー行を find-or-create する
+	 * (bsky-fork 独自)。isLive は常に false のままにする (isLive 基準の live 判定クエリ
+	 * (getLiveStreamByUserId / getAllLiveStreams 等) から自動的に除外されるため)。
+	 * 配信者 1 人につき最大 1 行 (migration の partial unique index で担保)。
+	 * TwitchAccount の存在確認 (notLinked エラー) は呼び出し側 (endpoint) の責務とする。
+	 */
+	@bindThis
+	public async findOrCreatePreviewStream(account: MiTwitchAccount): Promise<MiTwitchStream> {
+		const existing = await this.twitchStreamsRepository.findOneBy({ userId: account.userId!, isPreview: true });
+		if (existing != null) return existing;
+
+		const newStream = new MiTwitchStream({
+			id: this.idService.gen(),
+			userId: account.userId!,
+			twitchUserId: account.twitchUserId,
+			// twitchStreamId は unique index があるため、実際の Twitch セッション ID と衝突しない値にする
+			twitchStreamId: `preview-${account.userId}`,
+			twitchLogin: account.twitchLogin,
+			isLive: false,
+			isPreview: true,
+			title: '(Preview)',
+			startedAt: new Date(),
+		});
+		await this.twitchStreamsRepository.insertOne(newStream);
+		return newStream;
 	}
 
 	//#endregion

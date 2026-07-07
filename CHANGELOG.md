@@ -43,6 +43,8 @@
 - Feat: OBS のブラウザソースに貼れるコメント専用オーバーレイページ (`/live/@username/overlay`) を追加 (bsky-fork 独自)。透過背景・コメント表示のみの最軽量ページで、認証なしで表示できる。配信オフライン時は自動で待機し、配信開始・終了・再開を自動追従する
 - Feat: 配信視聴ページにコメント読み上げ機能を追加 (bsky-fork 独自)。配信者本人のブラウザから同一端末で稼働する AivisSpeech Engine (VOICEVOX 互換 API) を直接呼び出して新着コメントを順次読み上げる。エンジン URL・話者・速度・音量を設定でき、設定は端末 (ブラウザ) ごとに保存される。エンジン側で CORS の許可 (`--cors_policy_mode all`) が必要
 - Feat: 配信ページ単位のブロック機能を追加 (bsky-fork 独自)。配信者はコメントのメニューから投稿者 (Misskey ユーザー・リモートゲスト・Twitch チャッター) を自分の配信からブロックでき、設定メニューのブロックユーザー管理から一覧・解除できる。Misskey 本体のブロックとは独立した配信チャット専用のブロックで、配信セッションを跨いで永続する
+- Feat: 配信視聴ページのコメントに翻訳表示機能を追加 (bsky-fork 独自)。配信者が設定メニューの「コメント翻訳設定」で有効にすると、原文の下に翻訳文が2段表示される (視聴者側は表示欄の「翻訳を表示」トグルでON/OFF可能、端末ごとに保存)。翻訳は非同期で届くため、表示中のコメントも完了次第自動で反映される。投稿フォームには「投稿を翻訳する」トグルを追加し、有効にすると自分のコメントの送信内容もサーバー側で翻訳される。コメント読み上げ (TTS) は非日本語コメントについて翻訳結果の日本語を優先して読み上げ、一定時間内に翻訳が得られない場合は原文をそのまま読む
+- Feat: 配信者が配信開始前でも自身の配信視聴ページでチャット動作確認ができるプレビューモードを追加 (bsky-fork 独自)。オフライン表示中に「プレビューモードで開く」ボタンから通常の視聴レイアウト・チャットを開ける (投稿・翻訳・読み上げ等も動作確認できる)。プレビュー中は情報パネルにその旨を表示し、配信中/未配信の一覧・LIVEバッジには一切影響しない
 
 ### Server
 
@@ -70,6 +72,7 @@
 - Enhance: Twitch チャット由来のコメントの絵文字 (エモート) fragment に、アニメーション対応かどうか (`animated`) を含めるように (bsky-fork 独自)。EventSub の `emote.format` に `animated` が含まれるかで判定し、`remote-guest/twitch-comments` / `twitch/streams/comments` のレスポンス、および `twitchLiveStream` ストリームの `comment` イベントに追加した
 - Feat: 配信ページ単位のブロック機能のエンドポイント (`twitch/streams/blocks/create`, `twitch/streams/blocks/delete`, `twitch/streams/blocks/list`) と `twitch_stream_block` テーブルを追加 (bsky-fork 独自)。ブロック対象はコメント行から導出され (識別子の混同・偽装防止)、ブロックされた投稿者はコメント投稿 API で拒否される。Twitch チャッターのブロックは EventSub 受信時に適用され、以後そのチャッターの発言は Misskey 側へ取り込まれない (Twitch 側のチャット欄には残る)。対象同定のため `twitch_stream_comment` に `chatter_user_id` (`twitchChatterUserId`) も保存するようにした
 - Enhance: `twitch/streams/comments` (コメント履歴) を認証不要に変更し、`twitchLiveStream` ストリーミングチャンネルの購読を匿名にも開放 (bsky-fork 独自)。OBS 用オーバーレイページ (ログインできないブラウザソース) がコメントを表示するための変更で、配信コメントは公開ページに表示される情報のため秘匿性はない。投稿系 API は従来通り認証必須
+- Feat: 配信視聴ページのコメントに翻訳機能のバックエンド基盤を追加 (bsky-fork 独自)。自己ホストの LibreTranslate 互換翻訳サーバー (`.config/default.yml` の `twitchTranslation.url` で設定、未設定なら機能無効) を利用し、日本語⇄英語のコメント翻訳結果を24時間 Redis キャッシュする。配信者は `twitch/update-settings` で自分の配信の翻訳機能をON/OFFでき (`twitch_account.translationEnabled`、デフォルトOFF)、ONの配信では Twitch チャット・リモートゲストの非日本語コメントを非同期キュー (`TwitchCommentTranslateProcessorService`、concurrency 1) で日本語へ自動翻訳し、翻訳完了時に `twitchLiveStream` ストリームへ `commentTranslated` イベントを配信する。Misskey ユーザーの投稿は `twitch/streams/comments/create` の新規 `translate` パラメータで明示的にONにした場合のみ同期翻訳され (日本語入力→Twitchへは英訳のみ中継、英語入力→Misskey表示用に和訳を保存)、翻訳サーバー障害時は翻訳なしの従来動作にフォールバックし投稿はブロックされない
 
 ## 2026.7.0
 
