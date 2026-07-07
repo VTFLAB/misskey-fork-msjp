@@ -45,6 +45,8 @@ export const meta = {
 				},
 				twitchUserName: { type: 'string', optional: false, nullable: true },
 				twitchDisplayName: { type: 'string', optional: false, nullable: true },
+				translatedText: { type: 'string', optional: false, nullable: true },
+				translatedLang: { type: 'string', optional: false, nullable: true },
 				fragments: {
 					type: 'array',
 					optional: false, nullable: true,

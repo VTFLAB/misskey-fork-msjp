@@ -48,6 +48,7 @@ import { BakeBufferedReactionsProcessorService } from './processors/BakeBuffered
 import { CleanProcessorService } from './processors/CleanProcessorService.js';
 import { AggregateRetentionProcessorService } from './processors/AggregateRetentionProcessorService.js';
 import { CleanRemoteNotesProcessorService } from './processors/CleanRemoteNotesProcessorService.js';
+import { TwitchCommentTranslateProcessorService } from './processors/TwitchCommentTranslateProcessorService.js';
 import { QueueLoggerService } from './QueueLoggerService.js';
 import { QUEUE, baseWorkerOptions } from './const.js';
 
@@ -90,6 +91,7 @@ export class QueueProcessorService implements OnApplicationShutdown {
 	private objectStorageQueueWorker: Bull.Worker;
 	private endedPollNotificationQueueWorker: Bull.Worker;
 	private postScheduledNoteQueueWorker: Bull.Worker;
+	private twitchCommentTranslateQueueWorker: Bull.Worker;
 
 	constructor(
 		@Inject(DI.config)
@@ -133,6 +135,7 @@ export class QueueProcessorService implements OnApplicationShutdown {
 		private checkModeratorsActivityProcessorService: CheckModeratorsActivityProcessorService,
 		private cleanProcessorService: CleanProcessorService,
 		private cleanRemoteNotesProcessorService: CleanRemoteNotesProcessorService,
+		private twitchCommentTranslateProcessorService: TwitchCommentTranslateProcessorService,
 	) {
 		this.logger = this.queueLoggerService.logger;
 
@@ -544,6 +547,28 @@ export class QueueProcessorService implements OnApplicationShutdown {
 			});
 		}
 		//#endregion
+
+		//#region twitch comment translate (bsky-fork 独自)
+		{
+			this.twitchCommentTranslateQueueWorker = new Bull.Worker(QUEUE.TWITCH_COMMENT_TRANSLATE, (job) => {
+				if (Sentry != null) {
+					return Sentry.startSpan({ name: 'Queue: TwitchCommentTranslate' }, () => this.twitchCommentTranslateProcessorService.process(job));
+				} else {
+					return this.twitchCommentTranslateProcessorService.process(job);
+				}
+			}, {
+				...baseWorkerOptions(this.config, QUEUE.TWITCH_COMMENT_TRANSLATE),
+				autorun: false,
+				concurrency: 1,
+			});
+
+			const logger = this.logger.createSubLogger('twitch-comment-translate');
+
+			this.twitchCommentTranslateQueueWorker
+				.on('error', (err: Error) => logger.error(`error ${err.name}: ${err.message}`, { e: renderError(err) }))
+				.on('stalled', (jobId) => logger.warn(`stalled id=${jobId}`));
+		}
+		//#endregion
 	}
 
 	@bindThis
@@ -559,6 +584,7 @@ export class QueueProcessorService implements OnApplicationShutdown {
 			this.objectStorageQueueWorker.run(),
 			this.endedPollNotificationQueueWorker.run(),
 			this.postScheduledNoteQueueWorker.run(),
+			this.twitchCommentTranslateQueueWorker.run(),
 		]);
 	}
 
@@ -575,6 +601,7 @@ export class QueueProcessorService implements OnApplicationShutdown {
 			this.objectStorageQueueWorker.close(),
 			this.endedPollNotificationQueueWorker.close(),
 			this.postScheduledNoteQueueWorker.close(),
+			this.twitchCommentTranslateQueueWorker.close(),
 		]);
 	}
 

@@ -143,3 +143,10 @@ export type UserWebhookDeliverJobData<T extends WebhookEventTypes = WebhookEvent
 export type ThinUser = {
 	id: MiUser['id'];
 };
+
+// Twitch 配信コメント翻訳 (bsky-fork 独自)
+export type TwitchCommentTranslateJobData = {
+	commentId: string;
+	streamId: string;
+	targetLang: 'ja' | 'en';
+};
