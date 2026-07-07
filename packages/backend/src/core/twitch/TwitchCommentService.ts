@@ -54,8 +54,9 @@ export class TwitchCommentService {
 	/**
 	 * Misskey ユーザーのコメントを投稿する。永続化 → 視聴ページへリアルタイム配信。
 	 * Twitch への中継は呼び出し側 (TwitchChatRelayService) が行う。
-	 * @param translation 呼び出し側 (endpoint) が同期翻訳済みの場合のみ渡す。Misskey投稿の翻訳は
-	 * ユーザー明示の `translate` パラメータに一元化しており、このメソッド自体は非同期翻訳キューへは投入しない
+	 * @param translation 呼び出し側 (endpoint) が同期翻訳済みの場合のみ渡す (この場合キューへは投入しない)。
+	 * 同期翻訳が無い非日本語コメントは Twitch/リモートゲスト由来と同様に非同期翻訳キューへ
+	 * フォールバック投入する (視聴側の翻訳表示は投稿者の `translate` トグルに依存させない)
 	 */
 	@bindThis
 	public async createMisskeyComment(stream: MiTwitchStream, user: MiUser, text: string, fileIds: string[] = [], translation?: { text: string; lang: 'ja' | 'en' } | null): Promise<MiTwitchStreamComment> {
@@ -71,6 +72,9 @@ export class TwitchCommentService {
 		}));
 
 		await this.publishComment(stream.id, comment, user);
+		if (translation == null) {
+			await this.enqueueTranslationIfNeeded(stream, comment);
+		}
 		return comment;
 	}
 
@@ -130,7 +134,7 @@ export class TwitchCommentService {
 
 	/**
 	 * 配信者が翻訳機能を有効にしている場合のみ、非日本語コメントを日本語への非同期翻訳キューに投入する。
-	 * source=misskey は対象外 (ユーザー明示の `translate` パラメータによる同期翻訳に一元化済み)。
+	 * source=misskey も、同期翻訳 (`translate` パラメータ) が付かなかった場合はここを通る。
 	 */
 	@bindThis
 	private async enqueueTranslationIfNeeded(stream: MiTwitchStream, comment: MiTwitchStreamComment): Promise<void> {
