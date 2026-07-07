@@ -901,7 +901,12 @@ export class ClientServerService {
 
 		// OBS ブラウザソース用の匿名コメントジェネレーター (bsky-fork 独自)。
 		// SPA (frontend) と完全に隔絶した素の HTML/CSS/JS で、Vue のビルド・認証状態に依存しない。
+		// 設定ダイアログ (live-stream.comment-generator-settings.vue) のライブプレビュー <iframe> に
+		// 埋め込まれるため、/embed/* と同様に X-Frame-Options を外す必要がある
+		// (外さないと onRequest hook の X-Frame-Options: DENY によりブラウザがフレーム表示を拒否し、
+		// プレビューが常に空白になる)
 		fastify.get('/live/:acct/comment-generator', async (request, reply) => {
+			reply.removeHeader('X-Frame-Options');
 			return await HtmlTemplateService.replyHtml(reply, CommentGeneratorPage());
 		});
 
