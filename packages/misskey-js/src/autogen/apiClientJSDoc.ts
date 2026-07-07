@@ -4732,6 +4732,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * 配信者自身が配信開始前にチャット動作確認 (プレビュー) を行うための配信セッションを find-or-create する。返る stream は twitch/streams/show と同形で isPreview: true が付く。配信中判定 (isLive) には一切影響しない。
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'twitch/streams/preview', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * 指定ユーザーの Twitch 配信状態を返す。連携済みなら twitchLogin は常に返り、配信中なら stream が非 null。視聴ページ (/live/:acct) が未ログイン・リモートゲストからも到達可能なため認証不要 (副作用のない読み取り専用エンドポイント)。
      * 
      * **Credential required**: *No*
@@ -4749,6 +4760,18 @@ declare module '../api.js' {
      * **Credential required**: *Yes*
      */
     request<E extends 'twitch/unlink', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * 配信コメント翻訳機能など、Twitch 連携アカウントの配信者向け設定を更新する。
+     * 
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'twitch/update-settings', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
       credential?: string | null,

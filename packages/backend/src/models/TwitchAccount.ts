@@ -73,6 +73,12 @@ export class MiTwitchAccount {
 	})
 	public scopes: string[];
 
+	// 配信コメント翻訳機能 (bsky-fork 独自) の配信者単位ON/OFF。配信を跨いで維持する恒久設定
+	@Column('boolean', {
+		default: false,
+	})
+	public translationEnabled: boolean;
+
 	constructor(data: Partial<MiTwitchAccount>) {
 		if (data == null) return;
 
