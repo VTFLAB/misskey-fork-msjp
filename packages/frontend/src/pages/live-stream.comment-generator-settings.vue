@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	ref="dialog"
 	:width="480"
 	:height="720"
-	@close="dialog?.close()"
+	@close="onRequestClose"
 	@closed="emit('closed')"
 >
 	<template #header>{{ i18n.ts._twitch.commentGenSettings }}</template>
@@ -23,10 +23,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 
 			<div :class="$style.applySection">
-				<MkButton :primary="hasUnappliedChanges" @click="applyDraft">
+				<MkButton :primary="hasUnpreviewedChanges" @click="applyDraftToPreview">
 					<i class="ti ti-device-floppy"></i> {{ i18n.ts._twitch.commentGenApply }}
 				</MkButton>
-				<span v-if="hasUnappliedChanges" :class="$style.unappliedBadge">
+				<span v-if="hasUnpreviewedChanges" :class="$style.unappliedBadge">
 					<i class="ti ti-alert-circle"></i> {{ i18n.ts._twitch.commentGenUnappliedChanges }}
 				</span>
 			</div>
@@ -200,12 +200,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkFolder>
 
 			<div :class="$style.urlSection">
-				<div :class="$style.urlLabel">{{ i18n.ts._twitch.commentGenGeneratedUrl }}</div>
+				<div :class="$style.urlLabel">
+					{{ i18n.ts._twitch.commentGenGeneratedUrl }}
+					<span v-if="hasUncommittedChanges" :class="$style.uncommittedBadge">
+						<i class="ti ti-alert-circle"></i> {{ i18n.ts._twitch.commentGenUncommittedBadge }}
+					</span>
+				</div>
 				<div class="_panel _selectable" :class="$style.urlBox">{{ generatedUrl }}</div>
 				<div class="_buttons">
+					<MkButton :primary="hasUncommittedChanges" :disabled="!hasUncommittedChanges" @click="commitPreview"><i class="ti ti-cloud-upload"></i> {{ i18n.ts._twitch.commentGenCommit }}</MkButton>
 					<MkButton @click="copyUrl"><i class="ti ti-copy"></i> {{ i18n.ts._twitch.commentGenCopyUrl }}</MkButton>
 					<MkButton @click="openPreviewUrl"><i class="ti ti-external-link"></i> {{ i18n.ts._twitch.commentGenOpenPreview }}</MkButton>
 				</div>
+				<div v-if="hasUnpreviewedChanges" :class="$style.commitHint">{{ i18n.ts._twitch.commentGenCommitHint }}</div>
 			</div>
 		</div>
 	</div>
@@ -422,30 +429,54 @@ function settingsEqual(a: CommentGenSettings, b: CommentGenSettings): boolean {
 
 function persist() {
 	miLocalStorage.setItem('twitchCommentGen', JSON.stringify({
-		current: { ...applied },
+		current: { ...committed },
 		templates: templates.value,
 	}));
 }
 
 const stored = load();
 
-// フォーム編集は「下書き」(draft) にのみ反映される。「プレビューに適用」ボタンを押すまでは
-// iframe / 生成URL / miLocalStorage への保存には反映しない (デバウンス自動反映は撤去した)
+// 3段階の状態を持つ:
+// draft (フォーム編集) → [プレビューに適用] → preview (iframeプレビューのみ更新) →
+// [設定を反映] → committed (生成URL表示・URLコピー・miLocalStorage永続化に使われる、OBSで実際に使う本番URLの元)
+// フォーム編集は draft にのみ反映され、明示的なボタン操作なしに preview/committed へは伝播しない
+// (旧デバウンス自動反映は撤去済み)
 const draft = reactive<CommentGenSettings>({ ...stored.current });
-// 実際に適用済み (プレビュー・URL・永続化に使われる) の設定値
-const applied = reactive<CommentGenSettings>({ ...stored.current });
+const preview = reactive<CommentGenSettings>({ ...stored.current });
+const committed = reactive<CommentGenSettings>({ ...stored.current });
 const templates = ref<CommentGenTemplate[]>(stored.templates);
 
 // 「最後に適用したテンプレート or 保存済み値」を表す基準値。draft がこれと異なる状態で
 // 別のテンプレートを選択しようとしたら確認ダイアログを出す
 const templateBaseline = reactive<CommentGenSettings>({ ...stored.current });
 
-const hasUnappliedChanges = computed(() => !settingsEqual(draft, applied));
+// draft が preview からまだ「プレビューに適用」されていない変更を持っているか
+const hasUnpreviewedChanges = computed(() => !settingsEqual(draft, preview));
+// preview が committed (生成URL・OBS本番URLの元) へまだ「設定を反映」されていない変更を持っているか
+const hasUncommittedChanges = computed(() => !settingsEqual(preview, committed));
 
-function applyDraft() {
-	Object.assign(applied, draft);
+function applyDraftToPreview() {
+	Object.assign(preview, draft);
 	Object.assign(templateBaseline, draft);
+}
+
+// 「設定を反映」: その時点の preview (=ユーザーがプレビューで確認済みの内容) を
+// committed (生成URL・URLコピー・永続化) へ昇格させる。draft に未プレビューの変更が
+// 残っていてもここでは含めない (先に「プレビューに適用」を促すヒントを別途表示する)
+function commitPreview() {
+	Object.assign(committed, preview);
 	persist();
+}
+
+async function onRequestClose() {
+	if (hasUncommittedChanges.value) {
+		const { canceled } = await os.confirm({
+			type: 'warning',
+			text: i18n.ts._twitch.commentGenCloseConfirm,
+		});
+		if (canceled) return;
+	}
+	dialog.value?.close();
 }
 
 const modeItems = [
@@ -832,11 +863,12 @@ async function importSettings() {
 //#endregion
 
 // デフォルト値と同じ項目はURLに含めない (短いURLを保つ)。真偽値は 1/0 で表現する
-// プレビュー/コピー/新規タブいずれも「適用済み」(applied) の値からのみ生成する
-function buildUrl(demo: boolean): string {
+// iframeプレビューは preview (プレビューに適用済み) から、生成URL表示・URLコピー・
+// 新規タブでの確認はいずれも committed (設定を反映済み、OBSで使う本番用URLの元) から生成する
+function buildUrl(source: CommentGenSettings, demo: boolean): string {
 	const params = new URLSearchParams();
 	for (const key of SETTINGS_KEYS) {
-		const value = applied[key];
+		const value = source[key];
 		const defaultValue = DEFAULT_SETTINGS[key];
 		if (value === defaultValue) continue;
 		params.set(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value));
@@ -846,15 +878,15 @@ function buildUrl(demo: boolean): string {
 	return `${serverUrl}/live/${props.acct}/comment-generator${qs.length > 0 ? `?${qs}` : ''}`;
 }
 
-const generatedUrl = computed(() => buildUrl(false));
-const previewSrc = computed(() => buildUrl(true));
+const generatedUrl = computed(() => buildUrl(committed, false));
+const previewSrc = computed(() => buildUrl(preview, true));
 
 function copyUrl() {
 	copyToClipboard(generatedUrl.value);
 }
 
 function openPreviewUrl() {
-	window.open(buildUrl(true), '_blank', 'noopener');
+	window.open(buildUrl(committed, true), '_blank', 'noopener');
 }
 </script>
 
@@ -938,6 +970,23 @@ function openPreviewUrl() {
 	font-size: 0.85em;
 	padding-bottom: 8px;
 	opacity: 0.8;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.uncommittedBadge {
+	color: var(--MI_THEME-warn);
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.commitHint {
+	font-size: 0.85em;
+	color: var(--MI_THEME-warn);
+	padding-top: 8px;
 }
 
 .urlBox {
