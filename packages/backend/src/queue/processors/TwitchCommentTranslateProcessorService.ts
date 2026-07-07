@@ -38,7 +38,9 @@ export class TwitchCommentTranslateProcessorService {
 
 		let translatedText: string;
 		try {
-			translatedText = await this.twitchTranslationService.translate(comment.text, targetLang);
+			// キューは順次処理のため長文の推論時間 (CPU で数十秒) を許容する。
+			// 短い config timeout のままだと長文コメントが常に翻訳失敗になる
+			translatedText = await this.twitchTranslationService.translate(comment.text, targetLang, 60_000);
 		} catch (err) {
 			// 翻訳失敗時はログのみで正常終了する (コメント自体は既に配信済みのため、翻訳無しのまま残す)
 			this.logger.warn(`translation failed (comment=${commentId}): ${err instanceof Error ? err.message : err}`);
