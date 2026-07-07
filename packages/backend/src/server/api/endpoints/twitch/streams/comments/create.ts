@@ -8,10 +8,12 @@ import { In } from 'typeorm';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { ApiError } from '@/server/api/error.js';
 import { DI } from '@/di-symbols.js';
-import type { TwitchStreamsRepository, DriveFilesRepository } from '@/models/_.js';
+import type { TwitchStreamsRepository, DriveFilesRepository, TwitchAccountsRepository } from '@/models/_.js';
 import { TwitchCommentService, MAX_COMMENT_LENGTH } from '@/core/twitch/TwitchCommentService.js';
 import { TwitchChatRelayService } from '@/core/twitch/TwitchChatRelayService.js';
 import { TwitchStreamBlockService } from '@/core/twitch/TwitchStreamBlockService.js';
+import { TwitchTranslationService } from '@/core/twitch/TwitchTranslationService.js';
+import { detectJaEn } from '@/misc/detect-ja-en.js';
 
 export const meta = {
 	tags: ['twitch'],
@@ -61,6 +63,8 @@ export const meta = {
 		optional: false, nullable: false,
 		properties: {
 			id: { type: 'string', format: 'misskey:id', optional: false, nullable: false },
+			translatedText: { type: 'string', optional: false, nullable: true },
+			translatedLang: { type: 'string', optional: false, nullable: true },
 		},
 	},
 } as const;
@@ -77,6 +81,8 @@ export const paramDef = {
 			maxItems: 16,
 			items: { type: 'string', format: 'misskey:id' },
 		},
+		// 投稿翻訳 (bsky-fork 独自)。ON/OFF はクライアント側 miLocalStorage の設定を都度渡す想定 (DB永続化なし)
+		translate: { type: 'boolean', default: false },
 	},
 	required: ['streamId'],
 } as const;
@@ -90,14 +96,21 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		@Inject(DI.driveFilesRepository)
 		private driveFilesRepository: DriveFilesRepository,
 
+		@Inject(DI.twitchAccountsRepository)
+		private twitchAccountsRepository: TwitchAccountsRepository,
+
 		private twitchCommentService: TwitchCommentService,
 		private twitchChatRelayService: TwitchChatRelayService,
 		private twitchStreamBlockService: TwitchStreamBlockService,
+		private twitchTranslationService: TwitchTranslationService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const stream = await this.twitchStreamsRepository.findOneBy({ id: ps.streamId });
 			if (stream == null) throw new ApiError(meta.errors.noSuchStream);
-			if (!stream.isLive) throw new ApiError(meta.errors.streamEnded);
+			// プレビュー行 (bsky-fork 独自) は配信者本人のみ、isLive でなくても投稿できる
+			// (配信開始前のチャット動作確認が目的)。本人以外は従来どおり streamEnded
+			const isOwnerPreview = stream.isPreview && stream.userId === me.id;
+			if (!stream.isLive && !isOwnerPreview) throw new ApiError(meta.errors.streamEnded);
 
 			if (await this.twitchStreamBlockService.isBlockedMisskeyUser(stream.userId, me.id)) {
 				throw new ApiError(meta.errors.blocked);
@@ -114,15 +127,37 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				if (count !== fileIds.length) throw new ApiError(meta.errors.noSuchFile);
 			}
 
-			const comment = await this.twitchCommentService.createMisskeyComment(stream, me, text, fileIds);
+			// 投稿翻訳 (bsky-fork 独自): 配信者が翻訳機能を有効にしていて、かつ投稿者が明示的にONにした場合のみ、
+			// 同期的に翻訳を取得する。タイムアウト/エラー時は翻訳なしで従来動作 (投稿はブロックしない)
+			let translation: { text: string; lang: 'ja' | 'en' } | null = null;
+			let twitchRelayText = text;
+			if (ps.translate && text.length > 0) {
+				const broadcasterAccount = await this.twitchAccountsRepository.findOneBy({ userId: stream.userId });
+				if (broadcasterAccount?.translationEnabled) {
+					const detected = detectJaEn(text);
+					if (detected === 'ja' || detected === 'en') {
+						const targetLang = detected === 'ja' ? 'en' : 'ja';
+						try {
+							const translatedText = await this.twitchTranslationService.translate(text, targetLang);
+							translation = { text: translatedText, lang: targetLang };
+							// Twitch へは常に英語で中継する (日本語入力は翻訳結果、英語入力は原文のまま)
+							twitchRelayText = detected === 'ja' ? translatedText : text;
+						} catch {
+							// 翻訳失敗時は翻訳なしで従来動作にフォールバックする (投稿自体はブロックしない)
+						}
+					}
+				}
+			}
+
+			const comment = await this.twitchCommentService.createMisskeyComment(stream, me, text, fileIds, translation);
 
 			// Twitch への中継は fire-and-forget (Twitch 障害時も投稿自体は成功させる)。
 			// メディアは中継できないため、テキストがある場合のみ送る
-			if (text.length > 0) {
-				this.twitchChatRelayService.relayToTwitch(stream, me, text);
+			if (twitchRelayText.length > 0) {
+				this.twitchChatRelayService.relayToTwitch(stream, me, twitchRelayText);
 			}
 
-			return { id: comment.id };
+			return { id: comment.id, translatedText: translation?.text ?? null, translatedLang: translation?.lang ?? null };
 		});
 	}
 }

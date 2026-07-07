@@ -18,6 +18,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<!-- オフライン中でも OBS URL コピーや読み上げ・ブロックの設定はできるようにする -->
 				<MkButton v-if="isOwner" :title="i18n.ts._twitch.streamerSettings" :aria-label="i18n.ts._twitch.streamerSettings" @click="openStreamerSettings"><i class="ti ti-settings"></i></MkButton>
 			</div>
+			<!-- 配信者本人のみ: 配信開始前でもチャットの動作確認ができるプレビューモード (bsky-fork 独自) -->
+			<MkButton v-if="isOwner" v-tooltip="i18n.ts._twitch.openPreviewDescription" @click="openPreview">{{ i18n.ts._twitch.openPreview }}</MkButton>
 		</div>
 		<div v-else :class="$style.watch">
 			<div :class="$style.main">
@@ -35,13 +37,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div :class="$style.infoHeader">
 						<MkAvatar :user="user" :class="$style.infoAvatar" link preview/>
 						<div :class="$style.infoText">
-							<div :class="$style.streamTitle">{{ streamInfo.title }}</div>
+							<!-- プレビュー中は配信タイトルの代わりにプレビュー中であることを明示する -->
+							<div :class="$style.streamTitle">{{ isPreview ? i18n.ts._twitch.previewModeNotice : streamInfo.title }}</div>
 							<div :class="$style.streamMeta">
 								<MkUserName :user="user"/>
 								<span v-if="streamInfo.gameName"> · {{ streamInfo.gameName }}</span>
 								<span> · <MkTime :time="streamInfo.startedAt" mode="relative"/></span>
 							</div>
 						</div>
+						<!-- プレビュー中に実配信が始まったことを検知する手段が無いため、手動リロードで拾えるようにする (bsky-fork 独自) -->
+						<button v-if="isPreview" class="_button" :class="$style.streamerSettingsButton" :title="i18n.ts.reload" :aria-label="i18n.ts.reload" @click="reload">
+							<i class="ti ti-refresh"></i>
+						</button>
 						<button v-if="isOwner" class="_button" :class="$style.streamerSettingsButton" :title="i18n.ts._twitch.streamerSettings" :aria-label="i18n.ts._twitch.streamerSettings" @click="openStreamerSettings">
 							<i class="ti ti-settings"></i>
 						</button>
@@ -87,12 +94,24 @@ const router = useRouter();
 const fetching = ref(true);
 const user = ref<Misskey.entities.UserDetailed | null>(null);
 const twitchInfo = ref<Misskey.Endpoints['twitch/streams/show']['res'] | null>(null);
+// 配信開始前でもチャット動作確認ができるプレビューモード (bsky-fork 独自)。
+// 実配信 (twitchInfo.stream) が始まった場合はそちらを優先する
+const previewStream = ref<Misskey.Endpoints['twitch/streams/preview']['res'] | null>(null);
 
-const streamInfo = computed(() => twitchInfo.value?.stream ?? null);
+const streamInfo = computed(() => twitchInfo.value?.stream ?? previewStream.value);
+const isPreview = computed(() => twitchInfo.value?.stream == null && previewStream.value != null);
 
 // 自分の配信ページかどうか。配信者専用の設定メニュー (OBS オーバーレイ URL・
 // コメント読み上げ・配信ブロック管理) の表示条件
 const isOwner = computed(() => $i != null && user.value != null && $i.id === user.value.id);
+
+async function openPreview() {
+	try {
+		previewStream.value = await misskeyApi('twitch/streams/preview', {});
+	} catch (err) {
+		os.alert({ type: 'error', text: err instanceof Error ? err.message : String(err) });
+	}
+}
 
 const playerUrl = computed(() => {
 	if (twitchInfo.value == null) return '';
@@ -107,6 +126,7 @@ async function reload() {
 	fetching.value = true;
 	user.value = null;
 	twitchInfo.value = null;
+	previewStream.value = null;
 	try {
 		const { username, host } = Misskey.acct.parse(props.acct);
 		const fetchedUser = await misskeyApi('users/show', { username, host: host ?? undefined });
@@ -153,6 +173,16 @@ function openStreamerSettings(ev: MouseEvent) {
 		action: async () => {
 			const { dispose } = await os.popupAsyncWithDialog(
 				import('@/pages/live-stream.blocks.vue').then(x => x.default),
+				{},
+				{ closed: () => dispose() },
+			);
+		},
+	}, {
+		text: i18n.ts._twitch.translationSettings,
+		icon: 'ti ti-language',
+		action: async () => {
+			const { dispose } = await os.popupAsyncWithDialog(
+				import('@/pages/live-stream.translation-settings.vue').then(x => x.default),
 				{},
 				{ closed: () => dispose() },
 			);
@@ -232,7 +262,7 @@ const headerActions = computed(() => []);
 const headerTabs = computed(() => []);
 
 definePage(() => ({
-	title: twitchInfo.value?.stream?.title ?? i18n.ts._twitch.liveStreams,
+	title: twitchInfo.value?.stream?.title ?? (isPreview.value ? i18n.ts._twitch.previewModeNotice : i18n.ts._twitch.liveStreams),
 	icon: 'ti ti-broadcast',
 	// フルスクリーンアプリ的な没入表示にするため、視聴中はデッキ UI の「デッキへ戻る」
 	// バナーを隠す。配信終了/オフライン/未フォロー等で視聴画面を出せない間は常時 true

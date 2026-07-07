@@ -26,6 +26,7 @@ import type {
 	RelationshipJobData,
 	SystemWebhookDeliverJobData,
 	ThinUser,
+	TwitchCommentTranslateJobData,
 	UserWebhookDeliverJobData,
 } from '../queue/types.js';
 import type {
@@ -38,6 +39,7 @@ import type {
 	RelationshipQueue,
 	SystemQueue,
 	SystemWebhookDeliverQueue,
+	TwitchCommentTranslateQueue,
 	UserWebhookDeliverQueue,
 } from './QueueModule.js';
 import type httpSignature from '@peertube/http-signature';
@@ -54,6 +56,7 @@ export const QUEUE_TYPES = [
 	'objectStorage',
 	'userWebhookDeliver',
 	'systemWebhookDeliver',
+	'twitchCommentTranslate',
 ] as const;
 
 const REPEATABLE_SYSTEM_JOB_DEF = [{
@@ -116,6 +119,7 @@ export class QueueService {
 		@Inject('queue:objectStorage') public objectStorageQueue: ObjectStorageQueue,
 		@Inject('queue:userWebhookDeliver') public userWebhookDeliverQueue: UserWebhookDeliverQueue,
 		@Inject('queue:systemWebhookDeliver') public systemWebhookDeliverQueue: SystemWebhookDeliverQueue,
+		@Inject('queue:twitchCommentTranslate') public twitchCommentTranslateQueue: TwitchCommentTranslateQueue,
 	) {
 		for (const def of REPEATABLE_SYSTEM_JOB_DEF) {
 			this.systemQueue.upsertJobScheduler(def.name, {
@@ -767,6 +771,20 @@ export class QueueService {
 		});
 	}
 
+	/**
+	 * Twitch 配信コメントの非同期翻訳ジョブを投入する (bsky-fork 独自)。
+	 * @see TwitchCommentTranslateJobData
+	 * @see TwitchCommentTranslateProcessorService
+	 */
+	@bindThis
+	public twitchCommentTranslate(data: TwitchCommentTranslateJobData) {
+		return this.twitchCommentTranslateQueue.add('translate', data, {
+			attempts: 2,
+			removeOnComplete: true,
+			removeOnFail: true,
+		});
+	}
+
 	@bindThis
 	private getQueue(type: typeof QUEUE_TYPES[number]): Bull.Queue {
 		switch (type) {
@@ -780,6 +798,7 @@ export class QueueService {
 			case 'objectStorage': return this.objectStorageQueue;
 			case 'userWebhookDeliver': return this.userWebhookDeliverQueue;
 			case 'systemWebhookDeliver': return this.systemWebhookDeliverQueue;
+			case 'twitchCommentTranslate': return this.twitchCommentTranslateQueue;
 			default: throw new Error(`Unrecognized queue type: ${type}`);
 		}
 	}
