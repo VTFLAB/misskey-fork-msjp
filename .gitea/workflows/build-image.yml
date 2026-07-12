@@ -16,7 +16,7 @@ env:
   IMAGE: vtf/misskey-bsky-fork
   # upstream の base version。fork patch を当てている version を反映。
   # rebase で upstream 系列が上がったらこの値も bump する。
-  BASE_VERSION: 2026.6.1-alpha.1
+  BASE_VERSION: 2026.7.0-alpha.3
 
 jobs:
   build:
