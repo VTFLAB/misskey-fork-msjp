@@ -492,11 +492,7 @@ export class QueueProcessorService implements OnApplicationShutdown {
 		//#region twitch comment translate (bsky-fork 独自)
 		{
 			this.twitchCommentTranslateQueueWorker = new Bull.Worker(QUEUE.TWITCH_COMMENT_TRANSLATE, (job) => {
-				if (Sentry != null) {
-					return Sentry.startSpan({ name: 'Queue: TwitchCommentTranslate' }, () => this.twitchCommentTranslateProcessorService.process(job));
-				} else {
-					return this.twitchCommentTranslateProcessorService.process(job);
-				}
+				return this.telemetryService.startSpan('Queue: TwitchCommentTranslate', () => this.twitchCommentTranslateProcessorService.process(job));
 			}, {
 				...baseWorkerOptions(this.config, QUEUE.TWITCH_COMMENT_TRANSLATE),
 				autorun: false,
