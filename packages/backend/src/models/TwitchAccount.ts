@@ -8,8 +8,7 @@ import { id } from './util/id.js';
 import { MiUser } from './User.js';
 
 // Twitch アカウント連携。1 Misskey ユーザーにつき最大 1 レコード。
-// インスタンス共通の中継 bot アカウント (isBot=true) は userId が null の単一レコード
-// (単一性は migration の partial unique index で担保 WHERE "isBot" = TRUE)。
+// インスタンス共通の中継 bot アカウント (isBot=true) は userId が null の単一レコード。
 @Entity('twitch_account')
 export class MiTwitchAccount {
 	@PrimaryColumn(id())
@@ -47,6 +46,7 @@ export class MiTwitchAccount {
 	})
 	public twitchDisplayName: string;
 
+	@Index('IDX_twitch_account_isBot', { unique: true, where: '"isBot" = true' })
 	@Column('boolean', {
 		default: false,
 		comment: 'Whether this row is the instance-wide relay bot account.',
