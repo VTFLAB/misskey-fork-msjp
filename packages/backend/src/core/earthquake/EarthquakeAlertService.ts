@@ -55,6 +55,10 @@ const RECONNECT_MIN_MS = 1_000;
 const RECONNECT_MAX_MS = 60_000;
 // AtpJetstreamService と同じ理由 (silent hang 対策) の接続試行 watchdog。
 const CONNECT_TIMEOUT_MS = 20_000;
+// Wolfx は heartbeat frame を約1分間隔で常時送ってくるため、5分無音 = half-open TCP と判定できる。
+// (2026-07-11 に close イベントが来ないまま2日間受信ゼロになる障害が実際に発生した)
+const HEARTBEAT_CHECK_INTERVAL_MS = 30_000;
+const HEARTBEAT_TIMEOUT_MS = 5 * 60_000;
 const HISTORY_LIMIT = 30;
 
 @Injectable()
@@ -66,6 +70,8 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 	private reconnectAttempt = 0;
 	private reconnectTimer: NodeJS.Timeout | null = null;
 	private connectTimer: NodeJS.Timeout | null = null;
+	private heartbeatTimer: NodeJS.Timeout | null = null;
+	private lastMessageAt: number | null = null;
 	private suppressNextReconnect = false;
 	private history: JmaEewAlert[] = [];
 	// isWarn が発報済みのEventIDを保持 (通知欄が埋まるのを防ぐため重要イベントのみpushする判定に使う)。
@@ -104,6 +110,10 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 			clearTimeout(this.reconnectTimer);
 			this.reconnectTimer = null;
 		}
+		if (this.heartbeatTimer != null) {
+			clearInterval(this.heartbeatTimer);
+			this.heartbeatTimer = null;
+		}
 		this.closeWs('shutdown');
 	}
 
@@ -117,7 +127,28 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 	private start(): void {
 		this.stopped = false;
 		this.logger.info('starting JMA EEW (Wolfx) subscription');
+		this.scheduleHeartbeatCheck();
 		this.connect();
+	}
+
+	@bindThis
+	private scheduleHeartbeatCheck(): void {
+		if (this.heartbeatTimer != null) return;
+		this.heartbeatTimer = setInterval(() => {
+			// OPEN な WS が heartbeat timeout 以上無音なら half-open (silent hang) と判定して
+			// 強制 close → 通常の reconnect 経路に乗せる。AtpJetstreamService と同じ設計。
+			// OPEN 以外を対象外にするのは、接続確立前に殺すと open ハンドラの
+			// lastMessageAt 初期化に到達できず death-loop になるため。
+			if (this.ws == null) return;
+			if (this.ws.readyState !== WebSocket.OPEN) return;
+			if (this.lastMessageAt == null) return;
+			const idleMs = Date.now() - this.lastMessageAt;
+			if (idleMs > HEARTBEAT_TIMEOUT_MS) {
+				this.logger.warn(`heartbeat watchdog: no messages for ${Math.round(idleMs / 1000)}s (timeout=${Math.round(HEARTBEAT_TIMEOUT_MS / 1000)}s); forcing reconnect`);
+				this.closeWs('heartbeat-timeout');
+				this.scheduleReconnect();
+			}
+		}, HEARTBEAT_CHECK_INTERVAL_MS);
 	}
 
 	@bindThis
@@ -143,6 +174,8 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 			this.connecting = false;
 			this.clearConnectTimer();
 			this.reconnectAttempt = 0;
+			// 接続直後に初期化しないと、古い lastMessageAt のまま watchdog が即 reconnect する。
+			this.lastMessageAt = Date.now();
 			this.logger.info('connected to Wolfx JMA EEW feed');
 		});
 		ws.addEventListener('message', (event: MessageEvent) => {
@@ -216,6 +249,8 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 
 	@bindThis
 	private handleMessage(data: unknown): void {
+		// heartbeat frame など jma_eew 以外のメッセージも生存確認としてカウントする。
+		this.lastMessageAt = Date.now();
 		if (typeof data !== 'string') return;
 
 		let parsed: unknown;
