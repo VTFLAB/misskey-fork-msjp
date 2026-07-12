@@ -60,6 +60,7 @@
 - Feat: Wolfx (JMA EEW) の WebSocket feed をサーバー側で購読し、全接続中クライアントへ `earthquakeAlert` ブロードキャストストリームで配信する仕組みを追加 (bsky-fork 独自)。直近30件の速報履歴を返す `earthquake/history` エンドポイントも追加
 - Feat: 緊急地震速報を新規通知type `earthquakeAlert` として重要イベント (警報発表時・最終報・取消) のみ全ユーザーに配信し、既存の通知 / Web Push 基盤に接続 (bsky-fork 独自)
 - Enhance: `get-weather` エンドポイントが体感温度・本日の最高/最低気温・降水確率も返すように (bsky-fork 独自)
+- Fix: 緊急地震速報 (Wolfx JMA EEW) の WebSocket 接続が half-open (切断イベントが来ない無音状態) になると以降の速報を受信できなくなる問題を修正 (bsky-fork 独自)。受信ベースの heartbeat watchdog を追加し、5分以上メッセージが途絶えたら自動的に再接続するようにした
 - Fix: 緊急地震速報で深発地震などにより最大予測震度が「不明」になった続報・最終報を、同一イベントで直近に予測された震度で補完して表示するように (bsky-fork 独自)。取消報は補完しない
 - Enhance: Web Push の送信失敗 (410 Gone 以外) をログに記録するように。配信不良の調査を可能にする
 - Feat: Twitch 連携の基盤を追加 (bsky-fork 独自)。Twitch OAuth (認可コードフロー)・`twitch_account` テーブル・Helix API クライアント・連携用エンドポイント (`twitch/generate-oauth-url`, `twitch/my-account`, `twitch/unlink`)・callback ルート (`GET /twitch/oauth/callback`)。`.config/default.yml` に `twitch.clientId` / `twitch.clientSecret` を設定した場合のみ有効
