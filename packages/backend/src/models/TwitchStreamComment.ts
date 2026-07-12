@@ -118,6 +118,7 @@ export class MiTwitchStreamComment {
 	// source=misskey や fragments 未取得の場合は null (プレーンテキストとして表示)
 	@Column('jsonb', {
 		nullable: true,
+		comment: 'Twitch EventSub message fragments (source=twitch only). Used to render Twitch emotes inline; null for plain-text-only messages.',
 	})
 	public fragments: TwitchChatFragment[] | null;
 
@@ -125,6 +126,7 @@ export class MiTwitchStreamComment {
 	@Column({
 		...id(),
 		array: true, default: '{}',
+		comment: 'Attached drive files (source=misskey only, not relayed to Twitch).',
 	})
 	public fileIds: MiDriveFile['id'][];
 
