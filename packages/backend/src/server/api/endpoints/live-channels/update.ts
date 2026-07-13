@@ -47,6 +47,7 @@ export const meta = {
 			name: { type: 'string', optional: false, nullable: true },
 			description: { type: 'string', optional: false, nullable: true },
 			bannerId: { type: 'string', format: 'misskey:id', optional: false, nullable: true },
+			channelId: { type: 'string', format: 'misskey:id', optional: false, nullable: true },
 			createdAt: { type: 'string', format: 'date-time', optional: false, nullable: false },
 			streamKey: { type: 'string', optional: true, nullable: false },
 			streamKeyRegeneratedAt: { type: 'string', format: 'date-time', optional: true, nullable: false },
