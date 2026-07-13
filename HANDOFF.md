@@ -1,6 +1,69 @@
 # misskey-bsky-fork — 次セッションへの引き継ぎ
 
-## ⚠️ 最優先で読むこと (2026-07-02 更新)
+## 🔴 進行中スレッド: ライブ配信機能 (2026-07-14、最優先で読むこと)
+
+**このセクションは以下の AT-proto (Bluesky 統合) の引き継ぎ内容とは別スレッド。** ライブチャンネル
+(自己配信、OME=OvenMediaEngine連携) 機能を新規実装中。設計・進捗の一次情報源は
+**`doc/live-streaming/06-implementation-phases.md`** — 次セッションは必ずこれを最初に開くこと
+(本セクションは要約のみ)。
+
+### 状態
+
+- 設計書7本 (`doc/live-streaming/00〜06`) 策定済み、コミット済み (`dbf1457895`)。
+- **Phase 1 (チャンネル基盤 backend, WI-1.1〜1.4) 完了・コミット済み** (`670a74c9` 〜 `0cc8b00d`、5コミット、
+  push 未実施)。`live_channel` テーブル・`LiveChannelService`・API 5本 (`live-channels/*`)・i18n・e2e 9ケース。
+  `config.ome` に一切依存せず単体で動作する (OME非依存の完了条件を満たす)。
+- **Phase 0 (OMEインフラ構築) は未着手** — LXC作成等の物理インフラ作業で、コーディングセッションのスコープ外。
+- Phase 2 (OME連携backend) は Phase 0 + Phase 1 の両方が前提。Phase 0 未着手のため Phase 2 は着手不可。
+- **Phase 3 (チャンネルページ frontend) は Phase 1 のみに依存するため、Phase 0/2 を待たずに次に着手できる。**
+  次セッションが frontend 作業ならここから (`06-implementation-phases.md` §6, WI-3.1〜3.4)。
+
+### このセッションで踏んだ落とし穴 (次セッションが同じ沼にハマらないために)
+
+1. **Claude Code の Bash ツール自体がネストした user namespace 内で動いている** (`app-orca-*.scope` 配下、
+   `/proc/self/ns/user` がホストと異なる)。このため podman/docker のコンテナ操作 (rootless namespace 作成)
+   がツール実行環境から失敗することがある。**再起動は不要**、ユーザーの実ターミナルで同じコマンドを
+   実行してもらえば正常動作する (今回は `docker compose -f compose.local-db.yml up -d --wait` を
+   ユーザーに実行してもらい解決)。DB起動後は TCP 接続なのでツールから通常通り操作可能。
+2. **`.config/docker.env` が存在しない**: `compose.local-db.yml` の `db` サービスが要求するが repo には無い
+   (`.gitignore` 対象)。作成した (`POSTGRES_HOST_AUTH_METHOD=trust`、`.config/default.yml`/`test.yml` の
+   `pass: ''` に合わせた)。
+3. **`.config/default.yml`/`.config/test.yml` の db/redis ポートが `compose.local-db.yml` の実マッピング
+   (5432/6379) と不一致だった** (54312/56312 になっていた)。5432/6379 に修正して解決 (ホスト側ポート空き
+   確認済み)。ポート変更後は `pnpm --filter backend compile-config` で `built/.config.json` を再コンパイル
+   しないと反映されない (`check-migrations`/`migrate` はこのファイルを読む)。
+4. **`pnpm`/`node` のバージョン不整合**: システムの `pnpm` (corepack自己管理) が壊れており
+   `/home/vtf/.npm-global/bin/pnpm` を直接使う必要がある。また `node_modules` 内のネイティブモジュール
+   (`re2` 等) が Node 26 でビルドされているが `node` (システムデフォルト) は 24 系のため
+   `ERR_DLOPEN_FAILED` になる。`PATH="/nix/store/mm91li4ins9bmz8155drxb3iqx9gd72z-nodejs-26.5.0/bin:$PATH"`
+   を前置きすることで `generate_api_json.js`/`check-migrations`/`migrate` 等が正常動作する
+   (nix store のハッシュはこの環境固有、次セッションでは変わっている可能性がある —
+   `find /nix/store -maxdepth 1 -iname "*nodejs-26*"` で探し直すこと)。
+5. **migration の TypeORM 制約名は必ず `check-migrations` の実出力で検証すること**: 手書きで
+   `PK_live_channel_id` のような可読名を付けると、TypeORM の自動生成ハッシュ名
+   (`PK_43a1eee100c501a88c0faa3d4c5` 等) と一致せず `check-migrations` が pending DDL として検出する。
+   `@OneToOne` + `@JoinColumn` の列には TypeORM が自動で `REL_*` unique 制約を追加する点も見落としやすい
+   (手書き migration で書き忘れると生成される DDL と食い違う)。
+6. **`secure: true` エンドポイントの未認証時レスポンスは 401 ではなく 400 (`ACCESS_DENIED`)**:
+   `ApiCallService.call()` の `secure` チェックが `requireCredential` の 401 チェックより先に走るため
+   (`packages/backend/src/server/api/ApiCallService.ts:302` 付近)。`requireCredential: true` だが
+   `secure` を付けないエンドポイント (例: `twitch/my-account`) は素直に 401 になる。
+
+### 次にやること
+
+1. `.config/docker.env` は既に作成済みなのでローカル DB は `docker compose -f compose.local-db.yml up -d
+   --wait` (ユーザーの実ターミナルで) だけで起動できるはず。
+2. Phase 3 (frontend, `live-stream.vue` の3状態分岐、`/settings/live-channel` 設定ページ) に着手する場合は
+   `working-on-frontend` skill を先に読むこと (AGENTS.md 絶対禁止事項#14)。
+3. Phase 0 (OMEインフラ) に着手する場合は `01-infra-ome-setup.md` を読み、WI-0.5 (WAN公開) は
+   ユーザー承認済みだが上位ルーターのポート開放は人間の手動作業である点に注意 (`06-implementation-phases.md`
+   §3 WI-0.5 参照)。
+4. コミット済み5本は **push していない**。push 前に `pnpm lint`/`check-migrations` を再確認し、
+   CLAUDE.md §2 (WAN確認) に従って push の可否をユーザーに確認すること。
+
+---
+
+## ⚠️ 最優先で読むこと (2026-07-02 更新、AT-proto統合スレッド)
 
 1. **作業ディレクトリが2つ存在し、片方が origin から乖離している。**
    - `/home/vtf/projects/misskey/misskey-repo` — このセッションで実際に commit/push した**最新かつ正**のコピー。`origin/bsky-integration` と完全に一致 (`e2fecef474` まで)。
