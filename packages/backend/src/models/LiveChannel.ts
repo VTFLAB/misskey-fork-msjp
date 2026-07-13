@@ -6,6 +6,7 @@
 import { Entity, Column, Index, PrimaryColumn, ManyToOne, OneToOne, JoinColumn } from 'typeorm';
 import { id } from './util/id.js';
 import { MiUser } from './User.js';
+import { MiChannel } from './Channel.js';
 import { MiDriveFile } from './DriveFile.js';
 
 // ライブチャンネル (self-streaming, OME連携) の設定行。1 Misskey ユーザーにつき最大 1 レコード。
@@ -58,6 +59,20 @@ export class MiLiveChannel {
 	})
 	@JoinColumn()
 	public banner: MiDriveFile | null;
+
+	@Index()
+	@Column({
+		...id(),
+		nullable: true,
+		comment: 'The associated Misskey channel for community timeline (YouTube-like channel posts).',
+	})
+	public channelId: MiChannel['id'] | null;
+
+	@ManyToOne(() => MiChannel, {
+		onDelete: 'SET NULL',
+	})
+	@JoinColumn()
+	public channel: MiChannel | null;
 
 	@Index({ unique: true })
 	@Column('varchar', {

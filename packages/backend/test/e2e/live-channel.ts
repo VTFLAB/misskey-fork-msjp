@@ -45,6 +45,7 @@ describe('ライブチャンネル', () => {
 		assert.strictEqual(body.userId, alice.id);
 		assert.strictEqual(typeof body.streamKey, 'string');
 		assert.strictEqual(body.streamKey.length, 32);
+		assert.strictEqual(typeof body.channelId, 'string');
 	});
 
 	test('二重作成は ALREADY_EXISTS', async () => {
@@ -91,6 +92,21 @@ describe('ライブチャンネル', () => {
 		// name/description は未指定なので変更されない
 		assert.strictEqual(body2.name, 'Alice Channel');
 		assert.strictEqual(body2.description, 'hello');
+	});
+
+	test('update で紐づく channel の name/description も同期される', async () => {
+		const my = await api('live-channels/my', {}, alice);
+		assert.strictEqual(my.status, 200);
+		const channelId = (my.body as any).channel.channelId;
+		assert.strictEqual(typeof channelId, 'string');
+
+		const update = await api('live-channels/update', { name: 'Alice Updated', description: 'updated desc' }, alice);
+		assert.strictEqual(update.status, 200);
+
+		const channelShow = await api('channels/show', { channelId });
+		assert.strictEqual(channelShow.status, 200);
+		assert.strictEqual((channelShow.body as any).name, 'Alice Updated');
+		assert.strictEqual((channelShow.body as any).description, 'updated desc');
 	});
 
 	test('未認証では create/update/regenerate-key/my を呼べない (show のみ未認証可)', async () => {

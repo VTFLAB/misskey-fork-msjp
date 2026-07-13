@@ -5,7 +5,8 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import { DI } from '@/di-symbols.js';
-import type { LiveChannelsRepository, MiUser } from '@/models/_.js';
+import type { ChannelsRepository, LiveChannelsRepository, MiUser } from '@/models/_.js';
+import type { MiChannel } from '@/models/Channel.js';
 import { IdService } from '@/core/IdService.js';
 import { bindThis } from '@/decorators.js';
 import { secureRndstr } from '@/misc/secure-rndstr.js';
@@ -17,12 +18,16 @@ export class LiveChannelService {
 		@Inject(DI.liveChannelsRepository)
 		private liveChannelsRepository: LiveChannelsRepository,
 
+		@Inject(DI.channelsRepository)
+		private channelsRepository: ChannelsRepository,
+
 		private idService: IdService,
 	) {
 	}
 
 	// 有効化 (= 「配信機能を利用する」トグル ON)。既に行が存在する場合は ALREADY_EXISTS として呼び出し側でエラーにする
 	// (endpoint 側で事前に show() の結果を見て判定する。ここでは単純作成のみ行う)。
+	// live_channel と同時に Misskey channel (community timeline) を作成し、channelId を紐づける。
 	@bindThis
 	public async create(userId: MiUser['id']): Promise<MiLiveChannel> {
 		const now = new Date();
@@ -38,12 +43,26 @@ export class LiveChannelService {
 			streamKeyRegeneratedAt: now,
 			lastCutReason: null,
 			createdAt: now,
+			channelId: null,
 		}));
+
+		const channel = await this.channelsRepository.insertOne({
+			id: this.idService.gen(),
+			userId,
+			name: '配信チャンネル',
+			description: null,
+			bannerId: null,
+			isSensitive: false,
+			allowRenoteToExternal: true,
+		} as MiChannel);
+
+		await this.liveChannelsRepository.update(id, { channelId: channel.id });
 
 		return await this.liveChannelsRepository.findOneByOrFail({ id });
 	}
 
 	// name/description/bannerId/enabled の部分更新。undefined のフィールドは変更しない (twitch/update-settings.ts と同型)。
+	// 紐づく Misskey channel も name/description/bannerId の変更時に同期する。
 	@bindThis
 	public async update(userId: MiUser['id'], params: {
 		enabled?: boolean;
@@ -51,7 +70,7 @@ export class LiveChannelService {
 		description?: string | null;
 		bannerId?: string | null;
 	}): Promise<MiLiveChannel> {
-		const channel = await this.liveChannelsRepository.findOneByOrFail({ userId });
+		const liveChannel = await this.liveChannelsRepository.findOneByOrFail({ userId });
 
 		const update: Partial<MiLiveChannel> = {};
 		if (params.enabled !== undefined) update.enabled = params.enabled;
@@ -60,10 +79,18 @@ export class LiveChannelService {
 		if (params.bannerId !== undefined) update.bannerId = params.bannerId;
 
 		if (Object.keys(update).length > 0) {
-			await this.liveChannelsRepository.update(channel.id, update);
+			await this.liveChannelsRepository.update(liveChannel.id, update);
 		}
 
-		return await this.liveChannelsRepository.findOneByOrFail({ id: channel.id });
+		if (liveChannel.channelId != null && (params.name !== undefined || params.description !== undefined || params.bannerId !== undefined)) {
+			const channelUpdate: Partial<MiChannel> = {};
+			if (params.name !== undefined) channelUpdate.name = params.name ?? '配信チャンネル';
+			if (params.description !== undefined) channelUpdate.description = params.description;
+			if (params.bannerId !== undefined) channelUpdate.bannerId = params.bannerId;
+			await this.channelsRepository.update(liveChannel.channelId, channelUpdate);
+		}
+
+		return await this.liveChannelsRepository.findOneByOrFail({ id: liveChannel.id });
 	}
 
 	// 新乱数を発行し既存キーを置換する。Phase 2 では OME REST DELETE で旧キーの接続を切断する処理をここに追加する。
@@ -103,6 +130,7 @@ export class LiveChannelService {
 			name: channel.name,
 			description: channel.description,
 			bannerId: channel.bannerId,
+			channelId: channel.channelId,
 			createdAt: channel.createdAt.toISOString(),
 			// 所有者のみ: ストリームキーと再生成日時
 			streamKey: isOwner ? channel.streamKey : undefined,
