@@ -233,7 +233,12 @@ export const ROUTE_DEF = [{
 	path: '/live/:acct/overlay',
 	component: page(() => import('@/pages/live-stream.overlay.vue')),
 }, {
+	path: '/live/:acct/stream',
+	name: 'live-stream-watch',
+	component: page(() => import('@/pages/live-stream.watch.vue')),
+}, {
 	path: '/live/:acct',
+	name: 'live-stream',
 	component: page(() => import('@/pages/live-stream.vue')),
 }, {
 	path: '/about',
