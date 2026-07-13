@@ -476,6 +476,13 @@ export * as 'twitch/streams/blocks/create' from './endpoints/twitch/streams/bloc
 export * as 'twitch/streams/blocks/delete' from './endpoints/twitch/streams/blocks/delete.js';
 export * as 'twitch/streams/blocks/list' from './endpoints/twitch/streams/blocks/list.js';
 export * as 'twitch/unlink' from './endpoints/twitch/unlink.js';
+
+// live-channels (ライブチャンネル基盤、fork 独自)
+export * as 'live-channels/show' from './endpoints/live-channels/show.js';
+export * as 'live-channels/create' from './endpoints/live-channels/create.js';
+export * as 'live-channels/update' from './endpoints/live-channels/update.js';
+export * as 'live-channels/regenerate-key' from './endpoints/live-channels/regenerate-key.js';
+export * as 'live-channels/my' from './endpoints/live-channels/my.js';
 export * as 'remote-guest/login/start' from './endpoints/remote-guest/login/start.js';
 export * as 'remote-guest/session/revoke' from './endpoints/remote-guest/session/revoke.js';
 export * as 'remote-guest/twitch-comments' from './endpoints/remote-guest/twitch-comments.js';
