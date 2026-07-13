@@ -3028,6 +3028,55 @@ export type paths = {
          */
         post: operations['invite___list'];
     };
+    '/live-channels/create': {
+        /**
+         * live-channels/create
+         * @description ライブチャンネル (自己配信) 機能を有効化する。既に live_channel 行があれば ALREADY_EXISTS。
+         *
+         *     **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['live-channels___create'];
+    };
+    '/live-channels/my': {
+        /**
+         * live-channels/my
+         * @description 自分のライブチャンネル設定を返す。未開設なら channel: null。ingest 接続情報 (rtmpUrl/srtUrl/whipUrl) は Phase 2 (OME 連携) 実装まで null 固定。
+         *
+         *     **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         */
+        post: operations['live-channels___my'];
+    };
+    '/live-channels/regenerate-key': {
+        /**
+         * live-channels/regenerate-key
+         * @description ストリームキーを再生成する。旧キーは即座に無効化される。Phase 2 (OME 連携) では旧キーでの既存接続も強制切断するが、Phase 1 では乱数の入れ替えのみ行う。
+         *
+         *     **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['live-channels___regenerate-key'];
+    };
+    '/live-channels/show': {
+        /**
+         * live-channels/show
+         * @description 指定ユーザーのライブチャンネル設定を返す。チャンネル未開設 (live_channel 行が無い) 場合は NO_SUCH_CHANNEL。ストリームキー等の秘匿フィールドは本人がログインしている場合のみ返す。
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['live-channels___show'];
+    };
+    '/live-channels/update': {
+        /**
+         * live-channels/update
+         * @description ライブチャンネル (自己配信) の設定 (有効/無効・チャンネル名・説明・バナー) を更新する。
+         *
+         *     **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['live-channels___update'];
+    };
     '/meta': {
         /**
          * meta
@@ -29916,6 +29965,428 @@ export interface operations {
             };
             /** @description I'm Ai */
             418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'live-channels___create': {
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** Format: misskey:id */
+                        id: string;
+                        /** Format: misskey:id */
+                        userId: string;
+                        enabled: boolean;
+                        name: string | null;
+                        description: string | null;
+                        /** Format: misskey:id */
+                        bannerId: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        streamKey?: string;
+                        /** Format: date-time */
+                        streamKeyRegeneratedAt?: string;
+                        lastCutReason?: string | null;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'live-channels___my': {
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        channel: {
+                            /** Format: misskey:id */
+                            id: string;
+                            /** Format: misskey:id */
+                            userId: string;
+                            enabled: boolean;
+                            name: string | null;
+                            description: string | null;
+                            /** Format: misskey:id */
+                            bannerId: string | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                            streamKey?: string;
+                            /** Format: date-time */
+                            streamKeyRegeneratedAt?: string;
+                            lastCutReason?: string | null;
+                        } | null;
+                        streamKey: string | null;
+                        rtmpUrl: string | null;
+                        srtUrl: string | null;
+                        whipUrl: string | null;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'live-channels___regenerate-key': {
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** Format: misskey:id */
+                        id: string;
+                        /** Format: misskey:id */
+                        userId: string;
+                        enabled: boolean;
+                        name: string | null;
+                        description: string | null;
+                        /** Format: misskey:id */
+                        bannerId: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        streamKey?: string;
+                        /** Format: date-time */
+                        streamKeyRegeneratedAt?: string;
+                        lastCutReason?: string | null;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'live-channels___show': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    userId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** Format: misskey:id */
+                        id: string;
+                        /** Format: misskey:id */
+                        userId: string;
+                        enabled: boolean;
+                        name: string | null;
+                        description: string | null;
+                        /** Format: misskey:id */
+                        bannerId: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        streamKey?: string;
+                        /** Format: date-time */
+                        streamKeyRegeneratedAt?: string;
+                        lastCutReason?: string | null;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'live-channels___update': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    enabled?: boolean;
+                    name?: string | null;
+                    description?: string | null;
+                    /** Format: misskey:id */
+                    bannerId?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** Format: misskey:id */
+                        id: string;
+                        /** Format: misskey:id */
+                        userId: string;
+                        enabled: boolean;
+                        name: string | null;
+                        description: string | null;
+                        /** Format: misskey:id */
+                        bannerId: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        streamKey?: string;
+                        /** Format: date-time */
+                        streamKeyRegeneratedAt?: string;
+                        lastCutReason?: string | null;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

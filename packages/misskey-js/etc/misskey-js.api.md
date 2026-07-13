@@ -2120,6 +2120,13 @@ declare namespace entities {
         InviteLimitResponse,
         InviteListRequest,
         InviteListResponse,
+        LiveChannelsCreateResponse,
+        LiveChannelsMyResponse,
+        LiveChannelsRegenerateKeyResponse,
+        LiveChannelsShowRequest,
+        LiveChannelsShowResponse,
+        LiveChannelsUpdateRequest,
+        LiveChannelsUpdateResponse,
         MetaRequest,
         MetaResponse,
         MiauthGenTokenRequest,
@@ -3029,6 +3036,27 @@ type JmaEewWarnArea = {
     Type: string;
     Arrive: boolean;
 };
+
+// @public (undocumented)
+type LiveChannelsCreateResponse = operations['live-channels___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LiveChannelsMyResponse = operations['live-channels___my']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LiveChannelsRegenerateKeyResponse = operations['live-channels___regenerate-key']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LiveChannelsShowRequest = operations['live-channels___show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LiveChannelsShowResponse = operations['live-channels___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LiveChannelsUpdateRequest = operations['live-channels___update']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LiveChannelsUpdateResponse = operations['live-channels___update']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type MeDetailed = components['schemas']['MeDetailed'];
