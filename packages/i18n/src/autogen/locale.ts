@@ -14429,6 +14429,34 @@ export interface Locale extends ILocale {
          * 配信サーバーが未設定です（管理者がOME連携を有効化すると利用できます）
          */
         "notConfiguredServer": string;
+        /**
+         * ホーム
+         */
+        "home": string;
+        /**
+         * 投稿
+         */
+        "posts": string;
+        /**
+         * メディア
+         */
+        "media": string;
+        /**
+         * 配信履歴はまだありません
+         */
+        "noStreamHistory": string;
+        /**
+         * チャンネルタイムラインが未初期化です
+         */
+        "channelTimelineNotInitialized": string;
+        /**
+         * チャンネルを編集
+         */
+        "editChannel": string;
+        /**
+         * 配信を見る
+         */
+        "watchStream": string;
     };
     "_remoteGuestLogin": {
         /**
