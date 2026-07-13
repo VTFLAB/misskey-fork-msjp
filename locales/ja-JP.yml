@@ -3850,6 +3850,13 @@ _liveChannel:
   copyStreamKey: "ストリームキーをコピー"
   streamKeyRegeneratedAt: "最終再生成日時"
   notConfiguredServer: "配信サーバーが未設定です（管理者がOME連携を有効化すると利用できます）"
+  home: "ホーム"
+  posts: "投稿"
+  media: "メディア"
+  noStreamHistory: "配信履歴はまだありません"
+  channelTimelineNotInitialized: "チャンネルタイムラインが未初期化です"
+  editChannel: "チャンネルを編集"
+  watchStream: "配信を見る"
 _remoteGuestLogin:
   title: "他インスタンスのアカウントでログイン"
   description: "他のMisskeyインスタンスのアカウントでログインすると、視聴とコメント投稿ができます。"
