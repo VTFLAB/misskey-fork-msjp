@@ -7,21 +7,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 <PageWithHeader :actions="headerActions" :tabs="headerTabs" :hideTitle="true">
 	<div class="_spacer" style="--MI_SPACER-min: 0px; --MI_SPACER-max: 0px;">
 		<MkLoading v-if="fetching"/>
-		<MkResult v-else-if="user == null || twitchInfo == null" type="notFound"/>
-		<div v-else-if="streamInfo == null" class="_gaps" :class="$style.offline">
-			<MkAvatar :user="user" :class="$style.offlineAvatar" link preview/>
-			<MkUserName :user="user" :class="$style.offlineName"/>
-			<div>{{ i18n.ts._twitch.streamOffline }}</div>
-			<div :class="$style.offlineActions">
-				<MkButton @click="reload">{{ i18n.ts.reload }}</MkButton>
-				<MkButton primary @click="goHome">{{ i18n.ts._twitch.backToHome }}</MkButton>
-				<!-- オフライン中でも OBS URL コピーや読み上げ・ブロックの設定はできるようにする -->
-				<MkButton v-if="isOwner" :title="i18n.ts._twitch.streamerSettings" :aria-label="i18n.ts._twitch.streamerSettings" @click="openStreamerSettings"><i class="ti ti-settings"></i></MkButton>
-			</div>
-			<!-- 配信者本人のみ: 配信開始前でもチャットの動作確認ができるプレビューモード (bsky-fork 独自) -->
-			<MkButton v-if="isOwner" v-tooltip="i18n.ts._twitch.openPreviewDescription" @click="openPreview">{{ i18n.ts._twitch.openPreview }}</MkButton>
-		</div>
-		<div v-else :class="$style.watch">
+		<MkResult v-else-if="user == null || channelState === 'none'" type="notFound"/>
+		<XChannelHome v-else-if="channelState === 'offline' && channelInfo != null" :user="user" :channel="channelInfo" :isOwner="isOwner" :onOpenPreview="openPreview" :onOpenStreamerSettings="openStreamerSettings"/>
+		<div v-else-if="streamInfo != null" :class="$style.watch">
 			<div :class="$style.main">
 				<div :class="$style.playerContainer">
 					<!-- KeepAlive でページがキャッシュされても再生が続かないよう deactivate 中は iframe を落とす -->
@@ -52,7 +40,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<button v-if="isOwner" class="_button" :class="$style.streamerSettingsButton" :title="i18n.ts._twitch.streamerSettings" :aria-label="i18n.ts._twitch.streamerSettings" @click="openStreamerSettings">
 							<i class="ti ti-settings"></i>
 						</button>
-						<MkFollowButton v-else-if="$i != null && $i.id !== user.id" v-model:user="user" :inline="true" :transparent="false" :full="true"/>
+						<MkFollowButton v-else-if="$i != null && $i.id !== user.id" v-model:user="user" :full="true"/>
 						<button v-else-if="remoteGuestSession != null" class="_button" :class="$style.remoteGuestMenu" @click="openRemoteGuestMenu">
 							<i class="ti ti-user-circle"></i>
 							<span :class="$style.remoteGuestAcct">{{ remoteGuestSession.acct }}</span>
@@ -74,7 +62,7 @@ import { computed, ref, watch, onMounted, onActivated, onDeactivated } from 'vue
 import * as Misskey from 'misskey-js';
 import { hostname, url as serverUrl } from '@@/js/config.js';
 import XChat from '@/pages/live-stream.chat.vue';
-import MkButton from '@/components/MkButton.vue';
+import XChannelHome from '@/pages/live-stream.channel-home.vue';
 import MkFollowButton from '@/components/MkFollowButton.vue';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
@@ -93,17 +81,25 @@ const router = useRouter();
 
 const fetching = ref(true);
 const user = ref<Misskey.entities.UserDetailed | null>(null);
+const channelInfo = ref<Misskey.Endpoints['live-channels/show']['res'] | null>(null);
 const twitchInfo = ref<Misskey.Endpoints['twitch/streams/show']['res'] | null>(null);
 // 配信開始前でもチャット動作確認ができるプレビューモード (bsky-fork 独自)。
 // 実配信 (twitchInfo.stream) が始まった場合はそちらを優先する
 const previewStream = ref<Misskey.Endpoints['twitch/streams/preview']['res'] | null>(null);
 
-const streamInfo = computed(() => twitchInfo.value?.stream ?? previewStream.value);
+const streamInfo = computed(() => twitchInfo.value?.stream ?? previewStream.value ?? null);
 const isPreview = computed(() => twitchInfo.value?.stream == null && previewStream.value != null);
 
 // 自分の配信ページかどうか。配信者専用の設定メニュー (OBS オーバーレイ URL・
 // コメント読み上げ・配信ブロック管理) の表示条件
 const isOwner = computed(() => $i != null && user.value != null && $i.id === user.value.id);
+
+const channelState = computed<'live' | 'offline' | 'none'>(() => {
+	if (twitchInfo.value?.stream != null) return 'live';
+	// Phase 2 will add sessions[] to twitchInfo; for now stream field is the live signal.
+	if (channelInfo.value != null && channelInfo.value.enabled) return 'offline';
+	return 'none';
+});
 
 async function openPreview() {
 	try {
@@ -125,15 +121,21 @@ const playerUrl = computed(() => {
 async function reload() {
 	fetching.value = true;
 	user.value = null;
+	channelInfo.value = null;
 	twitchInfo.value = null;
 	previewStream.value = null;
 	try {
 		const { username, host } = Misskey.acct.parse(props.acct);
 		const fetchedUser = await misskeyApi('users/show', { username, host: host ?? undefined });
 		user.value = fetchedUser;
-		twitchInfo.value = await misskeyApi('twitch/streams/show', { userId: fetchedUser.id });
+		const [channel, twitch] = await Promise.all([
+			misskeyApi('live-channels/show', { userId: fetchedUser.id }).catch(() => null),
+			misskeyApi('twitch/streams/show', { userId: fetchedUser.id }).catch(() => null),
+		]);
+		channelInfo.value = channel;
+		twitchInfo.value = twitch;
 	} catch {
-		// user 不明 / 未連携 → not found 表示
+		// user unknown → not found
 	} finally {
 		fetching.value = false;
 	}
@@ -142,10 +144,6 @@ async function reload() {
 function onStreamEnded() {
 	os.alert({ type: 'info', text: i18n.ts._twitch.streamEnded });
 	reload();
-}
-
-function goHome() {
-	router.push('/');
 }
 
 function openStreamerSettings(ev: MouseEvent) {
@@ -278,33 +276,11 @@ definePage(() => ({
 	// バナーを隠す。配信終了/オフライン/未フォロー等で視聴画面を出せない間は常時 true
 	// のままだと戻る手段が無くなる (デッキUIで詰み画面になる既知バグだった) ため、
 	// 実際に再生中のときだけ隠す
-	hideDeckNav: streamInfo.value != null,
+	hideDeckNav: channelState.value === 'live',
 }));
 </script>
 
 <style lang="scss" module>
-.offline {
-	text-align: center;
-	padding: 48px 12px;
-}
-
-.offlineAvatar {
-	width: 84px;
-	height: 84px;
-	margin: 0 auto;
-}
-
-.offlineName {
-	font-weight: bold;
-	font-size: 1.1em;
-}
-
-.offlineActions {
-	display: flex;
-	justify-content: center;
-	gap: 8px;
-}
-
 .watch {
 	display: flex;
 	gap: 12px;
