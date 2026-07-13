@@ -3692,6 +3692,65 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * ライブチャンネル (自己配信) 機能を有効化する。既に live_channel 行があれば ALREADY_EXISTS。
+     * 
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'live-channels/create', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * 自分のライブチャンネル設定を返す。未開設なら channel: null。ingest 接続情報 (rtmpUrl/srtUrl/whipUrl) は Phase 2 (OME 連携) 実装まで null 固定。
+     * 
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'live-channels/my', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * ストリームキーを再生成する。旧キーは即座に無効化される。Phase 2 (OME 連携) では旧キーでの既存接続も強制切断するが、Phase 1 では乱数の入れ替えのみ行う。
+     * 
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'live-channels/regenerate-key', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * 指定ユーザーのライブチャンネル設定を返す。チャンネル未開設 (live_channel 行が無い) 場合は NO_SUCH_CHANNEL。ストリームキー等の秘匿フィールドは本人がログインしている場合のみ返す。
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'live-channels/show', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * ライブチャンネル (自己配信) の設定 (有効/無効・チャンネル名・説明・バナー) を更新する。
+     * 
+     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'live-channels/update', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * No description provided.
      * 
      * **Credential required**: *No*
