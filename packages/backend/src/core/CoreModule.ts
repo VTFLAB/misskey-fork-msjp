@@ -169,6 +169,8 @@ import { TwitchCommentService } from './twitch/TwitchCommentService.js';
 import { TwitchChatRelayService } from './twitch/TwitchChatRelayService.js';
 import { TwitchStreamBlockService } from './twitch/TwitchStreamBlockService.js';
 import { TwitchTranslationService } from './twitch/TwitchTranslationService.js';
+import { LiveLoggerService } from './live/LiveLoggerService.js';
+import { LiveChannelService } from './live/LiveChannelService.js';
 import { RemoteGuestLoggerService } from './remote-guest/RemoteGuestLoggerService.js';
 import { RemoteGuestHostAllowlistService } from './remote-guest/RemoteGuestHostAllowlistService.js';
 import { RemoteGuestAccountService } from './remote-guest/RemoteGuestAccountService.js';
@@ -349,6 +351,8 @@ const $TwitchCommentService: Provider = { provide: 'TwitchCommentService', useEx
 const $TwitchChatRelayService: Provider = { provide: 'TwitchChatRelayService', useExisting: TwitchChatRelayService };
 const $TwitchStreamBlockService: Provider = { provide: 'TwitchStreamBlockService', useExisting: TwitchStreamBlockService };
 const $TwitchTranslationService: Provider = { provide: 'TwitchTranslationService', useExisting: TwitchTranslationService };
+const $LiveLoggerService: Provider = { provide: 'LiveLoggerService', useExisting: LiveLoggerService };
+const $LiveChannelService: Provider = { provide: 'LiveChannelService', useExisting: LiveChannelService };
 
 const $RemoteGuestLoggerService: Provider = { provide: 'RemoteGuestLoggerService', useExisting: RemoteGuestLoggerService };
 const $RemoteGuestHostAllowlistService: Provider = { provide: 'RemoteGuestHostAllowlistService', useExisting: RemoteGuestHostAllowlistService };
@@ -528,6 +532,8 @@ const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthC
 		TwitchChatRelayService,
 		TwitchStreamBlockService,
 		TwitchTranslationService,
+		LiveLoggerService,
+		LiveChannelService,
 		RemoteGuestLoggerService,
 		RemoteGuestHostAllowlistService,
 		RemoteGuestAccountService,
@@ -706,6 +712,8 @@ const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthC
 		$TwitchChatRelayService,
 		$TwitchStreamBlockService,
 		$TwitchTranslationService,
+		$LiveLoggerService,
+		$LiveChannelService,
 		$RemoteGuestLoggerService,
 		$RemoteGuestHostAllowlistService,
 		$RemoteGuestAccountService,
@@ -880,6 +888,8 @@ const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthC
 		TwitchChatRelayService,
 		TwitchStreamBlockService,
 		TwitchTranslationService,
+		LiveLoggerService,
+		LiveChannelService,
 		RemoteGuestLoggerService,
 		RemoteGuestHostAllowlistService,
 		RemoteGuestAccountService,
@@ -1056,6 +1066,8 @@ const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthC
 		$TwitchChatRelayService,
 		$TwitchStreamBlockService,
 		$TwitchTranslationService,
+		$LiveLoggerService,
+		$LiveChannelService,
 		$RemoteGuestLoggerService,
 		$RemoteGuestHostAllowlistService,
 		$RemoteGuestAccountService,
