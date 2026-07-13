@@ -14312,6 +14312,116 @@ export interface Locale extends ILocale {
          */
         "commentGenCloseConfirm": string;
     };
+    "_liveChannel": {
+        /**
+         * ライブチャンネル設定
+         */
+        "liveChannelSettings": string;
+        /**
+         * 配信機能を利用する
+         */
+        "enableStreaming": string;
+        /**
+         * MSJP配信 (自己ホスト配信サーバー経由でのライブ配信) 機能を有効にします。
+         */
+        "enableStreamingDescription": string;
+        /**
+         * チャンネル名
+         */
+        "channelName": string;
+        /**
+         * 未設定の場合はユーザー名が表示されます
+         */
+        "channelNamePlaceholder": string;
+        /**
+         * チャンネル説明
+         */
+        "channelDescription": string;
+        /**
+         * チャンネルバナー
+         */
+        "channelBanner": string;
+        /**
+         * バナーを変更
+         */
+        "changeBanner": string;
+        /**
+         * ストリームキー
+         */
+        "streamKey": string;
+        /**
+         * 配信ソフト (OBS 等) の設定に使用します。他人に知られると勝手に配信されるおそれがあるため、取り扱いに注意してください。
+         */
+        "streamKeyDescription": string;
+        /**
+         * ストリームキーを再生成
+         */
+        "regenerateStreamKey": string;
+        /**
+         * ストリームキーを再生成しますか？ 現在配信中の場合、配信が切断されます。
+         */
+        "regenerateStreamKeyConfirm": string;
+        /**
+         * ストリームキーを再生成しました。
+         */
+        "regenerateStreamKeySuccess": string;
+        /**
+         * 既にライブチャンネルを開設しています。
+         */
+        "alreadyStreamingChannel": string;
+        /**
+         * このユーザーはライブチャンネルを開設していません。
+         */
+        "noSuchLiveChannel": string;
+        /**
+         * チャンネルホーム
+         */
+        "channelHome": string;
+        /**
+         * チャンネルをフォロー
+         */
+        "followChannel": string;
+        /**
+         * 直近の強制切断理由
+         */
+        "lastCutReason": string;
+        /**
+         * 配信サーバー情報
+         */
+        "streamServerInfo": string;
+        /**
+         * 表示する
+         */
+        "showKey": string;
+        /**
+         * 隠す
+         */
+        "hideKey": string;
+        /**
+         * RTMP URLをコピー
+         */
+        "copyRtmpUrl": string;
+        /**
+         * SRT URLをコピー
+         */
+        "copySrtUrl": string;
+        /**
+         * WHIP URLをコピー
+         */
+        "copyWhipUrl": string;
+        /**
+         * ストリームキーをコピー
+         */
+        "copyStreamKey": string;
+        /**
+         * 最終再生成日時
+         */
+        "streamKeyRegeneratedAt": string;
+        /**
+         * 配信サーバーが未設定です（管理者がOME連携を有効化すると利用できます）
+         */
+        "notConfiguredServer": string;
+    };
     "_remoteGuestLogin": {
         /**
          * 他インスタンスのアカウントでログイン
