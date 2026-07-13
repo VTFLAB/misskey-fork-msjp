@@ -43,6 +43,7 @@ import { MiGalleryLike } from '@/models/GalleryLike.js';
 import { MiGalleryPost } from '@/models/GalleryPost.js';
 import { MiHashtag } from '@/models/Hashtag.js';
 import { MiInstance } from '@/models/Instance.js';
+import { MiLiveChannel } from '@/models/LiveChannel.js';
 import { MiMeta } from '@/models/Meta.js';
 import { MiModerationLog } from '@/models/ModerationLog.js';
 import { MiMuting } from '@/models/Muting.js';
@@ -130,6 +131,7 @@ export {
 	MiGalleryPost,
 	MiHashtag,
 	MiInstance,
+	MiLiveChannel,
 	MiMeta,
 	MiModerationLog,
 	MiMuting,
@@ -217,6 +219,7 @@ export type GalleryLikesRepository = Repository<MiGalleryLike> & MiRepository<Mi
 export type GalleryPostsRepository = Repository<MiGalleryPost> & MiRepository<MiGalleryPost>;
 export type HashtagsRepository = Repository<MiHashtag> & MiRepository<MiHashtag>;
 export type InstancesRepository = Repository<MiInstance> & MiRepository<MiInstance>;
+export type LiveChannelsRepository = Repository<MiLiveChannel> & MiRepository<MiLiveChannel>;
 export type MetasRepository = Repository<MiMeta> & MiRepository<MiMeta>;
 export type ModerationLogsRepository = Repository<MiModerationLog> & MiRepository<MiModerationLog>;
 export type MutingsRepository = Repository<MiMuting> & MiRepository<MiMuting>;
