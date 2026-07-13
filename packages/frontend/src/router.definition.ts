@@ -165,6 +165,10 @@ export const ROUTE_DEF = [{
 		name: 'twitch',
 		component: page(() => import('@/pages/settings/twitch.vue')),
 	}, {
+		path: '/live-channel',
+		name: 'live-channel',
+		component: page(() => import('@/pages/settings/live-channel.vue')),
+	}, {
 		path: '/apps',
 		name: 'connect',
 		component: page(() => import('@/pages/settings/apps.vue')),
