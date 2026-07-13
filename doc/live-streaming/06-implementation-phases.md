@@ -117,10 +117,10 @@ graph LR
 | WI-2.8 | 2 | `twitch/streams/show` の `sessions` 配列拡張 + misskey-js 再生成 | [ ] | WI-2.5 |
 | WI-2.9 | 2 | e2e (`ome-admission.ts`) + `check-migrations` | [ ] | WI-2.4, WI-2.5, WI-2.7, WI-2.8 |
 | WI-2.10 | 2 | AdmissionWebhooks 有効化 (Server.xml 反映、01 §6(e)) | [ ] | WI-2.3, WI-0.2 |
-| WI-3.1 | 3 | `live-stream.vue` データ取得層改修 (`reload()`) + 3状態分岐 | [ ] | WI-1.3 |
-| WI-3.2 | 3 | `live-stream.channel-home.vue` 新設 (バナー/名前/説明/フォロー/タイムライン) | [ ] | WI-3.1 |
-| WI-3.3 | 3 | `/settings/live-channel` 設定ページ新設 + router 登録 | [ ] | WI-1.3, WI-2.6 |
-| WI-3.4 | 3 | i18n (frontend専用キー) + 目視検証 (3状態×PC/モバイル/デッキ) | [ ] | WI-3.2, WI-3.3 |
+| WI-3.1 | 3 | `live-stream.vue` データ取得層改修 (`reload()`) + 3状態分岐 | [x] | WI-1.3 |
+| WI-3.2 | 3 | `live-stream.channel-home.vue` 新設 (バナー/名前/説明/フォロー/タイムライン) | [x] | WI-3.1 |
+| WI-3.3 | 3 | `/settings/live-channel` 設定ページ新設 + router 登録 | [x] | WI-1.3, WI-2.6 |
+| WI-3.4 | 3 | i18n (frontend専用キー) + 目視検証 (3状態×PC/モバイル/デッキ) | [~] | WI-3.2, WI-3.3 |
 | WI-4.1 | 4 | `ovenplayer` 依存追加 + `MkOmePlayer.vue` | [ ] | WI-2.8 |
 | WI-4.2 | 4 | `MkTwitchPlayer.vue` + `MkStreamPlayer.vue` | [ ] | WI-4.1 |
 | WI-4.3 | 4 | `live-stream.vue` セグメントトグル・チャット `streamId` 追従統合 | [ ] | WI-4.2, WI-3.1 |
@@ -492,6 +492,30 @@ URL 3 種は 03 §6 の `LiveChannelService.generateIngestUrls()` を `my.ts` �
     済ませない)
 - コミット単位: 1コミット (`feat(live-channel): frontend i18n キーを追加`)。Phase 3 完了条件チェックリスト
   (04 §0 冒頭) を最終確認する。
+- **2026-07-14 実装セッション完了メモ (コード部分)**: `locales/ja-JP.yml` の `_liveChannel:` ブロック末尾に
+  frontend 専用キー 9 件 (`streamServerInfo`/`showKey`/`hideKey`/`copyRtmpUrl`/`copySrtUrl`/`copyWhipUrl`/
+  `copyStreamKey`/`streamKeyRegeneratedAt`/`notConfiguredServer`) を追加。`packages/i18n/src/autogen/locale.ts`
+  も再生成済み (Phase 1 で `_liveChannel` キーが追加された際の locale.ts 再生成漏れを含めてまとめて解消)。
+  `pnpm --filter frontend lint` (typecheck + eslint) 完全パス。`git diff --name-only upstream/develop --
+  'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'` 空 (ja-JP.yml のみ)。
+  - WI-3.1: `live-stream.vue` に `channelState` computed (`'live'|'offline'|'none'`) と `channelInfo` ref を追加、
+    `reload()` を `Promise.all` + 個別 `.catch(() => null)` の並列フェッチに変更 (04 §3.1 の意図的変更)。
+    `hideDeckNav` を `channelState === 'live'` に変更 (deck dead-end bug 再発防止)。`MkFollowButton` から
+    存在しない `inline`/`transparent` props を削除。未参照になった `goHome` 関数を削除 (dead code)。
+  - WI-3.2: `live-stream.channel-home.vue` 新設。バナー (`channel.bannerId`→`user.bannerUrl` フォールバック、
+    TODO コメント付き)・アバター・チャンネル名・`@username`・`MkFollowButton`(`full` prop のみ)・description
+    (null 時エリア非表示)・`MkNotesTimeline`+`Paginator('users/notes')` タイムライン。所有者のみ preview/
+    streamer settings ボタン表示。PC レイアウト→`@container (max-width: 500px)` モバイル上書き順序遵守。
+    `Mfm` は global component として import 不要 (明示的 import は削除済み)。
+  - WI-3.3: `settings/live-channel.vue` 新設。3セクション構成 (配信機能トグル/チャンネル情報/配信サーバー情報)。
+    null-channel→`create`、disabled-channel→`update({enabled:true})` のトグル切り替えを実装。
+    `regenerate-key` の res は `pack()` 戻り値 (channel 全体) で `streamKey` を含むため `res.streamKey` から取得。
+    バナー crop `aspectRatio: 3/1`。`router.definition.ts` に `/live-channel` ルート追加 (`/twitch` 直後)。
+  - **未完了 (次セッション引き継ぎ)**: 04 §8.2 の目視検証 14 項目 (3状態 × PC/モバイル/デッキ) は実機ブラウザ
+    確認が必要で本セッションでは未実施。`run`/`verify` skill または手動でブラウザを開いて確認すること。
+    特に (1) 状態2 でバナー+アバター重ね配置が正しいか、(2) 状態1 の `hideDeckNav` が true で状態2/3 は false
+    か、(3) デッキ `MkPageWindow` 内で `100cqh` レイアウト崩れがないか、(4) `/settings/live-channel` が
+    SearchMarker にヒットするか、(5) トグル ON→OFF→ON で streamKey 欄が出現/消失するか。
 
 ---
 
