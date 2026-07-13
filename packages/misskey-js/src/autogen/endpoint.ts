@@ -500,6 +500,13 @@ import type {
 	InviteLimitResponse,
 	InviteListRequest,
 	InviteListResponse,
+	LiveChannelsCreateResponse,
+	LiveChannelsMyResponse,
+	LiveChannelsRegenerateKeyResponse,
+	LiveChannelsShowRequest,
+	LiveChannelsShowResponse,
+	LiveChannelsUpdateRequest,
+	LiveChannelsUpdateResponse,
 	MetaRequest,
 	MetaResponse,
 	MiauthGenTokenRequest,
@@ -1046,6 +1053,11 @@ export type Endpoints = {
 	'invite/delete': { req: InviteDeleteRequest; res: EmptyResponse };
 	'invite/limit': { req: EmptyRequest; res: InviteLimitResponse };
 	'invite/list': { req: InviteListRequest; res: InviteListResponse };
+	'live-channels/create': { req: EmptyRequest; res: LiveChannelsCreateResponse };
+	'live-channels/my': { req: EmptyRequest; res: LiveChannelsMyResponse };
+	'live-channels/regenerate-key': { req: EmptyRequest; res: LiveChannelsRegenerateKeyResponse };
+	'live-channels/show': { req: LiveChannelsShowRequest; res: LiveChannelsShowResponse };
+	'live-channels/update': { req: LiveChannelsUpdateRequest; res: LiveChannelsUpdateResponse };
 	'meta': { req: MetaRequest; res: MetaResponse };
 	'miauth/gen-token': { req: MiauthGenTokenRequest; res: MiauthGenTokenResponse };
 	'mute/create': { req: MuteCreateRequest; res: EmptyResponse };
