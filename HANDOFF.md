@@ -13,10 +13,13 @@
 - **Phase 1 (チャンネル基盤 backend, WI-1.1〜1.4) 完了・コミット済み** (`670a74c9` 〜 `0cc8b00d`、5コミット、
   push 未実施)。`live_channel` テーブル・`LiveChannelService`・API 5本 (`live-channels/*`)・i18n・e2e 9ケース。
   `config.ome` に一切依存せず単体で動作する (OME非依存の完了条件を満たす)。
+- **Phase 3 (チャンネルページ frontend, WI-3.1〜3.3) コード実装完了・未コミット**。`live-stream.vue` の
+  3状態分岐 (`live`/`offline`/`none`)・`live-stream.channel-home.vue` 新設・`/settings/live-channel` 設定ページ
+  新設。`pnpm --filter frontend lint` (typecheck + eslint) パス済み。WI-3.4 の目視検証 (04 §8.2 の14項目) のみ
+  残件 (実機ブラウザ確認が必要)。Phase 3 は Phase 0/2 に依存せず着手可能であったため先行実施した。
 - **Phase 0 (OMEインフラ構築) は未着手** — LXC作成等の物理インフラ作業で、コーディングセッションのスコープ外。
 - Phase 2 (OME連携backend) は Phase 0 + Phase 1 の両方が前提。Phase 0 未着手のため Phase 2 は着手不可。
-- **Phase 3 (チャンネルページ frontend) は Phase 1 のみに依存するため、Phase 0/2 を待たずに次に着手できる。**
-  次セッションが frontend 作業ならここから (`06-implementation-phases.md` §6, WI-3.1〜3.4)。
+- **次に着手可能な作業**: Phase 2 (Phase 0 完了後) または WI-3.4 目視検証 (実機ブラウザ)。
 
 ### このセッションで踏んだ落とし穴 (次セッションが同じ沼にハマらないために)
 
@@ -51,15 +54,16 @@
 
 ### 次にやること
 
-1. `.config/docker.env` は既に作成済みなのでローカル DB は `docker compose -f compose.local-db.yml up -d
-   --wait` (ユーザーの実ターミナルで) だけで起動できるはず。
-2. Phase 3 (frontend, `live-stream.vue` の3状態分岐、`/settings/live-channel` 設定ページ) に着手する場合は
-   `working-on-frontend` skill を先に読むこと (AGENTS.md 絶対禁止事項#14)。
-3. Phase 0 (OMEインフラ) に着手する場合は `01-infra-ome-setup.md` を読み、WI-0.5 (WAN公開) は
-   ユーザー承認済みだが上位ルーターのポート開放は人間の手動作業である点に注意 (`06-implementation-phases.md`
-   §3 WI-0.5 参照)。
-4. コミット済み5本は **push していない**。push 前に `pnpm lint`/`check-migrations` を再確認し、
-   CLAUDE.md §2 (WAN確認) に従って push の可否をユーザーに確認すること。
+1. **WI-3.4 目視検証** (Phase 3 の残件): 04 §8.2 の14項目をブラウザで確認。特にバナー+アバター重ね配置、
+   `hideDeckNav` 状態別挙動、`/settings/live-channel` の SearchMarker ヒット、トグル ON/OFF での UI 変化。
+   `run`/`verify` skill または手動で `pnpm dev` を起動して確認。
+2. **Phase 3 コミット**: 目視検証で問題が無ければ WI-3.1〜3.4 をコミット単位に分けてコミット (設計書 §6 の
+   コミットメッセージ案に従う)。`packages/i18n/src/autogen/locale.ts` の再生成差分は i18n キー追加コミットに
+   含める。
+3. **Phase 2 着手** (Phase 0 完了後): `01-infra-ome-setup.md` を読み WI-0.1 から。WI-0.5 (WAN公開) は
+   ユーザー承認済みだが上位ルーターのポート開放は人間の手動作業。
+4. コミット済み5本 (Phase 1) + Phase 3 未コミット分は **push していない**。push 前に `pnpm lint`/
+   `check-migrations` を再確認し、CLAUDE.md §2 (WAN確認) に従って push の可否をユーザーに確認すること。
 
 ---
 
