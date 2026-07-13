@@ -1,0 +1,92 @@
+/*
+ * SPDX-FileCopyrightText: misskey-bsky-integration fork
+ * SPDX-License-Identifier: AGPL-3.0-only
+ */
+
+import { Entity, Column, Index, PrimaryColumn, ManyToOne, OneToOne, JoinColumn } from 'typeorm';
+import { id } from './util/id.js';
+import { MiUser } from './User.js';
+import { MiDriveFile } from './DriveFile.js';
+
+// ライブチャンネル (self-streaming, OME連携) の設定行。1 Misskey ユーザーにつき最大 1 レコード。
+// 行の存在 + enabled=true が「配信機能を利用する」トグル ON を意味する。
+@Entity('live_channel')
+export class MiLiveChannel {
+	@PrimaryColumn(id())
+	public id: string;
+
+	@Index({ unique: true })
+	@Column({
+		...id(),
+		comment: 'The owner user. One live_channel per user.',
+	})
+	public userId: MiUser['id'];
+
+	@ManyToOne(type => MiUser, {
+		onDelete: 'CASCADE',
+	})
+	@JoinColumn()
+	public user: MiUser | null;
+
+	@Column('boolean', {
+		default: false,
+		comment: 'Whether the streaming feature is enabled for this user.',
+	})
+	public enabled: boolean;
+
+	@Column('varchar', {
+		length: 128, nullable: true,
+		comment: 'Channel display name. Falls back to user.name / username when null.',
+	})
+	public name: string | null;
+
+	@Column('varchar', {
+		length: 2048, nullable: true,
+		comment: 'Channel description. No fallback: hidden when null.',
+	})
+	public description: string | null;
+
+	@Column({
+		...id(),
+		nullable: true,
+		comment: 'The ID of channel banner DriveFile. Falls back to user.banner when null.',
+	})
+	public bannerId: MiDriveFile['id'] | null;
+
+	@OneToOne(() => MiDriveFile, {
+		onDelete: 'SET NULL',
+	})
+	@JoinColumn()
+	public banner: MiDriveFile | null;
+
+	@Index({ unique: true })
+	@Column('varchar', {
+		length: 64,
+		comment: 'Ingest stream key. Used as the OME stream name.',
+	})
+	public streamKey: string;
+
+	@Column('timestamp with time zone', {
+		comment: 'Timestamp of the last streamKey regeneration.',
+	})
+	public streamKeyRegeneratedAt: Date;
+
+	@Column('varchar', {
+		length: 256, nullable: true,
+		comment: 'Reason for the last forced disconnect (bitrate monitor etc). Set by Phase 2.',
+	})
+	public lastCutReason: string | null;
+
+	@Column('timestamp with time zone', {
+		comment: 'The creation date of the live_channel row.',
+	})
+	public createdAt: Date;
+
+	constructor(data: Partial<MiLiveChannel>) {
+		if (data == null) return;
+
+		for (const [k, v] of Object.entries(data)) {
+			(this as any)[k] = v;
+		}
+	}
+}

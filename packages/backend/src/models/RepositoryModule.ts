@@ -36,6 +36,7 @@ import {
 	MiGalleryPost,
 	MiHashtag,
 	MiInstance,
+	MiLiveChannel,
 	MiMeta,
 	MiModerationLog,
 	MiMuting,
@@ -248,6 +249,12 @@ const $followRequestsRepository: Provider = {
 const $instancesRepository: Provider = {
 	provide: DI.instancesRepository,
 	useFactory: (db: DataSource) => db.getRepository(MiInstance).extend(miRepository as MiRepository<MiInstance>),
+	inject: [DI.db],
+};
+
+const $liveChannelsRepository: Provider = {
+	provide: DI.liveChannelsRepository,
+	useFactory: (db: DataSource) => db.getRepository(MiLiveChannel).extend(miRepository as MiRepository<MiLiveChannel>),
 	inject: [DI.db],
 };
 
@@ -622,6 +629,7 @@ const $remoteGuestSessionsRepository: Provider = {
 		$followingsRepository,
 		$followRequestsRepository,
 		$instancesRepository,
+		$liveChannelsRepository,
 		$emojisRepository,
 		$driveFilesRepository,
 		$driveFoldersRepository,
@@ -707,6 +715,7 @@ const $remoteGuestSessionsRepository: Provider = {
 		$followingsRepository,
 		$followRequestsRepository,
 		$instancesRepository,
+		$liveChannelsRepository,
 		$emojisRepository,
 		$driveFilesRepository,
 		$driveFoldersRepository,
