@@ -26,19 +26,19 @@ backend 側の実装 (`core/live/`, `/ome/admission` ルート等) は本文書�
 
 Phase 0 は以下すべてが満たされた時点で完了とする。
 
-- [ ] PVE2 上に LXC (Debian 12 + Docker) が作成され、SSH 到達可能
-- [ ] OME コンテナが起動し、REST API (8081) が応答する
-- [ ] Server.xml に `live` アプリ、Bypass 出力プロファイル、Providers
+- [x] PVE2 上に LXC (Debian 12 + Docker) が作成され、SSH 到達可能
+- [x] OME コンテナが起動し、REST API (8081) が応答する
+- [x] Server.xml に `live` アプリ、Bypass 出力プロファイル、Providers
       (WebRTC/RTMP/SRT)、Publishers (WebRTC のみ)、SignedPolicy、REST API
       AccessToken が設定されている (AdmissionWebhooks は Misskey 側未実装のため
       無効化した状態で可、§6(e) 参照)
-- [ ] OBS から RTMP ingest → REST API のストリーム一覧に反映されることを確認済み
-- [ ] OvenPlayer デモページ (または OME 同梱デモ) で WebRTC 再生を確認済み
-- [ ] `bitrateLatest`/`bitrateAvg` の実測値を記録済み (⚠ 未確定事項 #4 の検証結果を
+- [x] OBS から RTMP ingest → REST API のストリーム一覧に反映されることを確認済み
+- [x] OvenPlayer デモページ (または OME 同梱デモ) で WebRTC 再生を確認済み
+- [x] `bitrateLatest`/`bitrateAvg` の実測値を記録済み (⚠ 未確定事項 #4 の検証結果を
       00-overview.md にフィードバックすること)
-- [ ] 3 種のシークレットを生成し、Server.xml と Misskey `default.yml` 双方に反映
+- [x] 3 種のシークレットを生成し、Server.xml と Misskey `default.yml` 双方に反映
       済み (本番反映は Phase 2 実装後)
-- [ ] WAN 公開は本文書 §7 のとおり **未実施** (人間承認待ち) であることを確認
+- [x] WAN 公開は本文書 §7 のとおり **未実施** (人間承認待ち) であることを確認
 
 ---
 
@@ -70,7 +70,7 @@ Phase 0 は以下すべてが満たされた時点で完了とする。
         │                                  │                                 │
         │  ┌───────────────────────┐      │      ┌───────────────────────┐ │
         │  │ mi-host (VM 200)       │      │      │ ome (LXC, 本文書で新設) │ │
-        │  │ 192.168.1.104          │◄─────┼─────►│ 192.168.1.<CHANGEME>  │ │
+        │  │ 192.168.1.104          │◄─────┼─────►│ 192.168.1.<DHCP_IP>    │ │
         │  │ Misskey backend :3000  │ AdmissionWebhooks (LAN直, http)      │ │
         │  │                        │      │      │ Docker: OME container │ │
         │  │ /ome/admission (Phase2)│─────►│◄─────│ RTMP:1935 SRT:9999/udp │ │
@@ -104,53 +104,57 @@ SSH ログインしたシェルで実行する。
 ssh root@pve2.msjp-local.org -- pvesh get /cluster/nextid
 ```
 
-出力された ID をこの後のすべてのコマンドで使う。`research-infra.md` の時点
-での空き候補は 131 または 155 だが、**実行時点の `pvesh get /cluster/nextid`
-の出力が唯一の正** — 候補と食い違っていても出力を採用し、以下の例中の `131`
-を機械的に置換すること。以降の手順では説明のため ID を `131` と仮定して記載
-する。
+出力された ID をこの後のすべてのコマンドで使う。**実行時点の `pvesh get
+/cluster/nextid` の出力が唯一の正** — 以降の手順では説明のため ID を `100`
+と仮定して記載する (2026-07-14 実行時点での採番)。実行時の出力に置換すること。
 
 ### 2.2 Debian 12 テンプレートの確認・取得
 
 ```bash
 ssh root@pve2.msjp-local.org -- pveam update
 ssh root@pve2.msjp-local.org -- pveam available --section system | grep debian-12
-# 例: debian-12-standard_12.7-1_amd64.tar.zst が出力される
-ssh root@pve2.msjp-local.org -- pveam download local debian-12-standard_12.7-1_amd64.tar.zst
+# 例: debian-12-standard_12.12-1_amd64.tar.zst が出力される (2026-07-14 時点)
+ssh root@pve2.msjp-local.org -- pveam download local debian-12-standard_12.12-1_amd64.tar.zst
 ```
 
 `pveam available` の出力バージョン番号 (`12.x-x`) は取得時点で変わりうる。
 出力された正確なファイル名をそのまま `pct create` に使うこと (バージョンを
 決め打ちで書かない)。
 
-### 2.3 静的 IP の決定
+### 2.3 IP 割当方式 — DHCP + Kea reservation + 自動 DDNS (homelab 標準)
 
-本 LXC は Misskey backend から FQDN (`ome.msjp-local.org`) で到達される前提
-のため、DHCP ではなく **静的 IP を使う** (判断基準: 他ホストから恒常的に参照
-される LAN サービスは全て静的 IP + Unbound override — 既存の `mi-host.msjp-
-local.org` と同じ命名慣習)。
+本 LXC は **DHCP で IP を取得し、Kea reservation で固定化、Unbound が自動で
+`ome.msjp-local.org` を登録する** homelab 標準方式 (2026-04-19 再設計後) を
+採用する。手動の静的 IP 指定・手動 Unbound host override は行わない。
 
-未使用 IP の確認手順:
+根拠: homelab の全 LXC は DHCP + Kea reservation で MAC 固定 IP を取得し、
+bridge script が cron 1 分毎に `<hostname>.msjp-local.org` を Unbound に自動
+登録する (basic-memory 「Homelab DNS/DHCP/HAProxy システム」ノート参照)。
+本 LXC もこの方式に従うことで OPNsense 側の手動 DNS 登録が不要になる。
 
-```bash
-# PVE2 上で LAN 内の応答有無を確認 (非破壊)
-ssh root@pve2.msjp-local.org -- nmap -sn 192.168.1.0/24
-```
-
-応答が無く、かつ OPNsense の `Services > DHCPv4 > Leases` (Web UI、参照のみ)
-に存在しない IP を選ぶ。以降 `192.168.1.<CHANGEME>` として記載する箇所は
-この確定 IP に置換すること。
+実際の IP は DHCP で割り当てられた後に確定する。以降 `192.168.1.<DHCP_IP>`
+として記載する箇所は、§2.4 のあとに `pct exec <VMID> -- ip addr show eth0`
+で確認した実際の IP に置換すること。Kea reservation で IP を固定化したい
+場合は OPNsense Web UI (`Services > DHCPv4 > Leases`) から該当 lease に
+reservation を追加する (任意、DHCP pool に空きが十分あれば必須ではない)。
 
 ### 2.4 LXC 作成
 
+VMID は `pvesh get /cluster/nextid` の出力を採用する (§2.1)。以下の例では
+VMID `100` と仮定するが、実行時点の `nextid` 出力に置換すること。
+
+テンプレートファイル名は §2.2 で `pveam available` を実行した時点の実際の
+ファイル名を使う。以下の例では `debian-12-standard_12.12-1_amd64.tar.zst`
+(2026-07-14 時点) と仮定する。
+
 ```bash
-ssh root@pve2.msjp-local.org -- pct create 131 local:vztmpl/debian-12-standard_12.7-1_amd64.tar.zst \
+ssh root@pve2.msjp-local.org -- pct create 100 local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst \
   --hostname ome \
   --cores 4 \
   --memory 4096 \
   --swap 512 \
   --rootfs m2:16 \
-  --net0 name=eth0,bridge=vmbr0,ip=192.168.1.<CHANGEME>/24,gw=192.168.1.1 \
+  --net0 name=eth0,bridge=vmbr0,ip=dhcp \
   --nameserver 192.168.1.1 \
   --features nesting=1,keyctl=1 \
   --unprivileged 1 \
@@ -167,25 +171,40 @@ ssh root@pve2.msjp-local.org -- pct create 131 local:vztmpl/debian-12-standard_1
   (これがないと `dockerd` が起動しない)。
 - `--unprivileged 1` — 既存クラスタの LXC 命名慣習 (`docker-coder` 等) に
   合わせ非特権コンテナとする。
+- `--net0 ... ip=dhcp` — DHCP で IP を取得し、Kea + 自動 DDNS で
+  `ome.msjp-local.org` が自動登録される (手動 Unbound 追加不要)。
 
-起動と Unbound 登録:
+起動と IP 確認:
 
 ```bash
-ssh root@pve2.msjp-local.org -- pct start 131
+ssh root@pve2.msjp-local.org -- pct start 100
+# 5-10 秒待ってから
+ssh root@pve2.msjp-local.org -- pct exec 100 -- ip addr show eth0 | grep "inet "
+# 出力例: inet 192.168.1.111/24 brd 192.168.1.255 scope global dynamic eth0
 ```
 
-Unbound (LAN DNS) への host override 追加は別途 OPNsense 側の作業 (LAN内
-の変更で §2 の破壊的操作条件に該当しないため人間承認は不要、ただし OPNsense
-UI/API 操作): `ome.msjp-local.org` → `192.168.1.<CHANGEME>` を
-`Services > Unbound DNS > Overrides` に追加する。
+Unbound 自動登録の確認 (DHCP lease 取得後 1 分以内に cron で反映される):
+
+```bash
+getent hosts ome.msjp-local.org
+# 期待値: 192.168.1.<DHCP_IP>   ome.msjp-local.org
+```
+
+解決しない場合は `ssh opnsense 'sudo configctl unbound_dhcpsync run'`
+で DDNS 同期を強制実行する。
 
 ### 2.5 Docker のインストール (LXC 内)
 
-以降は LXC 内での作業。`pct exec 131 -- <command>` または `pct enter 131`
-で入って実行する。
+以降は LXC 内での作業。`pct exec 100 -- <command>` または `pct enter 100`
+で入って実行する (VMID 100 は §2.1 の実際の出力に置換)。
+
+LXC 内で直接実行する場合と、PVE ホストから `pct exec` 経由で実行する場合の
+両方を記載する。PVE ホストから実行する場合は外側の SSH・`pct exec` のクオート
+に注意すること。
 
 ```bash
-pct exec 131 -- bash -c '
+# PVE ホストから一括実行 (推奨、クオートに注意)
+ssh root@pve2.msjp-local.org -- pct exec 100 -- bash -c '
 set -e
 apt-get update
 apt-get install -y ca-certificates curl gnupg
@@ -204,8 +223,8 @@ systemctl enable --now docker
 確認:
 
 ```bash
-pct exec 131 -- docker version
-pct exec 131 -- docker compose version
+ssh root@pve2.msjp-local.org -- pct exec 100 -- docker version
+ssh root@pve2.msjp-local.org -- pct exec 100 -- docker compose version
 ```
 
 両方がエラーなくバージョン文字列を返せば完了。
@@ -214,10 +233,10 @@ pct exec 131 -- docker compose version
 
 ## 3. OME コンテナ起動
 
-LXC 内 (`pct exec 131 -- bash` 等でログイン) に作業ディレクトリを作る。
+LXC 内 (`pct exec 100 -- bash` 等でログイン) に作業ディレクトリを作る。
 
 ```bash
-pct exec 131 -- mkdir -p /opt/ome
+ssh root@pve2.msjp-local.org -- pct exec 100 -- mkdir -p /opt/ome
 ```
 
 `/opt/ome/compose.yml` を以下の内容で作成する (ホスト側からは
@@ -230,7 +249,7 @@ services:
     container_name: ome
     restart: unless-stopped
     environment:
-      - OME_HOST_IP=192.168.1.<CHANGEME>   # 2.3 で確定した LXC の静的IP
+      - OME_HOST_IP=192.168.1.<DHCP_IP>   # 2.4 で確定した LXC のDHCP取得IP
     ports:
       - "1935:1935/tcp"        # RTMP ingest
       - "9999:9999/udp"        # SRT ingest
@@ -256,7 +275,7 @@ pull に失敗する場合のみ `airensoft/ovenmediaengine:v0.20.5` に切り�
 起動:
 
 ```bash
-pct exec 131 -- bash -c 'cd /opt/ome && docker compose up -d'
+pct exec 100 -- bash -c 'cd /opt/ome && docker compose up -d'
 ```
 
 初回起動でデフォルトの `Server.xml` が名前付きボリュームに生成される。次章
@@ -269,8 +288,8 @@ pct exec 131 -- bash -c 'cd /opt/ome && docker compose up -d'
 初回起動後、いったんコンテナを止めてから編集する。
 
 ```bash
-pct exec 131 -- bash -c 'cd /opt/ome && docker compose stop ome'
-pct exec 131 -- docker volume inspect ome_ome-origin-conf --format '{{ .Mountpoint }}'
+pct exec 100 -- bash -c 'cd /opt/ome && docker compose stop ome'
+pct exec 100 -- docker volume inspect ome_ome-origin-conf --format '{{ .Mountpoint }}'
 # 出力例: /var/lib/docker/volumes/ome_ome-origin-conf/_data
 ```
 
@@ -309,10 +328,9 @@ pct exec 131 -- docker volume inspect ome_ome-origin-conf --format '{{ .Mountpoi
           <WorkerCount>1</WorkerCount>
         </Signalling>
         <IceCandidates>
-          <!-- CHANGEME: LAN検証時は LXC の静的IP、WAN公開後(§7)は公開IPに変更 -->
-          <IceCandidate>192.168.1.&lt;CHANGEME&gt;:10000-10009/udp</IceCandidate>
-          <TcpRelay>192.168.1.&lt;CHANGEME&gt;:3478</TcpRelay>
-          <TcpRelayForce>false</TcpRelayForce>
+          <!-- CHANGEME: LAN検証時は LXC のDHCP取得IP、WAN公開後(§7)は公開IPに変更 -->
+          <IceCandidate>192.168.1.&lt;DHCP_IP&gt;:10000-10009/udp</IceCandidate>
+          <TcpRelay>192.168.1.&lt;DHCP_IP&gt;:3478</TcpRelay>
         </IceCandidates>
       </WebRTC>
     </Providers>
@@ -325,10 +343,8 @@ pct exec 131 -- docker volume inspect ome_ome-origin-conf --format '{{ .Mountpoi
           <WorkerCount>1</WorkerCount>
         </Signalling>
         <IceCandidates>
-          <!-- CHANGEME: 上と同一値を使う -->
-          <IceCandidate>192.168.1.&lt;CHANGEME&gt;:10000-10009/udp</IceCandidate>
-          <TcpRelay>192.168.1.&lt;CHANGEME&gt;:3478</TcpRelay>
-          <TcpRelayForce>false</TcpRelayForce>
+          <IceCandidate>192.168.1.&lt;DHCP_IP&gt;:10000-10009/udp</IceCandidate>
+          <TcpRelay>192.168.1.&lt;DHCP_IP&gt;:3478</TcpRelay>
         </IceCandidates>
       </WebRTC>
     </Publishers>
@@ -436,8 +452,8 @@ pct exec 131 -- docker volume inspect ome_ome-origin-conf --format '{{ .Mountpoi
 反映と再起動:
 
 ```bash
-pct exec 131 -- bash -c 'cd /opt/ome && docker compose up -d ome'
-pct exec 131 -- docker compose -f /opt/ome/compose.yml logs -f ome
+pct exec 100 -- bash -c 'cd /opt/ome && docker compose up -d ome'
+pct exec 100 -- docker compose -f /opt/ome/compose.yml logs -f ome
 ```
 
 ログにエラー (XML パースエラー、ポートバインド失敗等) が出ないことを確認し
@@ -506,7 +522,7 @@ ome:
 ```bash
 TOKEN=$(echo -n '<5.1で生成したAPI AccessToken>' | base64)
 curl -sS -H "Authorization: Basic ${TOKEN}" \
-  http://192.168.1.<CHANGEME>:8081/v1/vhosts/default/apps/live/streams
+  http://192.168.1.<DHCP_IP>:8081/v1/vhosts/default/apps/live/streams
 ```
 
 期待値: `{"statusCode":200,"message":"OK","response":[]}` (配信前は空配列)。
@@ -516,7 +532,7 @@ curl -sS -H "Authorization: Basic ${TOKEN}" \
 
 OBS の設定:
 - サービス: カスタム
-- サーバー: `rtmp://192.168.1.<CHANGEME>:1935/live`
+- サーバー: `rtmp://192.168.1.<DHCP_IP>:1935/live`
 - ストリームキー: 任意の文字列 (例 `test001`、AdmissionWebhooks 未実装の
   この段階では検証は行われないため何でも通る)
 
@@ -524,7 +540,7 @@ OBS の設定:
 
 ```bash
 curl -sS -H "Authorization: Basic ${TOKEN}" \
-  http://192.168.1.<CHANGEME>:8081/v1/vhosts/default/apps/live/streams
+  http://192.168.1.<DHCP_IP>:8081/v1/vhosts/default/apps/live/streams
 ```
 
 期待値: `"response":["test001"]` のように配信中のストリーム名が返る。返ら
@@ -537,8 +553,10 @@ OME 公式デモページ、または OvenPlayer の [デモページ](https://d
 の「Stream URL」欄に以下を入力して再生確認する:
 
 ```
-ws://192.168.1.<CHANGEME>:3333/live/test001
+ws://ome.msjp-local.org:3333/live/test001
 ```
+
+(LAN 内 FQDN 経由。IP 直指定の場合は `ws://192.168.1.<DHCP_IP>:3333/live/test001`)
 
 映像・音声が遅延数百ms程度で再生されれば成功。再生できない場合は Publishers
 の WebRTC 設定 (§4) と、ブラウザの開発者ツールで WebSocket 接続エラー/ICE
@@ -550,7 +568,7 @@ ws://192.168.1.<CHANGEME>:3333/live/test001
 
 ```bash
 curl -sS -H "Authorization: Basic ${TOKEN}" \
-  http://192.168.1.<CHANGEME>:8081/v1/vhosts/default/apps/live/streams/test001 \
+  http://192.168.1.<DHCP_IP>:8081/v1/vhosts/default/apps/live/streams/test001 \
   | python3 -m json.tool
 ```
 
@@ -561,6 +579,28 @@ curl -sS -H "Authorization: Basic ${TOKEN}" \
 記録結果は 00-overview.md の未確定事項 #4 にフィードバックし、
 `OmeStreamMonitorService` (Phase 2) の閾値判定にどのフィールドを使うか確定
 させる。
+
+**実測結果 (2026-07-14, OBS CBR 2800kbps / 1280x720 / 48fps / H264)**:
+
+| フィールド | 値 (1回目) | 値 (2回目, 30秒後) | 意味 |
+|---|---|---|---|
+| `bitrateConf` | 2800000 | 2800000 | OBS 設定値の反映 (不変) |
+| `bitrate` | 2800000 | 2800000 | `bitrateConf` と同一 (設定値) |
+| `bitrateAvg` | 546576 | 551616 | 配信開始からの移動平均 |
+| `bitrateLatest` | 545485 | 550514 | **直近の瞬間実測値** |
+
+Audio (AAC 128kbps CBR): `bitrateConf=128000` / `bitrateAvg≈130600` /
+`bitrateLatest≈130700` — CBR のため値が安定。
+
+**結論**: `OmeStreamMonitorService` の閾値判定には **`bitrateLatest`** を
+使用する。`bitrateConf`/`bitrate` は OBS 設定値の反映であり実測値ではない
+ため閾値判定に使えない。実測値は OBS 設定値を大幅に下回る場合がある
+(画面内容が静止画に近い場合等) — これは CB R 設定でも発生する正常挙動。
+
+**リソースベースライン (docker stats, 1配信1視聴者)**:
+CPU 3.68% / MEM 16.11MiB (4GB割当中) / NET 48.3MB(in) 10.3MB(out)。
+Bypass モードのためトランスコード負荷は無く、CPU 負荷は低い。本格負荷試験は
+WI-5.1 で実施。
 
 ### (e) AdmissionWebhooks の無効化/有効化タイミング
 
@@ -629,10 +669,10 @@ TCP 443 (wss signalling / WHIP、HAProxy 経由) は既存の公開設定 (80/44
 
 | プロトコル | WANポート | 宛先 | 宛先ポート | 用途 | 既存ルールとの関係 |
 |---|---|---|---|---|---|
-| TCP | 1935 | 192.168.1.\<CHANGEME\> (ome LXC) | 1935 | RTMP ingest | 新規 |
-| UDP | 9999 | 192.168.1.\<CHANGEME\> | 9999 | SRT ingest | 新規 |
-| UDP | 10000-10009 | 192.168.1.\<CHANGEME\> | 10000-10009 | WebRTC ICE candidate (最小レンジ、Server.xml の設定と一致させる) | 新規 |
-| TCP | 3478 | 192.168.1.\<CHANGEME\> | 3478 | WebRTC TURN relay (フォールバック) | 新規 |
+| TCP | 1935 | 192.168.1.\<DHCP_IP\> (ome LXC) | 1935 | RTMP ingest | 新規 |
+| UDP | 9999 | 192.168.1.\<DHCP_IP\> | 9999 | SRT ingest | 新規 |
+| UDP | 10000-10009 | 192.168.1.\<DHCP_IP\> | 10000-10009 | WebRTC ICE candidate (最小レンジ、Server.xml の設定と一致させる) | 新規 |
+| TCP | 3478 | 192.168.1.\<DHCP_IP\> | 3478 | WebRTC TURN relay (フォールバック) | 新規 |
 
 signalling (3333/3334) と REST API (8081) は NAT せず、HAProxy 経由に限定
 する (§7.3)。ICE UDP レンジは Server.xml の `IceCandidates` に設定した
@@ -661,7 +701,7 @@ signalling (3333/3334) と REST API (8081) は NAT せず、HAProxy 経由に限
   OPNsense の WAN 側 IP はプライベートアドレスであり、DNS に載せるのは
   上位ルーター側のグローバル IP である点に注意 (既存の `mi.msjp.pro` と
   同じ値になるはず — 既存レコードで確認)。
-- Unbound (LAN 内 split-DNS): `stream.msjp.pro` → `192.168.1.<CHANGEME>`
+- Unbound (LAN 内 split-DNS): `stream.msjp.pro` → `192.168.1.<DHCP_IP>`
   (ome LXC の LAN IP) への host override を追加。LAN 内クライアントが
   同じ FQDN でアクセスした際に WAN 経由の NAT loopback を経由せず直接到達
   できるようにするため (research-infra.md §6.3 の NAT reflection/split-DNS
@@ -754,11 +794,11 @@ docker compose -f /opt/ome/compose.yml logs -f ome
   (research-ome.md §11 の GitHub Discussions 実運用報告)。目安として
   配信本数ではなく `該当時刻の全配信ビットレート合計` を監視指標とする。
 - メモリ: pve2 自体がスワップ常用状態 (research-infra.md §1) のため、
-  `pct exec 131 -- free -h` を定期確認し、LXC 側の使用量が §2.4 で割り当
-  てた 4096MB に対して逼迫していないか確認する。逼迫時は `pct set 131
+  `pct exec 100 -- free -h` を定期確認し、LXC 側の使用量が §2.4 で割り当
+  てた 4096MB に対して逼迫していないか確認する。逼迫時は `pct set 100
   --memory <増量値>` で調整する (LXC の動的メモリ調整、無停止で反映可能)。
 - ディスク: Bypass のため録画/セグメントを持続的に書き出す設定ではない
-  想定 (本設計に DVR/LLHLS は含まない)。`pct exec 131 -- df -h /` で
+  想定 (本設計に DVR/LLHLS は含まない)。`pct exec 100 -- df -h /` で
   rootfs (m2 プール 16GB) の空き容量を定期確認する。
 - 具体的な「同時視聴者N人・配信M本ならvCPU X, RAM Y GB」という定量目安は
   公式資料に確証がなく (research-ome.md §11)、Phase 0 の実測 (§6(d) と
