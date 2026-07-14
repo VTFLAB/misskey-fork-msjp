@@ -140,16 +140,31 @@ export class LiveChannelService {
 	}
 
 	// generateIngestUrls: SignedPolicy 付き WHIP ingest URL を生成する (決定書 §2、00-overview.md D3)。
+	//
+	// 署名基準の落とし穴 (2026-07-15 実機確認): OME は HAProxy の TLS 終端の背後で動くため、
+	// クライアントが https://stream.msjp.pro/... (443) へ接続しても、OME が SignedPolicy 検証で
+	// 再構成する URL は「Host ヘッダ + OME signalling listener」= http://stream.msjp.pro:3333/...
+	// になる (OME は署名不一致時の 401 応答で expected URL をそのまま返してくれる)。
+	// したがって HMAC は「OME が再構成する URL」(signBase) に対して計算しなければ一致せず、
+	// OBS からの ingest が 401 で弾かれる。一方 OBS に渡す URL は HAProxy 経由の
+	// https://stream.msjp.pro/... (publicBase、TLS) とし、OME 直の 3333 は外部露出しない。
 	@bindThis
 	public generateIngestUrls(channel: MiLiveChannel, ome: NonNullable<Config['ome']>): {
 		whip: string;
 	} {
 		const urlExpireMs = Date.now() + 100 * 365 * 24 * 60 * 60 * 1000; // 100 years (実質無期限)
 
+		// publicBase: OBS が接続する公開 URL prefix (HAProxy TLS 終端。例 https://stream.msjp.pro)。
+		// signBase:   OME が SignedPolicy 検証時に再構成する URL prefix。HAProxy 背後でも OME 直でも
+		//             Host ヘッダは publicWhipUrl のホストになり、OME は自身の signalling listener
+		//             (平文 http / port 3333) を付けて再構成するため、http://<host>:3333 で署名する。
+		const publicBase = ome.publicWhipUrl.replace(/\/$/, '');
+		const signBase = `http://${new URL(ome.publicWhipUrl).hostname}:3333`;
+
 		return {
 			whip: this.signUrl({
-				scheme: 'http', // WHIP は HTTP(S)。WAN 公開後は https に切り替え。
-				urlBase: ome.publicWhipUrl, // 例: 'http://stream.msjp.pro:3333' (ポート明示必須)
+				publicBase,
+				signBase,
 				app: ome.app,
 				stream: channel.streamKey,
 				secretKey: ome.signedPolicySecret,
@@ -159,11 +174,12 @@ export class LiveChannelService {
 		};
 	}
 
-	// OME調査 §3 の Node.js 実装をそのまま移植 (Base64URL エンコード + HMAC-SHA1)。
+	// OME調査 §3 の Node.js 実装を移植 (Base64URL エンコード + HMAC-SHA1)。
+	// HMAC は signBase (OME が再構成する URL) に対して計算し、返す URL は publicBase を用いる。
 	@bindThis
 	private signUrl(params: {
-		scheme: string;
-		urlBase: string; // 'scheme://host:port' 形式 (ポート必須、決定書「ポート明示必須の罠」)
+		publicBase: string; // OBS が接続する公開 URL prefix (例 https://stream.msjp.pro)
+		signBase: string; // OME が SignedPolicy 検証時に再構成する URL prefix (例 http://stream.msjp.pro:3333)
 		app: string;
 		stream: string;
 		secretKey: string;
@@ -173,18 +189,19 @@ export class LiveChannelService {
 		const policy = { url_expire: params.urlExpireMs };
 		const policyEncoded = this.base64UrlEncode(Buffer.from(JSON.stringify(policy), 'utf8'));
 
-		// urlBase は既に 'scheme://host:port' を含む前提 (config.ome.publicWhipUrl がポート込みで設定される)
-		let baseUrl = `${params.urlBase}/${params.app}/${params.stream}?policy=${policyEncoded}`;
+		let pathAndQuery = `/${params.app}/${params.stream}?policy=${policyEncoded}`;
 		if (params.extraQuery != null) {
 			for (const [k, v] of Object.entries(params.extraQuery)) {
-				baseUrl += `&${k}=${encodeURIComponent(v)}`;
+				pathAndQuery += `&${k}=${encodeURIComponent(v)}`;
 			}
 		}
 
-		const signature = createHmac('sha1', params.secretKey).update(baseUrl).digest();
+		// 署名は OME が再構成する URL (signBase + path) に対して計算する。
+		const signature = createHmac('sha1', params.secretKey).update(`${params.signBase}${pathAndQuery}`).digest();
 		const signatureEncoded = this.base64UrlEncode(signature);
 
-		return `${baseUrl}&signature=${signatureEncoded}`;
+		// OBS に渡すのは publicBase (HAProxy TLS) の URL。signature は上記 signBase 版を流用する。
+		return `${params.publicBase}${pathAndQuery}&signature=${signatureEncoded}`;
 	}
 
 	@bindThis
