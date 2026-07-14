@@ -361,16 +361,17 @@ pct exec 100 -- docker volume inspect ome_ome-origin-conf --format '{{ .Mountpoi
         </Names>
       </Host>
 
+      <!-- SignedPolicy: ingest (WHIP Provider) only. Publishers (playback) is NOT enforced — anonymous viewing by design. -->
       <SignedPolicy>
         <PolicyQueryKeyName>policy</PolicyQueryKeyName>
         <SignatureQueryKeyName>signature</SignatureQueryKeyName>
         <!-- CHANGEME: §5.1 で生成する SignedPolicy SecretKey -->
         <SecretKey>CHANGEME_SIGNED_POLICY_SECRET</SecretKey>
         <Enables>
-          <!-- WHIP-only 構成: SignedPolicy は WHIP Provider (ingest) と WebRTC Publisher (視聴) の両方で有効。
-               Phase 0 実機検証済: 無署名 WHIP 接続は 401 拒否、署名ありは通過。 -->
+          <!-- WHIP-only 構成: SignedPolicy は WHIP Provider (ingest) のみ有効。
+               Phase 0 実機検証済: 無署名 WHIP 接続は 401 拒否、署名ありは通過。
+               視聴 (Publisher) は匿名アクセスを許可するため SignedPolicy を適用しない。 -->
           <Providers>webrtc</Providers>
-          <Publishers>webrtc</Publishers>
         </Enables>
       </SignedPolicy>
 
@@ -417,14 +418,19 @@ pct exec 100 -- docker volume inspect ome_ome-origin-conf --format '{{ .Mountpoi
             </WebRTC>
           </Providers>
 
+          <!-- WebRTC-only publisher. LLHLS/OVT/File/Push removed for resource saving. -->
           <Publishers>
             <AppWorkerCount>1</AppWorkerCount>
-            <StreamWorkerCount>8</StreamWorkerCount>
+            <StreamWorkerCount>1</StreamWorkerCount>
             <WebRTC>
               <Timeout>30000</Timeout>
               <Rtx>false</Rtx>
               <Ulpfec>false</Ulpfec>
               <JitterBuffer>false</JitterBuffer>
+              <PlayoutDelay>
+                <Min>0</Min>
+                <Max>0</Max>
+              </PlayoutDelay>
             </WebRTC>
           </Publishers>
         </Application>
@@ -600,10 +606,15 @@ D3・未確定事項 #5 参照)。
 ため閾値判定に使えない。実測値は OBS 設定値を大幅に下回る場合がある
 (画面内容が静止画に近い場合等) — これは CB R 設定でも発生する正常挙動。
 
-**リソースベースライン (docker stats, 1配信1視聴者)**:
-CPU 3.68% / MEM 16.11MiB (4GB割当中) / NET 48.3MB(in) 10.3MB(out)。
-Bypass モードのためトランスコード負荷は無く、CPU 負荷は低い。本格負荷試験は
-WI-5.1 で実施。
+**リソースベースライン (docker stats)**:
+- 最適化前 (1配信1視聴者、LLHLS/OVT コンポーネント初期化済み):
+  CPU 3.68% / MEM 16.11MiB (4GB割当中) / NET 48.3MB(in) 10.3MB(out)。
+- 最適化後 (idle, LLHLS/OVT コンポーネント除去):
+  CPU 0.24% / MEM 9.79MiB (4GB割当中)。
+
+Bypass モードのためトランスコード負荷は無く、CPU 負荷は低い。PVE2 にメモリ
+圧迫があるため、本番までに不要な Publisher (LLHLS/OVT/File/Push) は
+Server.xml から除去済み。本格負荷試験は WI-5.1 で実施。
 
 ### (e) AdmissionWebhooks の無効化/有効化タイミング
 
