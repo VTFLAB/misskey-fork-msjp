@@ -46,6 +46,7 @@ export class LiveChannelService {
 			name: null,
 			description: null,
 			bannerId: null,
+			offlineImageId: null,
 			streamKey: secureRndstr(),
 			streamKeyRegeneratedAt: now,
 			lastCutReason: null,
@@ -76,6 +77,7 @@ export class LiveChannelService {
 		name?: string | null;
 		description?: string | null;
 		bannerId?: string | null;
+		offlineImageId?: string | null;
 	}): Promise<MiLiveChannel> {
 		const liveChannel = await this.liveChannelsRepository.findOneByOrFail({ userId });
 
@@ -84,6 +86,7 @@ export class LiveChannelService {
 		if (params.name !== undefined) update.name = params.name;
 		if (params.description !== undefined) update.description = params.description;
 		if (params.bannerId !== undefined) update.bannerId = params.bannerId;
+		if (params.offlineImageId !== undefined) update.offlineImageId = params.offlineImageId;
 
 		if (Object.keys(update).length > 0) {
 			await this.liveChannelsRepository.update(liveChannel.id, update);
@@ -225,6 +228,12 @@ export class LiveChannelService {
 		}
 		const bannerUrl = banner != null ? this.driveFileEntityService.getPublicUrl(banner) : null;
 
+		let offlineImage = channel.offlineImage;
+		if (offlineImage == null && channel.offlineImageId != null) {
+			offlineImage = await this.driveFilesRepository.findOneBy({ id: channel.offlineImageId });
+		}
+		const offlineImageUrl = offlineImage != null ? this.driveFileEntityService.getPublicUrl(offlineImage) : null;
+
 		return {
 			id: channel.id,
 			userId: channel.userId,
@@ -233,6 +242,8 @@ export class LiveChannelService {
 			description: channel.description,
 			bannerId: channel.bannerId,
 			bannerUrl,
+			offlineImageId: channel.offlineImageId,
+			offlineImageUrl,
 			channelId: channel.channelId,
 			createdAt: channel.createdAt.toISOString(),
 			// 所有者のみ: ストリームキーと再生成日時
