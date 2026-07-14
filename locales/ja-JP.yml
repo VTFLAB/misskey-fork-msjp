@@ -3857,6 +3857,10 @@ _liveChannel:
   media: "メディア"
   noStreamHistory: "配信履歴はまだありません"
   channelTimelineNotInitialized: "チャンネルタイムラインが未初期化です"
+  initializingChannel: "チャンネルを初期化しています..."
+  postToChannel: "チャンネルに投稿"
+  previewStream: "プレビュー配信を開始"
+  liveNow: "配信中"
   editChannel: "チャンネルを編集"
   watchStream: "配信を見る"
 _remoteGuestLogin:
