@@ -3828,6 +3828,7 @@ _liveChannel:
   liveChannelSettings: "ライブチャンネル設定"
   enableStreaming: "配信機能を利用する"
   enableStreamingDescription: "MSJP配信 (自己ホスト配信サーバー経由でのライブ配信) 機能を有効にします。"
+  selfStream: "MSJP配信"
   channelName: "チャンネル名"
   channelNamePlaceholder: "未設定の場合はユーザー名が表示されます"
   channelDescription: "チャンネル説明"
