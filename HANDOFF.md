@@ -10,24 +10,30 @@
 ### 状態
 
 - 設計書7本 (`doc/live-streaming/00〜06`) 策定済み、コミット済み (`dbf1457895`)。
-- **Phase 1 (チャンネル基盤 backend, WI-1.1〜1.4) 完了・コミット済み** (`670a74c9` 〜 `0cc8b00d`、5コミット、
-  push 未実施)。`live_channel` テーブル・`LiveChannelService`・API 5本 (`live-channels/*`)・i18n・e2e 9ケース。
+- **Phase 1 (チャンネル基盤 backend, WI-1.1〜1.4) 完了・push 済み** (`670a74c9` 〜 `0cc8b00d`、5コミット)。
+  `live_channel` テーブル・`LiveChannelService`・API 5本 (`live-channels/*`)・i18n・e2e 9ケース。
   `config.ome` に一切依存せず単体で動作する (OME非依存の完了条件を満たす)。
-- **Phase 3 (チャンネルページ frontend, WI-3.1〜3.3) コード実装完了・未コミット**。`live-stream.vue` の
-  3状態分岐 (`live`/`offline`/`none`)・`live-stream.channel-home.vue` 新設・`/settings/live-channel` 設定ページ
-  新設。`pnpm --filter frontend lint` (typecheck + eslint) パス済み。WI-3.4 の目視検証 (04 §8.2 の14項目) のみ
-  残件 (実機ブラウザ確認が必要)。Phase 3 は Phase 0/2 に依存せず着手可能であったため先行実施した。
+- **Phase 3 (チャンネルページ frontend, WI-3.1〜3.8) 完了・push 済み** (13コミット: `3fa3284c` 〜 `e4afcab68c`)。
+  3状態分岐・YouTubeライクなタブ構成 (Home/Posts/Media)・`/settings/live-channel` 設定ページ・
+  `/live/:acct/stream` 視聴ページ分離・ライブインジケータ・チャンネルTL (Misskey channel 紐付け)・
+  リアルタイム更新 (MkStreamingNotesTimeline)・`channelId` lazy初期化・`bannerUrl` 解決。
+  本番デプロイ済み・ユーザー実機検証完了 (全項目パス)。
+  migration `1783986075195-AddChannelIdToLiveChannel.js` 追加 (live_channel.channelId 列)。
 - **Phase 0 (OMEインフラ構築) は未着手** — LXC作成等の物理インフラ作業で、コーディングセッションのスコープ外。
 - Phase 2 (OME連携backend) は Phase 0 + Phase 1 の両方が前提。Phase 0 未着手のため Phase 2 は着手不可。
-- **次に着手可能な作業**: Phase 2 (Phase 0 完了後) または WI-3.4 目視検証 (実機ブラウザ)。
+- **次に着手可能な作業**: Phase 0 (OMEインフラ、`01-infra-ome-setup.md` を読み WI-0.1 から)。
+  Phase 2 は Phase 0 完了後。
 
 ### このセッションで踏んだ落とし穴 (次セッションが同じ沼にハマらないために)
 
-1. **Claude Code の Bash ツール自体がネストした user namespace 内で動いている** (`app-orca-*.scope` 配下、
-   `/proc/self/ns/user` がホストと異なる)。このため podman/docker のコンテナ操作 (rootless namespace 作成)
-   がツール実行環境から失敗することがある。**再起動は不要**、ユーザーの実ターミナルで同じコマンドを
-   実行してもらえば正常動作する (今回は `docker compose -f compose.local-db.yml up -d --wait` を
-   ユーザーに実行してもらい解決)。DB起動後は TCP 接続なのでツールから通常通り操作可能。
+1. **Orca (AppImage) が user namespace 内で動作**: Claude Code / OpenCode の Bash ツールが
+   `app-orca-*.scope` 配下の user namespace に隔離されている。このため podman/docker の rootless
+   コンテナ操作 (`docker compose` 等) がツール実行環境から失敗する (`cannot re-exec process to join
+   the existing user namespace`)。Orca 設定でネスト解除・`--no-sandbox` 起動を試したが user namespace は
+   変わらなかった。**回避策**: `DOCKER_HOST=unix:///run/user/1000/podman/podman.sock podman --remote`
+   で socket 経由ならコンテナ操作可能。ローカル dev 環境の DB はこの方法で確認可能だが、認証フローを
+   含む frontend 検証は現実的でない (別ブラウザ・Orca CLI libfuse エラー等の問題も重なる)。Phase 3 の
+   検証は Phase 1 + Phase 3 をまとめて本番デプロイして行う方針が最短。
 2. **`.config/docker.env` が存在しない**: `compose.local-db.yml` の `db` サービスが要求するが repo には無い
    (`.gitignore` 対象)。作成した (`POSTGRES_HOST_AUTH_METHOD=trust`、`.config/default.yml`/`test.yml` の
    `pass: ''` に合わせた)。
@@ -36,12 +42,10 @@
    確認済み)。ポート変更後は `pnpm --filter backend compile-config` で `built/.config.json` を再コンパイル
    しないと反映されない (`check-migrations`/`migrate` はこのファイルを読む)。
 4. **`pnpm`/`node` のバージョン不整合**: システムの `pnpm` (corepack自己管理) が壊れており
-   `/home/vtf/.npm-global/bin/pnpm` を直接使う必要がある。また `node_modules` 内のネイティブモジュール
-   (`re2` 等) が Node 26 でビルドされているが `node` (システムデフォルト) は 24 系のため
-   `ERR_DLOPEN_FAILED` になる。`PATH="/nix/store/mm91li4ins9bmz8155drxb3iqx9gd72z-nodejs-26.5.0/bin:$PATH"`
-   を前置きすることで `generate_api_json.js`/`check-migrations`/`migrate` 等が正常動作する
-   (nix store のハッシュはこの環境固有、次セッションでは変わっている可能性がある —
-   `find /nix/store -maxdepth 1 -iname "*nodejs-26*"` で探し直すこと)。
+   `PATH="/nix/store/$(find /nix/store -maxdepth 1 -iname "*nodejs-26*" -type d | head -1 | xargs basename)/bin:$PATH"`
+   を前置きすることで `generate_api_json.js`/`check-migrations`/`migrate`/`pnpm dev` 等が正常動作する
+   (nix store のハッシュは環境固有で変わる可能性がある — `find` で探し直すこと)。
+   確認時のハッシュ: `k6rg5622i98aqmjy94jki8nz7ghm3x0s-nodejs-slim-26.5.0`。
 5. **migration の TypeORM 制約名は必ず `check-migrations` の実出力で検証すること**: 手書きで
    `PK_live_channel_id` のような可読名を付けると、TypeORM の自動生成ハッシュ名
    (`PK_43a1eee100c501a88c0faa3d4c5` 等) と一致せず `check-migrations` が pending DDL として検出する。
@@ -54,16 +58,17 @@
 
 ### 次にやること
 
-1. **WI-3.4 目視検証** (Phase 3 の残件): 04 §8.2 の14項目をブラウザで確認。特にバナー+アバター重ね配置、
-   `hideDeckNav` 状態別挙動、`/settings/live-channel` の SearchMarker ヒット、トグル ON/OFF での UI 変化。
-   `run`/`verify` skill または手動で `pnpm dev` を起動して確認。
-2. **Phase 3 コミット**: 目視検証で問題が無ければ WI-3.1〜3.4 をコミット単位に分けてコミット (設計書 §6 の
-   コミットメッセージ案に従う)。`packages/i18n/src/autogen/locale.ts` の再生成差分は i18n キー追加コミットに
-   含める。
-3. **Phase 2 着手** (Phase 0 完了後): `01-infra-ome-setup.md` を読み WI-0.1 から。WI-0.5 (WAN公開) は
-   ユーザー承認済みだが上位ルーターのポート開放は人間の手動作業。
-4. コミット済み5本 (Phase 1) + Phase 3 未コミット分は **push していない**。push 前に `pnpm lint`/
-   `check-migrations` を再確認し、CLAUDE.md §2 (WAN確認) に従って push の可否をユーザーに確認すること。
+1. **Phase 0 着手**: `doc/live-streaming/01-infra-ome-setup.md` を読み WI-0.1 から。LXC作成 + Docker +
+   OvenMediaEngine コンテナ起動 + Server.xml 初期版。WI-0.5 (WAN公開) はユーザー承認済みだが上位ルーターの
+   ポート開放は人間の手動作業。
+2. **Phase 2 着手** (Phase 0 完了後): `doc/live-streaming/02-backend-ome-integration.md` を読み WI-2.1 から。
+   `config.ts` に `ome` ブロック追加 → `OmeApiService` → `OmeServerService` → `OmeAdmissionService` →
+   セッション統合 → `LiveChannelService.generateIngestUrls()` → `OmeStreamMonitorService` →
+   `twitch/streams/show` の `sessions` 配列拡張 → e2e → AdmissionWebhooks 有効化。
+3. **Phase 4 着手** (Phase 2 完了後): `doc/live-streaming/05-frontend-player.md` を読み WI-4.1 から。
+   `ovenplayer` 依存追加 + `MkOmePlayer.vue` → `MkTwitchPlayer.vue` + `MkStreamPlayer.vue` →
+   `live-stream.vue` セグメントトグル統合 → 実機検証。
+4. Phase 1 (5コミット) + Phase 3 (13コミット) は **push 済み・本番デプロイ済み**。次セッションでの push 不要。
 
 ---
 
