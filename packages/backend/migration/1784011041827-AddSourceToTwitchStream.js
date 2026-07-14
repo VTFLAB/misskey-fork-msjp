@@ -20,7 +20,7 @@ export class AddSourceToTwitchStream1784011041827 {
         await queryRunner.query(`ALTER TABLE "twitch_stream" ALTER COLUMN "twitchStreamId" DROP NOT NULL`);
         await queryRunner.query(`ALTER TABLE "twitch_stream" ALTER COLUMN "twitchLogin" DROP NOT NULL`);
         await queryRunner.query(`ALTER TABLE "twitch_stream" ALTER COLUMN "twitchLogin" DROP DEFAULT`);
-        await queryRunner.query(`CREATE INDEX "IDX_twitch_stream_source" ON "twitch_stream" ("source")`);
+        await queryRunner.query(`CREATE INDEX "IDX_53ee49c8ded0fc914e73a4ddb3" ON "twitch_stream" ("source")`);
     }
 
     /**
@@ -30,7 +30,7 @@ export class AddSourceToTwitchStream1784011041827 {
         // down 実行時に source='ome' の行 (twitchUserId 等が null) が既に存在すると
         // NOT NULL 復元が失敗する。本番運用でこの migration を down する場合は事前に
         // source='ome' の行を手動削除するか、暫定値で埋めてから down すること。
-        await queryRunner.query(`DROP INDEX "public"."IDX_twitch_stream_source"`);
+        await queryRunner.query(`DROP INDEX "public"."IDX_53ee49c8ded0fc914e73a4ddb3"`);
         await queryRunner.query(`ALTER TABLE "twitch_stream" ALTER COLUMN "twitchLogin" SET DEFAULT ''`);
         await queryRunner.query(`ALTER TABLE "twitch_stream" ALTER COLUMN "twitchLogin" SET NOT NULL`);
         await queryRunner.query(`ALTER TABLE "twitch_stream" ALTER COLUMN "twitchStreamId" SET NOT NULL`);
