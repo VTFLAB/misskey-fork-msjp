@@ -14312,6 +14312,16 @@ export interface Locale extends ILocale {
          */
         "commentGenCloseConfirm": string;
     };
+    "_streaming": {
+        /**
+         * 配信
+         */
+        "title": string;
+        /**
+         * 配信機能の設定と連携を行えます。
+         */
+        "description": string;
+    };
     "_liveChannel": {
         /**
          * ライブチャンネル設定
