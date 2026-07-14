@@ -18,6 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						:playbackUrl="activeSession.playbackUrl"
 						:twitchLogin="activeSession.twitchLogin"
 						:active="playerActive"
+						:pageKey="props.acct"
 					/>
 					<div v-if="showSourceToggle" :class="$style.sourceToggle">
 						<button class="_button" :class="[$style.sourceToggleButton, { [$style.sourceToggleButtonActive]: activeSource === 'ome' }]" @click="activeSource = 'ome'">{{ i18n.ts._liveChannel.selfStream }}</button>
