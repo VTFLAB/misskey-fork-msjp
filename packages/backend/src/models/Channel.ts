@@ -98,4 +98,10 @@ export class MiChannel {
 		default: true,
 	})
 	public allowRenoteToExternal: boolean;
+
+	@Column('boolean', {
+		default: false,
+		comment: 'Whether this channel is a live-channel (self-streaming) backing channel, excluded from native channel discovery (bsky-fork独自).',
+	})
+	public isLiveChannel: boolean;
 }
