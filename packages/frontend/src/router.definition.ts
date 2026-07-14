@@ -162,12 +162,15 @@ export const ROUTE_DEF = [{
 		component: page(() => import('@/pages/settings/connect.vue')),
 	}, {
 		path: '/twitch',
-		name: 'twitch',
-		component: page(() => import('@/pages/settings/twitch.vue')),
+		redirect: '/settings/streaming',
 	}, {
 		path: '/live-channel',
-		name: 'live-channel',
-		component: page(() => import('@/pages/settings/live-channel.vue')),
+		redirect: '/settings/streaming',
+	}, {
+		path: '/streaming',
+		name: 'streaming',
+		component: page(() => import('@/pages/settings/streaming.vue')),
+		loginRequired: true,
 	}, {
 		path: '/apps',
 		name: 'connect',
