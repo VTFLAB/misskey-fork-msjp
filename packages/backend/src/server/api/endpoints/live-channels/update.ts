@@ -35,6 +35,11 @@ export const meta = {
 			code: 'NO_SUCH_BANNER',
 			id: '22a62eab-1306-47d2-90c3-4cac2a972839',
 		},
+		noSuchOfflineImage: {
+			message: 'No such offline image file.',
+			code: 'NO_SUCH_OFFLINE_IMAGE',
+			id: '9d6b6e0b-8e2c-4b9a-9e2a-6b7c2f5e1a3d',
+		},
 	},
 
 	res: {
@@ -48,6 +53,8 @@ export const meta = {
 			description: { type: 'string', optional: false, nullable: true },
 			bannerId: { type: 'string', format: 'misskey:id', optional: false, nullable: true },
 			bannerUrl: { type: 'string', optional: false, nullable: true },
+			offlineImageId: { type: 'string', format: 'misskey:id', optional: false, nullable: true },
+			offlineImageUrl: { type: 'string', optional: false, nullable: true },
 			channelId: { type: 'string', format: 'misskey:id', optional: false, nullable: true },
 			createdAt: { type: 'string', format: 'date-time', optional: false, nullable: false },
 			streamKey: { type: 'string', optional: true, nullable: false },
@@ -64,6 +71,7 @@ export const paramDef = {
 		name: { type: 'string', nullable: true, maxLength: 128 },
 		description: { type: 'string', nullable: true, maxLength: 2048 },
 		bannerId: { type: 'string', format: 'misskey:id', nullable: true },
+		offlineImageId: { type: 'string', format: 'misskey:id', nullable: true },
 	},
 	required: [],
 } as const;
@@ -85,11 +93,17 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				if (banner == null || banner.userId !== me.id) throw new ApiError(meta.errors.noSuchBanner);
 			}
 
+			if (ps.offlineImageId != null) {
+				const offlineImage = await this.driveFilesRepository.findOneBy({ id: ps.offlineImageId });
+				if (offlineImage == null || offlineImage.userId !== me.id) throw new ApiError(meta.errors.noSuchOfflineImage);
+			}
+
 			const updated = await this.liveChannelService.update(me.id, {
 				enabled: ps.enabled,
 				name: ps.name,
 				description: ps.description,
 				bannerId: ps.bannerId,
+				offlineImageId: ps.offlineImageId,
 			});
 
 			return await this.liveChannelService.pack(updated, me);
