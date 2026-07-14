@@ -126,6 +126,18 @@ type Source = {
 		timeout?: number;
 	};
 
+	ome?: {
+		apiUrl?: string;
+		apiToken?: string;
+		signedPolicySecret?: string;
+		publicWhipUrl?: string;
+		vhost?: string;
+		app?: string;
+		maxVideoBitrate?: number;
+		maxAudioBitrate?: number;
+		admissionSecret?: string;
+	};
+
 	remoteGuestLogin?: {
 		allowedHosts?: string[];
 	};
@@ -252,6 +264,19 @@ export type Config = {
 	twitchTranslation: {
 		url: string;
 		timeout: number;
+	} | undefined;
+
+	// OvenMediaEngine (OME) 連携 (fork 独自)。未設定なら機能全体が無効。
+	ome: {
+		apiUrl: string;
+		apiToken: string;
+		signedPolicySecret: string;
+		publicWhipUrl: string;
+		vhost: string;
+		app: string;
+		maxVideoBitrate: number;
+		maxAudioBitrate: number;
+		admissionSecret?: string;
 	} | undefined;
 
 	// リモートMisskeyインスタンスのユーザー向けゲストログイン (fork 独自)。
@@ -394,6 +419,17 @@ export function loadConfig(): Config {
 		twitchTranslation: config.twitchTranslation?.url ? {
 			url: config.twitchTranslation.url,
 			timeout: config.twitchTranslation.timeout ?? 8000,
+		} : undefined,
+		ome: (config.ome?.apiUrl && config.ome.apiToken && config.ome.signedPolicySecret && config.ome.publicWhipUrl) ? {
+			apiUrl: config.ome.apiUrl,
+			apiToken: config.ome.apiToken,
+			signedPolicySecret: config.ome.signedPolicySecret,
+			publicWhipUrl: config.ome.publicWhipUrl,
+			vhost: config.ome.vhost ?? 'default',
+			app: config.ome.app ?? 'live',
+			maxVideoBitrate: config.ome.maxVideoBitrate ?? 3000,
+			maxAudioBitrate: config.ome.maxAudioBitrate ?? 128,
+			...(config.ome.admissionSecret ? { admissionSecret: config.ome.admissionSecret } : {}),
 		} : undefined,
 		remoteGuestLogin: (config.remoteGuestLogin?.allowedHosts && config.remoteGuestLogin.allowedHosts.length > 0) ? {
 			allowedHosts: config.remoteGuestLogin.allowedHosts.map(host => {
