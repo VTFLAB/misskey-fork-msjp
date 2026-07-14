@@ -14,6 +14,7 @@ import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { MiTwitchStream } from '@/models/TwitchStream.js';
+import { TwitchStreamService } from '@/core/twitch/TwitchStreamService.js';
 import { OmeApiService } from './OmeApiService.js';
 import { LiveLoggerService } from './LiveLoggerService.js';
 
@@ -47,6 +48,7 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 		private redisClient: Redis.Redis,
 
 		private omeApiService: OmeApiService,
+		private twitchStreamService: TwitchStreamService,
 		private globalEventService: GlobalEventService,
 		private liveLoggerService: LiveLoggerService,
 	) {
@@ -59,6 +61,11 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 		if (!cluster.isPrimary) return;
 
 		this.pollTimer = setInterval(() => {
+			// 先にライブ開始検知 (listStreams → 未 live なチャンネルを isLive 化)、
+			// 続いて既存 live セッションのビットレート監視を回す。
+			this.detectStartedStreams().catch(err => {
+				this.logger.error(`detect failed: ${err instanceof Error ? err.message : err}`);
+			});
 			this.pollActiveSessions().catch(err => {
 				this.logger.error(`poll failed: ${err instanceof Error ? err.message : err}`);
 			});
@@ -74,6 +81,33 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 	async onApplicationShutdown(): Promise<void> {
 		if (this.pollTimer != null) clearInterval(this.pollTimer);
 		if (this.reconcileTimer != null) clearInterval(this.reconcileTimer);
+	}
+
+	/**
+	 * OME で publish 中 (listStreams) だが DB に live セッションが無い配信を検出し、
+	 * ライブセッション (source=ome, isLive=true) を作成する (bsky-fork 独自)。
+	 * AdmissionWebhooks 無効構成でのライブ「開始」検知を担う (offline 化は reconcileWithOme)。
+	 * OME 到達不能時はセッションを勝手に作らずスキップ (縮退方針、reconcile と同思想)。
+	 */
+	@bindThis
+	public async detectStartedStreams(): Promise<void> {
+		if (this.config.ome == null) return;
+
+		let omeStreamKeys: string[];
+		try {
+			omeStreamKeys = await this.omeApiService.listStreams();
+		} catch (err) {
+			this.logger.warn(`detect: listStreams failed, skipping this cycle: ${err instanceof Error ? err.message : err}`);
+			return;
+		}
+		if (omeStreamKeys.length === 0) return;
+
+		const channels = await this.liveChannelsRepository.findBy({ streamKey: In(omeStreamKeys) });
+		for (const channel of channels) {
+			// ビットレート超過で cut された streamKey はブラックリスト有効期間中は再ライブ化しない。
+			if ((await this.redisClient.exists(`ome:blacklist:${channel.streamKey}`)) === 1) continue;
+			await this.twitchStreamService.markOmeStreamLive(channel.userId, channel.name);
+		}
 	}
 
 	/**
