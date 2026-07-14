@@ -89,7 +89,7 @@ Twitch⇔OME 同時配信 (マルチ配信) 時は source 違いの isLive セ�
 - **SignedPolicy (WHIP Provider)** が「Misskey 経由の配信者しか OME を使えない」の実体。Misskey が stream key ごとに SignedPolicy 署名付き WHIP URL を発行する。署名なしまたは無効な署名の WHIP 接続は OME が即時拒否 (401)。
 - **AdmissionWebhooks** は本設計では**オプション**扱いとする。OME 単独で SignedPolicy による認可が完結するため、Phase 2 の必須要件から外す。将来の拡張 (配信ライフサイクル通知、bit rate 超過時の即時遮断、ブラックリスト) で必要になったら有効化する。
 - ストリームキー = 32 文字 URL-safe 乱数。WHIP URL の stream 名として使用。再生成可 (旧キーの接続は REST DELETE で即切断)。
-- SignedPolicy の policy には `url_expire` を設定し、配信開始時に Misskey が発行した URL は期限付きで有効とする。
+- SignedPolicy の policy には `url_expire` を **現在時刻 + 100年** に設定する (実質無期限)。理由: 設定画面でユーザーに WHIP URL を案内するため、短期期限では配信のたびに URL が変わる。100年期限なら同一 URL で恒久的に配信でき、漏洩時はユーザーが「ストリームキー再生成」で SignedPolicy URL も更新される (旧キーは REST DELETE で即時切断)。
 
 ### D4: ビットレート制限はポーリング + 強制切断 + ブラックリスト
 
