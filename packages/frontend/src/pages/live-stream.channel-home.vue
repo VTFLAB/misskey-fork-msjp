@@ -11,7 +11,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.header">
 		<div :class="$style.avatarWrap">
 			<MkAvatar :class="[$style.avatar, { [$style.avatarLive]: isLive }]" :user="user" link indicator/>
-			<span v-if="isLive" :class="$style.liveBadge">{{ i18n.ts._liveChannel.liveNow }}</span>
+			<div v-if="isLive" :class="$style.liveBadge">{{ i18n.ts._liveChannel.liveNow }}</div>
 		</div>
 		<div :class="$style.names">
 			<div :class="$style.channelName">{{ channel.name ?? user.name ?? user.username }}</div>
@@ -54,7 +54,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<i class="ti ti-pencil"></i> {{ i18n.ts._liveChannel.postToChannel }}
 					</MkButton>
 				</div>
-				<MkNotesTimeline :noGap="true" :paginator="notesPaginator" :pullToRefresh="true"/>
+				<MkStreamingNotesTimeline :key="channelId" src="channel" :channel="channelId"/>
 			</template>
 		</div>
 
@@ -107,13 +107,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, markRaw, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkAvatar from '@/components/global/MkAvatar.vue';
 import MkAcct from '@/components/global/MkAcct.vue';
 import MkButton from '@/components/MkButton.vue';
 import MkFollowButton from '@/components/MkFollowButton.vue';
-import MkNotesTimeline from '@/components/MkNotesTimeline.vue';
+import MkStreamingNotesTimeline from '@/components/MkStreamingNotesTimeline.vue';
 import MkTab from '@/components/MkTab.vue';
 import MkMediaImage from '@/components/MkMediaImage.vue';
 import MkDriveFileThumbnail from '@/components/MkDriveFileThumbnail.vue';
@@ -122,7 +122,6 @@ import MkLoading from '@/components/global/MkLoading.vue';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import * as os from '@/os.js';
-import { Paginator } from '@/utility/paginator.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { notePage } from '@/filters/note.js';
 import { prefer } from '@/preferences.js';
@@ -167,15 +166,6 @@ function openPostForm() {
 }
 
 watch(channelId, fetchMisskeyChannel, { immediate: true });
-
-const notesPaginator = markRaw(new Paginator('channels/timeline', {
-	limit: 10,
-	computedParams: computed(() => {
-		const id = channelId.value;
-		if (id == null) return null;
-		return { channelId: id };
-	}),
-}));
 
 const emit = defineEmits<{
 	(ev: 'reload'): void;
@@ -252,8 +242,11 @@ watch(() => props.channel, () => {
 }
 
 .avatarWrap {
-	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
 	flex-shrink: 0;
+	gap: 6px;
 }
 
 .avatar {
@@ -269,11 +262,7 @@ watch(() => props.channel, () => {
 }
 
 .liveBadge {
-	position: absolute;
-	bottom: -6px;
-	left: 50%;
-	transform: translateX(-50%);
-	padding: 2px 8px;
+	padding: 2px 10px;
 	font-size: 0.75em;
 	font-weight: bold;
 	color: var(--MI_THEME-fgOnAccent);
