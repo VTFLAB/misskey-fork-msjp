@@ -14368,6 +14368,18 @@ export interface Locale extends ILocale {
          */
         "changeBanner": string;
         /**
+         * オフライン画像
+         */
+        "offlineImage": string;
+        /**
+         * 配信が切断されている間、プレイヤーに表示される画像です。未設定の場合はエラー表示になります。
+         */
+        "offlineImageDescription": string;
+        /**
+         * オフライン画像を変更
+         */
+        "changeOfflineImage": string;
+        /**
          * 配信 URL が第三者に漏れた場合は再生成してください。再生成すると新しい WHIP URL が発行され、古い URL からの配信は無効になります。
          */
         "streamKeyDescription": string;
