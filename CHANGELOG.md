@@ -55,6 +55,7 @@
 
 ### Server
 
+- Fix: OME (自己配信) で OBS 配信を開始してもチャンネルがライブ表示にならず視聴プレイヤーも起動しない問題を修正 (bsky-fork 独自)。AdmissionWebhooks を使わない構成にもかかわらずライブ開始を検知する経路が実装されておらず、DB にライブセッション (source=ome) が作られていなかった。OmeStreamMonitorService の 10 秒ポーリングで OME の listStreams() を突合し、publish 中の streamKey に対応するチャンネルのライブセッションを自動作成 (+ フォロワー通知) するようにした (offline 化は既存の reconcile が担当)
 - Fix: OME (自己配信) の WHIP ingest URL の SignedPolicy 署名が、HAProxy TLS 終端の背後で OME が再構成する URL と一致せず ingest が 401 で弾かれる問題を修正 (bsky-fork 独自)。OME は `https://stream.msjp.pro/...` への接続でも署名検証時は Host ヘッダ + 自身の signalling listener で `http://stream.msjp.pro:3333/...` として URL を再構成するため、HMAC の署名基準をこの再構成 URL に合わせた (OBS へ渡す URL は従来どおり HAProxy 経由の HTTPS)
 - Fix: 配信コメントの投稿翻訳 (日本語入力) で翻訳を同期的に待つ間にリバースプロキシがタイムアウトし、投稿は成功しているのにクライアントにエラーモーダルが出る問題を修正 (bsky-fork 独自)。投稿は即時応答し、翻訳と Twitch への英訳中継は翻訳キューが完了後に行う (翻訳失敗時は原文を中継してコメントを取りこぼさない)
 - Feat: アップデート情報の管理用エンドポイント (`admin/update-info/*`) と閲覧用エンドポイント (`update-info/show`, `update-infos`) を追加 (bsky-fork 独自)
