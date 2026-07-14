@@ -30031,6 +30031,9 @@ export interface operations {
                         bannerId: string | null;
                         bannerUrl: string | null;
                         /** Format: misskey:id */
+                        offlineImageId: string | null;
+                        offlineImageUrl: string | null;
+                        /** Format: misskey:id */
                         channelId: string | null;
                         /** Format: date-time */
                         createdAt: string;
@@ -30118,6 +30121,9 @@ export interface operations {
                             bannerId: string | null;
                             bannerUrl: string | null;
                             /** Format: misskey:id */
+                            offlineImageId: string | null;
+                            offlineImageUrl: string | null;
+                            /** Format: misskey:id */
                             channelId: string | null;
                             /** Format: date-time */
                             createdAt: string;
@@ -30199,6 +30205,9 @@ export interface operations {
                         /** Format: misskey:id */
                         bannerId: string | null;
                         bannerUrl: string | null;
+                        /** Format: misskey:id */
+                        offlineImageId: string | null;
+                        offlineImageUrl: string | null;
                         /** Format: misskey:id */
                         channelId: string | null;
                         /** Format: date-time */
@@ -30294,6 +30303,9 @@ export interface operations {
                         bannerId: string | null;
                         bannerUrl: string | null;
                         /** Format: misskey:id */
+                        offlineImageId: string | null;
+                        offlineImageUrl: string | null;
+                        /** Format: misskey:id */
                         channelId: string | null;
                         /** Format: date-time */
                         createdAt: string;
@@ -30360,6 +30372,8 @@ export interface operations {
                     description?: string | null;
                     /** Format: misskey:id */
                     bannerId?: string | null;
+                    /** Format: misskey:id */
+                    offlineImageId?: string | null;
                 };
             };
         };
@@ -30381,6 +30395,9 @@ export interface operations {
                         /** Format: misskey:id */
                         bannerId: string | null;
                         bannerUrl: string | null;
+                        /** Format: misskey:id */
+                        offlineImageId: string | null;
+                        offlineImageUrl: string | null;
                         /** Format: misskey:id */
                         channelId: string | null;
                         /** Format: date-time */
