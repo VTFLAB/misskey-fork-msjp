@@ -3704,7 +3704,7 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * 自分のライブチャンネル設定を返す。未開設なら channel: null。ingest 接続情報 (rtmpUrl/srtUrl/whipUrl) は Phase 2 (OME 連携) 実装まで null 固定。
+     * 自分のライブチャンネル設定を返す。未開設なら channel: null。OME 連携有効時は whipUrl を含む。
      * 
      * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
      * **Credential required**: *Yes* / **Permission**: *read:account*
