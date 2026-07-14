@@ -9,6 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		v-if="source === 'ome' && playbackUrl != null"
 		:playbackUrl="playbackUrl"
 		:active="active"
+		:pageKey="pageKey"
 	/>
 	<MkTwitchPlayer
 		v-else-if="source === 'twitch' && twitchLogin != null"
@@ -27,6 +28,7 @@ const props = defineProps<{
 	playbackUrl?: string | null; // source === 'ome' のとき必須
 	twitchLogin?: string | null; // source === 'twitch' のとき必須
 	active: boolean;
+	pageKey?: string; // 視聴ページ識別子 (acct)。MkOmePlayer の音量ページ別保持に使う。
 }>();
 </script>
 
