@@ -9,7 +9,7 @@
 Misskey bsky-fork に既存実装済みの Twitch 配信連携に加え、以下 3 要件を実装するための設計書群である。
 
 1. **チャンネルページ** — YouTube Live / Twitch 型のユーザーチャンネルページ (バナー・名前・説明・タイムライン・フォロー)。1 ユーザー 1 チャンネル、設定の「配信機能を利用する」で開設。
-2. **独自配信システム** — OvenMediaEngine (OME) を PVE2 に構築し、Twitch 連携と合わせたマルチ配信システムとする。映像/音声とも Bypass (無トランスコード)、入力 WebRTC (WHIP)/E-RTMP/SRT、出力 WebRTC のみ。SignedPolicy によるストリームキー、AdmissionWebhooks による認可、ビットレート超過 (映像 3000kbps / 音声 128kbps) の自動遮断。
+2. **独自配信システム** — OvenMediaEngine (OME) を PVE2 に構築し、Twitch 連携と合わせたマルチ配信システムとする。映像/音声とも Bypass (無トランスコード)、入力 WebRTC (WHIP) のみ、出力 WebRTC のみ。SignedPolicy による URL 署名を主とした認可、ビットレート超過 (映像 3000kbps / 音声 128kbps) の自動遮断。AdmissionWebhooks は将来拡張のためオプション扱い。
 3. **プレイヤー** — Twitch と独自配信を同一視聴ページ (`/live/:acct`) で視聴。OvenPlayer ベースのライブ特化カスタムプレイヤー (再生/停止/シークなし) と、Twitch プレイヤーとの切替 UI。
 
 読者は「実装を任される LLM または初級エンジニア」を想定する。各文書は単体で作業指示として成立する粒度で書かれており、曖昧語 (適宜・必要に応じて) を排し、参照すべき既存コードを file:line で指定する。
@@ -32,27 +32,26 @@ Misskey bsky-fork に既存実装済みの Twitch 配信連携に加え、以下
 
 ```
                          WAN                    │ LAN (192.168.1.0/24, PVE2 上)
-                                                │
- OBS (配信者) ──RTMP 1935/tcp──────NAT──────────┼──▶ ┌─────────────────────┐
-              ──SRT 9999/udp──────NAT──────────┼──▶ │ OME (新規 LXC CT)    │
-              ──WHIP──┐                        │    │ ovenmedialabs/       │
-                      ├─wss── HAProxy ─────────┼──▶ │  ovenmediaengine     │
- 視聴者 ─signalling───┘  (stream.msjp.pro)     │    │ app: live / Bypass   │
-        ─ICE/SRTP 10000-10009/udp──NAT─────────┼──▶ │ REST API :8081 (LAN) │
-                                                │    └──────┬──────────────┘
-                                                │           │ AdmissionWebhooks (opening/closing)
-                                                │           │ REST API (統計ポーリング/強制切断)
-                                                │           ▼
+                                                 │
+ OBS (配信者) ──WHIP───────────────wss─────────┼──▶ ┌─────────────────────┐
+               (stream.msjp.pro:3333)            │    │ OME (新規 LXC CT)    │
+                                                 │    │ ovenmedialabs/       │
+ 視聴者 ─signalling──┐                            │    │  ovenmediaengine     │
+         (HAProxy)   ├─wss── HAProxy ───────────┼──▶ │ app: live / Bypass   │
+         ─ICE/SRTP 10000-10009/udp──NAT─────────┼──▶ │ REST API :8081 (LAN) │
+                                                 │    └──────┬──────────────┘
+                                                 │           │ SignedPolicy (URL署名検証)
+                                                 │           │ REST API (統計ポーリング/強制切断)
+                                                 │           ▼
  ブラウザ ──https── HAProxy (mi.msjp.pro) ──────┼──▶ ┌─────────────────────┐
-                                                │    │ Misskey (VM 200)     │
-                                                │    │ /ome/admission ルート │
-                                                │    │ core/live/ サービス群 │
-                                                │    └─────────────────────┘
+                                                 │    │ Misskey (VM 200)     │
+                                                 │    │ core/live/ サービス群 │
+                                                 │    └─────────────────────┘
 ```
 
-- **配信開始**: OBS → OME に接続 → OME が AdmissionWebhooks で Misskey に問い合わせ → Misskey が streamKey を検証して許可/拒否 → 許可時に配信セッション作成・フォロワー通知。
+- **配信開始**: OBS → OME に WHIP で接続 → OME が SignedPolicy で URL 署名を検証 → 不正な署名は即時拒否 → 許可時に配信セッション作成・フォロワー通知。
 - **視聴**: ブラウザ → Misskey API から再生 URL 取得 → OvenPlayer が OME と WebRTC signalling (wss, HAProxy 経由) + ICE/メディア (UDP 直接) で接続。
-- **遮断**: Misskey が OME REST API を 10 秒間隔ポーリング → ビットレート超過 30 秒継続で強制切断 + 10 分間ブラックリスト (AdmissionWebhooks で再接続拒否)。
+- **遮断**: Misskey が OME REST API を 10 秒間隔ポーリング → ビットレート超過 30 秒継続で強制切断 + 10 分間ブラックリスト (再接続は SignedPolicy または将来の AdmissionWebhooks で拒否)。
 
 ## 3. 確定済み設計決定 (変更には本書の改訂が必要)
 
@@ -85,11 +84,12 @@ Misskey bsky-fork に既存実装済みの Twitch 配信連携に加え、以下
 
 Twitch⇔OME 同時配信 (マルチ配信) 時は source 違いの isLive セッションが 2 行並存する。チャットはセッションごとに独立。
 
-### D3: 認可は AdmissionWebhooks が正、SignedPolicy は併用
+### D3: 認可は SignedPolicy が正、AdmissionWebhooks はオプション
 
-- **AdmissionWebhooks** (rtmp/webrtc/srt すべての Provider で有効) が「Misskey 経由の配信者しか OME を使えない」の実体。streamKey が有効な `live_channel` に一致しなければ `allowed:false`。
-- **SignedPolicy** は要件どおり併用する。RTMP ingest への適用は公式確定。WebRTC/SRT provider への適用可否は未確定事項 1 (03 に検証結果を反映)。視聴 (Publishers) 側には適用しない (匿名視聴のため)。
-- ストリームキー = 32 文字 URL-safe 乱数。stream 名そのものとして使用。再生成可 (旧キーの接続は REST DELETE で即切断)。
+- **SignedPolicy (WHIP Provider)** が「Misskey 経由の配信者しか OME を使えない」の実体。Misskey が stream key ごとに SignedPolicy 署名付き WHIP URL を発行する。署名なしまたは無効な署名の WHIP 接続は OME が即時拒否 (401)。
+- **AdmissionWebhooks** は本設計では**オプション**扱いとする。OME 単独で SignedPolicy による認可が完結するため、Phase 2 の必須要件から外す。将来の拡張 (配信ライフサイクル通知、bit rate 超過時の即時遮断、ブラックリスト) で必要になったら有効化する。
+- ストリームキー = 32 文字 URL-safe 乱数。WHIP URL の stream 名として使用。再生成可 (旧キーの接続は REST DELETE で即切断)。
+- SignedPolicy の policy には `url_expire` を設定し、配信開始時に Misskey が発行した URL は期限付きで有効とする。
 
 ### D4: ビットレート制限はポーリング + 強制切断 + ブラックリスト
 
@@ -105,7 +105,19 @@ OME に ingest ビットレート上限機能は存在しない (調査確定)�
 
 ### D6: config は既存 twitch と同じ縮退方式
 
-`.config/default.yml` に `ome:` ブロック (apiUrl / apiToken / admissionSecret / signedPolicySecret / publicSignallingUrl / publicRtmpUrl / publicSrtUrl / vhost / app / maxVideoBitrate / maxAudioBitrate)。必須項目が揃わなければ `config.ome = undefined` = 機能無効。Phase 1 (チャンネル基盤) は config.ome 非依存で完結する。
+`.config/default.yml` に `ome:` ブロック (apiUrl / apiToken / signedPolicySecret / publicWhipUrl / vhost / app / maxVideoBitrate / maxAudioBitrate)。必須項目が揃わなければ `config.ome = undefined` = 機能無効。Phase 1 (チャンネル基盤) は config.ome 非依存で完結する。
+
+```yaml
+ome:
+  apiUrl: 'http://ome.msjp-local.org:8081'
+  apiToken: '<API AccessToken>'
+  signedPolicySecret: '<SignedPolicy SecretKey>'
+  publicWhipUrl: 'http://stream.msjp.pro:3333'  # ⚠ 未確定事項 #6 (FQDN確定後に反映)
+  vhost: 'default'
+  app: 'live'
+  maxVideoBitrate: 3000
+  maxAudioBitrate: 128
+```
 
 ### D7: インフラは PVE2 の LXC + Docker
 
@@ -115,9 +127,9 @@ mi-host (Misskey 本番, VM 200) は PVE2 上にあり、OME を同ノードに�
 
 | Phase | 内容 | 依存 | 完了条件 (詳細は 06) |
 |---|---|---|---|
-| 0 | OME インフラ構築 (LAN 内疎通まで) | なし | OBS→OME→OvenPlayer デモ再生成功、bitrate 統計実測 |
+| 0 | OME インフラ構築 (LAN 内疎通まで) | なし | OBS→OME(WHIP)→OvenPlayer デモ再生成功、bitrate 統計実測 |
 | 1 | チャンネル基盤 backend (`live_channel`) | なし (0 と並行可) | 全 endpoint 動作、check-migrations/typecheck/e2e 通過 |
-| 2 | OME 連携 backend (admission/監視/セッション統合) | 0, 1 | LAN 内で配信開始→通知→遮断→再接続拒否の一連が動く |
+| 2 | OME 連携 backend (SignedPolicy/監視/セッション統合) | 0, 1 | LAN 内で配信開始→通知→遮断→再接続拒否の一連が動く |
 | 3 | チャンネルページ frontend | 1 | 3 状態×PC/モバイル/デッキの表示確認 |
 | 4 | プレイヤー frontend | 2, 3 | Twitch⇔OME 切替・再接続・全画面の実機確認 |
 | 5 | 統合検証・WAN 公開・本番デプロイ | 0-4 | e2e 全通過、実配信テスト、運用手順確立 |
@@ -130,11 +142,11 @@ mi-host (Misskey 本番, VM 200) は PVE2 上にあり、OME を同ノードに�
 
 | # | 項目 | 解消方法 | 影響先 |
 |---|---|---|---|
-| 1 | SignedPolicy の webrtc/srt Provider 対応可否 | **実機確認済 (2026-07-14)**: `<Providers>rtmp,webrtc,srt</Providers>` で OME v0.20.5 がパースエラーなく起動。「All modules are initialized successfully」確認済。設計どおり SignedPolicy で webrtc/srt ingest を認可制御可能 | 01, 03 |
+| 1 | SignedPolicy の webrtc/srt Provider 対応可否 | **実機確認済 (2026-07-14)**: SignedPolicy の `<Providers>webrtc</Providers>` で WHIP ingest の認可が機能することを確認 (無署名 401拒否、署名あり通過)。WHIP-only 採用により webrtc/srt Provider 対応可否の議論は解消。 | 01, 03 |
 | 2 | OSS v1 統計 API での視聴者数取得可否 | **実機確認済 (2026-07-14)**: `GET /v1/stats/current/vhosts/{vhost}/apps/{app}/streams/{stream}` のレスポンスに `totalConnections` キーが実在 (配信中に値 1 を確認)。`connections` オブジェクト内のプロトコル別キー (`webrtc` 等) の合計 = `totalConnections` と一致。視聴者数取得には `totalConnections` を使用する | 03 |
 | 3 | WHEP egress 対応の有無 | **ソース検証済 (2026-07-14)**: v0.20.5 時点で未実装 (2025 Roadmap に計画のみ)。視聴は OvenPlayer の独自 WebSocket signalling 一択 — D5 (OvenPlayer 採用) の裏付け | 解消済 |
 | 4 | `bitrateLatest`/`bitrateAvg` の実挙動 (瞬間値/平均の意味) | **実機確認済 (2026-07-14)**: `bitrateLatest` = 直近の瞬間実測値、`bitrateAvg` = 配信開始からの移動平均、`bitrateConf`/`bitrate` = OBS 設定値の反映 (不変、実測ではない)。`OmeStreamMonitorService` の閾値判定には **`bitrateLatest`** を使用する。実測例: OBS CBR 2800kbps 設定で `bitrateConf=2800000` (不変) / `bitrateAvg≈550000` (画面内容依存で変動) / `bitrateLatest≈550000` (30秒間で微変動)。`bitrateConf` は閾値判定に使えない (実測値ではない) | 01, 03 |
-| 5 | OBS WHIP の Bearer Token と SignedPolicy の統合方法 | **Phase 0 では SignedPolicy 無効化のため未検証**。Phase 2 (WI-2.10 AdmissionWebhooks 有効化時) に SignedPolicy を有効化して実機確認する。不可なら 03 §6 の「query 直付け」方式を採用 | 01, 03 |
+| 5 | OBS WHIP の Bearer Token と SignedPolicy の統合方法 | **解消済 — WHIP-only採用により RTMP/SRT ingest は廃止。WHIP ingest では SignedPolicy の `?direction=whip` URL に policy/signature クエリを付与する方式で確定 (Phase 0 実機検証済)** | 01, 03 |
 | 6 | 公開 FQDN (`stream.msjp.pro` 案) と WAN 公開ポリシー例外 | **ユーザー承認済 (2026-07-14)**: FQDN は `stream.msjp.pro` に確定、WAN 公開ポリシー例外も許容。二重ルーター構成のため上位ルーターのポート開放 (人間の手動作業) が別途必要 — 開放ポート一覧は 01 §7.1.5 | 解消済 (作業は WI-0.5) |
 | 7 | OME の視聴同時接続数の実用上限 (PVE2 リソース) | **Phase 0 ベースライン取得済 (2026-07-14)**: 1配信1視聴者で `docker stats` CPU 3.68% / MEM 16.11MiB / NET 48.3MB(in) 10.3MB(out)。本格負荷試験は WI-5.1 で実施。**ユーザー方針**: RAM 控えめ開始で進め、PVE2 のメモリ圧が厳しい場合は Coder スタックを PVE1 へ退避してリソース確保 (§11 Coder 規律に従い coder CLI 経由 + 別途計画) | 01 |
 

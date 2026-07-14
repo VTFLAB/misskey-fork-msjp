@@ -7,9 +7,8 @@
 または初級エンジニア」を想定し、曖昧さゼロ・コピペで実行できる粒度で記述する。
 
 対象範囲は OvenMediaEngine (OME) を PVE2 上に LXC + Docker で構築し、LAN 内で
-OBS → OME → 視聴 (OvenPlayer/デモページ) の疎通を実証するところまで。Misskey
-backend 側の実装 (`core/live/`, `/ome/admission` ルート等) は本文書の範囲外であり、
-別文書 (02 以降) で扱う。
+OBS → OME (WHIP ingest) → 視聴 (OvenPlayer/デモページ) の疎通を実証するところまで。Misskey
+backend 側の実装 (`core/live/` 等) は本文書の範囲外であり、別文書 (02 以降) で扱う。
 
 ### 前提 (読むべき文書)
 
@@ -29,10 +28,9 @@ Phase 0 は以下すべてが満たされた時点で完了とする。
 - [x] PVE2 上に LXC (Debian 12 + Docker) が作成され、SSH 到達可能
 - [x] OME コンテナが起動し、REST API (8081) が応答する
 - [x] Server.xml に `live` アプリ、Bypass 出力プロファイル、Providers
-      (WebRTC/RTMP/SRT)、Publishers (WebRTC のみ)、SignedPolicy、REST API
-      AccessToken が設定されている (AdmissionWebhooks は Misskey 側未実装のため
-      無効化した状態で可、§6(e) 参照)
-- [x] OBS から RTMP ingest → REST API のストリーム一覧に反映されることを確認済み
+      (WebRTC のみ)、Publishers (WebRTC のみ)、SignedPolicy (WHIP Provider 有効)、REST API
+      AccessToken が設定されている (AdmissionWebhooks はオプションのため無効化したままで可、§4・§6(e) 参照)
+- [x] OBS から WHIP ingest → REST API のストリーム一覧に反映されることを確認済み
 - [x] OvenPlayer デモページ (または OME 同梱デモ) で WebRTC 再生を確認済み
 - [x] `bitrateLatest`/`bitrateAvg` の実測値を記録済み (⚠ 未確定事項 #4 の検証結果を
       00-overview.md にフィードバックすること)
@@ -44,51 +42,52 @@ Phase 0 は以下すべてが満たされた時点で完了とする。
 
 ## 1. 目的と構成図
 
-目的: OBS 等のエンコーダから RTMP/SRT/WebRTC(WHIP) で受けた映像・音声を無
-トランスコード (Bypass) のまま WebRTC で視聴者に配信する基盤を、PVE2 上の
-独立 LXC に構築する。Misskey (mi-host) とは同一 vmbr0 上の LAN 直結とし、
-配信認可・通知は AdmissionWebhooks 経由で Misskey backend と連携する。
+目的: OBS 等のエンコーダから WebRTC(WHIP) で受けた映像・音声を無トランス
+コード (Bypass) のまま WebRTC で視聴者に配信する基盤を、PVE2 上の独立
+LXC に構築する。Misskey (mi-host) とは同一 vmbr0 上の LAN 直結とし、
+配信認可は SignedPolicy (URL 署名検証) で完結する。AdmissionWebhooks は
+将来拡張のためオプションとして残す。
 
 ```
-                          ┌─────────────────────────────────────────┐
-                          │              WAN (インターネット)          │
-                          │  配信者(OBS)・視聴者ブラウザ (外部)         │
-                          └───────────────┬───────────────────────┘
-                                          │ ⚠ 人間承認後のみ (§7)
-                                          │ RTMP 1935/tcp, SRT 9999/udp,
-                                          │ ICE 10000-10009/udp, TURN 3478/tcp,
-                                          │ signalling は HAProxy 経由 wss
-                          ┌───────────────▼───────────────────────┐
-                          │  OPNsense (WAN境界)                      │
-                          │  - NAT port forward (§7.2)               │
-                          │  - HAProxy (signalling のみ, is_ome_host)  │
-                          └───────────────┬───────────────────────┘
-====================== LAN境界 (192.168.1.0/24, vmbr0) ======================
-                                          │
-        ┌─────────────────────────────────┼─────────────────────────────────┐
-        │  PVE2 (物理ノード)                │                                 │
-        │                                  │                                 │
-        │  ┌───────────────────────┐      │      ┌───────────────────────┐ │
-        │  │ mi-host (VM 200)       │      │      │ ome (LXC, 本文書で新設) │ │
-        │  │ 192.168.1.104          │◄─────┼─────►│ 192.168.1.<DHCP_IP>    │ │
-        │  │ Misskey backend :3000  │ AdmissionWebhooks (LAN直, http)      │ │
-        │  │                        │      │      │ Docker: OME container │ │
-        │  │ /ome/admission (Phase2)│─────►│◄─────│ RTMP:1935 SRT:9999/udp │ │
-        │  │                        │  REST API :8081 (統計ポーリング/切断) │ │
-        │  └───────────┬────────────┘      │      │ WS signalling:3333/3334│ │
-        │              │                    │      │ TURN relay:3478/tcp    │ │
-        │  フロント (OvenPlayer/MkOmePlayer) │      │ ICE:10000-10009/udp    │ │
-        │  ブラウザ視聴 (LAN内は直接到達)     │      └────────────────────────┘ │
-        └──────────────┼──────────────────────────────────────────────────┘
-                        │ WebRTC (wss signalling + ICE UDP)
-                        ▼
-                視聴者ブラウザ (LAN内)
+                           ┌─────────────────────────────────────────┐
+                           │              WAN (インターネット)          │
+                           │  配信者(OBS)・視聴者ブラウザ (外部)         │
+                           └───────────────┬───────────────────────┘
+                                           │ ⚠ 人間承認後のみ (§7)
+                                           │ ICE 10000-10009/udp, TURN 3478/tcp,
+                                           │ signalling / WHIP は HAProxy 経由 wss
+                           ┌───────────────▼───────────────────────┐
+                           │  OPNsense (WAN境界)                      │
+                           │  - NAT port forward (§7.2)               │
+                           │  - HAProxy (signalling/WHIP のみ, is_ome_host) │
+                           └───────────────┬───────────────────────┘
+ ====================== LAN境界 (192.168.1.0/24, vmbr0) ======================
+                                           │
+         ┌─────────────────────────────────┼─────────────────────────────────┐
+         │  PVE2 (物理ノード)                │                                 │
+         │                                  │                                 │
+         │  ┌───────────────────────┐      │      ┌───────────────────────┐ │
+         │  │ mi-host (VM 200)       │      │      │ ome (LXC, 本文書で新設) │ │
+         │  │ 192.168.1.104          │      │      │ 192.168.1.<DHCP_IP>    │ │
+         │  │ Misskey backend :3000  │      │      │ Docker: OME container │ │
+         │  │                        │      │      │ WS signalling:3333/3334│ │
+         │  │                        │◄─────┼─────►│ REST API :8081 (統計/切断) │ │
+         │  │ フロント (OvenPlayer/MkOmePlayer) │      │ SignedPolicy (URL署名検証) │ │
+         │  │ ブラウザ視聴 (LAN内は直接到達)     │      │ TURN relay:3478/tcp    │ │
+         │  │                        │      │      │ ICE:10000-10009/udp    │ │
+         │  └───────────┬────────────┘      │      └────────────────────────┘ │
+         │              │                    │                                 │
+         └──────────────┼──────────────────────────────────────────────────┘
+                         │ WebRTC (wss signalling + ICE UDP)
+                         ▼
+                 視聴者ブラウザ (LAN内)
 ```
 
-凡例: OBS からの ingest 経路は RTMP/SRT/WebRTC(WHIP) の 3 系統いずれも `ome`
-LXC へ直接到達 (Bypass のため転送処理のみ、トランスコードなし)。視聴は WebRTC
-のみ。Misskey backend との連携は HTTP (AdmissionWebhooks) と REST API
-(8081, 統計ポーリング・強制切断) の 2 系統。
+凡例: OBS からの ingest 経路は WebRTC(WHIP) のみ `ome` LXC へ直接到達 (Bypass
+のため転送処理のみ、トランスコードなし)。視聴は WebRTC のみ。配信認可は
+SignedPolicy (URL 署名検証) で OME 単独で完結。Misskey backend との連携は REST
+API (8081, 統計ポーリング・強制切断) のみ (AdmissionWebhooks は将来拡張のため
+オプション)。
 
 ---
 
@@ -248,11 +247,7 @@ services:
     image: ovenmedialabs/ovenmediaengine:latest  # フォールバック: airensoft/ovenmediaengine:v0.20.5
     container_name: ome
     restart: unless-stopped
-    environment:
-      - OME_HOST_IP=192.168.1.<DHCP_IP>   # 2.4 で確定した LXC のDHCP取得IP
     ports:
-      - "1935:1935/tcp"        # RTMP ingest
-      - "9999:9999/udp"        # SRT ingest
       - "3333:3333/tcp"        # WebRTC signalling (ws)
       - "3334:3334/tcp"        # WebRTC signalling (wss, TLSはHAProxy終端のためLAN内は未使用でも開けておく)
       - "3478:3478/tcp"        # WebRTC TURN relay
@@ -313,14 +308,6 @@ pct exec 100 -- docker volume inspect ome_ome-origin-conf --format '{{ .Mountpoi
     </Managers>
 
     <Providers>
-      <RTMP>
-        <Port>1935</Port>
-        <WorkerCount>1</WorkerCount>
-      </RTMP>
-      <SRT>
-        <Port>9999</Port>
-        <WorkerCount>1</WorkerCount>
-      </SRT>
       <WebRTC>
         <Signalling>
           <Port>3333</Port>
@@ -328,7 +315,7 @@ pct exec 100 -- docker volume inspect ome_ome-origin-conf --format '{{ .Mountpoi
           <WorkerCount>1</WorkerCount>
         </Signalling>
         <IceCandidates>
-          <!-- CHANGEME: LAN検証時は LXC のDHCP取得IP、WAN公開後(§7)は公開IPに変更 -->
+          <!-- CHANGEME: LAN検証時は LXC のDHCP取得IP (192.168.1.<DHCP_IP>)、WAN公開後(§7)は真のグローバルIPに変更 -->
           <IceCandidate>192.168.1.&lt;DHCP_IP&gt;:10000-10009/udp</IceCandidate>
           <TcpRelay>192.168.1.&lt;DHCP_IP&gt;:3478</TcpRelay>
         </IceCandidates>
@@ -380,24 +367,24 @@ pct exec 100 -- docker volume inspect ome_ome-origin-conf --format '{{ .Mountpoi
         <!-- CHANGEME: §5.1 で生成する SignedPolicy SecretKey -->
         <SecretKey>CHANGEME_SIGNED_POLICY_SECRET</SecretKey>
         <Enables>
-          <!-- rtmp のみ公式に対応確認済み。webrtc/srt への適用可否は
-               ⚠ 未確定事項 #1 (00-overview.md 参照)。確定するまで
-               webrtc/srt ingest の認可は AdmissionWebhooks 単独で担保する -->
-          <Providers>rtmp</Providers>
+          <!-- WHIP-only 構成: SignedPolicy は WHIP Provider (ingest) と WebRTC Publisher (視聴) の両方で有効。
+               Phase 0 実機検証済: 無署名 WHIP 接続は 401 拒否、署名ありは通過。 -->
+          <Providers>webrtc</Providers>
           <Publishers>webrtc</Publishers>
         </Enables>
       </SignedPolicy>
 
-      <!-- AdmissionWebhooks: Misskey backend の /ome/admission 実装 (Phase 2)
-           が完成するまでコメントアウトしておく。有効化の判断基準・手順は
-           本文書 §6(e) を参照。実装完了後、以下のコメントを外すこと -->
+      <!-- AdmissionWebhooks: 本設計ではオプション。将来的なライフサイクル通知・
+           bit rate 超過時の即時遮断・ブラックリスト連携等で必要になったら
+           有効化する。詳細は 00-overview.md D3、本文書 §6(e) 参照。
+           Phase 2 では SignedPolicy のみで認可完結するため、コメントアウトのまま運用可能。 -->
       <!--
       <AdmissionWebhooks>
         <ControlServerUrl>http://mi-host.msjp-local.org:3000/ome/admission</ControlServerUrl>
         <SecretKey>CHANGEME_ADMISSION_WEBHOOKS_SECRET</SecretKey>
         <Timeout>3000</Timeout>
         <Enables>
-          <Providers>rtmp,webrtc,srt</Providers>
+          <Providers>webrtc</Providers>
           <Publishers>webrtc</Publishers>
         </Enables>
       </AdmissionWebhooks>
@@ -428,8 +415,6 @@ pct exec 100 -- docker volume inspect ome_ome-origin-conf --format '{{ .Mountpoi
             <WebRTC>
               <Timeout>30000</Timeout>
             </WebRTC>
-            <RTMP />
-            <SRT />
           </Providers>
 
           <Publishers>
@@ -465,29 +450,29 @@ pct exec 100 -- docker compose -f /opt/ome/compose.yml logs -f ome
 
 ### 5.1 生成コマンド
 
-3 種類すべて `openssl rand` で生成する (base64、記号除去、32byte)。
+2 種類 `openssl rand` で生成する (base64、記号除去、32byte)。AdmissionWebhooks
+はオプションのため、その SecretKey は将来有効化する際に生成してよい。
 
 ```bash
 # API AccessToken (REST API 認証)
 openssl rand -base64 32 | tr -d '/+=' | head -c 32; echo
 
-# AdmissionWebhooks SecretKey
+# SignedPolicy SecretKey (WHIP ingest の認可に必須)
 openssl rand -base64 32 | tr -d '/+=' | head -c 32; echo
 
-# SignedPolicy SecretKey
-openssl rand -base64 32 | tr -d '/+=' | head -c 32; echo
+# AdmissionWebhooks SecretKey (オプション、将来有効化時に生成)
+# openssl rand -base64 32 | tr -d '/+=' | head -c 32; echo
 ```
 
-3 回実行し、それぞれの出力を控える。**同じ値を使い回さない** (用途が異なる
-ため漏洩時の影響範囲を分離する)。
+**同じ値を使い回さない** (用途が異なるため漏洩時の影響範囲を分離する)。
 
 ### 5.2 Server.xml ↔ Misskey config.ts 対応表
 
 | # | シークレット | Server.xml の反映先 | Misskey `default.yml` キー (architecture-decisions.md §2) |
 |---|---|---|---|
 | 1 | API AccessToken | `<Managers><API><AccessToken>` | `ome.apiToken` |
-| 2 | AdmissionWebhooks SecretKey | `<VirtualHost><AdmissionWebhooks><SecretKey>` (§4 では一旦コメントアウト、§6(e) で有効化時に設定) | `ome.admissionSecret` |
-| 3 | SignedPolicy SecretKey | `<VirtualHost><SignedPolicy><SecretKey>` | `ome.signedPolicySecret` |
+| 2 | SignedPolicy SecretKey | `<VirtualHost><SignedPolicy><SecretKey>` (WHIP Provider 認可に必須) | `ome.signedPolicySecret` |
+| 3 | AdmissionWebhooks SecretKey (オプション) | `<VirtualHost><AdmissionWebhooks><SecretKey>` (§4 ではコメントアウト、将来有効化時に設定) | `ome.admissionSecret` (将来利用時) |
 
 Misskey 側 `.config/default.yml` (architecture-decisions.md §2 のブロックを
 そのまま使用、値のみ本手順で生成したものに置換):
@@ -496,16 +481,15 @@ Misskey 側 `.config/default.yml` (architecture-decisions.md §2 のブロック
 ome:
   apiUrl: 'http://ome.msjp-local.org:8081'
   apiToken: '<5.1で生成したAPI AccessToken>'
-  admissionSecret: '<5.1で生成したAdmissionWebhooks SecretKey>'
   signedPolicySecret: '<5.1で生成したSignedPolicy SecretKey>'
-  publicSignallingUrl: 'wss://stream.msjp.pro:3334'   # ⚠ 未確定事項 #6 (FQDN確定後に反映)
-  publicRtmpUrl: 'rtmp://stream.msjp.pro:1935'         # ⚠ 未確定事項 #6
-  publicSrtUrl: 'srt://stream.msjp.pro:9999'           # ⚠ 未確定事項 #6
+  publicWhipUrl: 'http://stream.msjp.pro:3333'   # ⚠ 未確定事項 #6 (FQDN確定後に反映)
   vhost: 'default'
   app: 'live'
   maxVideoBitrate: 3000
   maxAudioBitrate: 128
 ```
+
+`admissionSecret` は AdmissionWebhooks を有効化する際に追加する。
 
 `default.yml` へのこの反映は Phase 1/2 の backend 実装作業に属するため、
 本文書の完了条件には含めない (§0 のチェックリスト参照)。ここでは値の対応
@@ -528,13 +512,18 @@ curl -sS -H "Authorization: Basic ${TOKEN}" \
 期待値: `{"statusCode":200,"message":"OK","response":[]}` (配信前は空配列)。
 `statusCode` が 200 以外、または接続不可の場合は §3/§4 の手順を見直す。
 
-### (b) OBS → RTMP ingest 確認
+### (b) OBS → WHIP ingest 確認
 
 OBS の設定:
 - サービス: カスタム
-- サーバー: `rtmp://192.168.1.<DHCP_IP>:1935/live`
-- ストリームキー: 任意の文字列 (例 `test001`、AdmissionWebhooks 未実装の
-  この段階では検証は行われないため何でも通る)
+- サーバー: `http://ome.msjp-local.org:3333/live/test001?direction=whip`
+- Bearer Token: 空 (SignedPolicy の `policy`/`signature` クエリで認可)
+
+Phase 0 では SignedPolicy を有効にする前、または一時的に `Enables` の
+`Providers` を空にして無効化した状態で初回疎通確認を行う。SignedPolicy
+を有効化する場合は、Misskey backend 側で署名付き WHIP URL を発行するか、
+03-backend-ome-integration.md §9-2 の手順で curl から一時的な署名 URL を
+生成して使用する。
 
 配信開始後:
 
@@ -546,6 +535,9 @@ curl -sS -H "Authorization: Basic ${TOKEN}" \
 期待値: `"response":["test001"]` のように配信中のストリーム名が返る。返ら
 ない場合は OBS 側の接続ログと OME コンテナログ (`docker compose logs ome`)
 を突き合わせる。
+
+**注意**: WHIP-only 構成では、映像は H264・音声は Opus が必要。AAC の
+音声トラックは OME の WebRTC 出力で無視される (Phase 0 で確認済み)。
 
 ### (c) WebRTC 再生確認
 
@@ -561,6 +553,11 @@ ws://ome.msjp-local.org:3333/live/test001
 映像・音声が遅延数百ms程度で再生されれば成功。再生できない場合は Publishers
 の WebRTC 設定 (§4) と、ブラウザの開発者ツールで WebSocket 接続エラー/ICE
 接続エラーの有無を確認する。
+
+SignedPolicy を Publishers (`webrtc`) にも適用している場合、視聴 URL にも
+有効な `policy`/`signature` クエリが必要になる。Phase 0 初回検証では
+Publishers のみ一時的に無効化するか、署名付き視聴 URL を Misskey backend
+から取得して使う。
 
 ### (d) bitrateLatest/bitrateAvg の実測記録 (⚠ 未確定事項 #4)
 
@@ -580,7 +577,7 @@ curl -sS -H "Authorization: Basic ${TOKEN}" \
 `OmeStreamMonitorService` (Phase 2) の閾値判定にどのフィールドを使うか確定
 させる。
 
-**実測結果 (2026-07-14, OBS CBR 2800kbps / 1280x720 / 48fps / H264)**:
+**実測結果 (2026-07-14, OBS WHIP / CBR 2800kbps / 1280x720 / 48fps / H264 / Opus 128kbps)**:
 
 | フィールド | 値 (1回目) | 値 (2回目, 30秒後) | 意味 |
 |---|---|---|---|
@@ -589,8 +586,14 @@ curl -sS -H "Authorization: Basic ${TOKEN}" \
 | `bitrateAvg` | 546576 | 551616 | 配信開始からの移動平均 |
 | `bitrateLatest` | 545485 | 550514 | **直近の瞬間実測値** |
 
-Audio (AAC 128kbps CBR): `bitrateConf=128000` / `bitrateAvg≈130600` /
+Audio (Opus 128kbps CBR): `bitrateConf=128000` / `bitrateAvg≈130600` /
 `bitrateLatest≈130700` — CBR のため値が安定。
+
+**Phase 0 での重要な発見**: RTMP ingest では AAC 音声が OME の WebRTC
+Publisher に無視されて音声が出なかった。WHIP ingest では Opus がネイティブで
+送られるため、映像・音声ともに Bypass かつ正常に視聴できた。これを受けて
+本設計は WHIP-only とし、RTMP/SRT ingest を廃止する (00-overview.md
+D3・未確定事項 #5 参照)。
 
 **結論**: `OmeStreamMonitorService` の閾値判定には **`bitrateLatest`** を
 使用する。`bitrateConf`/`bitrate` は OBS 設定値の反映であり実測値ではない
@@ -656,8 +659,6 @@ WAN 側 IP へ転送する設定を人間が手動で追加する** 必要があ
 
 | プロトコル | ポート | 転送先 | 用途 |
 |---|---|---|---|
-| TCP | 1935 | OPNsense WAN側IP | RTMP ingest |
-| UDP | 9999 | OPNsense WAN側IP | SRT ingest |
 | UDP | 10000-10009 | OPNsense WAN側IP | WebRTC ICE (配信 WHIP + 視聴メディア) |
 | TCP | 3478 | OPNsense WAN側IP | WebRTC TURN relay (UDP 不可環境の視聴フォールバック) |
 
@@ -669,8 +670,6 @@ TCP 443 (wss signalling / WHIP、HAProxy 経由) は既存の公開設定 (80/44
 
 | プロトコル | WANポート | 宛先 | 宛先ポート | 用途 | 既存ルールとの関係 |
 |---|---|---|---|---|---|
-| TCP | 1935 | 192.168.1.\<DHCP_IP\> (ome LXC) | 1935 | RTMP ingest | 新規 |
-| UDP | 9999 | 192.168.1.\<DHCP_IP\> | 9999 | SRT ingest | 新規 |
 | UDP | 10000-10009 | 192.168.1.\<DHCP_IP\> | 10000-10009 | WebRTC ICE candidate (最小レンジ、Server.xml の設定と一致させる) | 新規 |
 | TCP | 3478 | 192.168.1.\<DHCP_IP\> | 3478 | WebRTC TURN relay (フォールバック) | 新規 |
 
@@ -734,14 +733,11 @@ LAN外の環境):
 # signalling が HAProxy 経由で到達するか (LANからの直接到達ではないことも含めて確認)
 curl -sSI https://stream.msjp.pro:3334/live/test001
 
-# RTMP ingestポートがLAN外から到達可能か (接続確立のみ確認、実配信はしない)
-nc -zv stream.msjp.pro 1935
-
-# SRT ingestポート
-nc -zvu stream.msjp.pro 9999
-
 # ICE UDPレンジ (代表ポートのみ)
 nc -zvu stream.msjp.pro 10000
+
+# TURN relay TCP
+nc -zv stream.msjp.pro 3478
 ```
 
 `homelab-ops` の監査コマンド (basic-memory 「Homelab public (WAN) surface」
@@ -781,8 +777,9 @@ docker compose -f /opt/ome/compose.yml logs -f ome
   自動追従は無停止アップグレードのタイミングを運用側が制御できず、配信中の
   切断リスクがある。
 - アップグレード手順: (1) タグ変更 → (2) 検証環境 (未使用時間帯の LAN 内
-  再検証、§6 (a)〜(c) を再実行) → (3) 本番タグ切り替え + `docker compose
-  pull && docker compose up -d`。配信が行われていない時間帯に実施する。
+  再検証、§6 (a)〜(c) を再実行。特に WHIP ingest + SignedPolicy の組み合わせ)
+  → (3) 本番タグ切り替え + `docker compose pull && docker compose up -d`。
+  配信が行われていない時間帯に実施する。
 - Server.xml のフォーマット互換性: research-ome.md §1 のとおり v0.12.6
   以降で互換のため、マイナーバージョン間のアップグレードで Server.xml の
   書き換えは基本的に不要。メジャーバージョン更新時のみ公式 Changelog を

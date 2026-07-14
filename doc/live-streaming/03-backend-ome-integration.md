@@ -33,13 +33,13 @@ OME 仕様の一次情報は同ディレクトリの `research-ome.md` (以下�
 - [ ] `packages/backend/src/core/live/OmeApiService.ts` が `getStream`/`getStreamStats`/`deleteStream`/`listStreams`
       を実装し、Basic 認証・タイムアウト・エラーハンドリングを備える
 - [ ] `packages/backend/src/server/ome/OmeServerService.ts` (prefix `/ome`) が `POST /ome/admission` を実装し、
-      raw body 検証・HMAC-SHA1 署名検証・3秒以内の応答を満たす
+      raw body 検証・HMAC-SHA1 署名検証・3秒以内の応答を満たす **(AdmissionWebhooks 有効化時のみ必要)**
 - [ ] `packages/backend/src/core/live/OmeAdmissionService.ts` が opening/closing・incoming/outgoing の判定ロジック
-      (streamKey 突合・ブラックリスト・多重配信防止・視聴者数カウント) を実装する
+      (streamKey 突合・ブラックリスト・多重配信防止・視聴者数カウント) を実装する **(AdmissionWebhooks 有効化時のみ必要)**
 - [ ] `twitch_stream` テーブルに `source` カラムが追加され、`twitchUserId`/`twitchStreamId`/`twitchLogin` が
       nullable 化される migration が `up()`/`down()` 双方を実装し `check-migrations` を通る
 - [ ] `TwitchStreamService`/`TwitchChatRelayService` に `source === 'twitch'` ガードが追加される
-- [ ] `LiveChannelService.generateIngestUrls()` が SignedPolicy 付き RTMP/SRT/WHIP URL を返す
+- [ ] `LiveChannelService.generateIngestUrls()` が SignedPolicy 付き WHIP URL を返す
 - [ ] `packages/backend/src/core/live/OmeStreamMonitorService.ts` が 10 秒ポーリング・ビットレート判定・遮断シーケンス・
       自己修復ポーリングを実装する
 - [ ] `twitch/streams/show` のレスポンスに `sessions` 配列が後方互換な形で追加される
@@ -89,15 +89,14 @@ OME 仕様の一次情報は同ディレクトリの `research-ome.md` (以下�
 	ome?: {
 		apiUrl?: string;
 		apiToken?: string;
-		admissionSecret?: string;
 		signedPolicySecret?: string;
-		publicSignallingUrl?: string;
-		publicRtmpUrl?: string;
-		publicSrtUrl?: string;
+		publicWhipUrl?: string;
 		vhost?: string;
 		app?: string;
 		maxVideoBitrate?: number;
 		maxAudioBitrate?: number;
+		// AdmissionWebhooks はオプション。将来有効化する場合に追加。
+		admissionSecret?: string;
 	};
 ```
 
@@ -132,15 +131,14 @@ OME 仕様の一次情報は同ディレクトリの `research-ome.md` (以下�
 	ome: {
 		apiUrl: string;
 		apiToken: string;
-		admissionSecret: string;
 		signedPolicySecret: string;
-		publicSignallingUrl: string;
-		publicRtmpUrl: string;
-		publicSrtUrl: string;
+		publicWhipUrl: string;
 		vhost: string;
 		app: string;
 		maxVideoBitrate: number;
 		maxAudioBitrate: number;
+		// AdmissionWebhooks はオプション。有効化時に追加される。
+		admissionSecret?: string;
 	} | undefined;
 ```
 
@@ -170,26 +168,25 @@ OME 仕様の一次情報は同ディレクトリの `research-ome.md` (以下�
 			url: config.twitchTranslation.url,
 			timeout: config.twitchTranslation.timeout ?? 8000,
 		} : undefined,
-		ome: (config.ome?.apiUrl && config.ome.apiToken && config.ome.admissionSecret && config.ome.signedPolicySecret
-			&& config.ome.publicSignallingUrl && config.ome.publicRtmpUrl && config.ome.publicSrtUrl) ? {
+		ome: (config.ome?.apiUrl && config.ome.apiToken && config.ome.signedPolicySecret && config.ome.publicWhipUrl) ? {
 			apiUrl: config.ome.apiUrl,
 			apiToken: config.ome.apiToken,
-			admissionSecret: config.ome.admissionSecret,
 			signedPolicySecret: config.ome.signedPolicySecret,
-			publicSignallingUrl: config.ome.publicSignallingUrl,
-			publicRtmpUrl: config.ome.publicRtmpUrl,
-			publicSrtUrl: config.ome.publicSrtUrl,
+			publicWhipUrl: config.ome.publicWhipUrl,
 			vhost: config.ome.vhost ?? 'default',
 			app: config.ome.app ?? 'live',
 			maxVideoBitrate: config.ome.maxVideoBitrate ?? 3000,
 			maxAudioBitrate: config.ome.maxAudioBitrate ?? 128,
+			// AdmissionWebhooks 有効化時のみ設定される。
+			...(config.ome.admissionSecret ? { admissionSecret: config.ome.admissionSecret } : {}),
 		} : undefined,
 ```
 
 `vhost`/`app`/`maxVideoBitrate`/`maxAudioBitrate` はデフォルト値を持つため必須項目から除外した (決定書 §2 の
-`ome:` サンプル値をデフォルトとして採用)。`apiUrl`/`apiToken`/`admissionSecret`/`signedPolicySecret`/
-`publicSignallingUrl`/`publicRtmpUrl`/`publicSrtUrl` の 7 項目が 1 つでも欠けると `config.ome = undefined` となり、
-`OmeApiService.isEnabled` (§2) が false を返して機能全体が無効化される (twitch と同じ縮退方式)。
+`ome:` サンプル値をデフォルトとして採用)。`apiUrl`/`apiToken`/`signedPolicySecret`/`publicWhipUrl` の 4 項目が
+1 つでも欠けると `config.ome = undefined` となり、`OmeApiService.isEnabled` (§2) が false を返して機能全体が
+無効化される (twitch と同じ縮退方式)。`admissionSecret` は AdmissionWebhooks を有効化する際に追加される
+オプション項目であり、Phase 2 の必須完了条件から外す。
 
 ---
 
@@ -414,9 +411,14 @@ export class OmeApiService {
 
 ---
 
-## 3. `server/ome/OmeServerService.ts` (prefix `/ome`)
+## 3. `server/ome/OmeServerService.ts` (prefix `/ome`, optional)
 
 新規ファイル: `packages/backend/src/server/ome/OmeServerService.ts`
+
+**本書 §3 / §4 は AdmissionWebhooks を有効化した場合のみ必要な実装である。**
+SignedPolicy が WHIP Provider の認可を単独で完結させるため、Phase 2 の必須要件
+からは外す (00-overview.md D3)。将来的なライフサイクル通知・bit rate 超過時の
+即時遮断・ブラックリスト連携を実装する際に有効化する。
 
 参照実装: `packages/backend/src/server/twitch/TwitchServerService.ts` (fastify プラグイン雛形、`createServer(fastify,
 options, done)` シグネチャ、`@bindThis`)。raw body 取得は `packages/backend/src/server/ActivityPubServerService.ts`
@@ -454,7 +456,7 @@ type OmeAdmissionRequestBody = {
 	};
 	request: {
 		direction: 'incoming' | 'outgoing';
-		protocol: 'webrtc' | 'rtmp' | 'srt' | 'llhls' | 'thumbnail';
+		protocol: 'webrtc' | 'llhls' | 'thumbnail';
 		status: 'opening' | 'closing';
 		url: string;
 		new_url?: string;
@@ -503,6 +505,11 @@ export class OmeServerService {
 				if (typeof signature !== 'string' || request.rawBody == null) {
 					reply.code(403);
 					return { allowed: false, reason: 'missing signature or body' };
+				}
+
+				if (this.config.ome.admissionSecret == null) {
+					reply.code(503);
+					return { allowed: false, reason: 'admission webhooks not configured' };
 				}
 
 				if (!this.verifySignature(request.rawBody, signature, this.config.ome.admissionSecret)) {
@@ -566,9 +573,14 @@ OME 側の認可判定には影響しない。
 
 ---
 
-## 4. `OmeAdmissionService.ts` — 判定ロジック詳細
+## 4. `OmeAdmissionService.ts` — 判定ロジック詳細 (optional)
 
 新規ファイル: `packages/backend/src/core/live/OmeAdmissionService.ts`
+
+**本節は AdmissionWebhooks 有効化時に必要なロジックである。Phase 2 では
+SignedPolicy による認可が完結するため、必須実装ではない。** 将来的に
+AdmissionWebhooks を有効化する場合、本節の `decideOpening`/`handleClosing` 等を
+ライフサイクル通知・視聴者数カウント・ブラックリスト連携用に使用する。
 
 依存: `LiveChannelsRepository` (streamKey→live_channel 突合)、`TwitchStreamsRepository` (`source='ome'` の
 セッション行 upsert、02 で `live_channel` は独立テーブルだが配信セッションは既存 `twitch_stream` を共用する
@@ -598,7 +610,7 @@ const BLACKLIST_TTL_SEC = 10 * 60; // 10分 (決定書 §2 ビットレート制
 
 type AdmissionRequest = {
 	direction: 'incoming' | 'outgoing';
-	protocol: 'webrtc' | 'rtmp' | 'srt' | 'llhls' | 'thumbnail';
+	protocol: 'webrtc' | 'llhls' | 'thumbnail';
 	status: 'opening' | 'closing';
 	url: string;
 };
@@ -677,7 +689,7 @@ export class OmeAdmissionService {
 			return { allowed: true, reason: 'outgoing (playback) is always allowed' };
 		}
 
-		// direction: incoming (rtmp/webrtc/srt の ingest)
+		// direction: incoming (webrtc の ingest)
 		const streamKey = this.extractStreamKey(req.url);
 		if (streamKey == null) {
 			return { allowed: false, reason: 'cannot extract stream key from url' };
@@ -1068,47 +1080,28 @@ export class AddSourceToTwitchStream1783300000000 {
 02 で作成済みの `packages/backend/src/core/live/LiveChannelService.ts` (`:282-395`) に以下のメソッドを追加する。
 OME調査 §3 の Node.js コードを fork のコード規約 (`@bindThis`、SPDX 済みファイルへの追記) に合わせて移植する。
 
-**呼び出し元**: この関数は 02 §5-5 の `live-channels/my` endpoint のハンドラ内から呼ばれ、レスポンスの
-`rtmpUrl`/`srtUrl`/`whipUrl` を組み立てる (`pack()` には入れない — pack は公開情報用。接続は WI-2.6)。
+ **呼び出し元**: この関数は 02 §5-5 の `live-channels/my` endpoint のハンドラ内から呼ばれ、レスポンスの
+`whipUrl` を組み立てる (`pack()` には入れない — pack は公開情報用。接続は WI-2.6)。
 
-**罠 (OME調査 §3-3)**: 署名対象 URL は `:port` を省略すると署名不一致になる。HTTP/HTTPS のデフォルトポートも
-含め、必ずポートを明示すること。
+**WHIP URL 形式**: `http://{publicWhipUrl}/{app}/{streamKey}?direction=whip&policy={base64url(json)}&signature={hmac_sha1}`。
+OME の SignedPolicy では HMAC-SHA1 署名対象 URL に **ポートを含む完全な URL** が必要 (OME調査 §3-3)。
+`config.ome.publicWhipUrl` は `http://stream.msjp.pro:3333` のようなポート込み文字列で設定する。
+
+**policy 内容**: `{ url_expire: <epoch_ms> }`。URL は配信開始時に Misskey が発行し、期限切れ後は
+OME 側で 401 拒否される。`url_expire` の有効期間は実装時に調整する (例: 24 時間)。
 
 ```ts
-	// generateIngestUrls: RTMP/SRT/WHIP の SignedPolicy 付き ingest URL を生成する (決定書 §2)。
-	// Enables/Providers に rtmp,webrtc,srt を設定する方針 (OME調査 §12.2、コード上は汎用と検証済みだが
-	// 実機未確認 = 00-overview §5 未確定事項1)。実機で webrtc/srt に効かないと判明した場合、
-	// この関数は RTMP の signature のみ有効なまま返し続けてよい — SignedPolicy が効かないプロトコルでは
-	// OmeAdmissionService の AdmissionWebhooks (streamKey 突合) が単独で認可を担保するため、
-	// 縮退しても認可自体は破綻しない (詳細は本節末尾)。
+	// generateIngestUrls: SignedPolicy 付き WHIP ingest URL を生成する (決定書 §2、00-overview.md D3)。
 	@bindThis
 	public generateIngestUrls(channel: MiLiveChannel, ome: NonNullable<Config['ome']>): {
-		rtmp: string;
-		srt: string;
 		whip: string;
 	} {
-		const urlExpireMs = Date.now() + 24 * 60 * 60 * 1000; // 24h (決定書 §2)
+		const urlExpireMs = Date.now() + 24 * 60 * 60 * 1000; // 24h (調整可)
 
 		return {
-			rtmp: this.signUrl({
-				scheme: 'rtmp',
-				urlBase: ome.publicRtmpUrl, // 例: 'rtmp://stream.msjp.pro:1935' (ポート明示必須)
-				app: ome.app,
-				stream: channel.streamKey,
-				secretKey: ome.signedPolicySecret,
-				urlExpireMs,
-			}),
-			srt: this.signUrl({
-				scheme: 'srt',
-				urlBase: ome.publicSrtUrl, // 例: 'srt://stream.msjp.pro:9999'
-				app: ome.app,
-				stream: channel.streamKey,
-				secretKey: ome.signedPolicySecret,
-				urlExpireMs,
-			}),
 			whip: this.signUrl({
-				scheme: 'https',
-				urlBase: ome.publicSignallingUrl.replace(/^wss:/, 'https:'), // WHIP は HTTP(S)、signalling ポートを流用
+				scheme: 'http', // WHIP は HTTP(S)。WAN 公開後は https に切り替え。
+				urlBase: ome.publicWhipUrl, // 例: 'http://stream.msjp.pro:3333' (ポート明示必須)
 				app: ome.app,
 				stream: channel.streamKey,
 				secretKey: ome.signedPolicySecret,
@@ -1132,7 +1125,7 @@ OME調査 §3 の Node.js コードを fork のコード規約 (`@bindThis`、SP
 		const policy = { url_expire: params.urlExpireMs };
 		const policyEncoded = this.base64UrlEncode(Buffer.from(JSON.stringify(policy), 'utf8'));
 
-		// urlBase は既に 'scheme://host:port' を含む前提 (config.ome.publicRtmpUrl 等がポート込みで設定される)
+		// urlBase は既に 'scheme://host:port' を含む前提 (config.ome.publicWhipUrl がポート込みで設定される)
 		let baseUrl = `${params.urlBase}/${params.app}/${params.stream}?policy=${policyEncoded}`;
 		if (params.extraQuery != null) {
 			for (const [k, v] of Object.entries(params.extraQuery)) {
@@ -1155,21 +1148,11 @@ OME調査 §3 の Node.js コードを fork のコード規約 (`@bindThis`、SP
 `import { createHmac } from 'node:crypto';` と `import type { Config } from '@/config.js';` を
 `LiveChannelService.ts` の import ブロックに追加する。
 
-### SignedPolicy Enables/Providers の縮退方針 (未確定事項1)
+### SignedPolicy on WHIP Provider (Phase 0 実機検証済)
 
-`Server.xml` の `VirtualHost/SignedPolicy/Enables/Providers` に `rtmp,webrtc,srt` を設定する方針だが、
-OME調査 §12.2 のとおり `webrtc`/`srt` への適用可否は実機未検証 (コードは汎用的だが config パーサ側の文字列
-受理は未確認)。実機検証 (Phase 0) で `webrtc`/`srt` が効かないと判明した場合の縮退手順:
-
-1. `Server.xml` の `Enables/Providers` を `rtmp` のみに変更する (`webrtc`/`srt` を削除)。
-2. `LiveChannelService.generateIngestUrls()` はコード変更不要 — `srt`/`whip` の返り値に付与される
-   `policy`/`signature` クエリはそのまま渡され続けるが、OME 側がそのプロトコルで SignedPolicy を検証しないだけで
-   単に無視される (エラーにはならない、OME調査 §3 の Enables 機構は「そのプロバイダで検証するか否か」のスイッチ)。
-3. **認可が破綻しない理由**: 決定書 §2 の「認可の2層構え」により、`AdmissionWebhooks` (`OmeAdmissionService.
-   decideOpening()`, §4) が **プロトコルに関わらず streamKey を live_channel と突合する** ため、SignedPolicy が
-   RTMP以外で無効化されても「Misskey 経由の配信者しか OME を利用できない」という要件は AdmissionWebhooks 単独で
-   満たされ続ける。SignedPolicy は要件上の併用 (RTMP 確定サポート分) であり、WebRTC/SRT 側の認可の実体は
-   常に AdmissionWebhooks である。
+`Server.xml` の `VirtualHost/SignedPolicy/Enables/Providers` を `webrtc` に設定すると、WHIP ingest
+接続に対して SignedPolicy 署名検証が働く。Phase 0 実機検証で署名なし WHIP 接続は 401 拒否、署名ありは
+接続成功を確認済み (00-overview.md 未確定事項 #1)。
 
 ---
 
@@ -1491,9 +1474,14 @@ Redis 経由のため worker 間で共有される。ポーリング/遮断/自�
 						source: 'ome' as const,
 						streamId: s.id,
 						isLive: s.isLive, // getAllLiveStreamsByUserId が isLive:true で filter 済みのため常に true だが、契約 (isLive: boolean) として明示する
-						playbackUrl: (ome != null && liveChannel != null)
-							? `${ome.publicSignallingUrl}/${ome.app}/${liveChannel.streamKey}` // WebRTC signalling URL (視聴側は SignedPolicy 未適用、匿名視聴)
-							: undefined,
+					playbackUrl: (ome != null && liveChannel != null)
+						? (() => {
+							const hostPort = ome.publicWhipUrl.replace(/^https?:\/\//, '');
+							return `ws://${hostPort}/${ome.app}/${liveChannel.streamKey}`;
+						})()
+							// WebRTC signalling URL。視聴側は現段階で SignedPolicy 未適用 (匿名視聴)。
+							// publicWhipUrl が 'http://stream.msjp.pro:3333' 形式なら ws://...:3333 に変換。
+						: undefined,
 					};
 				}
 				return {
@@ -1553,7 +1541,7 @@ channel.md §8-3` の `live-channel.ts` と並列)。
 
 ```fish
 set SECRET "<config.ome.admissionSecret の値>"
-set BODY '{"client":{"address":"127.0.0.1","port":1234},"request":{"direction":"incoming","protocol":"rtmp","status":"opening","url":"rtmp://ome.msjp-local.org:1935/live/<streamKey>","time":"2026-07-14T00:00:00.000Z"}}'
+set BODY '{"client":{"address":"127.0.0.1","port":1234},"request":{"direction":"incoming","protocol":"webrtc","status":"opening","url":"http://ome.msjp-local.org:3333/live/<streamKey>?direction=whip","time":"2026-07-14T00:00:00.000Z"}}'
 
 # HMAC-SHA1 → Base64URL 署名を生成 (node one-liner)
 set SIG (node -e "
@@ -1591,13 +1579,11 @@ pnpm --filter backend check-migrations
 
 本書中で「⚠ 未確定」として扱った項目は `00-overview.md §5` の番号で参照する:
 
-- SignedPolicy の webrtc/srt Provider 対応可否 → **未確定事項1** (§6 で縮退方針を明記済み、認可は破綻しない)
+- SignedPolicy の WHIP Provider 対応可否 → **解消済** (Phase 0 実機検証済、00-overview.md 未確定事項 #1 参照)
 - OSS v1 統計 API での視聴者数取得可否 (`totalConnections`) → **未確定事項2** (§4 では Redis INCR/DECR 方式を
   実装、統計 API 併用は Phase 0 実機検証後に選択)
 - WHEP egress 対応 → **未確定事項3** (本書のプレイヤー視聴 URL は独自 WebSocket signalling 前提のまま、影響小)
-- `bitrateLatest`/`bitrateAvg` の実挙動 → **未確定事項4** (§7 の `OmeStreamMonitorService` は `bitrateLatest` を
-  瞬間値として扱う前提で実装、Phase 0 実機検証で確定させる)
-- OBS WHIP の Bearer Token と SignedPolicy の統合方法 → **未確定事項5** (§6 の `whip` URL 生成は query 直付け
-  方式を採用済み、Bearer Token 欄は空運用を前提とする)
+- `bitrateLatest`/`bitrateAvg` の実挙動 → **解消済** (00-overview.md 未確定事項 #4 参照)
+- OBS WHIP の Bearer Token と SignedPolicy の統合方法 → **解消済** (WHIP URL に `policy`/`signature` クエリを付与する方式で確定、00-overview.md 未確定事項 #5 参照)
 - `stream.msjp.pro` の FQDN 最終決定・WAN 公開ポリシー例外 → **未確定事項6** (本書は LAN 内動作を前提に記述、
-  `config.ome.public*Url` の値は WAN 公開確定後に更新する)
+  `config.ome.publicWhipUrl` の値は WAN 公開確定後に更新する)

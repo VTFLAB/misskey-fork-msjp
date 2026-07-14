@@ -580,8 +580,6 @@ export const meta = {
 			channel: { type: 'object', optional: false, nullable: true, ref: /* 実装時に show.ts と共通の res スキーマ参照名を定義 */ },
 			// ingest 接続情報 (secure:true の所有者専用 endpoint のためレスポンス直下に返す)
 			streamKey: { type: 'string', optional: false, nullable: true }, // channel 未開設時のみ null
-			rtmpUrl: { type: 'string', optional: false, nullable: true },
-			srtUrl: { type: 'string', optional: false, nullable: true },
 			whipUrl: { type: 'string', optional: false, nullable: true },
 		},
 	},
@@ -589,20 +587,18 @@ export const meta = {
 
 // paramDef: {}
 // 処理: const channel = await liveChannelService.show(me.id);
-//       if (channel == null) return { channel: null, streamKey: null, rtmpUrl: null, srtUrl: null, whipUrl: null };
+//       if (channel == null) return { channel: null, streamKey: null, whipUrl: null };
 //       const urls = config.ome != null ? liveChannelService.generateIngestUrls(channel, config.ome) : null; // 03 §6
 //       return {
 //         channel: await liveChannelService.pack(channel, me),
 //         streamKey: channel.streamKey,
-//         rtmpUrl: urls?.rtmp ?? null,
-//         srtUrl: urls?.srt ?? null,
 //         whipUrl: urls?.whip ?? null,
 //       };
 ```
 
-`rtmpUrl`/`srtUrl`/`whipUrl` の値は 03 §6 の `LiveChannelService.generateIngestUrls()` を **endpoint ハンドラ内から呼んで組み立てる** (`pack()` には入れない — pack は公開情報用であり、ingest URL は所有者専用情報のため)。`config.ome` 未設定時は URL 3 種を null で返す (streamKey は返す)。
+`whipUrl` の値は 03 §6 の `LiveChannelService.generateIngestUrls()` を **endpoint ハンドラ内から呼んで組み立てる** (`pack()` には入れない — pack は公開情報用であり、ingest URL は所有者専用情報のため)。`config.ome` 未設定時は `whipUrl` を null で返す (streamKey は返す)。
 
-**段階実装注記**: `generateIngestUrls()` は Phase 2 で実装される。Phase 1 (WI-1.3) 時点の本 endpoint は上記 res スキーマのまま、OME 連携が WI-2.6 で `generateIngestUrls` を接続するまでは URL 3 種を null 固定で返す。
+**段階実装注記**: `generateIngestUrls()` は Phase 2 で実装される。Phase 1 (WI-1.3) 時点の本 endpoint は上記 res スキーマのまま、OME 連携が WI-2.6 で `generateIngestUrls` を接続するまでは `whipUrl` を null 固定で返す。
 
 ### endpoint-list.ts への追記位置
 
