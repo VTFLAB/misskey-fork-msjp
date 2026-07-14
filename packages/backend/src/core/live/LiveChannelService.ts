@@ -62,6 +62,7 @@ export class LiveChannelService {
 			bannerId: null,
 			isSensitive: false,
 			allowRenoteToExternal: true,
+			isLiveChannel: true,
 		} as MiChannel);
 
 		await this.liveChannelsRepository.update(id, { channelId: channel.id });
@@ -133,6 +134,7 @@ export class LiveChannelService {
 				bannerId: null,
 				isSensitive: false,
 				allowRenoteToExternal: true,
+				isLiveChannel: true,
 			} as MiChannel);
 
 			await this.liveChannelsRepository.update(channel.id, { channelId: misskeyChannel.id });
