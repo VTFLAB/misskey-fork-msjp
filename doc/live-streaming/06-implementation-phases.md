@@ -125,9 +125,9 @@ graph LR
 | WI-3.6 | 3 | [追加] YouTube ライクなタブ構成 (Home/Posts/Media) + チャンネルTL連携 | [x] | WI-3.2, WI-1.3 |
 | WI-3.7 | 3 | [追加] ライブインジケータ (アバター赤リング + 配信中バッジ) + リダイレクト廃止 | [x] | WI-3.5 |
 | WI-3.8 | 3 | [追加] TL リアルタイム更新 (MkStreamingNotesTimeline) + バナー/prepv修正 | [x] | WI-3.6 |
-| WI-4.1 | 4 | `ovenplayer` 依存追加 + `MkOmePlayer.vue` | [ ] | WI-2.8 |
-| WI-4.2 | 4 | `MkTwitchPlayer.vue` + `MkStreamPlayer.vue` | [ ] | WI-4.1 |
-| WI-4.3 | 4 | `live-stream.vue` セグメントトグル・チャット `streamId` 追従統合 | [ ] | WI-4.2, WI-3.1 |
+| WI-4.1 | 4 | `ovenplayer` 依存追加 + `MkOmePlayer.vue` | [x] | WI-2.8 |
+| WI-4.2 | 4 | `MkTwitchPlayer.vue` + `MkStreamPlayer.vue` | [x] | WI-4.1 |
+| WI-4.3 | 4 | `live-stream.vue` セグメントトグル・チャット `streamId` 追従統合 | [x] | WI-4.2, WI-3.1 |
 | WI-4.4 | 4 | 実機検証チェックリスト (自動再生・切替・全画面・再接続) | [ ] | WI-4.3 |
 | WI-5.1 | 5 | 統合検証シナリオ (実配信テスト、OBS 設定値含む) | [ ] | Phase 0-4 完了 |
 | WI-5.2 | 5 | 本番デプロイ手順 (CI/CD 前提、migration 含むデプロイの注意) | [ ] | WI-5.1 |
