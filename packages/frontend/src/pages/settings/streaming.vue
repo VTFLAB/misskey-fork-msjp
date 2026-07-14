@@ -42,6 +42,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 										<i class="ti ti-photo"></i> {{ i18n.ts._liveChannel.changeBanner }}
 									</MkButton>
 								</div>
+
+								<div class="_gaps_s">
+									<div>{{ i18n.ts._liveChannel.offlineImage }}</div>
+									<div :class="$style.caption">{{ i18n.ts._liveChannel.offlineImageDescription }}</div>
+									<div v-if="offlineImageUrl" :class="$style.banner" :style="{ backgroundImage: `url(${offlineImageUrl})` }"></div>
+									<MkButton primary rounded @click="changeOfflineImage">
+										<i class="ti ti-photo"></i> {{ i18n.ts._liveChannel.changeOfflineImage }}
+									</MkButton>
+								</div>
 							</div>
 						</FormSection>
 
@@ -205,6 +214,7 @@ const channelDescription = ref('');
 const enabled = computed(() => channel.value != null && channel.value.enabled);
 const ingestReady = computed(() => whipUrl.value != null);
 const bannerUrl = computed(() => channel.value?.bannerUrl ?? null);
+const offlineImageUrl = computed(() => channel.value?.offlineImageUrl ?? null);
 
 async function fetchMy() {
 	liveChannelState.value = 'loading';
@@ -259,6 +269,48 @@ function changeBanner(ev: PointerEvent) {
 
 	os.popupMenu([{
 		text: i18n.ts.banner,
+		type: 'label',
+	}, {
+		text: i18n.ts.upload,
+		icon: 'ti ti-upload',
+		action: async () => {
+			const files = await os.chooseFileFromPc({ multiple: false });
+			const file = files[0];
+			let originalOrCropped = file;
+			const { canceled } = await os.confirm({
+				type: 'question',
+				text: i18n.ts.cropImageAsk,
+				okText: i18n.ts.cropYes,
+				cancelText: i18n.ts.cropNo,
+			});
+			if (!canceled) {
+				originalOrCropped = await os.cropImageFile(file, { aspectRatio: 3 / 1 });
+			}
+			const driveFile = (await os.launchUploader([originalOrCropped], { multiple: false }))[0];
+			done(driveFile);
+		},
+	}, {
+		text: i18n.ts.fromDrive,
+		icon: 'ti ti-cloud',
+		action: () => {
+			chooseDriveFile({ multiple: false }).then(files => {
+				done(files[0]);
+			});
+		},
+	}], ev.currentTarget ?? ev.target);
+}
+
+function changeOfflineImage(ev: PointerEvent) {
+	async function done(driveFile: Misskey.entities.DriveFile) {
+		if (channel.value == null) return;
+		const updated = await os.apiWithDialog('live-channels/update', {
+			offlineImageId: driveFile.id,
+		});
+		channel.value = updated;
+	}
+
+	os.popupMenu([{
+		text: i18n.ts._liveChannel.offlineImage,
 		type: 'label',
 	}, {
 		text: i18n.ts.upload,
