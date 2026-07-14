@@ -60,6 +60,19 @@ export class MiLiveChannel {
 	@JoinColumn()
 	public banner: MiDriveFile | null;
 
+	@Column({
+		...id(),
+		nullable: true,
+		comment: 'The ID of the offline image DriveFile. Shown by the player when the channel is disconnected.',
+	})
+	public offlineImageId: MiDriveFile['id'] | null;
+
+	@OneToOne(() => MiDriveFile, {
+		onDelete: 'SET NULL',
+	})
+	@JoinColumn()
+	public offlineImage: MiDriveFile | null;
+
 	@Index()
 	@Column({
 		...id(),

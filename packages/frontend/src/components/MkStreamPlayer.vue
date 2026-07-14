@@ -10,6 +10,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		:playbackUrl="playbackUrl"
 		:active="active"
 		:pageKey="pageKey"
+		:offlineImageUrl="offlineImageUrl"
 	/>
 	<MkTwitchPlayer
 		v-else-if="source === 'twitch' && twitchLogin != null"
@@ -29,6 +30,7 @@ const props = defineProps<{
 	twitchLogin?: string | null; // source === 'twitch' のとき必須
 	active: boolean;
 	pageKey?: string; // 視聴ページ識別子 (acct)。MkOmePlayer の音量ページ別保持に使う。
+	offlineImageUrl?: string | null; // オフライン時に表示する静止画 URL
 }>();
 </script>
 
