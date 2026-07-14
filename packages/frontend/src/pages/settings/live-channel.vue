@@ -166,7 +166,7 @@ async function fetchMy() {
 	streamKey.value = res.streamKey;
 	rtmpUrl.value = res.rtmpUrl;
 	srtUrl.value = res.srtUrl;
-	whipUrl.value = res.whipUrl;
+	whipUrl.value = res.whipUrl ?? null;
 	channelName.value = res.channel?.name ?? '';
 	channelDescription.value = res.channel?.description ?? '';
 	state.value = 'ready';

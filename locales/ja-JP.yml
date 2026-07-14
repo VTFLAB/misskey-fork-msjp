@@ -3863,6 +3863,10 @@ _liveChannel:
   liveNow: "配信中"
   editChannel: "チャンネルを編集"
   watchStream: "配信を見る"
+  tapToUnmute: "タップして音声オン"
+  reconnecting: "再接続中…"
+  mute: "ミュート"
+  fullscreen: "全画面"
 _remoteGuestLogin:
   title: "他インスタンスのアカウントでログイン"
   description: "他のMisskeyインスタンスのアカウントでログインすると、視聴とコメント投稿ができます。"
