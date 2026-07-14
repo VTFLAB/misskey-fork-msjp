@@ -3868,7 +3868,7 @@ export type paths = {
     '/twitch/live-streams': {
         /**
          * twitch/live-streams
-         * @description 現在配信中の Twitch 連携ユーザーの一覧を返す (視聴者数の多い順)。
+         * @description 現在配信中のユーザーの一覧を返す (Twitch連携 + MSJP配信/OME)。
          *
          *     **Credential required**: *Yes* / **Permission**: *read:account*
          */
@@ -4419,7 +4419,9 @@ export type components = {
             canChat: boolean;
             roles: components['schemas']['RoleLite'][];
             twitchLive?: {
-                twitchLogin: string;
+                /** @enum {string} */
+                source: 'twitch' | 'ome';
+                twitchLogin: string | null;
                 title: string;
                 gameName: string | null;
                 viewerCount: number;
@@ -36689,7 +36691,9 @@ export interface operations {
                 content: {
                     'application/json': {
                         user: components['schemas']['UserLite'];
-                        twitchLogin: string;
+                        /** @enum {string} */
+                        source: 'twitch' | 'ome';
+                        twitchLogin: string | null;
                         title: string;
                         gameName: string | null;
                         viewerCount: number;
