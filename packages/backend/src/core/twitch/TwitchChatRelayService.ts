@@ -68,6 +68,8 @@ export class TwitchChatRelayService {
 		user: { username: string },
 		text: string,
 	): void {
+		if (stream.source !== 'twitch') return;
+
 		(async () => {
 			const bot = await this.twitchOAuthService.getBotAccount();
 			if (bot == null) return;
@@ -198,6 +200,7 @@ export class TwitchChatRelayService {
 			});
 		}
 		if (stream == null) return;
+		if (stream.source !== 'twitch') return;
 
 		// 配信者にブロックされたチャッターの発言は取り込まない (永続化も配信もしない)。
 		// Twitch 側のチャット欄には残るが、Misskey 側の視聴ページ・OBS オーバーレイには出ない

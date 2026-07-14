@@ -31,23 +31,30 @@ export class MiTwitchStream {
 
 	@Index()
 	@Column('varchar', {
-		length: 64,
-		comment: 'Twitch user id of the broadcaster.',
+		length: 64, nullable: true,
+		comment: 'Twitch user id of the broadcaster. null for source=ome sessions.',
 	})
-	public twitchUserId: string;
+	public twitchUserId: string | null;
 
 	@Index({ unique: true })
 	@Column('varchar', {
-		length: 64,
-		comment: 'Twitch stream (session) id.',
+		length: 64, nullable: true,
+		comment: 'Twitch stream (session) id. null for source=ome sessions.',
 	})
-	public twitchStreamId: string;
+	public twitchStreamId: string | null;
 
 	@Column('varchar', {
-		length: 128, default: '',
-		comment: '[Denormalized] Twitch login name (for embed player / chat relay).',
+		length: 128, nullable: true,
+		comment: '[Denormalized] Twitch login name (for embed player / chat relay). null for source=ome sessions.',
 	})
-	public twitchLogin: string;
+	public twitchLogin: string | null;
+
+	@Index()
+	@Column('varchar', {
+		length: 16, default: 'twitch',
+		comment: 'Which system produced this session: twitch or ome.',
+	})
+	public source: 'twitch' | 'ome';
 
 	@Index()
 	@Column('boolean', {
