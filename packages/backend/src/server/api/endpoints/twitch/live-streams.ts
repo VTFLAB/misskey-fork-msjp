@@ -60,7 +60,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			return streams.flatMap(s => {
 				const user = userById.get(s.userId);
-				if (user == null) return [];
+				if (user == null || s.twitchLogin == null) return [];
 				return [{
 					user,
 					twitchLogin: s.twitchLogin,
