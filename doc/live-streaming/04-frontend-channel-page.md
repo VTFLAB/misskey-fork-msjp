@@ -375,23 +375,20 @@ function changeBanner(ev: PointerEvent) {
 
 ### 5.4 ストリームキー表示
 
-決定書 §1・§2「配信者向け UI: `/settings/live-channel` に配信サーバー URL / ストリームキー (コピー) / 再生成 を RTMP・SRT・WHIP の 3 方式分表示」に従う。
+決定書 §1・§2「配信者向け UI: `/settings/live-channel` にストリームキーと、WHIP の SignedPolicy 付き ingest URL を表示」に従う。RTMP/SRT は WHIP-only 採用により廃止。
 
-データ取得は `live-channels/my` (`secure:true`、決定書 §1 API 節) で取得する `{ channel, streamKey, rtmpUrl, srtUrl, whipUrl }` 形状を使う。**この前提は 02 §5-5 (res スキーマ) と 03 §6 (`generateIngestUrls()` をハンドラから呼ぶ) で確定済み** (06 §11 整合性課題#1 の裁定)。`config.ome` 未設定時は URL 3 種が null で返る (streamKey は返る) 点に留意すること。
+データ取得は `live-channels/my` (`secure:true`、決定書 §1 API 節) で取得する `{ channel, streamKey, whipUrl }` 形状を使う。**この前提は 02 §5-5 (res スキーマ) と 03 §6 (`generateIngestUrls()` をハンドラから呼ぶ) で確定済み** (06 §11 整合性課題#1 の裁定)。`config.ome` 未設定時は `whipUrl` が null で返る (streamKey は返す) 点に留意すること。
 
 画面レイアウト:
 
 ```
-配信サーバー URL / ストリームキー
+配信サーバー情報
 ┌─────────────────────────────────────────┐
-│ RTMP:  rtmp://stream.msjp.pro:1935/live   [コピー]│
-│ Key:   ●●●●●●●●●●●●●●●●  [表示切替👁] [コピー]  │
-├─────────────────────────────────────────┤
-│ SRT:   srt://stream.msjp.pro:9999/live    [コピー]│
-│ Key:   ●●●●●●●●●●●●●●●●  [表示切替👁] [コピー]  │
-├─────────────────────────────────────────┤
-│ WHIP:  https://stream.msjp.pro/whip/live  [コピー]│
-│ Token: ●●●●●●●●●●●●●●●●  [表示切替👁] [コピー]  │
+│ WHIP URL: http://stream.msjp.pro:3333/live │
+│            /xxxxxxxx?direction=whip...    │
+│           [コピー]                         │
+│ ストリームキー: ●●●●●●●●●●●●●●●●        │
+│           [表示切替👁] [コピー]            │
 └─────────────────────────────────────────┘
 [ストリームキーを再生成]  (danger button)
 ```
@@ -438,7 +435,7 @@ frontend 専用キー候補 (02 の `_liveChannel` 定義後、重複が無い�
 - `_liveChannel.streamServerInfo` — 「配信サーバー情報」セクション見出し
 - `_liveChannel.regenerateKey` / `_liveChannel.regenerateKeyConfirm` — 再生成ボタン/確認ダイアログ文言
 - `_liveChannel.showKey` / `_liveChannel.hideKey` — マスク表示切替のツールチップ
-- `_liveChannel.copyRtmpUrl` / `_liveChannel.copySrtUrl` / `_liveChannel.copyWhipUrl` — 各コピー操作のラベル
+- `_liveChannel.whipUrl` / `_liveChannel.copyWhipUrl` — WHIP URL 表示ラベル/コピー操作のラベル
 
 既存 `_twitch` セクション (`locales/ja-JP.yml` 3667行目〜) と対になる位置に新設する。
 
