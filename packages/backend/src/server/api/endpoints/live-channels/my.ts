@@ -3,8 +3,10 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
+import { DI } from '@/di-symbols.js';
+import type { Config } from '@/config.js';
 import { LiveChannelService } from '@/core/live/LiveChannelService.js';
 
 export const meta = {
@@ -15,7 +17,7 @@ export const meta = {
 	secure: true,
 
 	description: '自分のライブチャンネル設定を返す。未開設なら channel: null。' +
-		'ingest 接続情報 (rtmpUrl/srtUrl/whipUrl) は Phase 2 (OME 連携) 実装まで null 固定。',
+		'OME 連携有効時は whipUrl を含む。',
 
 	res: {
 		type: 'object',
@@ -42,7 +44,7 @@ export const meta = {
 			streamKey: { type: 'string', optional: false, nullable: true },
 			rtmpUrl: { type: 'string', optional: false, nullable: true },
 			srtUrl: { type: 'string', optional: false, nullable: true },
-			whipUrl: { type: 'string', optional: false, nullable: true },
+			whipUrl: { type: 'string', optional: true, nullable: true },
 		},
 	},
 } as const;
@@ -57,6 +59,9 @@ export const paramDef = {
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
 		private liveChannelService: LiveChannelService,
+
+		@Inject(DI.config)
+		private config: Config,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const channel = await this.liveChannelService.show(me.id);
@@ -64,13 +69,16 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				return { channel: null, streamKey: null, rtmpUrl: null, srtUrl: null, whipUrl: null };
 			}
 
-			// ingest URL 3種は Phase 2 (WI-2.6, generateIngestUrls) 実装まで null 固定。
+			const ingest = this.config.ome != null
+				? this.liveChannelService.generateIngestUrls(channel, this.config.ome)
+				: null;
+
 			return {
 				channel: await this.liveChannelService.pack(channel, me),
 				streamKey: channel.streamKey,
 				rtmpUrl: null,
 				srtUrl: null,
-				whipUrl: null,
+				whipUrl: ingest?.whip ?? null,
 			};
 		});
 	}

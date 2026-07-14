@@ -3,10 +3,12 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { createHmac } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { DI } from '@/di-symbols.js';
 import type { ChannelsRepository, DriveFilesRepository, LiveChannelsRepository, MiUser } from '@/models/_.js';
 import type { MiChannel } from '@/models/Channel.js';
+import type { Config } from '@/config.js';
 import { IdService } from '@/core/IdService.js';
 import { bindThis } from '@/decorators.js';
 import { secureRndstr } from '@/misc/secure-rndstr.js';
@@ -135,6 +137,59 @@ export class LiveChannelService {
 		}
 
 		return channel;
+	}
+
+	// generateIngestUrls: SignedPolicy 付き WHIP ingest URL を生成する (決定書 §2、00-overview.md D3)。
+	@bindThis
+	public generateIngestUrls(channel: MiLiveChannel, ome: NonNullable<Config['ome']>): {
+		whip: string;
+	} {
+		const urlExpireMs = Date.now() + 100 * 365 * 24 * 60 * 60 * 1000; // 100 years (実質無期限)
+
+		return {
+			whip: this.signUrl({
+				scheme: 'http', // WHIP は HTTP(S)。WAN 公開後は https に切り替え。
+				urlBase: ome.publicWhipUrl, // 例: 'http://stream.msjp.pro:3333' (ポート明示必須)
+				app: ome.app,
+				stream: channel.streamKey,
+				secretKey: ome.signedPolicySecret,
+				urlExpireMs,
+				extraQuery: { direction: 'whip' }, // OME調査 §7 の WHIP URL 形式
+			}),
+		};
+	}
+
+	// OME調査 §3 の Node.js 実装をそのまま移植 (Base64URL エンコード + HMAC-SHA1)。
+	@bindThis
+	private signUrl(params: {
+		scheme: string;
+		urlBase: string; // 'scheme://host:port' 形式 (ポート必須、決定書「ポート明示必須の罠」)
+		app: string;
+		stream: string;
+		secretKey: string;
+		urlExpireMs: number;
+		extraQuery?: Record<string, string>;
+	}): string {
+		const policy = { url_expire: params.urlExpireMs };
+		const policyEncoded = this.base64UrlEncode(Buffer.from(JSON.stringify(policy), 'utf8'));
+
+		// urlBase は既に 'scheme://host:port' を含む前提 (config.ome.publicWhipUrl がポート込みで設定される)
+		let baseUrl = `${params.urlBase}/${params.app}/${params.stream}?policy=${policyEncoded}`;
+		if (params.extraQuery != null) {
+			for (const [k, v] of Object.entries(params.extraQuery)) {
+				baseUrl += `&${k}=${encodeURIComponent(v)}`;
+			}
+		}
+
+		const signature = createHmac('sha1', params.secretKey).update(baseUrl).digest();
+		const signatureEncoded = this.base64UrlEncode(signature);
+
+		return `${baseUrl}&signature=${signatureEncoded}`;
+	}
+
+	@bindThis
+	private base64UrlEncode(buf: Buffer): string {
+		return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 	}
 
 	// meId === channel.userId のときのみ streamKey を含める (ClipEntityService.ts の owner-only 分岐と同型)。
