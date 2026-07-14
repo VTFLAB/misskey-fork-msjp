@@ -130,13 +130,13 @@ mi-host (Misskey 本番, VM 200) は PVE2 上にあり、OME を同ノードに�
 
 | # | 項目 | 解消方法 | 影響先 |
 |---|---|---|---|
-| 1 | SignedPolicy の webrtc/srt Provider 対応可否 | **ソース検証済 (2026-07-14)**: `AccessController::VerifyBySignedPolicy()` はプロトコル汎用実装で webrtc/srt も通る見込み。公式 doc の「rtmp のみ」は保守的記載と判断。最終確認は Phase 0 実機検証 (失敗時は rtmp のみに縮退、AdmissionWebhooks 単独で認可は成立) | 01, 03 |
-| 2 | OSS v1 統計 API での視聴者数取得可否 | **ソース検証済 (2026-07-14)**: `GET /v1/stats/current/vhosts/{vhost}/apps/{app}/streams/{stream}` が OSS 版に存在 (`streams_controller.cpp`)。`totalConnections` は host レベルで実在確認、stream レベルはキー名の実機確認を Phase 0 で実施。並行して AdmissionWebhooks outgoing の Redis カウント方式も実装 (03 参照) | 03 |
+| 1 | SignedPolicy の webrtc/srt Provider 対応可否 | **実機確認済 (2026-07-14)**: `<Providers>rtmp,webrtc,srt</Providers>` で OME v0.20.5 がパースエラーなく起動。「All modules are initialized successfully」確認済。設計どおり SignedPolicy で webrtc/srt ingest を認可制御可能 | 01, 03 |
+| 2 | OSS v1 統計 API での視聴者数取得可否 | **実機確認済 (2026-07-14)**: `GET /v1/stats/current/vhosts/{vhost}/apps/{app}/streams/{stream}` のレスポンスに `totalConnections` キーが実在 (配信中に値 1 を確認)。`connections` オブジェクト内のプロトコル別キー (`webrtc` 等) の合計 = `totalConnections` と一致。視聴者数取得には `totalConnections` を使用する | 03 |
 | 3 | WHEP egress 対応の有無 | **ソース検証済 (2026-07-14)**: v0.20.5 時点で未実装 (2025 Roadmap に計画のみ)。視聴は OvenPlayer の独自 WebSocket signalling 一択 — D5 (OvenPlayer 採用) の裏付け | 解消済 |
-| 4 | `bitrateLatest`/`bitrateAvg` の実挙動 (瞬間値/平均の意味) | Phase 0 実機検証 | 01, 03 |
-| 5 | OBS WHIP の Bearer Token と SignedPolicy の統合方法 | Phase 0 実機検証。不可なら WHIP URL の query に直付け | 01, 03 |
+| 4 | `bitrateLatest`/`bitrateAvg` の実挙動 (瞬間値/平均の意味) | **実機確認済 (2026-07-14)**: `bitrateLatest` = 直近の瞬間実測値、`bitrateAvg` = 配信開始からの移動平均、`bitrateConf`/`bitrate` = OBS 設定値の反映 (不変、実測ではない)。`OmeStreamMonitorService` の閾値判定には **`bitrateLatest`** を使用する。実測例: OBS CBR 2800kbps 設定で `bitrateConf=2800000` (不変) / `bitrateAvg≈550000` (画面内容依存で変動) / `bitrateLatest≈550000` (30秒間で微変動)。`bitrateConf` は閾値判定に使えない (実測値ではない) | 01, 03 |
+| 5 | OBS WHIP の Bearer Token と SignedPolicy の統合方法 | **Phase 0 では SignedPolicy 無効化のため未検証**。Phase 2 (WI-2.10 AdmissionWebhooks 有効化時) に SignedPolicy を有効化して実機確認する。不可なら 03 §6 の「query 直付け」方式を採用 | 01, 03 |
 | 6 | 公開 FQDN (`stream.msjp.pro` 案) と WAN 公開ポリシー例外 | **ユーザー承認済 (2026-07-14)**: FQDN は `stream.msjp.pro` に確定、WAN 公開ポリシー例外も許容。二重ルーター構成のため上位ルーターのポート開放 (人間の手動作業) が別途必要 — 開放ポート一覧は 01 §7.1.5 | 解消済 (作業は WI-0.5) |
-| 7 | OME の視聴同時接続数の実用上限 (PVE2 リソース) | Phase 0/5 負荷試験。**ユーザー方針 (2026-07-14)**: RAM 控えめ開始で進め、PVE2 のメモリ圧があまりに厳しい場合は Coder スタック (CT 129 docker-coder 等) を PVE1 へ退避してリソースを確保する案を採る (退避作業は §11 Coder 規律に従い coder CLI 経由 + 別途計画) | 01 |
+| 7 | OME の視聴同時接続数の実用上限 (PVE2 リソース) | **Phase 0 ベースライン取得済 (2026-07-14)**: 1配信1視聴者で `docker stats` CPU 3.68% / MEM 16.11MiB / NET 48.3MB(in) 10.3MB(out)。本格負荷試験は WI-5.1 で実施。**ユーザー方針**: RAM 控えめ開始で進め、PVE2 のメモリ圧が厳しい場合は Coder スタックを PVE1 へ退避してリソース確保 (§11 Coder 規律に従い coder CLI 経由 + 別途計画) | 01 |
 
 ライセンス注記: OME は AGPLv3 だが、改変せず公式イメージを実行するだけならソース開示義務は発生しない。OvenPlayer は MIT で npm 依存としての組み込みに問題なし。fork 本体の AGPL §13 論点は既存の保留事項のまま (本機能で新たな論点は増えない)。
 
