@@ -387,10 +387,31 @@ function changeBanner(ev: PointerEvent) {
 │ WHIP URL: http://stream.msjp.pro:3333/live │
 │            /xxxxxxxx?direction=whip...    │
 │           [コピー]                         │
-│ ストリームキー: ●●●●●●●●●●●●●●●●        │
+│ ストリームキー: ●●●●●●●●●●●●●●●●●        │
 │           [表示切替👁] [コピー]            │
 └─────────────────────────────────────────┘
 [ストリームキーを再生成]  (danger button)
+
+OBS設定ガイド  (折りたたみ可能、デフォルト展開)
+┌─────────────────────────────────────────┐
+│ 1. OBS を起動し [設定] → [配信]を開く      │
+│ 2. サービス: [WHIP] を選択                 │
+│ 3. エンドポイント: 上記 WHIP URL を貼り付け  │
+│    (ストリームキーは URL に含まれているため   │
+│     別途入力不要)                          │
+│ 4. [出力]タブで以下を確認:                  │
+│    - ビットレート: 3000kbps以下 (映像)      │
+│    - 音声ビットレート: 128kbps以下           │
+│    ※上限を超えると配信開始から約30秒後に     │
+│      自動遮断されます                       │
+│ 5. [配信開始]をクリック                     │
+│                                            │
+│ ⚠ 注意事項:                                │
+│ ・サイマルキャスト(同時複数配信)には対応     │
+│   していません。1つのストリームのみ配信可能  │
+│ ・配信開始時の音声コーデックはOpusが使用     │
+│   されます (OBS が WHIP モードで自動選択)    │
+└─────────────────────────────────────────┘
 ```
 
 - マスク表示 + 表示切替: `ref<boolean>` の `keyVisible` を持ち、`v-if`/`v-else` で `●●●` (`'•'.repeat(streamKey.length)` 等) とプレーンテキストを切り替える。切替ボタンは `<button class="_button" @click="keyVisible = !keyVisible"><i class="ti" :class="keyVisible ? 'ti-eye-off' : 'ti-eye'"></i></button>` のような形。
@@ -405,10 +426,17 @@ function changeBanner(ev: PointerEvent) {
   	if (canceled) return;
   	const res = await os.apiWithDialog('live-channels/regenerate-key', {});
   	streamKey.value = res.streamKey;
-  	// 決定書§2: 再生成時に旧キーの既存接続はサーバー側 (OME REST DELETE) で切断される。
-  	// フロント側で追加の切断処理は不要
-  }
-  ```
+   // 決定書§2: 再生成時に旧キーの既存接続はサーバー側 (OME REST DELETE) で切断される。
+   // フロント側で追加の切断処理は不要
+}
+```
+
+#### Implementation notes for the OBS setup guide
+
+- The guide section should be a collapsible `<Details>` component. Misskey provides `MkDetails` or a similar collapsible pattern; follow existing usages such as `settings/profile.vue` or `settings/twitch-broadcaster-features.vue`.
+- Default the section to expanded so first-time streamers see the instructions immediately.
+- All guide content is static i18n text routed through `_liveChannel.*` keys. No dynamic generation.
+- Bitrate limits (3000 kbps video / 128 kbps audio) mirror the limits enforced by `OmeStreamMonitorService` on the backend. Because this is the frontend and the backend config values are not exposed here, hardcode the numbers in the i18n string for now. Add a code comment noting this coupling so a future refactor can pull both values from a shared source.
 
 ---
 
@@ -436,6 +464,11 @@ frontend 専用キー候補 (02 の `_liveChannel` 定義後、重複が無い�
 - `_liveChannel.regenerateKey` / `_liveChannel.regenerateKeyConfirm` — 再生成ボタン/確認ダイアログ文言
 - `_liveChannel.showKey` / `_liveChannel.hideKey` — マスク表示切替のツールチップ
 - `_liveChannel.whipUrl` / `_liveChannel.copyWhipUrl` — WHIP URL 表示ラベル/コピー操作のラベル
+- `_liveChannel.obsSetupGuide` — 「OBS設定ガイド」セクション見出し
+- `_liveChannel.obsSetupStep1` through `_liveChannel.obsSetupStep5` — OBS 設定手順 1〜5
+- `_liveChannel.obsBitrateWarning` — ビットレート上限と超過時の遮断に関する注意文言
+- `_liveChannel.obsSimulcastWarning` — サイマルキャスト非対応の注意文言
+- `_liveChannel.obsAudioCodecNote` — Opus 音声コーデックに関する注記
 
 既存 `_twitch` セクション (`locales/ja-JP.yml` 3667行目〜) と対になる位置に新設する。
 
@@ -469,6 +502,7 @@ frontend 専用キー候補 (02 の `_liveChannel` 定義後、重複が無い�
 | 12 | 設定ページ | 表示切替ボタンでキーの平文/マスクが切り替わる、コピーボタンで実際にクリップボードにコピーされる (URL とキーそれぞれ独立して) | 同左 | — |
 | 13 | 設定ページ | 再生成ボタンで確認ダイアログが出て、キャンセル時は何も起きない、OK 時にキー表示が新しい値に更新される | 同左 | — |
 | 14 | 設定ページ | バナー選択メニューがアップロード/ドライブから選択の 2 択で開き、選択後にプレビューが更新される | 同左 | — |
+| 15 | 設定ページ | OBS設定ガイドが折りたたみ可能で、デフォルト展開されている。手順1〜5・注意事項が表示される | 同左 | — |
 
 ---
 
