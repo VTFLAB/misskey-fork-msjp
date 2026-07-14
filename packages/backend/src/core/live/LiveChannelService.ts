@@ -5,12 +5,13 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import { DI } from '@/di-symbols.js';
-import type { ChannelsRepository, LiveChannelsRepository, MiUser } from '@/models/_.js';
+import type { ChannelsRepository, DriveFilesRepository, LiveChannelsRepository, MiUser } from '@/models/_.js';
 import type { MiChannel } from '@/models/Channel.js';
 import { IdService } from '@/core/IdService.js';
 import { bindThis } from '@/decorators.js';
 import { secureRndstr } from '@/misc/secure-rndstr.js';
 import { MiLiveChannel } from '@/models/LiveChannel.js';
+import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 
 @Injectable()
 export class LiveChannelService {
@@ -21,7 +22,11 @@ export class LiveChannelService {
 		@Inject(DI.channelsRepository)
 		private channelsRepository: ChannelsRepository,
 
+		@Inject(DI.driveFilesRepository)
+		private driveFilesRepository: DriveFilesRepository,
+
 		private idService: IdService,
+		private driveFileEntityService: DriveFileEntityService,
 	) {
 	}
 
@@ -110,7 +115,26 @@ export class LiveChannelService {
 
 	@bindThis
 	public async show(userId: MiUser['id']): Promise<MiLiveChannel | null> {
-		return await this.liveChannelsRepository.findOneBy({ userId });
+		const channel = await this.liveChannelsRepository.findOneBy({ userId });
+		if (channel == null) return null;
+
+		// Lazy initialization for live_channel rows created before channelId existed.
+		if (channel.channelId == null) {
+			const misskeyChannel = await this.channelsRepository.insertOne({
+				id: this.idService.gen(),
+				userId,
+				name: '配信チャンネル',
+				description: null,
+				bannerId: null,
+				isSensitive: false,
+				allowRenoteToExternal: true,
+			} as MiChannel);
+
+			await this.liveChannelsRepository.update(channel.id, { channelId: misskeyChannel.id });
+			channel.channelId = misskeyChannel.id;
+		}
+
+		return channel;
 	}
 
 	// meId === channel.userId のときのみ streamKey を含める (ClipEntityService.ts の owner-only 分岐と同型)。
@@ -123,6 +147,12 @@ export class LiveChannelService {
 		const channel = typeof src === 'object' ? src : await this.liveChannelsRepository.findOneByOrFail({ id: src });
 		const isOwner = meId === channel.userId;
 
+		let banner = channel.banner;
+		if (banner == null && channel.bannerId != null) {
+			banner = await this.driveFilesRepository.findOneBy({ id: channel.bannerId });
+		}
+		const bannerUrl = banner != null ? this.driveFileEntityService.getPublicUrl(banner) : null;
+
 		return {
 			id: channel.id,
 			userId: channel.userId,
@@ -130,6 +160,7 @@ export class LiveChannelService {
 			name: channel.name,
 			description: channel.description,
 			bannerId: channel.bannerId,
+			bannerUrl,
 			channelId: channel.channelId,
 			createdAt: channel.createdAt.toISOString(),
 			// 所有者のみ: ストリームキーと再生成日時
