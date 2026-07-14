@@ -172,6 +172,7 @@ import { TwitchTranslationService } from './twitch/TwitchTranslationService.js';
 import { LiveLoggerService } from './live/LiveLoggerService.js';
 import { LiveChannelService } from './live/LiveChannelService.js';
 import { OmeApiService } from './live/OmeApiService.js';
+import { OmeStreamMonitorService } from './live/OmeStreamMonitorService.js';
 import { RemoteGuestLoggerService } from './remote-guest/RemoteGuestLoggerService.js';
 import { RemoteGuestHostAllowlistService } from './remote-guest/RemoteGuestHostAllowlistService.js';
 import { RemoteGuestAccountService } from './remote-guest/RemoteGuestAccountService.js';
@@ -355,6 +356,7 @@ const $TwitchTranslationService: Provider = { provide: 'TwitchTranslationService
 const $LiveLoggerService: Provider = { provide: 'LiveLoggerService', useExisting: LiveLoggerService };
 const $LiveChannelService: Provider = { provide: 'LiveChannelService', useExisting: LiveChannelService };
 const $OmeApiService: Provider = { provide: 'OmeApiService', useExisting: OmeApiService };
+const $OmeStreamMonitorService: Provider = { provide: 'OmeStreamMonitorService', useExisting: OmeStreamMonitorService };
 
 const $RemoteGuestLoggerService: Provider = { provide: 'RemoteGuestLoggerService', useExisting: RemoteGuestLoggerService };
 const $RemoteGuestHostAllowlistService: Provider = { provide: 'RemoteGuestHostAllowlistService', useExisting: RemoteGuestHostAllowlistService };
@@ -537,6 +539,7 @@ const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthC
 		LiveLoggerService,
 		LiveChannelService,
 		OmeApiService,
+		OmeStreamMonitorService,
 		RemoteGuestLoggerService,
 		RemoteGuestHostAllowlistService,
 		RemoteGuestAccountService,
@@ -718,6 +721,7 @@ const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthC
 		$LiveLoggerService,
 		$LiveChannelService,
 		$OmeApiService,
+		$OmeStreamMonitorService,
 		$RemoteGuestLoggerService,
 		$RemoteGuestHostAllowlistService,
 		$RemoteGuestAccountService,
@@ -895,6 +899,7 @@ const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthC
 		LiveLoggerService,
 		LiveChannelService,
 		OmeApiService,
+		OmeStreamMonitorService,
 		RemoteGuestLoggerService,
 		RemoteGuestHostAllowlistService,
 		RemoteGuestAccountService,
@@ -1073,6 +1078,8 @@ const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthC
 		$TwitchTranslationService,
 		$LiveLoggerService,
 		$LiveChannelService,
+		$OmeApiService,
+		$OmeStreamMonitorService,
 		$RemoteGuestLoggerService,
 		$RemoteGuestHostAllowlistService,
 		$RemoteGuestAccountService,
