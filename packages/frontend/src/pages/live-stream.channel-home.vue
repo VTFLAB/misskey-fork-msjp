@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div :class="$style.acct"><MkAcct :user="user" :detail="true"/></div>
 		</div>
 		<div :class="$style.actions">
-			<MkButton v-if="isOwner" type="routerLink" :to="`/settings/live-channel`" link rounded primary>{{ i18n.ts._liveChannel.editChannel }}</MkButton>
+			<MkButton v-if="isOwner" type="routerLink" :to="`/settings/streaming`" link rounded primary>{{ i18n.ts._liveChannel.editChannel }}</MkButton>
 			<MkButton v-if="isLive" type="routerLink" :to="`/live/${acct}/stream`" link rounded primary>{{ i18n.ts._liveChannel.watchStream }}</MkButton>
 			<MkButton v-else-if="isOwner" type="routerLink" :to="`/live/${acct}/stream`" link rounded>{{ i18n.ts._liveChannel.previewStream }}</MkButton>
 			<MkFollowButton v-if="$i != null && $i.id !== user.id" v-model:user="user" :full="true"/>

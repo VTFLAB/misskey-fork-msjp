@@ -3824,6 +3824,9 @@ _twitch:
   commentGenUncommittedBadge: "未反映の変更あり"
   commentGenCommitHint: "フォームに未プレビューの変更があります。「プレビューに適用」を行うと、その内容もあわせて反映できます。"
   commentGenCloseConfirm: "設定に反映されていない変更があります。破棄して閉じますか？"
+_streaming:
+  title: "配信"
+  description: "配信機能の設定と連携を行えます。"
 _liveChannel:
   liveChannelSettings: "ライブチャンネル設定"
   enableStreaming: "配信機能を利用する"
