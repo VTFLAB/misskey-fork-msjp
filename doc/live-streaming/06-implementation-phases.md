@@ -98,10 +98,10 @@ graph LR
 
 | ID | Phase | Work Item | 状態 | 依存 |
 |---|---|---|---|---|
-| WI-0.1 | 0 | PVE2 LXC 作成 + Docker インストール | [ ] | なし |
-| WI-0.2 | 0 | OME コンテナ起動 + Server.xml 初期版 (AdmissionWebhooks 無効) | [ ] | WI-0.1 |
-| WI-0.3 | 0 | シークレット生成 + config 対応表確定 | [ ] | WI-0.2 |
-| WI-0.4 | 0 | LAN 内疎通検証 (a)〜(d) + 未確定事項 1,2,4,5,7 の実機解消 | [ ] | WI-0.3 |
+| WI-0.1 | 0 | PVE2 LXC 作成 + Docker インストール | [x] | なし |
+| WI-0.2 | 0 | OME コンテナ起動 + Server.xml 初期版 (AdmissionWebhooks 無効) | [x] | WI-0.1 |
+| WI-0.3 | 0 | シークレット生成 + config 対応表確定 | [x] | WI-0.2 |
+| WI-0.4 | 0 | LAN 内疎通検証 (a)〜(d) + 未確定事項 1,2,4,5,7 の実機解消 | [x] | WI-0.3 |
 | WI-0.5 | 0 | **[BLOCKING/人間承認] WAN 公開 (OPNsense NAT/HAProxy/DNS)** | [ ] | WI-0.4、ユーザー承認 |
 | WI-1.1 | 1 | `live_channel` entity + migration + 登録4点セット + CoreModule登録 | [x] | なし |
 | WI-1.2 | 1 | `LiveChannelService` 実装 (create/update/regenerateStreamKey/show/pack) | [x] | WI-1.1 |
@@ -195,6 +195,16 @@ graph LR
       実行し、ベースライン値を記録するのみ — 本格負荷試験は WI-5.1)
 - コミット単位: 1コミット。`doc/live-streaming/00-overview.md` の未確定事項表 (§5) と `01-infra-ome-setup.md`
   の該当箇所 (Server.xml のコメント、config 対応表) を実測値で更新するのみ (docs commit)。
+- **2026-07-14 完了メモ**: 全項目 (a)〜(d) + 未確定事項 #1,2,4,7 を実機解消済。#5 は Phase 0 で
+  SignedPolicy 無効化していたため未検証 → Phase 2 (WI-2.10) で SignedPolicy 有効化時に確認。
+  (b)(c) はユーザーが OBS + OvenPlayer デモページで実機確認 (FQDN `ome.msjp-local.org` 経由)。
+  (d) は 2 回取得で `bitrateLatest` = 瞬間実測値、`bitrateAvg` = 移動平均、`bitrateConf`/`bitrate` =
+  OBS 設定値 (不変) と確定。`OmeStreamMonitorService` は `bitrateLatest` 使用で確定。
+  docker stats: CPU 3.68% / MEM 16MiB (1配信1視聴者)。00-overview §5 + 01 §6(d) に実測値反映済。
+  **Server.xml 備考**: Phase 0 検証中は SignedPolicy/AdmissionWebhooks 両方コメントアウト
+  (認可なしオープン構成)。Phase 2 で SignedPolicy を有効化する際は §4 のコメントを外す。
+  また `TcpRelayForce` 要素は OME v0.20.5 で未サポート (XML パースエラー) のため削除済 —
+  01 §4 の Server.xml からも該当行を除去済。
 
 ### WI-0.5: [BLOCKING] WAN 公開
 
