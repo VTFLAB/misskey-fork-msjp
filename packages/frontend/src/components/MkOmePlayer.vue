@@ -23,14 +23,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<span>{{ i18n.ts._liveChannel.tapToUnmute }}</span>
 	</button>
 
-	<div v-if="offline" :class="$style.offlineOverlay">
+	<div v-if="offline && offlineImageUrl" :class="$style.offlineImageOverlay">
+		<img :src="offlineImageUrl" :alt="i18n.ts._liveChannel.reconnecting" :class="$style.offlineImage"/>
+	</div>
+	<div v-else-if="offline" :class="$style.offlineOverlay">
 		<span>{{ i18n.ts._liveChannel.reconnecting }}</span>
 	</div>
 
 	<!-- 自前コントロールバー: ホバーで表示するオートハイド -->
 	<div :class="[$style.controls, { [$style.controlsVisible]: controlsVisible }]">
 		<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts._liveChannel.mute" @click="toggleMute">
-			<i v-if="muted || volume === 0" class="ti ti-volume-3"></i>
+			<i v-if="muted || volumeNum === 0" class="ti ti-volume-3"></i>
 			<i v-else class="ti ti-volume"></i>
 		</button>
 		<MkMediaRange v-model="volume" :class="$style.volumeSeekbar"/>
@@ -43,7 +46,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, watch, onMounted, onBeforeUnmount, useTemplateRef } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, useTemplateRef } from 'vue';
 import { v4 as uuid } from 'uuid';
 import MkMediaRange from '@/components/MkMediaRange.vue';
 import { i18n } from '@/i18n.js';
@@ -66,6 +69,7 @@ const props = defineProps<{
 	playbackUrl: string;
 	active: boolean;
 	pageKey?: string; // 視聴ページ識別子 (acct)。音量をページごとに保持するためのキー。
+	offlineImageUrl?: string | null; // 配信者が設定したオフライン画像。配信停止/再接続中に表示する。
 }>();
 
 const emit = defineEmits<{
@@ -96,29 +100,41 @@ function loadVolumeMap(): Record<string, number> {
 }
 
 function savedVolume(): number | null {
-	const v = loadVolumeMap()[props.pageKey ?? ''];
-	return typeof v === 'number' ? v : null;
+	// MkMediaRange (defineModel<string | number>) は <input type="range"> の値を
+	// 文字列で書き戻すため、localStorage には数値・数値文字列どちらが入っていてもおかしくない。
+	// Number() で両対応にする (key 未存在時は undefined → Number(undefined) は NaN → null)。
+	const raw = loadVolumeMap()[props.pageKey ?? ''];
+	const n = Number(raw);
+	return Number.isFinite(n) ? n : null;
 }
 
-function persistVolume(v: number): void {
+function persistVolume(v: number | string): void {
 	const map = loadVolumeMap();
-	map[props.pageKey ?? ''] = v;
+	map[props.pageKey ?? ''] = Number(v);
 	miLocalStorage.setItem(STORAGE_KEY_VOLUME, JSON.stringify(map));
 }
 
-// volume は 0-1。ミュートとは独立した「音量レベル」。起動は autoplay policy により必ず
-// mute:true だが、スライダーに妥当な位置を出すため保存値 or 既定 50% で初期化する。
-const volume = ref(savedVolume() ?? DEFAULT_VOLUME);
+// volume は 0-1 だが、MkMediaRange の v-model 経由でドラッグ操作すると文字列で書き戻される
+// (defineModel<string | number> + <input type="range"> の value は常に string)。
+// そのため volume 自体は string | number の両方を許容し、実際の判定・演算は必ず
+// volumeNum (数値化した単一ソース) 経由で行う。
+const volume = ref<string | number>(savedVolume() ?? DEFAULT_VOLUME);
+const volumeNum = computed(() => {
+	const n = Number(volume.value);
+	return Number.isFinite(n) ? n : DEFAULT_VOLUME;
+});
 // muted は player の実状態 (mute:true 起動) と一致させ true 起動。localStorage 復元はしない
 // (§7 / L198-200)。localStorage 由来で false 起動すると、オーバーレイクリックで muted が
 // 既に false になり watch が発火せず setMute(false) が呼ばれない不具合になる。
 const muted = ref(true);
 
 watch(volume, (v) => {
-	persistVolume(v);
-	player?.setVolume(v * 100);
+	const n = Number(v);
+	const safe = Number.isFinite(n) ? n : DEFAULT_VOLUME;
+	persistVolume(safe);
+	player?.setVolume(safe * 100);
 	// スライダーを 0 より大きくしたらミュート解除する (一般的なプレイヤー挙動、アイコンとも同期)。
-	if (v > 0 && muted.value) muted.value = false;
+	if (safe > 0 && muted.value) muted.value = false;
 });
 
 watch(muted, (m) => {
@@ -126,11 +142,11 @@ watch(muted, (m) => {
 });
 
 function toggleMute() {
-	// アイコンの表示条件 (muted || volume === 0) と一致させる。無音状態から 1 クリックで復帰させる。
-	const effectivelyMuted = muted.value || volume.value === 0;
+	// アイコンの表示条件 (muted || volumeNum === 0) と一致させる。無音状態から 1 クリックで復帰させる。
+	const effectivelyMuted = muted.value || volumeNum.value === 0;
 	if (effectivelyMuted) {
 		// ミュート解除。音量が 0 のままだと無音になるので保存値 or 既定へ戻す。
-		if (volume.value === 0) volume.value = savedVolume() ?? DEFAULT_VOLUME;
+		if (volumeNum.value === 0) volume.value = savedVolume() ?? DEFAULT_VOLUME;
 		muted.value = false;
 	} else {
 		muted.value = true;
@@ -237,7 +253,7 @@ async function createPlayer() {
 	// setVolume は 0-100 スケール (volume ref は 0-1)。setMute で UI 状態に同期する。
 	// 初回は muted=true (autoplay policy 準拠)、unmute 後の再接続 (destroy→create) では
 	// muted=false / 保持音量が復元されて音が戻る。
-	player.setVolume(volume.value * 100);
+	player.setVolume(volumeNum.value * 100);
 	player.setMute(muted.value);
 
 	player.on('stateChanged', ({ newstate }) => {
@@ -332,11 +348,33 @@ onBeforeUnmount(async () => {
 	pointer-events: none;
 }
 
+// 配信者が設定したオフライン画像。OvenPlayer 内部のエラー UI が透けて見えないよう
+// inset:0 + z-index で最前面に置く (修正3)。
+.offlineImageOverlay {
+	position: absolute;
+	inset: 0;
+	z-index: 10;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #000;
+	pointer-events: none;
+}
+
+.offlineImage {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
 .controls {
 	position: absolute;
 	left: 0;
 	right: 0;
 	bottom: 0;
+	// .offlineImageOverlay (z-index: 10) より確実に前面へ出す。オフライン画像表示中も
+	// ミュート/フルスクリーン操作を維持するため。
+	z-index: 20;
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -364,5 +402,28 @@ onBeforeUnmount(async () => {
 
 .spacer {
 	flex: 1;
+}
+
+// タッチ/coarse pointer 環境 (スマホ等): hover が無く onMouseenter/onMousemove の
+// オートハイドが機能しないため、controls を常時表示にする。PC (hover: hover) は
+// 既存のオートハイド挙動を維持するため、このブロックの外側には一切影響しない (修正2)。
+@media (hover: none) {
+	.controls {
+		opacity: 1;
+		pointer-events: auto;
+	}
+
+	.controlButton {
+		width: 44px;
+		height: 44px;
+	}
+
+	.volumeSeekbar {
+		width: 140px;
+		// MkMediaRange 側の --thumbSize / --sliderBg は自身の CSS Modules スコープ
+		// (.controlsSeekbar) で定義されるが、同一要素に付与される class なので
+		// カスタムプロパティとして上書きできる (タッチ操作の当たり判定を拡大)。
+		--thumbSize: 26px;
+	}
 }
 </style>
