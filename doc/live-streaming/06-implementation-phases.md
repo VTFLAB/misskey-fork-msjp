@@ -99,24 +99,24 @@ graph LR
 | ID | Phase | Work Item | 状態 | 依存 |
 |---|---|---|---|---|
 | WI-0.1 | 0 | PVE2 LXC 作成 + Docker インストール | [x] | なし |
-| WI-0.2 | 0 | OME コンテナ起動 + Server.xml 初期版 (AdmissionWebhooks 無効) | [x] | WI-0.1 |
-| WI-0.3 | 0 | シークレット生成 + config 対応表確定 | [x] | WI-0.2 |
-| WI-0.4 | 0 | LAN 内疎通検証 (a)〜(d) + 未確定事項 1,2,4,5,7 の実機解消 | [x] | WI-0.3 |
+| WI-0.2 | 0 | OME コンテナ起動 + Server.xml 初期版 (WHIP-only, SignedProvider 有効, AdmissionWebhooks コメントアウト) | [x] | WI-0.1 |
+| WI-0.3 | 0 | シークレット生成 + config 対応表確定 (SignedPolicy必須、AdmissionWebhooksオプション) | [x] | WI-0.2 |
+| WI-0.4 | 0 | LAN 内疎通検証 (a)〜(d) + 未確定事項 1,2,4,5,7 の実機解消 (WHIP-only 決定含む) | [x] | WI-0.3 |
 | WI-0.5 | 0 | **[BLOCKING/人間承認] WAN 公開 (OPNsense NAT/HAProxy/DNS)** | [ ] | WI-0.4、ユーザー承認 |
 | WI-1.1 | 1 | `live_channel` entity + migration + 登録4点セット + CoreModule登録 | [x] | なし |
 | WI-1.2 | 1 | `LiveChannelService` 実装 (create/update/regenerateStreamKey/show/pack) | [x] | WI-1.1 |
 | WI-1.3 | 1 | API endpoint 5本 (`live-channels/*`) + misskey-js 再生成 | [x] | WI-1.2 |
 | WI-1.4 | 1 | i18n (`_liveChannel`) + e2e (`live-channel.ts`) | [x] | WI-1.3 |
-| WI-2.1 | 2 | `config.ts` に `ome` ブロック追加 (Source/Config/解決ロジック) | [ ] | Phase 0, 1 完了 |
+| WI-2.1 | 2 | `config.ts` に `ome` ブロック追加 (Source/Config/解決ロジック、WHIP-only) | [ ] | Phase 0, 1 完了 |
 | WI-2.2 | 2 | `OmeApiService` (REST API クライアント) + `LiveLoggerService` | [ ] | WI-2.1 |
-| WI-2.3 | 2 | `OmeServerService` (`/ome/admission` raw route + HMAC検証) | [ ] | WI-2.2 |
-| WI-2.4 | 2 | `OmeAdmissionService` (判定ロジック) + 通知 `liveStreamStarted` 7点セット | [ ] | WI-2.3 |
+| WI-2.3 | 2 | `OmeServerService` (`/ome/admission` raw route + HMAC検証) — optional / deferred | [ ] | WI-2.2 |
+| WI-2.4 | 2 | `OmeAdmissionService` (判定ロジック) + 通知 `liveStreamStarted` 7点セット — optional / deferred | [ ] | WI-2.3 |
 | WI-2.5 | 2 | セッション統合 migration (`twitch_stream.source`) + 既存サービスへのガード追加 | [ ] | WI-1.1 |
-| WI-2.6 | 2 | `LiveChannelService.generateIngestUrls()` + ingest URL を返す endpoint の確定・実装 | [ ] | WI-2.2, WI-1.3 |
-| WI-2.7 | 2 | `OmeStreamMonitorService` (ポーリング・遮断・自己修復) | [ ] | WI-2.4, WI-2.5 |
+| WI-2.6 | 2 | WHIP-only ingest URL 生成 (`LiveChannelService.generateIngestUrls()`) + `live-channels/my` 接続 | [ ] | WI-2.2, WI-1.3 |
+| WI-2.7 | 2 | `OmeStreamMonitorService` (ポーリング・遮断・自己修復) | [ ] | WI-2.5, WI-2.6 |
 | WI-2.8 | 2 | `twitch/streams/show` の `sessions` 配列拡張 + misskey-js 再生成 | [ ] | WI-2.5 |
-| WI-2.9 | 2 | e2e (`ome-admission.ts`) + `check-migrations` | [ ] | WI-2.4, WI-2.5, WI-2.7, WI-2.8 |
-| WI-2.10 | 2 | AdmissionWebhooks 有効化 (Server.xml 反映、01 §6(e)) | [ ] | WI-2.3, WI-0.2 |
+| WI-2.9 | 2 | e2e (`ome-admission.ts` optional) + `check-migrations` | [ ] | WI-2.5, WI-2.6, WI-2.7, WI-2.8 |
+| WI-2.10 | 2 | AdmissionWebhooks 有効化 (Server.xml 反映、01 §6(e)) — optional / future, no longer blocking | [ ] | WI-2.3, WI-0.2 |
 | WI-3.1 | 3 | `live-stream.vue` データ取得層改修 (`reload()`) + 3状態分岐 | [x] | WI-1.3 |
 | WI-3.2 | 3 | `live-stream.channel-home.vue` 新設 (バナー/名前/説明/フォロー/タイムライン) | [x] | WI-3.1 |
 | WI-3.3 | 3 | `/settings/live-channel` 設定ページ新設 + router 登録 | [x] | WI-1.3, WI-2.6 |
@@ -167,9 +167,9 @@ graph LR
 
 - 参照節: 01 §5
 - 触るファイル: なし (値のメモのみ。`.config/default.yml` への実反映は WI-2.1/WI-5.4)
-- 完了条件: API AccessToken / AdmissionWebhooks SecretKey / SignedPolicy SecretKey の 3 種を個別に生成し、
-  Server.xml (該当箇所) に反映済み。3 値を後続 Phase 2 実装者に引き継げる形で記録済み (プロジェクトの
-  秘密情報の扱いは CLAUDE.md §7 に従う — 平文でリポジトリにコミットしない)
+- 完了条件: API AccessToken / SignedPolicy SecretKey の 2 種を個別に生成し、Server.xml (該当箇所) に反映済み。
+  AdmissionWebhooks SecretKey はオプションのため将来有効化時に生成してよい。生成した値を後続 Phase 2 実装者に
+  引き継げる形で記録済み (プロジェクトの秘密情報の扱いは CLAUDE.md §7 に従う — 平文でリポジトリにコミットしない)
 - コミット単位: なし
 
 ### WI-0.4: LAN 内疎通検証 + 未確定事項の実機解消
@@ -179,32 +179,32 @@ graph LR
   (実測値の反映)
 - 完了条件:
   - (a) REST API 応答確認: `statusCode:200` かつ空配列レスポンス
-  - (b) OBS → RTMP ingest: ストリーム一覧に反映される
+  - (b) OBS → WHIP ingest: ストリーム一覧に反映される
   - (c) WebRTC 再生確認: OvenPlayer デモページ等で映像・音声が数百ms遅延で再生される
   - (d) `bitrateLatest`/`bitrateAvg`/`bitrateConf`/`bitrate` の実測記録が取得され、**未確定事項#4 (どのフィールドが
     瞬間実測値か) が確定**している
   - 追加で以下を実機確認し 00-overview.md §5 の該当行を更新する:
-    - 未確定事項#1: `Server.xml` の `SignedPolicy/Enables/Providers` に `webrtc`/`srt` を設定して起動エラーが
-      出ないか (パーサが受理するか)。受理されない場合は 03 §6 の縮退手順 (`rtmp` のみに変更) を適用したことを
-      記録する
+    - 未確定事項#1: `Server.xml` の `SignedPolicy/Enables/Providers` に `webrtc` を設定して WHIP ingest に
+      SignedPolicy 署名検証が効くことを確認する (無署名 401、署名あり通過)
     - 未確定事項#2: `GET /v1/stats/current/vhosts/{vhost}/apps/{app}/streams/{stream}` のレスポンスに
       `totalConnections` 相当のキーが実在するか (キー名を記録)
-    - 未確定事項#5: OBS の WHIP 出力設定で Bearer Token 欄と SignedPolicy の `policy`/`signature` クエリを
-      併用できるか。不可なら 03 §6 で既に採用済みの「query 直付け」方式のままでよいことを確認するのみ
+    - 未確定事項#5: OBS の WHIP 出力設定で Bearer Token 欄を空にし、SignedPolicy の `policy`/`signature`
+      クエリを URL に付与する方式が動作するか
     - 未確定事項#7: 負荷試験の初期値 (Phase 0 時点では厳密な上限測定はしない。`docker stats ome` を配信中に
       実行し、ベースライン値を記録するのみ — 本格負荷試験は WI-5.1)
 - コミット単位: 1コミット。`doc/live-streaming/00-overview.md` の未確定事項表 (§5) と `01-infra-ome-setup.md`
   の該当箇所 (Server.xml のコメント、config 対応表) を実測値で更新するのみ (docs commit)。
-- **2026-07-14 完了メモ**: 全項目 (a)〜(d) + 未確定事項 #1,2,4,7 を実機解消済。#5 は Phase 0 で
-  SignedPolicy 無効化していたため未検証 → Phase 2 (WI-2.10) で SignedPolicy 有効化時に確認。
+- **2026-07-14 完了メモ**: 全項目 (a)〜(d) + 未確定事項 #1,2,4,5,7 を実機解消済。
   (b)(c) はユーザーが OBS + OvenPlayer デモページで実機確認 (FQDN `ome.msjp-local.org` 経由)。
   (d) は 2 回取得で `bitrateLatest` = 瞬間実測値、`bitrateAvg` = 移動平均、`bitrateConf`/`bitrate` =
   OBS 設定値 (不変) と確定。`OmeStreamMonitorService` は `bitrateLatest` 使用で確定。
   docker stats: CPU 3.68% / MEM 16MiB (1配信1視聴者)。00-overview §5 + 01 §6(d) に実測値反映済。
+  **重要な発見**: RTMP ingest では AAC 音声が OME の WebRTC Publisher に無視され音声が出なかった。
+  WHIP ingest (Opus) では映像・音声ともに正常に Bypass 視聴できた。この結果、本設計を WHIP-only に変更し
+  RTMP/SRT ingest を廃止 (00-overview.md D3 / 01 §4 Server.xml / 03 §6 / 04 §5.4 参照)。
   **Server.xml 備考**: Phase 0 検証中は SignedPolicy/AdmissionWebhooks 両方コメントアウト
-  (認可なしオープン構成)。Phase 2 で SignedPolicy を有効化する際は §4 のコメントを外す。
-  また `TcpRelayForce` 要素は OME v0.20.5 で未サポート (XML パースエラー) のため削除済 —
-  01 §4 の Server.xml からも該当行を除去済。
+  (認可なしオープン構成)。SignedPolicy の WHIP Provider 適用は Phase 0 追加検証で確認済
+  (00-overview.md 未確定事項 #1 解消)。AdmissionWebhooks はオプションのまま運用可能。
 
 ### WI-0.5: [BLOCKING] WAN 公開
 
@@ -325,9 +325,9 @@ graph LR
 
 - 参照節: 03 §1 (1-1〜1-3)
 - 触るファイル: `packages/backend/src/config.ts` (差分、3箇所: Source型/Config型/解決ロジック)
-- 完了条件: `.config/default.yml` に `ome:` を書かない状態で `config.ome === undefined` になること、必須7項目
-  (`apiUrl`/`apiToken`/`admissionSecret`/`signedPolicySecret`/`publicSignallingUrl`/`publicRtmpUrl`/
-  `publicSrtUrl`) を揃えた状態で `config.ome` が解決されデフォルト値 (`vhost:'default'` 等) が適用されること。
+- 完了条件: `.config/default.yml` に `ome:` を書かない状態で `config.ome === undefined` になること、必須4項目
+  (`apiUrl`/`apiToken`/`signedPolicySecret`/`publicWhipUrl`) を揃えた状態で `config.ome` が解決され
+  デフォルト値 (`vhost:'default'` 等) が適用されること。`admissionSecret` は AdmissionWebhooks 有効化時のオプション。
   ユニットテストが無ければ `node -e` 相当の簡易スクリプトか既存 `twitch` config のテストパターンに倣ったテストを
   追加する
 - コミット単位: 1コミット (`feat(ome): config.ts に ome ブロックを追加`)
@@ -342,7 +342,7 @@ graph LR
   `getStream`/`listStreams` が返すことを手動確認する
 - コミット単位: 1コミット (`feat(ome): OmeApiService を追加`)
 
-### WI-2.3: `OmeServerService` (`/ome/admission` raw route)
+### WI-2.3: `OmeServerService` (`/ome/admission` raw route) — optional / deferred
 
 - 参照節: 03 §3
 - 触るファイル:
@@ -352,11 +352,13 @@ graph LR
 - 完了条件: `POST /ome/admission` が raw body + `X-OME-Signature` (HMAC-SHA1, base64url) を検証し、署名不正なら
   `403`、正しければ `OmeAdmissionService.decideOpening`/`handleClosing` を呼ぶ (この時点では WI-2.4 未実装なら
   スタブでよいが、本 WI の完了条件には含めない — WI-2.4 で結線する)
+- **ステータス: optional / deferred**。Phase 2 では SignedPolicy が WHIP Provider 認可を完結させるため、
+  AdmissionWebhooks は必須ではない。将来的なライフサイクル通知・ブラックリスト連携で必要になったら実装する。
 - コミット単位: 1コミット (`feat(ome): OmeServerService (/ome/admission) を追加`)。`OmeAdmissionService` への
   依存は WI-2.4 と同時にまとめてコミットしてもよい (raw route 単体では動作確認できないため、実務上は WI-2.3
   と WI-2.4 を1セッションで通しで実装し、コミットは機能単位で分けることを推奨)。
 
-### WI-2.4: `OmeAdmissionService` + 通知 `liveStreamStarted`
+### WI-2.4: `OmeAdmissionService` + 通知 `liveStreamStarted` — optional / deferred
 
 - 参照節: 03 §4 (判定ロジック本体)、§4「通知 type の新設」(7箇所)
 - 触るファイル:
@@ -370,7 +372,8 @@ graph LR
   - `packages/backend/src/core/CoreModule.ts` (差分、`OmeAdmissionService` の4箇所登録)
 - 完了条件: 03 §9-1 の e2e ケース 1〜7 (署名不正・未知キー拒否・正常opening・closing・ブラックリスト・多重配信
   防止・outgoing常時許可) が pass する (WI-2.9 で正式にテストファイル化するが、本 WI 完了時点で手動 curl
-  (03 §9-2) で疎通確認しておくこと)。`pnpm build-misskey-js-with-types` 実行済み
+  (03 §9-2) で疎通確認しておくこと)。`pnpm build-misskey-js-with-types` 実行済み。
+  **ただし Phase 2 のブロッカーではない**: SignedPolicy があるため AdmissionWebhooks なしでも認可は完結する。
 - コミット単位: 2コミット目安 (`feat(ome): OmeAdmissionService と admission 判定ロジックを追加` /
   `feat(notification): liveStreamStarted 通知タイプを追加`)。通知追加は影響ファイルが多いため分離を推奨。
 
@@ -392,9 +395,9 @@ graph LR
 ### WI-2.6: `generateIngestUrls()` + ingest URL を返す endpoint の確定
 
 **endpoint は確定済み (本書 §11 整合性課題#1 の裁定、02/03 に反映済み)**: `live-channels/my` (secure:true、
-所有者専用) のレスポンスに `streamKey`/`rtmpUrl`/`srtUrl`/`whipUrl` を含める (02 §5-5 の res スキーマ)。
-URL 3 種は 03 §6 の `LiveChannelService.generateIngestUrls()` を `my.ts` のハンドラ内から呼んで組み立てる
-(`pack()` には入れない — pack は公開情報用)。`config.ome` 未設定時は URL 3 種を null で返す (streamKey は返す)。
+所有者専用) のレスポンスに `streamKey`/`whipUrl` を含める (02 §5-5 の res スキーマ)。
+`whipUrl` は 03 §6 の `LiveChannelService.generateIngestUrls()` を `my.ts` のハンドラ内から呼んで組み立てる
+(`pack()` には入れない — pack は公開情報用)。`config.ome` 未設定時は `whipUrl` を null で返す (streamKey は返す)。
 新規 endpoint (`live-channels/ingest-urls` 等) は新設しない。
 
 - 参照節: 03 §6 (`generateIngestUrls`/`signUrl`/`base64UrlEncode` の実装)、02 §5-5 (res スキーマと段階実装
@@ -404,11 +407,11 @@ URL 3 種は 03 §6 の `LiveChannelService.generateIngestUrls()` を `my.ts` �
     `base64UrlEncode` 追加)
   - `packages/backend/src/server/api/endpoints/live-channels/my.ts` (差分、ハンドラで `generateIngestUrls()`
     を接続し null 固定を解除)
-  - `packages/misskey-js/src/autogen/` (再生成)
-- 完了条件: `config.ome` が設定された環境で、owner が呼んだ場合に RTMP/SRT/WHIP の3種URL (SignedPolicy署名
-  付き、ポート明示) が返ること。`config.ome` 未設定時は URL 3 種が null で返り、エラーにならないこと
-  (縮退方式の踏襲。streamKey は返す)
-- コミット単位: 1コミット (`feat(ome): ingest URL 生成と配信サーバー情報 API を追加`)
+  - `packages/misskey-js/src/autogen/` (自動生成)
+- 完了条件: `config.ome` が設定された環境で、owner が呼んだ場合に SignedPolicy 署名付き WHIP URL が返り、
+  その URL で OME の WHIP Provider に接続可能であること。未設定環境では `whipUrl` が null になること
+  (ただし `streamKey` は返る)
+- コミット単位: 1コミット (`feat(ome): WHIP ingest URL 生成を live-channels/my に接続`)
 
 ### WI-2.7: `OmeStreamMonitorService`
 
@@ -610,10 +613,12 @@ URL 3 種は 03 §6 の `LiveChannelService.generateIngestUrls()` を `my.ts` �
 - 手順:
   1. OBS 設定値 (LAN内検証、WI-0.5 未実施なら LAN 内のみ):
      - サービス: カスタム
-     - サーバー: `rtmp://ome.msjp-local.org:1935/live` (WAN公開後は `config.ome.publicRtmpUrl` の値)
-     - ストリームキー: `/settings/live-channel` で確認した自分の streamKey (WI-2.6 で確定した取得経路から取得)
+     - サービス: WHIP (OBS v30 以降の WHIP 出力を使用)
+     - サーバー: `/settings/live-channel` で確認した自分の `whipUrl` (WI-2.6 で確定した取得経路から取得)
+     - Bearer Token: 空 (SignedPolicy の `policy`/`signature` クエリで認可)
      - 映像ビットレート: 3000kbps 前後 (上限ちょうどのテストは意図的に 3300kbps 程度に上げて遮断挙動を確認)
      - 音声ビットレート: 128kbps 前後
+     - 音声コーデック: Opus (WHIP/WebRTC では AAC が無視される — 00-overview.md D3・01 §6(d) 参照)
   2. OBS で配信開始 → `/live/:acct` を別ブラウザで開き、状態1 (ライブ中) に遷移することを確認
   3. フォロー中の別ユーザーで通知 (`liveStreamStarted`) が届くことを確認
   4. 意図的に映像ビットレートを 3300kbps (3000×1.1超) に上げ、30秒後に強制切断されることを確認
@@ -693,9 +698,9 @@ URL 3 種は 03 §6 の `LiveChannelService.generateIngestUrls()` を `my.ts` �
 |---|---|---|
 | `apiUrl` | `<Managers><API>` の待受アドレス (`http://<ome-host>:8081`) | 01 §5.2, 03 §2 |
 | `apiToken` | `<Managers><API><AccessToken>` | Basic認証、コロン無しでトークン文字列そのものをbase64化 (01 §5.1, 03 §2の罠注記) |
-| `admissionSecret` | `<VirtualHost><AdmissionWebhooks><SecretKey>` | HMAC-SHA1署名検証キー (01 §5.2 #2, 03 §3) |
-| `signedPolicySecret` | `<VirtualHost><SignedPolicy><SecretKey>` | HMAC-SHA1署名生成キー (01 §5.2 #3, 03 §6) |
-| `publicSignallingUrl`/`publicRtmpUrl`/`publicSrtUrl` | Server.xml 側には対応項目なし (公開URLはOPNsense/HAProxy/DNSの結果) | ポート番号を含む文字列で保持すること (03 §6 の罠) |
+| `signedPolicySecret` | `<VirtualHost><SignedPolicy><SecretKey>` | HMAC-SHA1署名生成・検証キー (01 §5.2 #2, 03 §6) |
+| `publicWhipUrl` | Server.xml 側には対応項目なし (公開URLはOPNsense/HAProxy/DNSの結果) | `http://stream.msjp.pro:3333` 等、ポートを含む文字列で保持 (03 §6 の罠) |
+| `admissionSecret` (オプション) | `<VirtualHost><AdmissionWebhooks><SecretKey>` | 将来 AdmissionWebhooks 有効化時に使用 (01 §5.2 #3, 03 §3) |
 | `vhost` (デフォルト`'default'`) | `<VirtualHost><Name>` | 01 Server.xml では `default` 固定 |
 | `app` (デフォルト`'live'`) | `<Application><Name>` | 01 Server.xml では `live` 固定 |
 | `maxVideoBitrate`/`maxAudioBitrate` | Server.xml側に対応項目なし (OMEに帯域制限機能が無いため、Misskey側のポーリング判定のみで使う) | 03 §7 の `OmeStreamMonitorService` が参照 |
@@ -705,7 +710,7 @@ URL 3 種は 03 §6 の `LiveChannelService.generateIngestUrls()` を `my.ts` �
 | API | 04 (frontend) での用途 | 状態 |
 |---|---|---|
 | `live-channels/show` (`{userId}` → チャンネル設定) | 04 §3.1 でチャンネルメタ (name/description/banner/enabled 等) の取得元として使われる。ライブ状態は返さず、`channelState` は `twitch/streams/show` の `sessions` から導出する | 一致 (整合性課題#3 解消済) |
-| `live-channels/my` (`{}` → `{channel, streamKey, rtmpUrl, srtUrl, whipUrl}`) | 04 §5.4 で「配信サーバーURL/ストリームキー」表示のデータ源 | 一致 (整合性課題#1 解消済 — 02 §5-5 で res 拡張。URL 3種は WI-2.6 で `generateIngestUrls` を接続するまで null 固定) |
+| `live-channels/my` (`{}` → `{channel, streamKey, whipUrl}`) | 04 §5.4 で「配信サーバーURL/ストリームキー」表示のデータ源 | 一致 (整合性課題#1 解消済 — 02 §5-5 で res 拡張。whipUrl は WI-2.6 で `generateIngestUrls` を接続するまで null 固定) |
 | `live-channels/create`/`update`/`regenerate-key` | 04 §5.2/§5.4 の設定ページトグル・保存・再生成ボタンから直接呼ばれる | 一致 (02 の endpoint 定義どおり frontend が使う) |
 
 ### 9.3 03 ↔ 05: `sessions` 配列のレスポンス形状
@@ -728,7 +733,7 @@ URL 3 種は 03 §6 の `LiveChannelService.generateIngestUrls()` を `my.ts` �
 
 | 出典 | 項目 | 解消する WI |
 |---|---|---|
-| 00-overview §5 #1 | SignedPolicy の webrtc/srt Provider 対応可否 | WI-0.4 (実機検証)、縮退実装は既に03 §6で完了済み |
+| 00-overview §5 #1 | SignedPolicy の WHIP Provider 対応可否 | WI-0.4 (実機検証済、WHIP-only 決定済) |
 | 00-overview §5 #2 | OSS v1統計APIでの視聴者数取得可否 (`totalConnections`) | WI-0.4 (実機検証)。Redis INCR/DECR方式は03 §4で実装済みのため必須ではない |
 | 00-overview §5 #3 | WHEP egress対応 | 解消済み (未実装確認済み、対応不要) |
 | 00-overview §5 #4 | `bitrateLatest`/`bitrateAvg` の実挙動 | WI-0.4 (実機記録) → WI-2.7 (`OmeStreamMonitorService` の閾値判定ロジックに反映) |
@@ -750,14 +755,14 @@ URL 3 種は 03 §6 の `LiveChannelService.generateIngestUrls()` を `my.ts` �
 (2026-07-14 整合性修正パス: 下記 #1〜#4 はすべてオーケストレーター裁定により解消済。各項目末尾の「解消済」付記と、反映先の各文書を参照。)
 
 1. **`live-channels/my` の ingest URL フィールド欠落 (02 ↔ 03 ↔ 04)**: 04 §5.4 は `live-channels/my` が
-   `{streamKey, rtmpUrl, srtUrl, whipUrl, ...}` を返す前提で設定ページ (配信サーバー情報セクション) を設計して
+   `{streamKey, whipUrl, ...}` を返す前提で設定ページ (配信サーバー情報セクション) を設計して
    いるが、02 で確定した `live-channels/my`/`LiveChannelService.pack()` のレスポンスにこれらのフィールドは
    存在しない (`id`/`userId`/`enabled`/`name`/`description`/`bannerId`/`createdAt`/`streamKey`/
    `streamKeyRegeneratedAt`/`lastCutReason` のみ)。一方 03 §6 は `LiveChannelService.generateIngestUrls()` を
    定義しているが、**どの endpoint のレスポンスに含めるかを一切決めていない**。
    **→ 解消済 (裁定: `live-channels/my` 拡張)**: `live-channels/my` (secure:true、所有者専用) のレスポンスに
-   `streamKey`/`rtmpUrl`/`srtUrl`/`whipUrl` を含める。URL 3 種は 03 §6 の `generateIngestUrls()` を endpoint
-   ハンドラ内から呼んで組み立てる (`pack()` には入れない — pack は公開情報用)。`config.ome` 未設定時は URL 3 種を
+   `streamKey`/`whipUrl` を含める。`whipUrl` は 03 §6 の `generateIngestUrls()` を endpoint
+   ハンドラ内から呼んで組み立てる (`pack()` には入れない — pack は公開情報用)。`config.ome` 未設定時は `whipUrl` を
    null で返す (streamKey は返す)。反映先: 02 §5-5、03 §6、04 §5.4、本書 WI-2.6/§9.2。
 2. **`sessions` 配列のフィールド名・保持情報の不一致 (03 ↔ 05)**: 03 §8 で確定した `twitch/streams/show` の
    `sessions[]` は `{source, streamId, playbackUrl?, twitchLogin?}` のみを持つ (id フィールド名は `streamId`、
