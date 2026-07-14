@@ -1087,8 +1087,14 @@ OME調査 §3 の Node.js コードを fork のコード規約 (`@bindThis`、SP
 OME の SignedPolicy では HMAC-SHA1 署名対象 URL に **ポートを含む完全な URL** が必要 (OME調査 §3-3)。
 `config.ome.publicWhipUrl` は `http://stream.msjp.pro:3333` のようなポート込み文字列で設定する。
 
-**policy 内容**: `{ url_expire: <epoch_ms> }`。URL は配信開始時に Misskey が発行し、期限切れ後は
-OME 側で 401 拒否される。`url_expire` の有効期間は実装時に調整する (例: 24 時間)。
+**policy 内容**: `{ url_expire: <epoch_ms> }`。URL は配信開始時に Misskey が発行するが、
+**有効期限は実質無期限 (現在時刻 + 100年)** とする。理由: Misskey 設定画面でユーザーに
+WHIP URL を案内する都合上、短期期限では配信のたびに URL が変わりユーザーが再設定を
+強いられる。100年期限なら実用上は永続的に同じ URL で配信でき、ストリームキー
+(`streamKey`) の漏洩が疑われる場合はユーザーが手動で「ストリームキー再生成」
+(`regenerateStreamKey` endpoint) を実行することで SignedPolicy URL も更新される
+(旧キーの接続は OME REST DELETE で即時切断)。`url_expire` の実装値は
+`Date.now() + 100 * 365 * 24 * 60 * 60 * 1000` とする。
 
 ```ts
 	// generateIngestUrls: SignedPolicy 付き WHIP ingest URL を生成する (決定書 §2、00-overview.md D3)。
@@ -1096,7 +1102,7 @@ OME 側で 401 拒否される。`url_expire` の有効期間は実装時に調�
 	public generateIngestUrls(channel: MiLiveChannel, ome: NonNullable<Config['ome']>): {
 		whip: string;
 	} {
-		const urlExpireMs = Date.now() + 24 * 60 * 60 * 1000; // 24h (調整可)
+		const urlExpireMs = Date.now() + 100 * 365 * 24 * 60 * 60 * 1000; // 100 years (実質無期限)
 
 		return {
 			whip: this.signUrl({
