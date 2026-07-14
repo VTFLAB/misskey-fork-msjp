@@ -120,7 +120,11 @@ graph LR
 | WI-3.1 | 3 | `live-stream.vue` データ取得層改修 (`reload()`) + 3状態分岐 | [x] | WI-1.3 |
 | WI-3.2 | 3 | `live-stream.channel-home.vue` 新設 (バナー/名前/説明/フォロー/タイムライン) | [x] | WI-3.1 |
 | WI-3.3 | 3 | `/settings/live-channel` 設定ページ新設 + router 登録 | [x] | WI-1.3, WI-2.6 |
-| WI-3.4 | 3 | i18n (frontend専用キー) + 目視検証 (3状態×PC/モバイル/デッキ) | [~] | WI-3.2, WI-3.3 |
+| WI-3.4 | 3 | i18n (frontend専用キー) + 目視検証 (3状態×PC/モバイル/デッキ) | [x] | WI-3.2, WI-3.3 |
+| WI-3.5 | 3 | [追加] 視聴ページ `/live/:acct/stream` へのルート分離 | [x] | WI-3.1 |
+| WI-3.6 | 3 | [追加] YouTube ライクなタブ構成 (Home/Posts/Media) + チャンネルTL連携 | [x] | WI-3.2, WI-1.3 |
+| WI-3.7 | 3 | [追加] ライブインジケータ (アバター赤リング + 配信中バッジ) + リダイレクト廃止 | [x] | WI-3.5 |
+| WI-3.8 | 3 | [追加] TL リアルタイム更新 (MkStreamingNotesTimeline) + バナー/prepv修正 | [x] | WI-3.6 |
 | WI-4.1 | 4 | `ovenplayer` 依存追加 + `MkOmePlayer.vue` | [ ] | WI-2.8 |
 | WI-4.2 | 4 | `MkTwitchPlayer.vue` + `MkStreamPlayer.vue` | [ ] | WI-4.1 |
 | WI-4.3 | 4 | `live-stream.vue` セグメントトグル・チャット `streamId` 追従統合 | [ ] | WI-4.2, WI-3.1 |
@@ -511,11 +515,23 @@ URL 3 種は 03 §6 の `LiveChannelService.generateIngestUrls()` を `my.ts` �
     null-channel→`create`、disabled-channel→`update({enabled:true})` のトグル切り替えを実装。
     `regenerate-key` の res は `pack()` 戻り値 (channel 全体) で `streamKey` を含むため `res.streamKey` から取得。
     バナー crop `aspectRatio: 3/1`。`router.definition.ts` に `/live-channel` ルート追加 (`/twitch` 直後)。
-  - **未完了 (次セッション引き継ぎ)**: 04 §8.2 の目視検証 14 項目 (3状態 × PC/モバイル/デッキ) は実機ブラウザ
-    確認が必要で本セッションでは未実施。`run`/`verify` skill または手動でブラウザを開いて確認すること。
-    特に (1) 状態2 でバナー+アバター重ね配置が正しいか、(2) 状態1 の `hideDeckNav` が true で状態2/3 は false
-    か、(3) デッキ `MkPageWindow` 内で `100cqh` レイアウト崩れがないか、(4) `/settings/live-channel` が
-    SearchMarker にヒットするか、(5) トグル ON→OFF→ON で streamKey 欄が出現/消失するか。
+  - **目視検証完了 (2026-07-14)**: 本番 `mi.msjp.pro` デプロイ後、ユーザーが実機で確認。全項目パス。
+    ローカル dev 環境は podman user namespace 制限で DB コンテナが起動できなかったため、Phase 1 + 3
+    をまとめて本番デプロイして検証する方針に切り替えた (CI/CD → auto-update 5分以内)。
+  - **Phase 3 追加作業 (WI-3.5〜3.8)**: 本番検証で発見した課題を追加実装:
+    - WI-3.5: 視聴ページを `/live/:acct/stream` に分離 (`live-stream.watch.vue` 新設)。
+      チャンネルホームと視聴ページが同じルートで衝突する問題を解消。
+    - WI-3.6: チャンネルホームを YouTube ライクな3タブ構成 (Home/Posts/Media) に再編。
+      `live_channel` と Misskey `channel` (community TL) を `channelId` で紐付け、
+      Posts タブで `channels/timeline` を利用。Media タブは添付メディアのグリッド表示。
+      migration `1783986075195-AddChannelIdToLiveChannel.js` 追加。
+    - WI-3.7: 配信中の `/stream` リダイレクトを廃止。チャンネルホームにライブインジケータ
+      (アバター赤リング + 配信中バッジ + 配信を見るボタン) を表示。
+    - WI-3.8: Posts タブを `MkStreamingNotesTimeline` に変更し WebSocket でリアルタイム更新。
+      設定画面バナープレビューを `channel.bannerUrl` 直接参照に修正。
+      ライブバッジをアバター下に独立配置して重なりを解消。
+      `LiveChannelService.show()` に `channelId` lazy 初期化を追加 (既存行の自動修復)。
+      `pack()` に `bannerUrl` 解決を追加 (DriveFile から URL 生成)。
 
 ---
 
