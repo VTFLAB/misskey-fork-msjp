@@ -107,15 +107,15 @@ graph LR
 | WI-1.2 | 1 | `LiveChannelService` 実装 (create/update/regenerateStreamKey/show/pack) | [x] | WI-1.1 |
 | WI-1.3 | 1 | API endpoint 5本 (`live-channels/*`) + misskey-js 再生成 | [x] | WI-1.2 |
 | WI-1.4 | 1 | i18n (`_liveChannel`) + e2e (`live-channel.ts`) | [x] | WI-1.3 |
-| WI-2.1 | 2 | `config.ts` に `ome` ブロック追加 (Source/Config/解決ロジック、WHIP-only) | [ ] | Phase 0, 1 完了 |
-| WI-2.2 | 2 | `OmeApiService` (REST API クライアント) + `LiveLoggerService` | [ ] | WI-2.1 |
+| WI-2.1 | 2 | `config.ts` に `ome` ブロック追加 (Source/Config/解決ロジック、WHIP-only) | [x] | Phase 0, 1 完了 |
+| WI-2.2 | 2 | `OmeApiService` (REST API クライアント) + `LiveLoggerService` | [x] | WI-2.1 |
 | WI-2.3 | 2 | `OmeServerService` (`/ome/admission` raw route + HMAC検証) — optional / deferred | [ ] | WI-2.2 |
 | WI-2.4 | 2 | `OmeAdmissionService` (判定ロジック) + 通知 `liveStreamStarted` 7点セット — optional / deferred | [ ] | WI-2.3 |
-| WI-2.5 | 2 | セッション統合 migration (`twitch_stream.source`) + 既存サービスへのガード追加 | [ ] | WI-1.1 |
-| WI-2.6 | 2 | WHIP-only ingest URL 生成 (`LiveChannelService.generateIngestUrls()`) + `live-channels/my` 接続 | [ ] | WI-2.2, WI-1.3 |
-| WI-2.7 | 2 | `OmeStreamMonitorService` (ポーリング・遮断・自己修復) | [ ] | WI-2.5, WI-2.6 |
-| WI-2.8 | 2 | `twitch/streams/show` の `sessions` 配列拡張 + misskey-js 再生成 | [ ] | WI-2.5 |
-| WI-2.9 | 2 | e2e (`ome-admission.ts` optional) + `check-migrations` | [ ] | WI-2.5, WI-2.6, WI-2.7, WI-2.8 |
+| WI-2.5 | 2 | セッション統合 migration (`twitch_stream.source`) + 既存サービスへのガード追加 | [x] | WI-1.1 |
+| WI-2.6 | 2 | WHIP-only ingest URL 生成 (`LiveChannelService.generateIngestUrls()`) + `live-channels/my` 接続 | [x] | WI-2.2, WI-1.3 |
+| WI-2.7 | 2 | `OmeStreamMonitorService` (ポーリング・遮断・自己修復) | [x] | WI-2.5, WI-2.6 |
+| WI-2.8 | 2 | `twitch/streams/show` の `sessions` 配列拡張 + misskey-js 再生成 | [x] | WI-2.5 |
+| WI-2.9 | 2 | e2e (`ome-admission.ts` optional) + `check-migrations` | [x] | WI-2.5, WI-2.6, WI-2.7, WI-2.8 |
 | WI-2.10 | 2 | AdmissionWebhooks 有効化 (Server.xml 反映、01 §6(e)) — optional / future, no longer blocking | [ ] | WI-2.3, WI-0.2 |
 | WI-3.1 | 3 | `live-stream.vue` データ取得層改修 (`reload()`) + 3状態分岐 | [x] | WI-1.3 |
 | WI-3.2 | 3 | `live-stream.channel-home.vue` 新設 (バナー/名前/説明/フォロー/タイムライン) | [x] | WI-3.1 |
