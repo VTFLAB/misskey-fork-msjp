@@ -153,10 +153,10 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		to: '/settings/connect',
 		active: currentPage.value?.route.name === 'connect',
 	}, {
-		icon: 'ti ti-brand-twitch',
-		text: i18n.ts._twitch.twitchIntegration,
-		to: '/settings/twitch',
-		active: currentPage.value?.route.name === 'twitch',
+		icon: 'ti ti-broadcast',
+		text: i18n.ts._streaming.title,
+		to: '/settings/streaming',
+		active: currentPage.value?.route.name === 'streaming',
 	}, {
 		icon: 'ti ti-package',
 		text: i18n.ts._settings.accountData,
