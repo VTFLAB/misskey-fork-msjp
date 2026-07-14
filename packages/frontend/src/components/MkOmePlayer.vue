@@ -83,7 +83,11 @@ const STORAGE_KEY_VOLUME = 'omePlayerVolume';
 const STORAGE_KEY_MUTED = 'omePlayerMuted';
 
 const volume = ref(Number(miLocalStorage.getItem(STORAGE_KEY_VOLUME) ?? '1'));
-const muted = ref(miLocalStorage.getItem(STORAGE_KEY_MUTED) === 'true');
+// 起動は autoplay policy により必ず mute:true (createPlayer の config)。muted ref も true 起動で
+// player の実状態と一致させる (localStorage からの復元はしない — §7 / L198-200 の方針どおり)。
+// これを localStorage で初期化すると、前回 false 保存時に「オーバーレイをクリックしても
+// muted が既に false で watch(muted) が発火せず setMute(false) が呼ばれない」不具合になる。
+const muted = ref(true);
 
 watch(volume, (v) => {
 	miLocalStorage.setItem(STORAGE_KEY_VOLUME, String(v));
@@ -195,9 +199,9 @@ async function createPlayer() {
 	});
 
 	player.setVolume(volume.value);
-	// mute:true で起動するため、ユーザーが以前セッションでミュート解除していた状態を
-	// 即座に復元することはしない (ブラウザの autoplay policy に反するため)。
-	// showUnmuteOverlay が表示されている間は muted=true を維持する
+	// player の mute を UI 状態 (muted ref) に同期する。初回は muted=true (autoplay policy 準拠)、
+	// ユーザーが一度 unmute した後の再接続 (destroy→create) では muted=false が復元されて音が戻る。
+	player.setMute(muted.value);
 
 	player.on('stateChanged', ({ newstate }) => {
 		if (newstate === 'error' || newstate === 'stalled') {
