@@ -218,6 +218,14 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 		return await this.twitchStreamsRepository.findOneBy({ userId, isLive: true });
 	}
 
+	/**
+	 * 指定ユーザーの全ライブセッションを source に関わらず取得する (WI-2.8)。
+	 */
+	@bindThis
+	public async getAllLiveStreamsByUserId(userId: MiUser['id']): Promise<MiTwitchStream[]> {
+		return await this.twitchStreamsRepository.findBy({ userId, isLive: true });
+	}
+
 	@bindThis
 	public async getAllLiveStreams(): Promise<MiTwitchStream[]> {
 		return await this.twitchStreamsRepository.find({
