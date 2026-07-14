@@ -11,14 +11,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-else :class="$style.watch">
 			<div :class="$style.main">
 				<div :class="$style.playerContainer">
-					<!-- KeepAlive でページがキャッシュされても再生が続かないよう deactivate 中は iframe を落とす -->
-					<iframe
-						v-if="playerActive"
-						:src="playerUrl"
-						:class="$style.player"
-						allowfullscreen
-						allow="autoplay; fullscreen"
-					></iframe>
+					<MkStreamPlayer
+						v-if="activeSession != null"
+						:key="activeSession.streamId"
+						:source="activeSession.source"
+						:playbackUrl="activeSession.playbackUrl"
+						:twitchLogin="activeSession.twitchLogin"
+						:active="playerActive"
+					/>
+					<div v-if="showSourceToggle" :class="$style.sourceToggle">
+						<button class="_button" :class="[$style.sourceToggleButton, { [$style.sourceToggleButtonActive]: activeSource === 'ome' }]" @click="activeSource = 'ome'">{{ i18n.ts._liveChannel.selfStream }}</button>
+						<button class="_button" :class="[$style.sourceToggleButton, { [$style.sourceToggleButtonActive]: activeSource === 'twitch' }]" @click="activeSource = 'twitch'">Twitch</button>
+					</div>
 				</div>
 				<div :class="$style.info" class="_panel">
 					<div :class="$style.infoHeader">
@@ -49,7 +53,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</div>
 			<div :class="$style.chat">
-				<XChat :key="streamInfo.id" :streamId="streamInfo.id" :live="true" :returnTo="`/live/${props.acct}`" :canModerate="isOwner" @streamEnded="onStreamEnded"/>
+				<XChat v-if="activeSession != null" :key="activeSession.streamId" :streamId="activeSession.streamId" :live="true" :returnTo="`/live/${props.acct}`" :canModerate="isOwner" @streamEnded="onStreamEnded"/>
+				<XChat v-else-if="isPreview && streamInfo != null" :key="`preview-${streamInfo.id}`" :streamId="streamInfo.id" :live="false" :returnTo="`/live/${props.acct}`" :canModerate="isOwner" @streamEnded="onStreamEnded"/>
 			</div>
 		</div>
 	</div>
@@ -59,9 +64,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { computed, ref, watch, onMounted, onActivated, onDeactivated } from 'vue';
 import * as Misskey from 'misskey-js';
-import { hostname, url as serverUrl } from '@@/js/config.js';
+import { url as serverUrl } from '@@/js/config.js';
 import XChat from '@/pages/live-stream.chat.vue';
 import MkFollowButton from '@/components/MkFollowButton.vue';
+import MkStreamPlayer from '@/components/MkStreamPlayer.vue';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
@@ -85,18 +91,44 @@ const twitchInfo = ref<Misskey.Endpoints['twitch/streams/show']['res'] | null>(n
 // 実配信 (twitchInfo.stream) が始まった場合はそちらを優先する
 const previewStream = ref<Misskey.Endpoints['twitch/streams/preview']['res'] | null>(null);
 
+type StreamSession = {
+	source: 'twitch' | 'ome';
+	streamId: string;
+	isLive: boolean;
+	playbackUrl?: string;
+	twitchLogin?: string;
+};
+
 const streamInfo = computed(() => twitchInfo.value?.stream ?? previewStream.value ?? null);
 const isPreview = computed(() => twitchInfo.value?.stream == null && previewStream.value != null);
+const liveSessions = computed<StreamSession[]>(() => twitchInfo.value?.sessions?.filter(s => s.isLive) ?? []);
 
 // 自分の配信ページかどうか。配信者専用の設定メニュー (OBS オーバーレイ URL・
 // コメント読み上げ・配信ブロック管理) の表示条件
 const isOwner = computed(() => $i != null && user.value != null && $i.id === user.value.id);
 
 const channelState = computed<'live' | 'offline' | 'none'>(() => {
+	if (liveSessions.value.length > 0) return 'live';
 	if (twitchInfo.value?.stream != null) return 'live';
-	// Phase 2 will add sessions[] to twitchInfo; for now stream field is the live signal.
 	if (channelInfo.value != null && channelInfo.value.enabled) return 'offline';
 	return 'none';
+});
+
+const activeSource = ref<'ome' | 'twitch'>('ome');
+
+watch(liveSessions, (sessions) => {
+	if (sessions.length === 0) return;
+	const hasOme = sessions.some(s => s.source === 'ome');
+	const hasTwitch = sessions.some(s => s.source === 'twitch');
+	if (hasOme && !hasTwitch) activeSource.value = 'ome';
+	else if (!hasOme && hasTwitch) activeSource.value = 'twitch';
+}, { immediate: true });
+
+const activeSession = computed(() => liveSessions.value.find(s => s.source === activeSource.value) ?? liveSessions.value[0] ?? null);
+
+const showSourceToggle = computed(() => {
+	const sources = new Set(liveSessions.value.map(s => s.source));
+	return sources.size > 1;
 });
 
 async function openPreview() {
@@ -106,15 +138,6 @@ async function openPreview() {
 		os.alert({ type: 'error', text: err instanceof Error ? err.message : String(err) });
 	}
 }
-
-const playerUrl = computed(() => {
-	if (twitchInfo.value == null) return '';
-	const url = new URL('https://player.twitch.tv/');
-	url.searchParams.set('channel', twitchInfo.value.twitchLogin);
-	url.searchParams.set('parent', hostname);
-	url.searchParams.set('autoplay', 'true');
-	return url.toString();
-});
 
 async function reload() {
 	fetching.value = true;
@@ -313,6 +336,7 @@ definePage(() => ({
 .playerContainer {
 	// PC: 情報パネルの残りの縦幅いっぱいにプレイヤーを広げる (Twitch のシアターモード相当)。
 	// aspect-ratio は使わず、埋め込みプレイヤー自身が与えられた領域に合わせて描画する
+	position: relative;
 	flex: 1;
 	min-height: 0;
 	background: #000;
@@ -325,6 +349,38 @@ definePage(() => ({
 	height: 100%;
 	border: none;
 	display: block;
+}
+
+.sourceToggle {
+	position: absolute;
+	top: 12px;
+	right: 12px;
+	display: flex;
+	gap: 8px;
+	padding: 4px;
+	background: rgba(0, 0, 0, 0.6);
+	border-radius: var(--MI-radius);
+}
+
+.sourceToggleButton {
+	padding: 6px 12px;
+	border-radius: var(--MI-radius);
+	font-size: 0.85em;
+	font-weight: bold;
+	color: #fff;
+	background: transparent;
+
+	&:hover {
+		background: rgba(255, 255, 255, 0.15);
+	}
+}
+
+.sourceToggleButtonActive {
+	background: var(--MI_THEME-accent);
+
+	&:hover {
+		background: var(--MI_THEME-accent);
+	}
 }
 
 .info {
