@@ -14358,11 +14358,7 @@ export interface Locale extends ILocale {
          */
         "changeBanner": string;
         /**
-         * ストリームキー
-         */
-        "streamKey": string;
-        /**
-         * 配信ソフト (OBS 等) の設定に使用します。他人に知られると勝手に配信されるおそれがあるため、取り扱いに注意してください。
+         * 配信 URL が第三者に漏れた場合は再生成してください。再生成すると新しい WHIP URL が発行され、古い URL からの配信は無効になります。
          */
         "streamKeyDescription": string;
         /**
@@ -14410,21 +14406,37 @@ export interface Locale extends ILocale {
          */
         "hideKey": string;
         /**
-         * RTMP URLをコピー
-         */
-        "copyRtmpUrl": string;
-        /**
-         * SRT URLをコピー
-         */
-        "copySrtUrl": string;
-        /**
          * WHIP URLをコピー
          */
         "copyWhipUrl": string;
         /**
-         * ストリームキーをコピー
+         * WHIP URL には配信を認可する署名が含まれています。パスワードと同様に第三者へ共有しないでください。表示ボタンで内容を確認できます。
          */
-        "copyStreamKey": string;
+        "whipUrlDescription": string;
+        /**
+         * OBS でのセットアップ
+         */
+        "obsSetupTitle": string;
+        /**
+         * OBS の「設定 → 配信」を開き、サービスで「WHIP」を選択します。
+         */
+        "obsSetupStep1": string;
+        /**
+         * サーバーに上の WHIP URL をそのまま貼り付けます (ストリームキーは URL に含まれるため、キー欄は空のままで構いません)。
+         */
+        "obsSetupStep2": string;
+        /**
+         * Bearer Token は空欄のままにします (認可は URL に含まれる署名で行われます)。
+         */
+        "obsSetupStep3": string;
+        /**
+         * 「配信開始」を押すと、数秒後にチャンネルがライブ状態になります。
+         */
+        "obsSetupStep4": string;
+        /**
+         * 映像コーデックは H264、音声コーデックは Opus を使用してください。AAC 音声は再生されません。
+         */
+        "obsSetupCodecNote": string;
         /**
          * 最終再生成日時
          */
