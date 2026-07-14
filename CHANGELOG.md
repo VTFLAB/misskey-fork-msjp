@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Client
+- Enhance: 配信設定 (/settings/twitch と /settings/live-channel) を「配信」設定ページ (/settings/streaming) に統合 (bsky-fork 独自)。Twitch連携・MSJP配信(OME)・配信者ツール(TTS・コメント生成・ブロック・翻訳・OBSオーバーレイ) を1箇所に集約し、導線を整理。旧URLは新ページへリダイレクト
 - Fix: OME 視聴プレイヤー (MkOmePlayer) の音量コントロールを操作すると無音 (ミュート状態) になる不具合と、スピーカーアイコン・音量スライダー・実際の再生状態が同期しない不具合を修正 (bsky-fork 独自)。OvenPlayer の setVolume は 0-100 スケールなのに 0-1 の値をそのまま渡していたため、最大でも 1% 音量になっていた (*100 へ修正)。あわせてミュート解除は「保持している音量があれば復元、無ければ 50%」で有効化し (最大音量は耳への負担が大きいため)、音量は視聴ページ (acct) ごとに保持するようにした
 - Fix: OME 視聴プレイヤー (MkOmePlayer) で「タップして音声オン」オーバーレイをクリックしてもミュート解除されない不具合を修正 (bsky-fork 独自)。muted 状態を localStorage から初期化していたため、前回セッションで解除済みだと muted ref が既に false になり、クリックしても watch が発火せず setMute(false) が呼ばれていなかった。autoplay policy に合わせ常に mute:true 起動へ統一し、再接続時は player の mute を UI 状態へ同期するようにした
 - Fix: ライブチャンネル設定 (`/settings/live-channel`) の配信サーバー情報を WHIP 配信専用に整理 (bsky-fork 独自)。廃止済みの RTMP/SRT URL 欄と、WHIP URL に埋め込まれ単独では使わないストリームキー欄を削除。配信サーバーが正しく設定されていても「配信サーバーが未設定です」警告が出続けていた不具合 (RTMP/SRT が常に null で ingestReady 判定が成立しないため) を修正。WHIP URL は認可用の署名を含むためパスワード同様に既定でブラー表示 (表示トグル付き) にし、OBS のセットアップ手順案内を追加
