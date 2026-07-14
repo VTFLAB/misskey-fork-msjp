@@ -380,9 +380,14 @@ export const packedUserDetailedNotMeOnlySchema = {
 			type: 'object',
 			nullable: true, optional: true,
 			properties: {
-				twitchLogin: {
+				source: {
 					type: 'string',
 					nullable: false, optional: false,
+					enum: ['twitch', 'ome'],
+				},
+				twitchLogin: {
+					type: 'string',
+					nullable: true, optional: false,
 				},
 				title: {
 					type: 'string',

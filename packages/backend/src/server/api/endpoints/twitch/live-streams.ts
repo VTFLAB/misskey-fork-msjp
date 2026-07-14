@@ -14,7 +14,7 @@ export const meta = {
 	requireCredential: true,
 	kind: 'read:account',
 
-	description: '現在配信中の Twitch 連携ユーザーの一覧を返す (視聴者数の多い順)。',
+	description: '現在配信中のユーザーの一覧を返す (Twitch連携 + MSJP配信/OME)。',
 
 	res: {
 		type: 'array',
@@ -28,7 +28,8 @@ export const meta = {
 					optional: false, nullable: false,
 					ref: 'UserLite',
 				},
-				twitchLogin: { type: 'string', optional: false, nullable: false },
+				source: { type: 'string', optional: false, nullable: false, enum: ['twitch', 'ome'] },
+				twitchLogin: { type: 'string', optional: false, nullable: true },
 				title: { type: 'string', optional: false, nullable: false },
 				gameName: { type: 'string', optional: false, nullable: true },
 				viewerCount: { type: 'number', optional: false, nullable: false },
@@ -60,9 +61,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			return streams.flatMap(s => {
 				const user = userById.get(s.userId);
-				if (user == null || s.twitchLogin == null) return [];
+				if (user == null) return [];
 				return [{
 					user,
+					source: s.source,
 					twitchLogin: s.twitchLogin,
 					title: s.title,
 					gameName: s.gameName,

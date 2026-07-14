@@ -577,6 +577,7 @@ export class UserEntityService implements OnModuleInit {
 				moderationNote: iAmModerator ? (profile!.moderationNote ?? '') : undefined,
 				// Twitch 連携 (bsky-fork 独自): 配信中のみ非 null。ローカルユーザーのみ対象
 				twitchLive: user.host == null ? this.twitchStreamService.getLiveStreamByUserId(user.id).then(s => s == null ? null : {
+					source: s.source,
 					twitchLogin: s.twitchLogin,
 					title: s.title,
 					gameName: s.gameName,
