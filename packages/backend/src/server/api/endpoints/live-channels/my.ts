@@ -34,6 +34,8 @@ export const meta = {
 					description: { type: 'string', optional: false, nullable: true },
 					bannerId: { type: 'string', format: 'misskey:id', optional: false, nullable: true },
 					bannerUrl: { type: 'string', optional: false, nullable: true },
+					offlineImageId: { type: 'string', format: 'misskey:id', optional: false, nullable: true },
+					offlineImageUrl: { type: 'string', optional: false, nullable: true },
 					channelId: { type: 'string', format: 'misskey:id', optional: false, nullable: true },
 					createdAt: { type: 'string', format: 'date-time', optional: false, nullable: false },
 					streamKey: { type: 'string', optional: true, nullable: false },
