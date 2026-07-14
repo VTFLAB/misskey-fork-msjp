@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Client
+- Fix: OME 視聴プレイヤー (MkOmePlayer) で「タップして音声オン」オーバーレイをクリックしてもミュート解除されない不具合を修正 (bsky-fork 独自)。muted 状態を localStorage から初期化していたため、前回セッションで解除済みだと muted ref が既に false になり、クリックしても watch が発火せず setMute(false) が呼ばれていなかった。autoplay policy に合わせ常に mute:true 起動へ統一し、再接続時は player の mute を UI 状態へ同期するようにした
 - Fix: ライブチャンネル設定 (`/settings/live-channel`) の配信サーバー情報を WHIP 配信専用に整理 (bsky-fork 独自)。廃止済みの RTMP/SRT URL 欄と、WHIP URL に埋め込まれ単独では使わないストリームキー欄を削除。配信サーバーが正しく設定されていても「配信サーバーが未設定です」警告が出続けていた不具合 (RTMP/SRT が常に null で ingestReady 判定が成立しないため) を修正。WHIP URL は認可用の署名を含むためパスワード同様に既定でブラー表示 (表示トグル付き) にし、OBS のセットアップ手順案内を追加
 - Fix: コメント読み上げが Twitch 絵文字 (emote) と Misskey 絵文字 (Unicode 絵文字・カスタム絵文字) を読み上げていた問題を修正 (bsky-fork 独自)。Twitch 由来コメントは fragments の text フラグメントのみを抽出し emote を除外、Misskey/remote-guest 由来は toReadableText() で Unicode 絵文字も除去するようにした (カスタム絵文字 `:shortcode:` は従来から除去済み)
 - Fix: OBS 用コメントオーバーレイ (`/live/@username/overlay`) の不具合を修正 (bsky-fork 独自)。Misskey ユーザーの表示名に含まれるカスタム絵文字 (`:shortcode:`) が画像に解決されず、ショートコード文字列のまま表示されていた問題を解消し、コメント本文と同様に `<MkUserName>` で絵文字を展開するようにした。あわせてオーバーフロー時の自動スクロール追従が機能していなかった問題を修正し、コメントがコンテナ高さを超えるとスクロールして常に最新コメントが最下部に見えるようにした (OBS ブラウザソースは手動操作しないため無条件で最下部へ追従)。スクロールバーは OBS 配信画面に映らないよう非表示
