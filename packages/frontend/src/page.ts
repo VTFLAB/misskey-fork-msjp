@@ -18,6 +18,9 @@ export type PageMetadata = {
 	// zen UI の「デッキへ戻る」バナーを非表示にする (bsky-fork 独自)。
 	// フルスクリーンアプリ的な没入表示にしたいページ (配信視聴ページ等) が使う
 	hideDeckNav?: boolean;
+	// スマホのグローバルボトムナビ (ホーム/通知/ウィジェット) を非表示にする (bsky-fork 独自)。
+	// フルスクリーンアプリ的な没入表示にしたいページ (配信視聴ページ等) が使う
+	hideMobileFooter?: boolean;
 };
 
 type PageMetadataGetter = () => PageMetadata;

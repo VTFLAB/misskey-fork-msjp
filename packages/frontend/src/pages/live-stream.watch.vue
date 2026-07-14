@@ -19,6 +19,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						:twitchLogin="activeSession.twitchLogin"
 						:active="playerActive"
 						:pageKey="props.acct"
+						:offlineImageUrl="channelInfo?.offlineImageUrl ?? null"
 					/>
 					<div v-if="showSourceToggle" :class="$style.sourceToggle">
 						<button class="_button" :class="[$style.sourceToggleButton, { [$style.sourceToggleButtonActive]: activeSource === 'ome' }]" @click="activeSource = 'ome'">{{ i18n.ts._liveChannel.selfStream }}</button>
@@ -37,8 +38,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<span> · <MkTime :time="streamInfo.startedAt" mode="relative"/></span>
 							</div>
 						</div>
-						<!-- プレビュー中に実配信が始まったことを検知する手段が無いため、手動リロードで拾えるようにする (bsky-fork 独自) -->
-						<button v-if="isPreview" class="_button" :class="$style.streamerSettingsButton" :title="i18n.ts.reload" :aria-label="i18n.ts.reload" @click="reload">
+						<!-- 視聴者含む全ユーザーが任意にページを再取得できるようにする。プレビュー中は
+						実配信が始まったことを検知する手段が無いため、これで拾えるようにする (bsky-fork 独自) -->
+						<button class="_button" :class="$style.streamerSettingsButton" :title="i18n.ts.reload" :aria-label="i18n.ts.reload" @click="reload">
 							<i class="ti ti-refresh"></i>
 						</button>
 						<button v-if="isOwner" class="_button" :class="$style.streamerSettingsButton" :title="i18n.ts._twitch.streamerSettings" :aria-label="i18n.ts._twitch.streamerSettings" @click="openStreamerSettings">
@@ -300,6 +302,8 @@ definePage(() => ({
 	icon: 'ti ti-broadcast',
 	// watch ページは常にデッキ UI の「デッキへ戻る」バナーを險す
 	hideDeckNav: true,
+	// スマホのグローバルボトムナビ (ホーム/通知/ウィジェット) は視聴の邪魔になるため非表示にする
+	hideMobileFooter: true,
 }));
 </script>
 
