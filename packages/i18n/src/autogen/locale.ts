@@ -14473,6 +14473,22 @@ export interface Locale extends ILocale {
          * 配信を見る
          */
         "watchStream": string;
+        /**
+         * タップして音声オン
+         */
+        "tapToUnmute": string;
+        /**
+         * 再接続中…
+         */
+        "reconnecting": string;
+        /**
+         * ミュート
+         */
+        "mute": string;
+        /**
+         * 全画面
+         */
+        "fullscreen": string;
     };
     "_remoteGuestLogin": {
         /**
