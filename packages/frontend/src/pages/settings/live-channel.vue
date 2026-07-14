@@ -131,8 +131,7 @@ import MkSwitch from '@/components/MkSwitch.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
 import { chooseDriveFile } from '@/utility/drive.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
-import { getProxiedImageUrlNullable } from '@/utility/media-proxy.js';
-import { url } from '@@/js/config.js';
+
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
 import { ensureSignin } from '@/i.js';
@@ -154,7 +153,7 @@ const channelDescription = ref('');
 
 const enabled = computed(() => channel.value != null && channel.value.enabled);
 const ingestReady = computed(() => rtmpUrl.value != null && srtUrl.value != null && whipUrl.value != null);
-const bannerUrl = computed(() => getProxiedImageUrlNullable(channel.value?.bannerId ? `${url}/files/${channel.value.bannerId}` : null, 'preview'));
+const bannerUrl = computed(() => channel.value?.bannerUrl ?? null);
 const maskedStreamKey = computed(() => {
 	if (streamKey.value == null) return '';
 	return keyVisible.value ? streamKey.value : '\u2022'.repeat(streamKey.value.length);
