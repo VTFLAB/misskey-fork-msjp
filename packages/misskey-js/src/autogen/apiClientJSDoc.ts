@@ -4714,7 +4714,7 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * 現在配信中の Twitch 連携ユーザーの一覧を返す (視聴者数の多い順)。
+     * 現在配信中のユーザーの一覧を返す (Twitch連携 + MSJP配信/OME)。
      * 
      * **Credential required**: *Yes* / **Permission**: *read:account*
      */

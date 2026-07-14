@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.thumbnail">
 		<img v-if="thumbnailUrl" :src="thumbnailUrl" :class="$style.thumbnailImg" loading="lazy" decoding="async" alt=""/>
 		<div v-else :class="$style.thumbnailFallback"><i class="ti ti-broadcast"></i></div>
-		<span :class="$style.liveBadge">LIVE</span>
+		<span :class="$style.liveBadge" :style="{ background: isOme ? 'var(--MI_THEME-accent)' : '#e91916' }">LIVE</span>
 		<span :class="$style.viewers"><i class="ti ti-eye"></i> {{ number(stream.viewerCount) }}</span>
 	</div>
 	<div :class="$style.body">
@@ -37,6 +37,8 @@ const thumbnailUrl = computed(() => {
 	if (props.stream.thumbnailUrl == null) return null;
 	return props.stream.thumbnailUrl.replace('{width}', '640').replace('{height}', '360');
 });
+
+const isOme = computed(() => props.stream.source === 'ome');
 </script>
 
 <style lang="scss" module>
