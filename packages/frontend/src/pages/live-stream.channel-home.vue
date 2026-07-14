@@ -9,14 +9,18 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-if="bannerUrl" :class="$style.fade"></div>
 	</div>
 	<div :class="$style.header">
-		<MkAvatar :class="$style.avatar" :user="user" link indicator/>
+		<div :class="$style.avatarWrap">
+			<MkAvatar :class="[$style.avatar, { [$style.avatarLive]: isLive }]" :user="user" link indicator/>
+			<span v-if="isLive" :class="$style.liveBadge">{{ i18n.ts._liveChannel.liveNow }}</span>
+		</div>
 		<div :class="$style.names">
 			<div :class="$style.channelName">{{ channel.name ?? user.name ?? user.username }}</div>
 			<div :class="$style.acct"><MkAcct :user="user" :detail="true"/></div>
 		</div>
 		<div :class="$style.actions">
 			<MkButton v-if="isOwner" type="routerLink" :to="`/settings/live-channel`" link rounded primary>{{ i18n.ts._liveChannel.editChannel }}</MkButton>
-			<MkButton v-if="isOwner" type="routerLink" :to="`/live/${acct}/stream`" link rounded>{{ i18n.ts._liveChannel.watchStream }}</MkButton>
+			<MkButton v-if="isLive" type="routerLink" :to="`/live/${acct}/stream`" link rounded primary>{{ i18n.ts._liveChannel.watchStream }}</MkButton>
+			<MkButton v-else-if="isOwner" type="routerLink" :to="`/live/${acct}/stream`" link rounded>{{ i18n.ts._liveChannel.previewStream }}</MkButton>
 			<MkFollowButton v-if="$i != null && $i.id !== user.id" v-model:user="user" :full="true"/>
 		</div>
 	</div>
@@ -39,15 +43,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-else-if="tab === 'posts'">
 			<div v-if="channelId == null" :class="$style.placeholder">
 				<i class="ti ti-pencil-off"></i>
-				<div>{{ i18n.ts._liveChannel.channelTimelineNotInitialized }}</div>
+				<div>{{ i18n.ts._liveChannel.initializingChannel }}</div>
+				<MkButton rounded primary @click="reload">
+					<i class="ti ti-refresh"></i> {{ i18n.ts.retry }}
+				</MkButton>
 			</div>
-			<MkNotesTimeline v-else :noGap="true" :paginator="notesPaginator" :pullToRefresh="true"/>
+			<template v-else>
+				<div :class="$style.postFormArea" class="_buttonsCenter">
+					<MkButton inline rounded primary gradate @click="openPostForm">
+						<i class="ti ti-pencil"></i> {{ i18n.ts._liveChannel.postToChannel }}
+					</MkButton>
+				</div>
+				<MkNotesTimeline :noGap="true" :paginator="notesPaginator" :pullToRefresh="true"/>
+			</template>
 		</div>
 
 		<div v-else-if="tab === 'media'">
 			<div v-if="channelId == null" :class="$style.placeholder">
 				<i class="ti ti-pencil-off"></i>
-				<div>{{ i18n.ts._liveChannel.channelTimelineNotInitialized }}</div>
+				<div>{{ i18n.ts._liveChannel.initializingChannel }}</div>
+				<MkButton rounded primary @click="reload">
+					<i class="ti ti-refresh"></i> {{ i18n.ts.retry }}
+				</MkButton>
 			</div>
 			<div v-else :class="$style.mediaRoot">
 				<MkLoading v-if="mediaFetching"/>
@@ -104,6 +121,7 @@ import MkA from '@/components/global/MkA.vue';
 import MkLoading from '@/components/global/MkLoading.vue';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
+import * as os from '@/os.js';
 import { Paginator } from '@/utility/paginator.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { notePage } from '@/filters/note.js';
@@ -113,6 +131,7 @@ const props = defineProps<{
 	user: Misskey.entities.UserDetailed;
 	channel: Misskey.Endpoints['live-channels/show']['res'];
 	isOwner: boolean;
+	isLive: boolean;
 	acct: string;
 }>();
 
@@ -120,15 +139,34 @@ const user = ref(props.user);
 const tab = ref<'home' | 'posts' | 'media'>('home');
 const mediaFetching = ref(false);
 const mediaNotes = ref<Misskey.entities.Note[]>([]);
+const misskeyChannel = ref<Misskey.entities.Channel | null>(null);
 
 const channelId = computed<string | null>(() => props.channel.channelId ?? null);
 
 const bannerUrl = computed(() => {
-	if (props.channel.bannerId == null) return props.user.bannerUrl;
-	// TODO: Phase 3 pragmatic fallback — live-channels/show has no bannerUrl field.
-	// For now we fall back to user.bannerUrl. Once backend adds bannerUrl, swap to it.
+	if (props.channel.bannerUrl != null) return props.channel.bannerUrl;
 	return props.user.bannerUrl;
 });
+
+async function fetchMisskeyChannel() {
+	const id = channelId.value;
+	if (id == null) {
+		misskeyChannel.value = null;
+		return;
+	}
+	try {
+		misskeyChannel.value = await misskeyApi('channels/show', { channelId: id });
+	} catch {
+		misskeyChannel.value = null;
+	}
+}
+
+function openPostForm() {
+	if (misskeyChannel.value == null) return;
+	os.post({ channel: misskeyChannel.value });
+}
+
+watch(channelId, fetchMisskeyChannel, { immediate: true });
 
 const notesPaginator = markRaw(new Paginator('channels/timeline', {
 	limit: 10,
@@ -138,6 +176,14 @@ const notesPaginator = markRaw(new Paginator('channels/timeline', {
 		return { channelId: id };
 	}),
 }));
+
+const emit = defineEmits<{
+	(ev: 'reload'): void;
+}>();
+
+function reload() {
+	emit('reload');
+}
 
 async function loadMedia() {
 	if (channelId.value == null) {
@@ -205,13 +251,35 @@ watch(() => props.channel, () => {
 	margin-top: -40px;
 }
 
-.avatar {
+.avatarWrap {
+	position: relative;
 	flex-shrink: 0;
+}
+
+.avatar {
 	width: 96px;
 	height: 96px;
 	box-shadow: 0 0 0 4px var(--MI_THEME-bg);
 	border-radius: var(--MI-radius);
 	background: var(--MI_THEME-bg);
+}
+
+.avatarLive {
+	box-shadow: 0 0 0 3px var(--MI_THEME-bg), 0 0 0 5px var(--MI_THEME-error);
+}
+
+.liveBadge {
+	position: absolute;
+	bottom: -6px;
+	left: 50%;
+	transform: translateX(-50%);
+	padding: 2px 8px;
+	font-size: 0.75em;
+	font-weight: bold;
+	color: var(--MI_THEME-fgOnAccent);
+	background: var(--MI_THEME-error);
+	border-radius: 999px;
+	white-space: nowrap;
 }
 
 .names {
@@ -273,6 +341,10 @@ watch(() => props.channel, () => {
 		font-size: 2em;
 		opacity: 0.6;
 	}
+}
+
+.postFormArea {
+	padding: 16px 0;
 }
 
 .mediaRoot {
