@@ -14442,6 +14442,22 @@ export interface Locale extends ILocale {
          */
         "channelTimelineNotInitialized": string;
         /**
+         * チャンネルを初期化しています...
+         */
+        "initializingChannel": string;
+        /**
+         * チャンネルに投稿
+         */
+        "postToChannel": string;
+        /**
+         * プレビュー配信を開始
+         */
+        "previewStream": string;
+        /**
+         * 配信中
+         */
+        "liveNow": string;
+        /**
          * チャンネルを編集
          */
         "editChannel": string;
