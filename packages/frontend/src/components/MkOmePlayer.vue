@@ -65,6 +65,7 @@ type OvenPlayerInstance = {
 const props = defineProps<{
 	playbackUrl: string;
 	active: boolean;
+	pageKey?: string; // 視聴ページ識別子 (acct)。音量をページごとに保持するためのキー。
 }>();
 
 const emit = defineEmits<{
@@ -77,36 +78,71 @@ const playerContainerEl = useTemplateRef('playerContainerEl');
 
 let player: OvenPlayerInstance | null = null;
 
-// --- 音量/ミュート: miLocalStorage 永続化 ---
-// live-stream.comment-generator-settings.vue の miLocalStorage.getItem/setItem パターンを踏襲
+// --- 音量/ミュート ---
+// OvenPlayer の setVolume は 0-100 スケール (Provider.js: elVideo.volume = volume / 100)。
+// MkMediaRange / volume ref は 0-1 スケールのため、player へ渡す際は必ず *100 する
+// (これを忘れると最大でも 1% 音量になり「音量操作で無音=ミュート」に見える)。
+// 音量は視聴ページ (props.pageKey = acct) ごとに JSON マップで保持する (bsky-fork 独自)。
 const STORAGE_KEY_VOLUME = 'omePlayerVolume';
-const STORAGE_KEY_MUTED = 'omePlayerMuted';
+const DEFAULT_VOLUME = 0.5; // 初回ミュート解除時の既定音量 (最大は耳への負担が大きいため 50%)
 
-const volume = ref(Number(miLocalStorage.getItem(STORAGE_KEY_VOLUME) ?? '1'));
-// 起動は autoplay policy により必ず mute:true (createPlayer の config)。muted ref も true 起動で
-// player の実状態と一致させる (localStorage からの復元はしない — §7 / L198-200 の方針どおり)。
-// これを localStorage で初期化すると、前回 false 保存時に「オーバーレイをクリックしても
-// muted が既に false で watch(muted) が発火せず setMute(false) が呼ばれない」不具合になる。
+function loadVolumeMap(): Record<string, number> {
+	try {
+		const parsed = JSON.parse(miLocalStorage.getItem(STORAGE_KEY_VOLUME) ?? '{}') as unknown;
+		return (parsed != null && typeof parsed === 'object') ? parsed as Record<string, number> : {};
+	} catch {
+		return {};
+	}
+}
+
+function savedVolume(): number | null {
+	const v = loadVolumeMap()[props.pageKey ?? ''];
+	return typeof v === 'number' ? v : null;
+}
+
+function persistVolume(v: number): void {
+	const map = loadVolumeMap();
+	map[props.pageKey ?? ''] = v;
+	miLocalStorage.setItem(STORAGE_KEY_VOLUME, JSON.stringify(map));
+}
+
+// volume は 0-1。ミュートとは独立した「音量レベル」。起動は autoplay policy により必ず
+// mute:true だが、スライダーに妥当な位置を出すため保存値 or 既定 50% で初期化する。
+const volume = ref(savedVolume() ?? DEFAULT_VOLUME);
+// muted は player の実状態 (mute:true 起動) と一致させ true 起動。localStorage 復元はしない
+// (§7 / L198-200)。localStorage 由来で false 起動すると、オーバーレイクリックで muted が
+// 既に false になり watch が発火せず setMute(false) が呼ばれない不具合になる。
 const muted = ref(true);
 
 watch(volume, (v) => {
-	miLocalStorage.setItem(STORAGE_KEY_VOLUME, String(v));
-	player?.setVolume(v);
+	persistVolume(v);
+	player?.setVolume(v * 100);
+	// スライダーを 0 より大きくしたらミュート解除する (一般的なプレイヤー挙動、アイコンとも同期)。
+	if (v > 0 && muted.value) muted.value = false;
 });
 
 watch(muted, (m) => {
-	miLocalStorage.setItem(STORAGE_KEY_MUTED, String(m));
 	player?.setMute(m);
 });
 
 function toggleMute() {
-	muted.value = !muted.value;
+	// アイコンの表示条件 (muted || volume === 0) と一致させる。無音状態から 1 クリックで復帰させる。
+	const effectivelyMuted = muted.value || volume.value === 0;
+	if (effectivelyMuted) {
+		// ミュート解除。音量が 0 のままだと無音になるので保存値 or 既定へ戻す。
+		if (volume.value === 0) volume.value = savedVolume() ?? DEFAULT_VOLUME;
+		muted.value = false;
+	} else {
+		muted.value = true;
+	}
 }
 
 // --- autoplay policy: mute:true で起動し、初回インタラクションでオーバーレイを消す (§7) ---
 const showUnmuteOverlay = ref(true);
 
 function onUnmuteOverlayClick() {
+	// 仕様: 保持している音量があれば復元、なければ既定 50% で有効化する (最大は耳を痛めるため)。
+	volume.value = savedVolume() ?? DEFAULT_VOLUME;
 	muted.value = false;
 	showUnmuteOverlay.value = false;
 }
@@ -198,9 +234,10 @@ async function createPlayer() {
 		controls: false,
 	});
 
-	player.setVolume(volume.value);
-	// player の mute を UI 状態 (muted ref) に同期する。初回は muted=true (autoplay policy 準拠)、
-	// ユーザーが一度 unmute した後の再接続 (destroy→create) では muted=false が復元されて音が戻る。
+	// setVolume は 0-100 スケール (volume ref は 0-1)。setMute で UI 状態に同期する。
+	// 初回は muted=true (autoplay policy 準拠)、unmute 後の再接続 (destroy→create) では
+	// muted=false / 保持音量が復元されて音が戻る。
+	player.setVolume(volume.value * 100);
 	player.setMute(muted.value);
 
 	player.on('stateChanged', ({ newstate }) => {
