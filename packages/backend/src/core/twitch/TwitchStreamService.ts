@@ -116,6 +116,38 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 	}
 
 	/**
+	 * OME 配信の検知でライブセッション (source=ome) を find-or-create する (bsky-fork 独自)。
+	 * AdmissionWebhooks を使わない構成のため、OmeStreamMonitorService のポーリング
+	 * (OME listStreams で publish 中の streamKey を検出) から呼ばれる。
+	 * 既に isLive な OME セッションがあれば何もしない (10秒ポーリングに対して冪等)。
+	 * 新規作成時のみフォロワーへ配信開始を通知する (upsertLiveStream と同型)。
+	 */
+	@bindThis
+	public async markOmeStreamLive(userId: MiUser['id'], title: string | null): Promise<void> {
+		const existing = await this.twitchStreamsRepository.findOneBy({ userId, source: 'ome', isLive: true });
+		if (existing != null) return;
+
+		const newStream = new MiTwitchStream({
+			id: this.idService.gen(),
+			userId,
+			// OME セッションは Twitch 由来の識別子を持たない (entity 側で nullable)。
+			twitchUserId: null,
+			twitchStreamId: null,
+			twitchLogin: null,
+			source: 'ome',
+			isLive: true,
+			isPreview: false,
+			title: (title ?? '').slice(0, 512),
+			startedAt: new Date(),
+		});
+		await this.twitchStreamsRepository.insertOne(newStream);
+		this.logger.info(`ome stream online: user=${userId} "${(title ?? '').slice(0, 40)}"`);
+		this.notifyFollowers(userId, newStream).catch(err => {
+			this.logger.error(`notifyFollowers failed: ${err instanceof Error ? err.message : err}`);
+		});
+	}
+
+	/**
 	 * 配信開始をフォロー中の (ローカル) ユーザーに通知する (bsky-fork 独自)。
 	 * 通知単位で受信設定 (全通知種別に共通の never/all 切り替え) を尊重するため、
 	 * フォロワー一覧を自前で解決したうえで1件ずつ NotificationService.createNotification を呼ぶ
