@@ -50,67 +50,44 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div class="_gaps_m">
 						<MkInfo v-if="!ingestReady" warn>{{ i18n.ts._liveChannel.notConfiguredServer }}</MkInfo>
 
-						<div class="_gaps_s">
-							<MkKeyValue>
-								<template #key>RTMP URL</template>
-								<template #value>
-									<div :class="$style.valueRow">
-										<span :class="$style.valueText">{{ rtmpUrl ?? i18n.ts.notSet }}</span>
-										<button class="_button" :class="$style.actionButton" :disabled="rtmpUrl == null" :aria-label="i18n.ts._liveChannel.copyRtmpUrl" @click="copyToClipboard(rtmpUrl)">
-											<i class="ti ti-copy"></i>
-										</button>
-									</div>
-								</template>
-							</MkKeyValue>
-
-							<MkKeyValue>
-								<template #key>SRT URL</template>
-								<template #value>
-									<div :class="$style.valueRow">
-										<span :class="$style.valueText">{{ srtUrl ?? i18n.ts.notSet }}</span>
-										<button class="_button" :class="$style.actionButton" :disabled="srtUrl == null" :aria-label="i18n.ts._liveChannel.copySrtUrl" @click="copyToClipboard(srtUrl)">
-											<i class="ti ti-copy"></i>
-										</button>
-									</div>
-								</template>
-							</MkKeyValue>
-
-							<MkKeyValue>
-								<template #key>WHIP URL</template>
-								<template #value>
-									<div :class="$style.valueRow">
-										<span :class="$style.valueText">{{ whipUrl ?? i18n.ts.notSet }}</span>
-										<button class="_button" :class="$style.actionButton" :disabled="whipUrl == null" :aria-label="i18n.ts._liveChannel.copyWhipUrl" @click="copyToClipboard(whipUrl)">
-											<i class="ti ti-copy"></i>
-										</button>
-									</div>
-								</template>
-							</MkKeyValue>
-
+						<template v-else>
 							<div class="_gaps_s">
 								<MkKeyValue>
-									<template #key>{{ i18n.ts._liveChannel.streamKey }}</template>
+									<template #key>WHIP URL</template>
 									<template #value>
 										<div :class="$style.valueRow">
-											<code :class="[$style.valueText, $style.monospace]" class="_monospace">{{ maskedStreamKey }}</code>
-											<button class="_button" :class="$style.actionButton" :aria-label="keyVisible ? i18n.ts._liveChannel.hideKey : i18n.ts._liveChannel.showKey" @click="keyVisible = !keyVisible">
-												<i class="ti" :class="keyVisible ? 'ti-eye-off' : 'ti-eye'"></i>
+											<span :class="[$style.valueText, { [$style.blurred]: !urlRevealed }]">{{ whipUrl }}</span>
+											<button class="_button" :class="$style.actionButton" :aria-label="urlRevealed ? i18n.ts._liveChannel.hideKey : i18n.ts._liveChannel.showKey" @click="urlRevealed = !urlRevealed">
+												<i class="ti" :class="urlRevealed ? 'ti-eye-off' : 'ti-eye'"></i>
 											</button>
-											<button class="_button" :class="$style.actionButton" :disabled="streamKey == null" :aria-label="i18n.ts._liveChannel.copyStreamKey" @click="copyToClipboard(streamKey)">
+											<button class="_button" :class="$style.actionButton" :aria-label="i18n.ts._liveChannel.copyWhipUrl" @click="copyToClipboard(whipUrl)">
 												<i class="ti ti-copy"></i>
 											</button>
 										</div>
 									</template>
 								</MkKeyValue>
-								<div v-if="channel.streamKeyRegeneratedAt" :class="$style.caption">{{ i18n.ts._liveChannel.streamKeyRegeneratedAt }}: {{ new Date(channel.streamKeyRegeneratedAt).toLocaleString() }}</div>
+								<div :class="$style.caption">{{ i18n.ts._liveChannel.whipUrlDescription }}</div>
 							</div>
-						</div>
 
-						<div>{{ i18n.ts._liveChannel.streamKeyDescription }}</div>
+							<div class="_gaps_s">
+								<div :class="$style.guideTitle"><i class="ti ti-help-circle"></i> {{ i18n.ts._liveChannel.obsSetupTitle }}</div>
+								<ol :class="$style.guideList">
+									<li>{{ i18n.ts._liveChannel.obsSetupStep1 }}</li>
+									<li>{{ i18n.ts._liveChannel.obsSetupStep2 }}</li>
+									<li>{{ i18n.ts._liveChannel.obsSetupStep3 }}</li>
+									<li>{{ i18n.ts._liveChannel.obsSetupStep4 }}</li>
+								</ol>
+								<MkInfo>{{ i18n.ts._liveChannel.obsSetupCodecNote }}</MkInfo>
+							</div>
 
-						<MkButton danger @click="regenerateKey">
-							<i class="ti ti-refresh"></i> {{ i18n.ts._liveChannel.regenerateStreamKey }}
-						</MkButton>
+							<div class="_gaps_s">
+								<div v-if="channel.streamKeyRegeneratedAt" :class="$style.caption">{{ i18n.ts._liveChannel.streamKeyRegeneratedAt }}: {{ new Date(channel.streamKeyRegeneratedAt).toLocaleString() }}</div>
+								<div>{{ i18n.ts._liveChannel.streamKeyDescription }}</div>
+								<MkButton danger @click="regenerateKey">
+									<i class="ti ti-refresh"></i> {{ i18n.ts._liveChannel.regenerateStreamKey }}
+								</MkButton>
+							</div>
+						</template>
 					</div>
 				</FormSection>
 			</template>
@@ -142,30 +119,20 @@ const $i = ensureSignin();
 
 const state = ref<'loading' | 'ready'>('loading');
 const channel = ref<Misskey.entities.LiveChannelsMyResponse['channel']>(null);
-const streamKey = ref<string | null>(null);
-const rtmpUrl = ref<string | null>(null);
-const srtUrl = ref<string | null>(null);
 const whipUrl = ref<string | null>(null);
-const keyVisible = ref(false);
+const urlRevealed = ref(false);
 
 const channelName = ref('');
 const channelDescription = ref('');
 
 const enabled = computed(() => channel.value != null && channel.value.enabled);
-const ingestReady = computed(() => rtmpUrl.value != null && srtUrl.value != null && whipUrl.value != null);
+const ingestReady = computed(() => whipUrl.value != null);
 const bannerUrl = computed(() => channel.value?.bannerUrl ?? null);
-const maskedStreamKey = computed(() => {
-	if (streamKey.value == null) return '';
-	return keyVisible.value ? streamKey.value : '\u2022'.repeat(streamKey.value.length);
-});
 
 async function fetchMy() {
 	state.value = 'loading';
 	const res = await misskeyApi('live-channels/my', {});
 	channel.value = res.channel;
-	streamKey.value = res.streamKey;
-	rtmpUrl.value = res.rtmpUrl;
-	srtUrl.value = res.srtUrl;
 	whipUrl.value = res.whipUrl ?? null;
 	channelName.value = res.channel?.name ?? '';
 	channelDescription.value = res.channel?.description ?? '';
@@ -253,9 +220,9 @@ async function regenerateKey() {
 		text: i18n.ts._liveChannel.regenerateStreamKeyConfirm,
 	});
 	if (canceled) return;
-	const res = await os.apiWithDialog('live-channels/regenerate-key', {});
-	channel.value = res;
-	streamKey.value = res.streamKey ?? null;
+	await os.apiWithDialog('live-channels/regenerate-key', {});
+	urlRevealed.value = false;
+	await fetchMy();
 }
 
 onMounted(() => {
@@ -299,6 +266,26 @@ definePage(() => ({
 .caption {
 	font-size: 0.85em;
 	color: color(from var(--MI_THEME-fg) srgb r g b / 0.75);
+}
+
+.blurred {
+	filter: blur(6px);
+	user-select: none;
+	-webkit-user-select: none;
+	cursor: default;
+}
+
+.guideTitle {
+	font-weight: 700;
+	margin-bottom: 4px;
+}
+
+.guideList {
+	margin: 0;
+	padding-left: 1.4em;
+	font-size: 0.9em;
+	line-height: 1.75;
+	color: color(from var(--MI_THEME-fg) srgb r g b / 0.85);
 }
 
 .actionButton {
