@@ -744,6 +744,9 @@ importers:
       misskey-reversi:
         specifier: workspace:*
         version: link:../misskey-reversi
+      ovenplayer:
+        specifier: 0.10.52
+        version: 0.10.52
       punycode.js:
         specifier: 2.3.1
         version: 2.3.1
@@ -771,6 +774,9 @@ importers:
       tinycolor2:
         specifier: 1.6.0
         version: 1.6.0
+      uuid:
+        specifier: 9.0.1
+        version: 9.0.1
       v-code-diff:
         specifier: 1.16.0
         version: 1.16.0(vue@3.5.42(typescript@6.0.3))
@@ -883,6 +889,9 @@ importers:
       '@types/tinycolor2':
         specifier: 1.4.6
         version: 1.4.6
+      '@types/uuid':
+        specifier: 9.0.8
+        version: 9.0.8
       '@typescript-eslint/eslint-plugin':
         specifier: 8.68.0
         version: 8.68.0(@typescript-eslint/parser@8.68.0(eslint@9.39.5(supports-color@5.5.0))(supports-color@5.5.0)(typescript@6.0.3))(eslint@9.39.5(supports-color@5.5.0))(supports-color@5.5.0)(typescript@6.0.3)
@@ -7123,6 +7132,9 @@ packages:
 
   outvariant@1.4.3:
     resolution: {integrity: sha512-+Sl2UErvtsoajRDKCE5/dBz4DIvHXQQnAxtQTF04OJxY0+DyZXSo5P5Bb7XYWOh81syohlYL24hbDwxedPUJCA==}
+
+  ovenplayer@0.10.52:
+    resolution: {integrity: sha512-waTdjuULWhgmeu5wvCCvrG8MzFMDPOZM6ngw9lsHSE1O9ll3iFfTFh5UR09kPwvwn52YvEnm6ApGsENAIv7tCA==}
 
   own-keys@1.0.1:
     resolution: {integrity: sha512-qFOyK5PjiWZd+QQIh+1jhdb9LpxTF0qs7Pm8o5QHYZ0M3vKqSqzsZaEB6oWlxZ+q2sJBMI/Ktgd2N5ZwQoRHfg==}
@@ -15932,6 +15944,8 @@ snapshots:
       '@noble/hashes': 2.2.0
 
   outvariant@1.4.3: {}
+
+  ovenplayer@0.10.52: {}
 
   own-keys@1.0.1:
     dependencies:
