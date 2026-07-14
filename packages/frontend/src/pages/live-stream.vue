@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div class="_spacer" :style="{ '--MI_SPACER-w': '1100px' }">
 		<MkLoading v-if="fetching"/>
 		<MkResult v-else-if="user == null || channelState === 'none'" type="notFound"/>
-		<XChannelHome v-else-if="channelState === 'offline' && channelInfo != null" :user="user" :channel="channelInfo" :isOwner="isOwner" :acct="props.acct"/>
+		<XChannelHome v-else-if="channelInfo != null" :user="user" :channel="channelInfo" :isOwner="isOwner" :isLive="channelState === 'live'" :acct="props.acct" @reload="reload"/>
 	</div>
 </PageWithHeader>
 </template>
@@ -21,13 +21,10 @@ import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import { useRouter } from '@/router.js';
 
 const props = defineProps<{
 	acct: string;
 }>();
-
-const router = useRouter();
 
 const fetching = ref(true);
 const user = ref<Misskey.entities.UserDetailed | null>(null);
@@ -59,10 +56,6 @@ async function reload() {
 		]);
 		channelInfo.value = channel;
 		twitchInfo.value = twitch;
-		// ライブ状態なら視聴ページへ遷移
-		if (channelState.value === 'live') {
-			router.replace('/live/:acct/stream', { params: { acct: props.acct } });
-		}
 	} catch {
 		// user unknown → not found
 	} finally {
