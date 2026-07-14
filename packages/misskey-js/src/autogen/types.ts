@@ -30009,6 +30009,7 @@ export interface operations {
                         description: string | null;
                         /** Format: misskey:id */
                         bannerId: string | null;
+                        bannerUrl: string | null;
                         /** Format: misskey:id */
                         channelId: string | null;
                         /** Format: date-time */
@@ -30095,6 +30096,7 @@ export interface operations {
                             description: string | null;
                             /** Format: misskey:id */
                             bannerId: string | null;
+                            bannerUrl: string | null;
                             /** Format: misskey:id */
                             channelId: string | null;
                             /** Format: date-time */
@@ -30176,6 +30178,7 @@ export interface operations {
                         description: string | null;
                         /** Format: misskey:id */
                         bannerId: string | null;
+                        bannerUrl: string | null;
                         /** Format: misskey:id */
                         channelId: string | null;
                         /** Format: date-time */
@@ -30269,6 +30272,7 @@ export interface operations {
                         description: string | null;
                         /** Format: misskey:id */
                         bannerId: string | null;
+                        bannerUrl: string | null;
                         /** Format: misskey:id */
                         channelId: string | null;
                         /** Format: date-time */
@@ -30356,6 +30360,7 @@ export interface operations {
                         description: string | null;
                         /** Format: misskey:id */
                         bannerId: string | null;
+                        bannerUrl: string | null;
                         /** Format: misskey:id */
                         channelId: string | null;
                         /** Format: date-time */
