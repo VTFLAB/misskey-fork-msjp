@@ -14437,6 +14437,10 @@ export interface Locale extends ILocale {
          */
         "enableStreamingDescription": string;
         /**
+         * MSJP配信
+         */
+        "selfStream": string;
+        /**
          * チャンネル名
          */
         "channelName": string;
