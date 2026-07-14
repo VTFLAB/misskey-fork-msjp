@@ -10,6 +10,7 @@ import { DI } from '@/di-symbols.js';
 import type { TwitchAccountsRepository } from '@/models/_.js';
 import type { Config } from '@/config.js';
 import { TwitchStreamService } from '@/core/twitch/TwitchStreamService.js';
+import { LiveChannelService } from '@/core/live/LiveChannelService.js';
 
 export const meta = {
 	tags: ['twitch'],
@@ -82,10 +83,15 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private config: Config,
 
 		private twitchStreamService: TwitchStreamService,
+
+		private liveChannelService: LiveChannelService,
 	) {
 		super(meta, paramDef, async (ps) => {
 			const account = await this.twitchAccountsRepository.findOneBy({ userId: ps.userId });
-			if (account == null) throw new ApiError(meta.errors.notLinked);
+			const liveChannel = await this.liveChannelService.show(ps.userId);
+			if (account == null && liveChannel == null) {
+				throw new ApiError(meta.errors.notLinked);
+			}
 
 			const stream = await this.twitchStreamService.getLiveStreamByUserId(ps.userId);
 			const allSessions = await this.twitchStreamService.getAllLiveStreamsByUserId(ps.userId);
@@ -97,10 +103,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 						source: 'ome' as const,
 						streamId: s.id,
 						isLive: s.isLive,
-						playbackUrl: (ome != null && s.twitchStreamId != null)
+						playbackUrl: (ome != null && liveChannel != null)
 							? (() => {
+								const scheme = ome.publicWhipUrl.startsWith('https://') ? 'wss' : 'ws';
 								const hostPort = ome.publicWhipUrl.replace(/^https?:\/\//, '');
-								return `ws://${hostPort}/${ome.app}/${s.twitchStreamId}`;
+								return `${scheme}://${hostPort}/${ome.app}/${liveChannel.streamKey}`;
 							})()
 							: undefined,
 					};
@@ -114,8 +121,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			});
 
 			return {
-				twitchLogin: account.twitchLogin,
-				twitchDisplayName: account.twitchDisplayName,
+				twitchLogin: account?.twitchLogin ?? '',
+				twitchDisplayName: account?.twitchDisplayName ?? '',
 				stream: stream == null ? null : {
 					id: stream.id,
 					title: stream.title,
