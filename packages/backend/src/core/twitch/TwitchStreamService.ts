@@ -202,10 +202,10 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 			await this.upsertLiveStream(account.userId, stream);
 		}
 
-		// DB 上 isLive のまま Helix 側で配信していないものを offline に倒す
-		const staleLive = await this.twitchStreamsRepository.findBy({ isLive: true });
+		// DB 上 isLive のまま Helix 側で配信していないものを offline に倒す (Twitch 由来のみ)
+		const staleLive = await this.twitchStreamsRepository.findBy({ isLive: true, source: 'twitch' });
 		for (const s of staleLive) {
-			if (!liveTwitchIds.has(s.twitchUserId)) {
+			if (s.twitchUserId != null && !liveTwitchIds.has(s.twitchUserId)) {
 				await this.markOffline(s.twitchUserId);
 			}
 		}
