@@ -14460,9 +14460,177 @@ export interface Locale extends ILocale {
          */
         "obsSetupStep4": string;
         /**
-         * 映像コーデックは H264、音声コーデックは Opus を使用してください。AAC 音声は再生されません。
+         * OBS で「WHIP」を選択すると、音声コーデックは自動的に Opus に切り替わります (手動での選択は不要です)。Opus 以外の音声コーデック (AAC 等) では音声が再生されないためご注意ください。
          */
         "obsSetupCodecNote": string;
+        /**
+         * このサーバーの配信上限
+         */
+        "obsBitrateLimitsTitle": string;
+        /**
+         * 最大映像ビットレート
+         */
+        "obsMaxVideoBitrate": string;
+        /**
+         * 最大音声ビットレート
+         */
+        "obsMaxAudioBitrate": string;
+        /**
+         * 上限を超えた状態が約30秒続くと配信は自動的に強制切断され、その streamKey は10分間再接続できなくなります。設定するビットレートは上限より少し余裕を持たせることをおすすめします。
+         */
+        "obsBitrateLimitsCaption": string;
+        /**
+         * 低遅延のための推奨設定 (OBS 32系統、詳細)
+         */
+        "obsRecommendedSettingsTitle": string;
+        /**
+         * 対象は OBS Studio 32系統です。まず「設定 → 出力」の「出力モード」を「基本」から「詳細」に変更すると、以下の項目が表示されます。
+         */
+        "obsRecommendedSettingsCaption": string;
+        /**
+         * OBS の設定項目
+         */
+        "obsSettingsColItem": string;
+        /**
+         * 設定値
+         */
+        "obsSettingsColValue": string;
+        /**
+         * 備考
+         */
+        "obsSettingsColNote": string;
+        /**
+         * ビットレート (映像)
+         */
+        "obsSettingItemVideoBitrate": string;
+        /**
+         * 音声ビットレート (出力 → 音声タブ、トラック1)
+         */
+        "obsSettingItemAudioBitrate": string;
+        /**
+         * レート制御 (Rate Control)
+         */
+        "obsSettingItemRateControl": string;
+        /**
+         * キーフレーム間隔 (Keyframe Interval)
+         */
+        "obsSettingItemKeyframeInterval": string;
+        /**
+         * {value}kbps 程度 (上限 {max}kbps)
+         */
+        "obsSettingValueVideoBitrateRecommended": ParameterizedString<"value" | "max">;
+        /**
+         * {value}kbps (上限 {max}kbps)
+         */
+        "obsSettingValueAudioBitrateRecommended": ParameterizedString<"value" | "max">;
+        /**
+         * 固定ビットレートのため上限を断続的に超えにくくなります
+         */
+        "obsSettingNoteRateControl": string;
+        /**
+         * 短いほど視聴開始が速くなります。値を「0」にすると自動 (通常2秒相当) になります
+         */
+        "obsSettingNoteKeyframeInterval": string;
+        /**
+         * 配信中の映像とは別に、出力タブ内の「音声」サブタブでトラック1のビットレートをプルダウンから選びます (Opus は自動選択されるため音声コーデックの指定項目自体はありません)
+         */
+        "obsSettingNoteAudioBitrate": string;
+        /**
+         * 映像エンコーダ = x264 (ソフトウェアエンコード) を選んだ場合
+         */
+        "x264SectionTitle": string;
+        /**
+         * GPU が無い環境や、GPU エンコーダが使えない環境向けです。GPU エンコーダが使える場合は下の NVENC 設定を優先してください。
+         */
+        "x264SectionCaption": string;
+        /**
+         * CPU使用のプリセット (CPU Usage Preset)
+         */
+        "obsSettingItemX264Preset": string;
+        /**
+         * プロファイル (Profile)
+         */
+        "obsSettingItemX264Profile": string;
+        /**
+         * チューン (Tune)
+         */
+        "obsSettingItemX264Tune": string;
+        /**
+         * x264 Options (追加のx264オプション)
+         */
+        "obsSettingItemX264Options": string;
+        /**
+         * 画質より速度を優先しエンコード遅延を最小化します。CPU に余裕があれば veryfast でも問題ありません
+         */
+        "obsSettingNoteX264Preset": string;
+        /**
+         * 互換性を優先したプロファイルです
+         */
+        "obsSettingNoteX264Profile": string;
+        /**
+         * エンコーダの内部処理を低遅延向けに最適化します
+         */
+        "obsSettingNoteX264Tune": string;
+        /**
+         * 半角スペース区切りで入力する自由記述欄です。bframes=0 で B フレームを無効化 (WebRTC は非対応のため遅延増加の原因になります)、scenecut=0 でシーンチェンジ時の余分なキーフレーム挿入を抑止します
+         */
+        "obsSettingNoteX264Options": string;
+        /**
+         * 映像エンコーダ = NVIDIA NVENC H.264 を選んだ場合 (対応 GPU がある場合はこちらを推奨)
+         */
+        "nvencSectionTitle": string;
+        /**
+         * OBS 28.1 以降、NVENC は「プリセット (P1〜P7)」「チューニング」「マルチパスモード」が別項目になっています。
+         */
+        "nvencSectionCaption": string;
+        /**
+         * プリセット (P1〜P7)
+         */
+        "obsSettingItemNvencPreset": string;
+        /**
+         * チューニング (Tuning)
+         */
+        "obsSettingItemNvencTuning": string;
+        /**
+         * マルチパスモード (Multipass Mode)
+         */
+        "obsSettingItemNvencMultipass": string;
+        /**
+         * プロファイル (Profile)
+         */
+        "obsSettingItemNvencProfile": string;
+        /**
+         * ルックアヘッド (Look-Ahead)
+         */
+        "obsSettingItemNvencLookAhead": string;
+        /**
+         * 最大Bフレーム数 (Max B-frames)
+         */
+        "obsSettingItemMaxBFrames": string;
+        /**
+         * 数字が大きいほど高画質・高負荷になります。低遅延重視なら P1〜P4 の範囲を推奨します
+         */
+        "obsSettingNoteNvencPreset": string;
+        /**
+         * 選択できる場合は「低遅延 (Low Latency)」または「超低遅延 (Ultra Low Latency)」を選んでください。選べない場合は既定のままで構いません
+         */
+        "obsSettingNoteNvencTuning": string;
+        /**
+         * マルチパスは追加の処理時間を要するため、低遅延重視の場合は無効にします
+         */
+        "obsSettingNoteNvencMultipass": string;
+        /**
+         * 互換性を優先したプロファイルです
+         */
+        "obsSettingNoteNvencProfile": string;
+        /**
+         * 先読み処理は遅延を増やすため、低遅延重視の場合はチェックを外します
+         */
+        "obsSettingNoteNvencLookAhead": string;
+        /**
+         * WebRTC は B フレームに対応していません。遅延増加の原因になるため必ず 0 にしてください
+         */
+        "obsSettingNoteMaxBFrames": string;
         /**
          * 最終再生成日時
          */
