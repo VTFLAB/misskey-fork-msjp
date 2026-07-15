@@ -57,9 +57,11 @@ export const meta = {
 			offlineImageUrl: { type: 'string', optional: false, nullable: true },
 			channelId: { type: 'string', format: 'misskey:id', optional: false, nullable: true },
 			createdAt: { type: 'string', format: 'date-time', optional: false, nullable: false },
+			autoPostNoteEnabled: { type: 'boolean', optional: false, nullable: false },
 			streamKey: { type: 'string', optional: true, nullable: false },
 			streamKeyRegeneratedAt: { type: 'string', format: 'date-time', optional: true, nullable: false },
 			lastCutReason: { type: 'string', optional: true, nullable: true },
+			autoPostNoteTemplate: { type: 'string', optional: true, nullable: true },
 		},
 	},
 } as const;
@@ -72,6 +74,8 @@ export const paramDef = {
 		description: { type: 'string', nullable: true, maxLength: 2048 },
 		bannerId: { type: 'string', format: 'misskey:id', nullable: true },
 		offlineImageId: { type: 'string', format: 'misskey:id', nullable: true },
+		autoPostNoteEnabled: { type: 'boolean' },
+		autoPostNoteTemplate: { type: 'string', nullable: true, maxLength: 512 },
 	},
 	required: [],
 } as const;
@@ -104,6 +108,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				description: ps.description,
 				bannerId: ps.bannerId,
 				offlineImageId: ps.offlineImageId,
+				autoPostNoteEnabled: ps.autoPostNoteEnabled,
+				autoPostNoteTemplate: ps.autoPostNoteTemplate,
 			});
 
 			return await this.liveChannelService.pack(updated, me);
