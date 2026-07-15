@@ -21,10 +21,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 						:pageKey="props.acct"
 						:offlineImageUrl="channelInfo?.offlineImageUrl ?? null"
 					/>
-					<div v-if="showSourceToggle" :class="$style.sourceToggle">
-						<button class="_button" :class="[$style.sourceToggleButton, { [$style.sourceToggleButtonActive]: activeSource === 'ome' }]" @click="activeSource = 'ome'">{{ i18n.ts._liveChannel.selfStream }}</button>
-						<button class="_button" :class="[$style.sourceToggleButton, { [$style.sourceToggleButtonActive]: activeSource === 'twitch' }]" @click="activeSource = 'twitch'">Twitch</button>
-					</div>
+				</div>
+				<!-- プレイヤーへの重畳表示だと常に視界に入り邪魔になる (特にモバイルでは操作の
+				妨げにもなる) ため、プレイヤー外の独立した行として配置する (bsky-fork 独自) -->
+				<div v-if="showSourceToggle" :class="$style.sourceToggle">
+					<button class="_button" :class="[$style.sourceToggleButton, { [$style.sourceToggleButtonActive]: activeSource === 'ome' }]" @click="activeSource = 'ome'">{{ i18n.ts._liveChannel.selfStream }}</button>
+					<button class="_button" :class="[$style.sourceToggleButton, { [$style.sourceToggleButtonActive]: activeSource === 'twitch' }]" @click="activeSource = 'twitch'">Twitch</button>
 				</div>
 				<div :class="$style.info" class="_panel">
 					<div :class="$style.infoHeader">
@@ -356,14 +358,14 @@ definePage(() => ({
 	display: block;
 }
 
+// プレイヤーへの重畳ではなく、独立した行として常時表示する (視聴者全員が使う機能のため
+// 常時アクセスできることを優先し、ホバー等での出し入れはしない)
 .sourceToggle {
-	position: absolute;
-	top: 12px;
-	right: 12px;
+	flex-shrink: 0;
 	display: flex;
 	gap: 8px;
 	padding: 4px;
-	background: rgba(0, 0, 0, 0.6);
+	background: var(--MI_THEME-panel);
 	border-radius: var(--MI-radius);
 }
 
@@ -372,15 +374,16 @@ definePage(() => ({
 	border-radius: var(--MI-radius);
 	font-size: 0.85em;
 	font-weight: bold;
-	color: #fff;
+	color: var(--MI_THEME-fg);
 	background: transparent;
 
 	&:hover {
-		background: rgba(255, 255, 255, 0.15);
+		background: var(--MI_THEME-buttonHoverBg);
 	}
 }
 
 .sourceToggleButtonActive {
+	color: var(--MI_THEME-fgOnAccent);
 	background: var(--MI_THEME-accent);
 
 	&:hover {
