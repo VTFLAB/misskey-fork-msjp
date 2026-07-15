@@ -3832,6 +3832,7 @@ _liveChannel:
   enableStreaming: "配信機能を利用する"
   enableStreamingDescription: "配信チャンネル機能を有効にします。有効にすると MSJP配信 (自己ホスト配信サーバー経由) と Twitch配信 (連携) のいずれか、または両方を利用できるようになります。"
   selfStream: "MSJP配信"
+  switchSource: "配信元を切り替え"
   channelName: "チャンネル名"
   channelNamePlaceholder: "未設定の場合はユーザー名が表示されます"
   channelDescription: "チャンネル説明"
