@@ -3061,7 +3061,7 @@ _deck:
     tl: "タイムライン"
     antenna: "アンテナ"
     list: "リスト"
-    channel: "チャンネル"
+    channel: "配信チャンネル"
     clip: "クリップ"
     mentions: "メンション"
     direct: "指名"
