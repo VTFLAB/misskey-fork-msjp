@@ -3041,7 +3041,7 @@ export type paths = {
     '/live-channels/list': {
         /**
          * live-channels/list
-         * @description 配信機能が有効な配信チャンネルの一覧を返す (`/live` の配信チャンネルタブ用)。MSJP配信 (OME) が配信中かどうかは twitch_stream(source='ome', isLive=true) を突合して isLive/startedAt に反映する。
+         * @description 配信機能が有効な配信チャンネルの一覧を返す (`/live` の配信チャンネルタブ用)。MSJP配信・Twitch配信いずれの配信中状態も twitch_stream(isLive=true) を突合して isLive/startedAt に反映する。
          *
          *     **Credential required**: *No*
          */
@@ -3874,15 +3874,6 @@ export type paths = {
          *     **Credential required**: *Yes*
          */
         post: operations['twitch___generate-oauth-url'];
-    };
-    '/twitch/live-streams': {
-        /**
-         * twitch/live-streams
-         * @description 現在配信中のユーザーの一覧を返す (Twitch連携 + MSJP配信/OME)。
-         *
-         *     **Credential required**: *Yes* / **Permission**: *read:account*
-         */
-        post: operations['twitch___live-streams'];
     };
     '/twitch/my-account': {
         /**
@@ -36787,75 +36778,6 @@ export interface operations {
             };
             /** @description Too many requests */
             429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    'application/json': components['schemas']['Error'];
-                };
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    'application/json': components['schemas']['Error'];
-                };
-            };
-        };
-    };
-    'twitch___live-streams': {
-        responses: {
-            /** @description OK (with results) */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    'application/json': {
-                        user: components['schemas']['UserLite'];
-                        /** @enum {string} */
-                        source: 'twitch' | 'ome';
-                        twitchLogin: string | null;
-                        title: string;
-                        gameName: string | null;
-                        viewerCount: number;
-                        thumbnailUrl: string | null;
-                        /** Format: date-time */
-                        startedAt: string;
-                    }[];
-                };
-            };
-            /** @description Client error */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    'application/json': components['schemas']['Error'];
-                };
-            };
-            /** @description Authentication error */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    'application/json': components['schemas']['Error'];
-                };
-            };
-            /** @description Forbidden error */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    'application/json': components['schemas']['Error'];
-                };
-            };
-            /** @description I'm Ai */
-            418: {
                 headers: {
                     [name: string]: unknown;
                 };

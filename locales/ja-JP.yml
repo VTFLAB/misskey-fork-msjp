@@ -3666,11 +3666,9 @@ _atproto:
 
 _twitch:
   twitchIntegration: "Twitch連携"
-  twitchRelay: "Twitch中継"
   myAccount: "自分のアカウント"
   watchLive: "ライブ配信を見る"
   liveStreams: "ライブ配信"
-  noLiveStreams: "現在配信中のユーザーはいません。"
   streamOffline: "現在オフラインです。"
   streamEnded: "配信が終了しました。"
   backToHome: "ホームに戻る"
@@ -3679,6 +3677,7 @@ _twitch:
   newComments: "新しいコメント"
   commentPlaceholder: "コメントを送信..."
   notConfigured: "このサーバーではTwitch連携が設定されていません。"
+  enableChannelFirst: "Twitchアカウントを連携するには、先に上の「配信機能を利用する」を有効にしてください。"
   linkDescription: "Twitchアカウントを連携すると、配信中の表示やライブストリームページへの掲載、コメント連携が利用できるようになります。"
   linkAccount: "Twitchアカウントを連携する"
   linkedAs: "連携中のアカウント"
@@ -3831,7 +3830,7 @@ _liveChannel:
   noLiveChannels: "開設されている配信チャンネルはまだありません。"
   liveChannelSettings: "ライブチャンネル設定"
   enableStreaming: "配信機能を利用する"
-  enableStreamingDescription: "MSJP配信 (自己ホスト配信サーバー経由でのライブ配信) 機能を有効にします。"
+  enableStreamingDescription: "配信チャンネル機能を有効にします。有効にすると MSJP配信 (自己ホスト配信サーバー経由) と Twitch配信 (連携) のいずれか、または両方を利用できるようになります。"
   selfStream: "MSJP配信"
   channelName: "チャンネル名"
   channelNamePlaceholder: "未設定の場合はユーザー名が表示されます"
