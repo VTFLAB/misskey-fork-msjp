@@ -3037,6 +3037,15 @@ export type paths = {
          */
         post: operations['live-channels___create'];
     };
+    '/live-channels/list': {
+        /**
+         * live-channels/list
+         * @description 配信機能が有効な配信チャンネルの一覧を返す (`/live` の配信チャンネルタブ用)。MSJP配信 (OME) が配信中かどうかは twitch_stream(source='ome', isLive=true) を突合して isLive/startedAt に反映する。
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['live-channels___list'];
+    };
     '/live-channels/my': {
         /**
          * live-channels/my
@@ -30064,6 +30073,91 @@ export interface operations {
             };
             /** @description Too many requests */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'live-channels___list': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    sinceId?: string;
+                    /** Format: misskey:id */
+                    untilId?: string;
+                    /** @default 10 */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** Format: misskey:id */
+                        id: string;
+                        /** Format: misskey:id */
+                        userId: string;
+                        name: string | null;
+                        description: string | null;
+                        bannerUrl: string | null;
+                        offlineImageUrl: string | null;
+                        /** Format: misskey:id */
+                        channelId: string | null;
+                        isLive: boolean;
+                        /** Format: date-time */
+                        startedAt: string | null;
+                        user: components['schemas']['UserLite'];
+                    }[];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
                 headers: {
                     [name: string]: unknown;
                 };

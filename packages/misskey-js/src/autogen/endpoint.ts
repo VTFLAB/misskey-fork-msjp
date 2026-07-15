@@ -501,6 +501,8 @@ import type {
 	InviteListRequest,
 	InviteListResponse,
 	LiveChannelsCreateResponse,
+	LiveChannelsListRequest,
+	LiveChannelsListResponse,
 	LiveChannelsMyResponse,
 	LiveChannelsRegenerateKeyResponse,
 	LiveChannelsShowRequest,
@@ -1054,6 +1056,7 @@ export type Endpoints = {
 	'invite/limit': { req: EmptyRequest; res: InviteLimitResponse };
 	'invite/list': { req: InviteListRequest; res: InviteListResponse };
 	'live-channels/create': { req: EmptyRequest; res: LiveChannelsCreateResponse };
+	'live-channels/list': { req: LiveChannelsListRequest; res: LiveChannelsListResponse };
 	'live-channels/my': { req: EmptyRequest; res: LiveChannelsMyResponse };
 	'live-channels/regenerate-key': { req: EmptyRequest; res: LiveChannelsRegenerateKeyResponse };
 	'live-channels/show': { req: LiveChannelsShowRequest; res: LiveChannelsShowResponse };
