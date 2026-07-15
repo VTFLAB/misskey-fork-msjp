@@ -177,15 +177,18 @@ function onStreamEnded() {
 }
 
 function openSourceMenu(ev: MouseEvent) {
+	// active に生の boolean を渡すとメニュー表示時点のスナップショットで固定されてしまい、
+	// 開いたまま切り替えてもチェックマークが追従しない。MkMenu は item.active を unref() で
+	// 評価するため、ComputedRef を渡すことで選択直後にリアクティブに反映させる
 	os.popupMenu([{
 		type: 'radioOption',
 		text: i18n.ts._liveChannel.selfStream,
-		active: activeSource.value === 'ome',
+		active: computed(() => activeSource.value === 'ome'),
 		action: () => { activeSource.value = 'ome'; },
 	}, {
 		type: 'radioOption',
 		text: 'Twitch',
-		active: activeSource.value === 'twitch',
+		active: computed(() => activeSource.value === 'twitch'),
 		action: () => { activeSource.value = 'twitch'; },
 	}], ev.currentTarget ?? ev.target);
 }
