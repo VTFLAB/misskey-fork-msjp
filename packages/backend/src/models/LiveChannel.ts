@@ -110,6 +110,18 @@ export class MiLiveChannel {
 	})
 	public createdAt: Date;
 
+	@Column('boolean', {
+		default: false,
+		comment: 'Whether to automatically post a note to the linked channel when the stream starts.',
+	})
+	public autoPostNoteEnabled: boolean;
+
+	@Column('varchar', {
+		length: 512, nullable: true,
+		comment: 'Template for the auto-posted note. Supports {title}/{url}/{channelName} placeholders. Falls back to a default template when null.',
+	})
+	public autoPostNoteTemplate: string | null;
+
 	constructor(data: Partial<MiLiveChannel>) {
 		if (data == null) return;
 
