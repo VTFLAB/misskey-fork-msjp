@@ -2097,6 +2097,8 @@ declare namespace entities {
         InviteListRequest,
         InviteListResponse,
         LiveChannelsCreateResponse,
+        LiveChannelsListRequest,
+        LiveChannelsListResponse,
         LiveChannelsMyResponse,
         LiveChannelsRegenerateKeyResponse,
         LiveChannelsShowRequest,
@@ -3014,6 +3016,12 @@ type JmaEewWarnArea = {
 
 // @public (undocumented)
 type LiveChannelsCreateResponse = operations['live-channels___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LiveChannelsListRequest = operations['live-channels___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LiveChannelsListResponse = operations['live-channels___list']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type LiveChannelsMyResponse = operations['live-channels___my']['responses']['200']['content']['application/json'];
