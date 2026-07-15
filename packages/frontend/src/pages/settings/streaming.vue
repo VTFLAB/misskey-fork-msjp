@@ -88,6 +88,150 @@ SPDX-License-Identifier: AGPL-3.0-only
 											<li>{{ i18n.ts._liveChannel.obsSetupStep4 }}</li>
 										</ol>
 										<MkInfo>{{ i18n.ts._liveChannel.obsSetupCodecNote }}</MkInfo>
+
+										<template v-if="maxVideoBitrate != null || maxAudioBitrate != null">
+											<div :class="$style.guideTitle">{{ i18n.ts._liveChannel.obsBitrateLimitsTitle }}</div>
+											<div :class="$style.settingsTableWrap">
+												<table :class="$style.settingsTable">
+													<tbody>
+														<tr v-if="maxVideoBitrate != null">
+															<th>{{ i18n.ts._liveChannel.obsMaxVideoBitrate }}</th>
+															<td>{{ maxVideoBitrate }}kbps</td>
+														</tr>
+														<tr v-if="maxAudioBitrate != null">
+															<th>{{ i18n.ts._liveChannel.obsMaxAudioBitrate }}</th>
+															<td>{{ maxAudioBitrate }}kbps</td>
+														</tr>
+													</tbody>
+												</table>
+											</div>
+											<div :class="$style.caption">{{ i18n.ts._liveChannel.obsBitrateLimitsCaption }}</div>
+										</template>
+
+										<details :class="$style.settingsDetails">
+											<summary :class="$style.guideTitle">{{ i18n.ts._liveChannel.obsRecommendedSettingsTitle }}</summary>
+											<div :class="$style.caption">{{ i18n.ts._liveChannel.obsRecommendedSettingsCaption }}</div>
+
+											<div :class="$style.settingsTableWrap">
+												<table :class="$style.settingsTable">
+													<thead>
+														<tr>
+															<th>{{ i18n.ts._liveChannel.obsSettingsColItem }}</th>
+															<th>{{ i18n.ts._liveChannel.obsSettingsColValue }}</th>
+															<th>{{ i18n.ts._liveChannel.obsSettingsColNote }}</th>
+														</tr>
+													</thead>
+													<tbody>
+														<tr v-if="recommendedVideoBitrate != null && maxVideoBitrate != null">
+															<th>{{ i18n.ts._liveChannel.obsSettingItemVideoBitrate }}</th>
+															<td>{{ i18n.tsx._liveChannel.obsSettingValueVideoBitrateRecommended({ value: recommendedVideoBitrate, max: maxVideoBitrate }) }}</td>
+															<td>{{ i18n.ts._liveChannel.obsBitrateLimitsCaption }}</td>
+														</tr>
+														<tr>
+															<th>{{ i18n.ts._liveChannel.obsSettingItemRateControl }}</th>
+															<td>CBR</td>
+															<td>{{ i18n.ts._liveChannel.obsSettingNoteRateControl }}</td>
+														</tr>
+														<tr>
+															<th>{{ i18n.ts._liveChannel.obsSettingItemKeyframeInterval }}</th>
+															<td>1〜2</td>
+															<td>{{ i18n.ts._liveChannel.obsSettingNoteKeyframeInterval }}</td>
+														</tr>
+														<tr v-if="recommendedAudioBitrate != null && maxAudioBitrate != null">
+															<th>{{ i18n.ts._liveChannel.obsSettingItemAudioBitrate }}</th>
+															<td>{{ i18n.tsx._liveChannel.obsSettingValueAudioBitrateRecommended({ value: recommendedAudioBitrate, max: maxAudioBitrate }) }}</td>
+															<td>{{ i18n.ts._liveChannel.obsSettingNoteAudioBitrate }}</td>
+														</tr>
+													</tbody>
+												</table>
+											</div>
+
+											<details :class="$style.settingsDetails">
+												<summary>{{ i18n.ts._liveChannel.x264SectionTitle }}</summary>
+												<div :class="$style.caption">{{ i18n.ts._liveChannel.x264SectionCaption }}</div>
+												<div :class="$style.settingsTableWrap">
+													<table :class="$style.settingsTable">
+														<thead>
+															<tr>
+																<th>{{ i18n.ts._liveChannel.obsSettingsColItem }}</th>
+																<th>{{ i18n.ts._liveChannel.obsSettingsColValue }}</th>
+																<th>{{ i18n.ts._liveChannel.obsSettingsColNote }}</th>
+															</tr>
+														</thead>
+														<tbody>
+															<tr>
+																<th>{{ i18n.ts._liveChannel.obsSettingItemX264Preset }}</th>
+																<td>veryfast</td>
+																<td>{{ i18n.ts._liveChannel.obsSettingNoteX264Preset }}</td>
+															</tr>
+															<tr>
+																<th>{{ i18n.ts._liveChannel.obsSettingItemX264Profile }}</th>
+																<td>baseline</td>
+																<td>{{ i18n.ts._liveChannel.obsSettingNoteX264Profile }}</td>
+															</tr>
+															<tr>
+																<th>{{ i18n.ts._liveChannel.obsSettingItemX264Tune }}</th>
+																<td>zerolatency</td>
+																<td>{{ i18n.ts._liveChannel.obsSettingNoteX264Tune }}</td>
+															</tr>
+															<tr>
+																<th>{{ i18n.ts._liveChannel.obsSettingItemX264Options }}</th>
+																<td>bframes=0 scenecut=0</td>
+																<td>{{ i18n.ts._liveChannel.obsSettingNoteX264Options }}</td>
+															</tr>
+														</tbody>
+													</table>
+												</div>
+											</details>
+
+											<details :class="$style.settingsDetails">
+												<summary>{{ i18n.ts._liveChannel.nvencSectionTitle }}</summary>
+												<div :class="$style.caption">{{ i18n.ts._liveChannel.nvencSectionCaption }}</div>
+												<div :class="$style.settingsTableWrap">
+													<table :class="$style.settingsTable">
+														<thead>
+															<tr>
+																<th>{{ i18n.ts._liveChannel.obsSettingsColItem }}</th>
+																<th>{{ i18n.ts._liveChannel.obsSettingsColValue }}</th>
+																<th>{{ i18n.ts._liveChannel.obsSettingsColNote }}</th>
+															</tr>
+														</thead>
+														<tbody>
+															<tr>
+																<th>{{ i18n.ts._liveChannel.obsSettingItemNvencPreset }}</th>
+																<td>P1〜P4</td>
+																<td>{{ i18n.ts._liveChannel.obsSettingNoteNvencPreset }}</td>
+															</tr>
+															<tr>
+																<th>{{ i18n.ts._liveChannel.obsSettingItemNvencTuning }}</th>
+																<td>低遅延 / 超低遅延</td>
+																<td>{{ i18n.ts._liveChannel.obsSettingNoteNvencTuning }}</td>
+															</tr>
+															<tr>
+																<th>{{ i18n.ts._liveChannel.obsSettingItemNvencMultipass }}</th>
+																<td>無効</td>
+																<td>{{ i18n.ts._liveChannel.obsSettingNoteNvencMultipass }}</td>
+															</tr>
+															<tr>
+																<th>{{ i18n.ts._liveChannel.obsSettingItemNvencProfile }}</th>
+																<td>Main</td>
+																<td>{{ i18n.ts._liveChannel.obsSettingNoteNvencProfile }}</td>
+															</tr>
+															<tr>
+																<th>{{ i18n.ts._liveChannel.obsSettingItemNvencLookAhead }}</th>
+																<td>オフ</td>
+																<td>{{ i18n.ts._liveChannel.obsSettingNoteNvencLookAhead }}</td>
+															</tr>
+															<tr>
+																<th>{{ i18n.ts._liveChannel.obsSettingItemMaxBFrames }}</th>
+																<td>0</td>
+																<td>{{ i18n.ts._liveChannel.obsSettingNoteMaxBFrames }}</td>
+															</tr>
+														</tbody>
+													</table>
+												</div>
+											</details>
+										</details>
 									</div>
 
 									<div class="_gaps_s">
@@ -223,6 +367,8 @@ const $i = ensureSignin();
 const liveChannelState = ref<'loading' | 'ready'>('loading');
 const channel = ref<Misskey.entities.LiveChannelsMyResponse['channel']>(null);
 const whipUrl = ref<string | null>(null);
+const maxVideoBitrate = ref<number | null>(null);
+const maxAudioBitrate = ref<number | null>(null);
 const urlRevealed = ref(false);
 const channelName = ref('');
 const channelDescription = ref('');
@@ -231,6 +377,9 @@ const autoPostNoteTemplate = ref('');
 
 const enabled = computed(() => channel.value != null && channel.value.enabled);
 const ingestReady = computed(() => whipUrl.value != null);
+// 上限ちょうどだと瞬間的な変動で断続的に超過判定されうるため、1割ほど余裕を持たせた値を推奨として提示する
+const recommendedVideoBitrate = computed(() => maxVideoBitrate.value != null ? Math.round(maxVideoBitrate.value * 0.9) : null);
+const recommendedAudioBitrate = computed(() => maxAudioBitrate.value);
 const bannerUrl = computed(() => channel.value?.bannerUrl ?? null);
 const offlineImageUrl = computed(() => channel.value?.offlineImageUrl ?? null);
 
@@ -239,6 +388,8 @@ async function fetchMy() {
 	const res = await misskeyApi('live-channels/my', {});
 	channel.value = res.channel;
 	whipUrl.value = res.whipUrl ?? null;
+	maxVideoBitrate.value = res.maxVideoBitrate ?? null;
+	maxAudioBitrate.value = res.maxAudioBitrate ?? null;
 	channelName.value = res.channel?.name ?? '';
 	channelDescription.value = res.channel?.description ?? '';
 	autoPostNoteEnabled.value = res.channel?.autoPostNoteEnabled ?? false;
@@ -560,6 +711,58 @@ definePage(() => ({
 	font-size: 0.9em;
 	line-height: 1.75;
 	color: color(from var(--MI_THEME-fg) srgb r g b / 0.85);
+}
+
+.settingsDetails {
+	border: 1px solid var(--MI_THEME-divider);
+	border-radius: var(--MI-radius);
+	padding: 10px 12px;
+
+	> summary {
+		cursor: pointer;
+		font-weight: 700;
+
+		&::marker {
+			color: color(from var(--MI_THEME-fg) srgb r g b / 0.6);
+		}
+	}
+
+	> .settingsDetails {
+		margin-top: 10px;
+	}
+}
+
+.settingsTableWrap {
+	overflow-x: auto;
+	margin-top: 8px;
+}
+
+.settingsTable {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.9em;
+
+	th, td {
+		text-align: left;
+		padding: 6px 10px;
+		border-bottom: 1px solid var(--MI_THEME-divider);
+		vertical-align: top;
+	}
+
+	thead th {
+		color: color(from var(--MI_THEME-fg) srgb r g b / 0.75);
+		font-weight: 700;
+		white-space: nowrap;
+	}
+
+	tbody th {
+		font-weight: 500;
+		white-space: nowrap;
+	}
+
+	tbody td:nth-child(2) {
+		white-space: nowrap;
+	}
 }
 
 .actionButton {

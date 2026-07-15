@@ -30216,6 +30216,8 @@ export interface operations {
                         rtmpUrl: string | null;
                         srtUrl: string | null;
                         whipUrl?: string | null;
+                        maxVideoBitrate?: number | null;
+                        maxAudioBitrate?: number | null;
                     };
                 };
             };
