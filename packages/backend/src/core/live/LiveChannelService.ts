@@ -254,4 +254,38 @@ export class LiveChannelService {
 			lastCutReason: isOwner ? channel.lastCutReason : undefined,
 		};
 	}
+
+	// 配信チャンネル一覧 (live-channels/list) 用の軽量 pack。streamKey 等の owner-only 分岐を持たないため pack() から分離する。
+	// isLive/startedAt は呼び出し側 (endpoint) が twitch_stream(source='ome') を別クエリで取得し Map 突合した値を渡す。
+	// user は呼び出し側で UserEntityService.packMany してマージする (twitch/live-streams.ts と同型)。
+	@bindThis
+	public async packForList(
+		channel: MiLiveChannel,
+		isLive: boolean,
+		startedAt: Date | null,
+	) {
+		let banner = channel.banner;
+		if (banner == null && channel.bannerId != null) {
+			banner = await this.driveFilesRepository.findOneBy({ id: channel.bannerId });
+		}
+		const bannerUrl = banner != null ? this.driveFileEntityService.getPublicUrl(banner) : null;
+
+		let offlineImage = channel.offlineImage;
+		if (offlineImage == null && channel.offlineImageId != null) {
+			offlineImage = await this.driveFilesRepository.findOneBy({ id: channel.offlineImageId });
+		}
+		const offlineImageUrl = offlineImage != null ? this.driveFileEntityService.getPublicUrl(offlineImage) : null;
+
+		return {
+			id: channel.id,
+			userId: channel.userId,
+			name: channel.name,
+			description: channel.description,
+			bannerUrl,
+			offlineImageUrl,
+			channelId: channel.channelId,
+			isLive,
+			startedAt: startedAt != null ? startedAt.toISOString() : null,
+		};
+	}
 }

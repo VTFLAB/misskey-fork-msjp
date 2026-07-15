@@ -483,6 +483,7 @@ export * as 'live-channels/create' from './endpoints/live-channels/create.js';
 export * as 'live-channels/update' from './endpoints/live-channels/update.js';
 export * as 'live-channels/regenerate-key' from './endpoints/live-channels/regenerate-key.js';
 export * as 'live-channels/my' from './endpoints/live-channels/my.js';
+export * as 'live-channels/list' from './endpoints/live-channels/list.js';
 export * as 'remote-guest/login/start' from './endpoints/remote-guest/login/start.js';
 export * as 'remote-guest/session/revoke' from './endpoints/remote-guest/session/revoke.js';
 export * as 'remote-guest/twitch-comments' from './endpoints/remote-guest/twitch-comments.js';
