@@ -30020,10 +30020,12 @@ export interface operations {
                         channelId: string | null;
                         /** Format: date-time */
                         createdAt: string;
+                        autoPostNoteEnabled: boolean;
                         streamKey?: string;
                         /** Format: date-time */
                         streamKeyRegeneratedAt?: string;
                         lastCutReason?: string | null;
+                        autoPostNoteTemplate?: string | null;
                     };
                 };
             };
@@ -30195,10 +30197,12 @@ export interface operations {
                             channelId: string | null;
                             /** Format: date-time */
                             createdAt: string;
+                            autoPostNoteEnabled: boolean;
                             streamKey?: string;
                             /** Format: date-time */
                             streamKeyRegeneratedAt?: string;
                             lastCutReason?: string | null;
+                            autoPostNoteTemplate?: string | null;
                         } | null;
                         streamKey: string | null;
                         rtmpUrl: string | null;
@@ -30377,10 +30381,12 @@ export interface operations {
                         channelId: string | null;
                         /** Format: date-time */
                         createdAt: string;
+                        autoPostNoteEnabled: boolean;
                         streamKey?: string;
                         /** Format: date-time */
                         streamKeyRegeneratedAt?: string;
                         lastCutReason?: string | null;
+                        autoPostNoteTemplate?: string | null;
                     };
                 };
             };
@@ -30442,6 +30448,8 @@ export interface operations {
                     bannerId?: string | null;
                     /** Format: misskey:id */
                     offlineImageId?: string | null;
+                    autoPostNoteEnabled?: boolean;
+                    autoPostNoteTemplate?: string | null;
                 };
             };
         };
@@ -30470,10 +30478,12 @@ export interface operations {
                         channelId: string | null;
                         /** Format: date-time */
                         createdAt: string;
+                        autoPostNoteEnabled: boolean;
                         streamKey?: string;
                         /** Format: date-time */
                         streamKeyRegeneratedAt?: string;
                         lastCutReason?: string | null;
+                        autoPostNoteTemplate?: string | null;
                     };
                 };
             };
