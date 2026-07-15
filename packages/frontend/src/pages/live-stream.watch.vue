@@ -22,12 +22,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 						:offlineImageUrl="channelInfo?.offlineImageUrl ?? null"
 					/>
 				</div>
-				<!-- プレイヤーへの重畳表示だと常に視界に入り邪魔になる (特にモバイルでは操作の
-				妨げにもなる) ため、プレイヤー外の独立した行として配置する (bsky-fork 独自) -->
-				<div v-if="showSourceToggle" :class="$style.sourceToggle">
-					<button class="_button" :class="[$style.sourceToggleButton, { [$style.sourceToggleButtonActive]: activeSource === 'ome' }]" @click="activeSource = 'ome'">{{ i18n.ts._liveChannel.selfStream }}</button>
-					<button class="_button" :class="[$style.sourceToggleButton, { [$style.sourceToggleButtonActive]: activeSource === 'twitch' }]" @click="activeSource = 'twitch'">Twitch</button>
-				</div>
 				<div :class="$style.info" class="_panel">
 					<div :class="$style.infoHeader">
 						<MkAvatar :user="user" :class="$style.infoAvatar" link preview/>
@@ -40,6 +34,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<span> · <MkTime :time="streamInfo.startedAt" mode="relative"/></span>
 							</div>
 						</div>
+						<!-- MSJP配信/Twitch同時配信時のみ表示する配信元切替。専用の常時表示行だと
+						モバイルで縦スペースを圧迫するため、タイトル行のアイコンボタン+メニューに
+						統合する (bsky-fork 独自) -->
+						<button v-if="showSourceToggle" class="_button" :class="$style.streamerSettingsButton" :title="i18n.ts._liveChannel.switchSource" :aria-label="i18n.ts._liveChannel.switchSource" @click="openSourceMenu">
+							<i class="ti ti-arrows-right-left"></i>
+						</button>
 						<!-- 視聴者含む全ユーザーが任意にページを再取得できるようにする。プレビュー中は
 						実配信が始まったことを検知する手段が無いため、これで拾えるようにする (bsky-fork 独自) -->
 						<button class="_button" :class="$style.streamerSettingsButton" :title="i18n.ts.reload" :aria-label="i18n.ts.reload" @click="reload">
@@ -174,6 +174,20 @@ async function reload() {
 function onStreamEnded() {
 	os.alert({ type: 'info', text: i18n.ts._twitch.streamEnded });
 	reload();
+}
+
+function openSourceMenu(ev: MouseEvent) {
+	os.popupMenu([{
+		type: 'radioOption',
+		text: i18n.ts._liveChannel.selfStream,
+		active: activeSource.value === 'ome',
+		action: () => { activeSource.value = 'ome'; },
+	}, {
+		type: 'radioOption',
+		text: 'Twitch',
+		active: activeSource.value === 'twitch',
+		action: () => { activeSource.value = 'twitch'; },
+	}], ev.currentTarget ?? ev.target);
 }
 
 function openStreamerSettings(ev: MouseEvent) {
@@ -356,39 +370,6 @@ definePage(() => ({
 	height: 100%;
 	border: none;
 	display: block;
-}
-
-// プレイヤーへの重畳ではなく、独立した行として常時表示する (視聴者全員が使う機能のため
-// 常時アクセスできることを優先し、ホバー等での出し入れはしない)
-.sourceToggle {
-	flex-shrink: 0;
-	display: flex;
-	gap: 8px;
-	padding: 4px;
-	background: var(--MI_THEME-panel);
-	border-radius: var(--MI-radius);
-}
-
-.sourceToggleButton {
-	padding: 6px 12px;
-	border-radius: var(--MI-radius);
-	font-size: 0.85em;
-	font-weight: bold;
-	color: var(--MI_THEME-fg);
-	background: transparent;
-
-	&:hover {
-		background: var(--MI_THEME-buttonHoverBg);
-	}
-}
-
-.sourceToggleButtonActive {
-	color: var(--MI_THEME-fgOnAccent);
-	background: var(--MI_THEME-accent);
-
-	&:hover {
-		background: var(--MI_THEME-accent);
-	}
 }
 
 .info {
