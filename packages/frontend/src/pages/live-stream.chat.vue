@@ -86,9 +86,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<button v-if="canParticipate && newCommentsCount > 0" class="_buttonPrimary" :class="$style.newComments" @click="jumpToLatest">
 		<i class="ti ti-arrow-down"></i> {{ i18n.ts._twitch.newComments }}
 	</button>
-	<XRemoteGuestLogin v-if="!canParticipate && live" :returnTo="returnTo"/>
+	<XRemoteGuestLogin v-if="!canParticipate" :returnTo="returnTo"/>
 	<div
-		v-else-if="canParticipate && live"
+		v-else-if="canParticipate"
 		:class="$style.form"
 		@dragover.stop="onDragover"
 		@drop.stop="onDrop"
@@ -152,7 +152,6 @@ const MAX_FILES = 16;
 
 const props = defineProps<{
 	streamId: string;
-	live: boolean;
 	returnTo: string;
 	// 配信者本人のみ true。コメントのブロックメニューと読み上げの有効化条件
 	canModerate?: boolean;
