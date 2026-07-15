@@ -97,6 +97,7 @@
 - Enhance: `twitch/streams/comments` (コメント履歴) を認証不要に変更し、`twitchLiveStream` ストリーミングチャンネルの購読を匿名にも開放 (bsky-fork 独自)。OBS 用オーバーレイページ (ログインできないブラウザソース) がコメントを表示するための変更で、配信コメントは公開ページに表示される情報のため秘匿性はない。投稿系 API は従来通り認証必須
 - Feat: 配信視聴ページのコメントに翻訳機能のバックエンド基盤を追加 (bsky-fork 独自)。自己ホストの LibreTranslate 互換翻訳サーバー (`.config/default.yml` の `twitchTranslation.url` で設定、未設定なら機能無効) を利用し、日本語⇄英語のコメント翻訳結果を24時間 Redis キャッシュする。配信者は `twitch/update-settings` で自分の配信の翻訳機能をON/OFFでき (`twitch_account.translationEnabled`、デフォルトOFF)、ONの配信では Twitch チャット・リモートゲストの非日本語コメントを非同期キュー (`TwitchCommentTranslateProcessorService`、concurrency 1) で日本語へ自動翻訳し、翻訳完了時に `twitchLiveStream` ストリームへ `commentTranslated` イベントを配信する。Misskey ユーザーの投稿は `twitch/streams/comments/create` の新規 `translate` パラメータで明示的にONにした場合のみ同期翻訳され (日本語入力→Twitchへは英訳のみ中継、英語入力→Misskey表示用に和訳を保存)、翻訳サーバー障害時は翻訳なしの従来動作にフォールバックし投稿はブロックされない
 - Feat: 配信機能が有効な配信チャンネルの一覧を返す `live-channels/list` エンドポイントを追加 (bsky-fork 独自、認証不要)。MSJP配信 (OME) の配信中状態 (`isLive` / `startedAt`) も突合して返す。native チャンネル discovery 系 (`channels/search`, `channels/featured`, `channels/owned`) からは配信チャンネルの裏付けチャンネルを除外するようにした (`isLiveChannel` フラグ追加)
+- Feat: MSJP配信 (OME) の配信開始を検知したとき、有効化していれば配信チャンネルへ自動でノートを投稿するように (bsky-fork 独自)。`live-channels/update` に `autoPostNoteEnabled` (ON/OFF) と `autoPostNoteTemplate` (`{title}`/`{url}`/`{channelName}` プレースホルダ対応、既定は配信タイトルの有無で文面を切り替え) を追加。投稿はフォロワー通知と同様 fire-and-forget で、失敗しても配信開始検知自体はブロックしない
 
 ## 2026.9.0
 
