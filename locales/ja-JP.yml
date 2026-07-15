@@ -3666,6 +3666,7 @@ _atproto:
 
 _twitch:
   twitchIntegration: "Twitch連携"
+  twitchRelay: "Twitch中継"
   myAccount: "自分のアカウント"
   watchLive: "ライブ配信を見る"
   liveStreams: "ライブ配信"
@@ -3826,6 +3827,8 @@ _streaming:
   title: "配信"
   description: "配信機能の設定と連携を行えます。"
 _liveChannel:
+  liveChannels: "配信チャンネル"
+  noLiveChannels: "開設されている配信チャンネルはまだありません。"
   liveChannelSettings: "ライブチャンネル設定"
   enableStreaming: "配信機能を利用する"
   enableStreamingDescription: "MSJP配信 (自己ホスト配信サーバー経由でのライブ配信) 機能を有効にします。"
