@@ -4,54 +4,98 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<PageWithHeader :actions="headerActions" :tabs="headerTabs">
+<PageWithHeader v-model:tab="tab" :actions="headerActions" :tabs="headerTabs">
 	<div class="_spacer" style="--MI_SPACER-w: 1200px;">
 		<div class="_gaps">
-			<MkLoading v-if="fetching"/>
-			<div v-else-if="streams.length > 0" :class="$style.grid">
-				<XCard v-for="stream in streams" :key="stream.user.id" :stream="stream"/>
-			</div>
-			<MkResult v-else type="empty" :text="i18n.ts._twitch.noLiveStreams"/>
+			<template v-if="tab === 'liveChannels'">
+				<MkLoading v-if="channelsFetching"/>
+				<div v-else-if="channels.length > 0" :class="$style.grid">
+					<XLiveChannelCard v-for="channel in channels" :key="channel.id" :channel="channel"/>
+				</div>
+				<MkResult v-else type="empty" :text="i18n.ts._liveChannel.noLiveChannels"/>
+			</template>
+			<template v-else-if="tab === 'twitch'">
+				<MkLoading v-if="streamsFetching"/>
+				<div v-else-if="streams.length > 0" :class="$style.grid">
+					<XTwitchCard v-for="stream in streams" :key="stream.user.id" :stream="stream"/>
+				</div>
+				<MkResult v-else type="empty" :text="i18n.ts._twitch.noLiveStreams"/>
+			</template>
 		</div>
 	</div>
 </PageWithHeader>
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, onMounted, onActivated } from 'vue';
+import { computed, ref, watch, onMounted, onActivated } from 'vue';
 import * as Misskey from 'misskey-js';
-import XCard from '@/pages/live-streams.card.vue';
+import XLiveChannelCard from '@/pages/live-channels.card.vue';
+import XTwitchCard from '@/pages/live-streams.card.vue';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 
-const fetching = ref(true);
-const streams = ref<Misskey.Endpoints['twitch/live-streams']['res']>([]);
+const tab = ref<'liveChannels' | 'twitch'>('liveChannels');
 
-async function fetchStreams() {
+const channelsFetching = ref(true);
+const channels = ref<Misskey.Endpoints['live-channels/list']['res']>([]);
+
+const streamsFetching = ref(true);
+const streams = ref<Misskey.Endpoints['twitch/live-streams']['res']>([]);
+let streamsFetched = false;
+
+async function fetchChannels() {
+	channelsFetching.value = true;
 	try {
-		streams.value = await misskeyApi('twitch/live-streams', {});
+		channels.value = await misskeyApi('live-channels/list', { limit: 100 });
 	} finally {
-		fetching.value = false;
+		channelsFetching.value = false;
 	}
 }
 
-onMounted(fetchStreams);
-onActivated(fetchStreams);
+async function fetchStreams() {
+	streamsFetching.value = true;
+	try {
+		streams.value = await misskeyApi('twitch/live-streams', {});
+		streamsFetched = true;
+	} finally {
+		streamsFetching.value = false;
+	}
+}
+
+watch(tab, (v) => {
+	if (v === 'twitch' && !streamsFetched) {
+		fetchStreams();
+	}
+});
+
+onMounted(fetchChannels);
+onActivated(fetchChannels);
 
 const headerActions = computed(() => [{
 	icon: 'ti ti-refresh',
 	text: i18n.ts.reload,
 	handler: () => {
-		fetching.value = true;
-		fetchStreams();
+		if (tab.value === 'twitch') {
+			fetchStreams();
+		} else {
+			fetchChannels();
+		}
 	},
 }]);
 
-const headerTabs = computed(() => []);
+const headerTabs = computed(() => [{
+	key: 'liveChannels',
+	title: i18n.ts._liveChannel.liveChannels,
+	icon: 'ti ti-broadcast',
+}, {
+	key: 'twitch',
+	title: i18n.ts._twitch.twitchRelay,
+	icon: 'ti ti-brand-twitch',
+}]);
 
 definePage(() => ({
-	title: i18n.ts._twitch.liveStreams,
+	title: i18n.ts._liveChannel.liveChannels,
 	icon: 'ti ti-broadcast',
 }));
 </script>
