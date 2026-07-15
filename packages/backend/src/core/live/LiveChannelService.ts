@@ -52,6 +52,8 @@ export class LiveChannelService {
 			lastCutReason: null,
 			createdAt: now,
 			channelId: null,
+			autoPostNoteEnabled: false,
+			autoPostNoteTemplate: null,
 		}));
 
 		const channel = await this.channelsRepository.insertOne({
@@ -79,6 +81,8 @@ export class LiveChannelService {
 		description?: string | null;
 		bannerId?: string | null;
 		offlineImageId?: string | null;
+		autoPostNoteEnabled?: boolean;
+		autoPostNoteTemplate?: string | null;
 	}): Promise<MiLiveChannel> {
 		const liveChannel = await this.liveChannelsRepository.findOneByOrFail({ userId });
 
@@ -88,6 +92,8 @@ export class LiveChannelService {
 		if (params.description !== undefined) update.description = params.description;
 		if (params.bannerId !== undefined) update.bannerId = params.bannerId;
 		if (params.offlineImageId !== undefined) update.offlineImageId = params.offlineImageId;
+		if (params.autoPostNoteEnabled !== undefined) update.autoPostNoteEnabled = params.autoPostNoteEnabled;
+		if (params.autoPostNoteTemplate !== undefined) update.autoPostNoteTemplate = params.autoPostNoteTemplate;
 
 		if (Object.keys(update).length > 0) {
 			await this.liveChannelsRepository.update(liveChannel.id, update);
@@ -248,10 +254,12 @@ export class LiveChannelService {
 			offlineImageUrl,
 			channelId: channel.channelId,
 			createdAt: channel.createdAt.toISOString(),
-			// 所有者のみ: ストリームキーと再生成日時
+			autoPostNoteEnabled: channel.autoPostNoteEnabled,
+			// 所有者のみ: ストリームキーと再生成日時、自動投稿テンプレート
 			streamKey: isOwner ? channel.streamKey : undefined,
 			streamKeyRegeneratedAt: isOwner ? channel.streamKeyRegeneratedAt.toISOString() : undefined,
 			lastCutReason: isOwner ? channel.lastCutReason : undefined,
+			autoPostNoteTemplate: isOwner ? channel.autoPostNoteTemplate : undefined,
 		};
 	}
 
