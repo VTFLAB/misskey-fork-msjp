@@ -5,13 +5,14 @@
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { Injectable, Inject } from '@nestjs/common';
+import secureJson from 'secure-json-parse';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { LiveLoggerService } from '@/core/live/LiveLoggerService.js';
 import { OmeAdmissionService, type OmeAdmissionRequest } from '@/core/live/OmeAdmissionService.js';
-import type { FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fastify';
+import type { FastifyBodyParser, FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fastify';
 
 type OmeAdmissionRequestBody = {
 	client: {
@@ -60,6 +61,30 @@ export class OmeServerService {
 
 	@bindThis
 	public createServer(fastify: FastifyInstance, options: FastifyPluginOptions, done: (err?: Error) => void) {
+		// fastify-raw-body (ServerService で { global: false, runFirst: true } 登録) と Fastify 標準の
+		// application/json パーサーが競合し、rawBody:true のルートで request.body の解決が永久に止まる
+		// (OME からの POST が Content-Length 付き JSON で送られるため必ず踏む)。ActivityPubServerService の
+		// inbox と同じパターンで、この plugin scope 内だけ専用の json パーサーを明示登録して解消する。
+		const almostDefaultJsonParser: FastifyBodyParser<Buffer> = function (request, rawBody, doneParse) {
+			if (rawBody.length === 0) {
+				const err = new Error('Body cannot be empty!') as any;
+				err.statusCode = 400;
+				return doneParse(err);
+			}
+
+			try {
+				const json = secureJson.parse(rawBody.toString('utf8'), null, {
+					protoAction: 'ignore',
+					constructorAction: 'ignore',
+				});
+				doneParse(null, json);
+			} catch (err: any) {
+				err.statusCode = 400;
+				return doneParse(err);
+			}
+		};
+		fastify.addContentTypeParser('application/json', { parseAs: 'buffer' }, almostDefaultJsonParser);
+
 		fastify.post<{ Body: OmeAdmissionRequestBody }>(
 			'/admission',
 			{ config: { rawBody: true }, bodyLimit: 1024 * 16 },
