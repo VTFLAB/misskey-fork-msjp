@@ -278,7 +278,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<template #label><i class="ti ti-brand-twitch"></i> {{ i18n.ts._twitch.myAccount }}</template>
 
 						<div class="_gaps_m">
-							<template v-if="twitchLinked">
+							<MkInfo v-if="!enabled" warn>{{ i18n.ts._twitch.enableChannelFirst }}</MkInfo>
+							<template v-else-if="twitchLinked">
 								<MkKeyValue>
 									<template #key>{{ i18n.ts._twitch.linkedAs }}</template>
 									<template #value>{{ twitchDisplayName }} (@{{ twitchLogin }})</template>

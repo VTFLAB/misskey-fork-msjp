@@ -13787,10 +13787,6 @@ export interface Locale extends ILocale {
          */
         "twitchIntegration": string;
         /**
-         * Twitch中継
-         */
-        "twitchRelay": string;
-        /**
          * 自分のアカウント
          */
         "myAccount": string;
@@ -13802,10 +13798,6 @@ export interface Locale extends ILocale {
          * ライブ配信
          */
         "liveStreams": string;
-        /**
-         * 現在配信中のユーザーはいません。
-         */
-        "noLiveStreams": string;
         /**
          * 現在オフラインです。
          */
@@ -13838,6 +13830,10 @@ export interface Locale extends ILocale {
          * このサーバーではTwitch連携が設定されていません。
          */
         "notConfigured": string;
+        /**
+         * Twitchアカウントを連携するには、先に上の「配信機能を利用する」を有効にしてください。
+         */
+        "enableChannelFirst": string;
         /**
          * Twitchアカウントを連携すると、配信中の表示やライブストリームページへの掲載、コメント連携が利用できるようになります。
          */
@@ -14443,7 +14439,7 @@ export interface Locale extends ILocale {
          */
         "enableStreaming": string;
         /**
-         * MSJP配信 (自己ホスト配信サーバー経由でのライブ配信) 機能を有効にします。
+         * 配信チャンネル機能を有効にします。有効にすると MSJP配信 (自己ホスト配信サーバー経由) と Twitch配信 (連携) のいずれか、または両方を利用できるようになります。
          */
         "enableStreamingDescription": string;
         /**
