@@ -92,7 +92,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 										<template v-if="maxVideoBitrate != null || maxAudioBitrate != null">
 											<div :class="$style.guideTitle">{{ i18n.ts._liveChannel.obsBitrateLimitsTitle }}</div>
 											<div :class="$style.settingsTableWrap">
-												<table :class="$style.settingsTable">
+												<table :class="$style.limitsTable">
 													<tbody>
 														<tr v-if="maxVideoBitrate != null">
 															<th>{{ i18n.ts._liveChannel.obsMaxVideoBitrate }}</th>
@@ -737,8 +737,11 @@ definePage(() => ({
 	margin-top: 8px;
 }
 
-.settingsTable {
+// item / value の2列のみ (配信上限の表示用)
+.limitsTable {
 	width: 100%;
+	min-width: 320px;
+	table-layout: fixed;
 	border-collapse: collapse;
 	font-size: 0.9em;
 
@@ -747,21 +750,54 @@ definePage(() => ({
 		padding: 6px 10px;
 		border-bottom: 1px solid var(--MI_THEME-divider);
 		vertical-align: top;
+		overflow-wrap: break-word;
+	}
+
+	th {
+		width: 55%;
+		font-weight: 500;
+	}
+
+	td {
+		width: 45%;
+	}
+}
+
+// item / value / note の3列 (推奨設定テーブル用)
+.settingsTable {
+	width: 100%;
+	min-width: 480px;
+	table-layout: fixed;
+	border-collapse: collapse;
+	font-size: 0.9em;
+
+	th, td {
+		text-align: left;
+		padding: 6px 10px;
+		border-bottom: 1px solid var(--MI_THEME-divider);
+		vertical-align: top;
+		overflow-wrap: break-word;
 	}
 
 	thead th {
 		color: color(from var(--MI_THEME-fg) srgb r g b / 0.75);
 		font-weight: 700;
-		white-space: nowrap;
 	}
 
 	tbody th {
 		font-weight: 500;
-		white-space: nowrap;
 	}
 
-	tbody td:nth-child(2) {
-		white-space: nowrap;
+	th:nth-child(1), td:nth-child(1) {
+		width: 30%;
+	}
+
+	th:nth-child(2), td:nth-child(2) {
+		width: 22%;
+	}
+
+	th:nth-child(3), td:nth-child(3) {
+		width: 48%;
 	}
 }
 
