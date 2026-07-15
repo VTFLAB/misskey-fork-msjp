@@ -13,6 +13,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkInfo v-if="liveChannelState === 'loading'">{{ i18n.ts.loading }}</MkInfo>
 
 			<template v-else>
+				<MkInfo v-if="isBlocked" warn>
+					<b>{{ i18n.ts._liveChannel.streamBlockedTitle }}</b><br>
+					{{ i18n.tsx._liveChannel.streamBlockedDescription({ reason: channel?.lastCutReason ?? '', remainingMinutes: blockedRemainingMinutes }) }}
+				</MkInfo>
+
 				<div class="_gaps_m">
 					<MkSwitch :modelValue="enabled" @update:modelValue="onToggleEnabled">
 						<template #label>{{ i18n.ts._liveChannel.enableStreaming }}</template>
@@ -342,7 +347,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import FormSection from '@/components/form/section.vue';
 import FormLink from '@/components/form/link.vue';
@@ -378,6 +383,19 @@ const autoPostNoteTemplate = ref('');
 
 const enabled = computed(() => channel.value != null && channel.value.enabled);
 const ingestReady = computed(() => whipUrl.value != null);
+// blockedUntil はビットレート超過遮断 (OmeStreamMonitorService.cutStream) の Redis blacklist TTL 由来。
+// ポーリングではなく 1 秒 tick の now と比較するだけで、解除タイミングでバナーが自動的に消える。
+const now = ref(Date.now());
+let nowTimer: number | undefined;
+const isBlocked = computed(() => {
+	const blockedUntil = channel.value?.blockedUntil;
+	return blockedUntil != null && new Date(blockedUntil).getTime() > now.value;
+});
+const blockedRemainingMinutes = computed(() => {
+	const blockedUntil = channel.value?.blockedUntil;
+	if (blockedUntil == null) return 0;
+	return Math.max(1, Math.ceil((new Date(blockedUntil).getTime() - now.value) / 60000));
+});
 // 上限ちょうどだと瞬間的な変動で断続的に超過判定されうるため、1割ほど余裕を持たせた値を推奨として提示する
 const recommendedVideoBitrate = computed(() => maxVideoBitrate.value != null ? Math.round(maxVideoBitrate.value * 0.9) : null);
 const recommendedAudioBitrate = computed(() => maxAudioBitrate.value);
@@ -653,6 +671,13 @@ async function openTranslationSettings() {
 onMounted(async () => {
 	handleCallbackResult();
 	await Promise.all([fetchMy(), fetchStatus()]);
+	nowTimer = window.setInterval(() => {
+		now.value = Date.now();
+	}, 1000);
+});
+
+onUnmounted(() => {
+	if (nowTimer != null) window.clearInterval(nowTimer);
 });
 
 const headerActions = computed(() => []);

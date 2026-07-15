@@ -44,6 +44,7 @@ export const meta = {
 			streamKeyRegeneratedAt: { type: 'string', format: 'date-time', optional: true, nullable: false },
 			lastCutReason: { type: 'string', optional: true, nullable: true },
 			autoPostNoteTemplate: { type: 'string', optional: true, nullable: true },
+			blockedUntil: { type: 'string', format: 'date-time', optional: true, nullable: true },
 		},
 	},
 } as const;
