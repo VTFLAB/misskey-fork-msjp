@@ -2,7 +2,7 @@
 
 作成日: 2026-07-14
 対象リポジトリ: `misskey-repo` (branch: `bsky-integration`)
-ステータス: 設計確定 (未実装)。**本書は実装セッションが最初に開く作業指示書。**
+ステータス: Phase 0〜4 実装完了・本番稼働中 (`stream.msjp.pro` 経由、LAN限定)。Phase 5 は WI-5.4 完了・WI-5.1〜5.3 が残作業。詳細は §2 進捗表と `live-streaming-tls-handoff.md` (project memory) を参照。**本書は実装セッションが最初に開く作業指示書。**
 
 ## 0. この文書の使い方
 
@@ -130,9 +130,9 @@ graph LR
 | WI-4.3 | 4 | `live-stream.vue` セグメントトグル・チャット `streamId` 追従統合 | [x] | WI-4.2, WI-3.1 |
 | WI-4.4 | 4 | 実機検証チェックリスト (自動再生・切替・全画面・再接続) | [ ] | WI-4.3 |
 | WI-5.1 | 5 | 統合検証シナリオ (実配信テスト、OBS 設定値含む) | [ ] | Phase 0-4 完了 |
-| WI-5.2 | 5 | 本番デプロイ手順 (CI/CD 前提、migration 含むデプロイの注意) | [ ] | WI-5.1 |
+| WI-5.2 | 5 | 本番デプロイ手順 (CI/CD 前提、migration 含むデプロイの注意) | [~] | WI-5.1 |
 | WI-5.3 | 5 | ロールバック方針の文書化・訓練 | [ ] | WI-5.2 |
-| WI-5.4 | 5 | **[BLOCKING/人間承認] 本番 mi-host `default.yml` に `ome:` セクション投入** | [ ] | WI-0.5、WI-5.2、ユーザー承認 |
+| WI-5.4 | 5 | **[BLOCKING/人間承認] 本番 mi-host `default.yml` に `ome:` セクション投入** | [x] | WI-0.5、WI-5.2、ユーザー承認 |
 
 ---
 
@@ -649,6 +649,12 @@ graph LR
 - 完了条件: 本番 `mi.msjp.pro` で `pnpm migrate` が両 migration を適用し、既存機能 (Twitch連携含む) が
   regression なく動作している
 - コミット単位: なし (デプロイ作業。コード変更が必要になった場合は別途修正コミット)
+- **2026-07-15 進捗メモ (`[~]`)**: `AddLiveChannel`/`AddSourceToTwitchStream` を含む18コミットが本番
+  push済み・`podman-auto-update` で pull+restart 済み。起動ログに migration 失敗なし・既存 Twitch 機能の
+  regression なしを確認済み(詳細: `live-streaming-tls-handoff.md` project memory)。**手順2「デプロイ直前の
+  DB dump 取得」のみ未達**: 実際にはデプロイ前バックアップを VM200 スナップショットで代替しており、
+  本番 Postgres の手動 dump 手順(misskeyユーザーの `XDG_RUNTIME_DIR=/run/user/10000` でコンテナ特定→
+  pod内 `pg_dump`)が未確立のまま。この手順を確立し実施するまで `[x]` にはしない。
 
 ### WI-5.3: ロールバック方針
 
@@ -684,6 +690,13 @@ graph LR
   `/api/meta` 相当の非公開情報漏洩に注意した確認方法で確認する (シークレットを含む値を curl 等でエコーバック
   させない)
 - コミット単位: なし (本番設定ファイルは repo 管理外)
+- **2026-07-15 完了 (`[x]`)**: mi-host の `default.yml` に `ome:` セクション投入済み(homelab-ops commit
+  `3f90fce42a`)。`ome.env` 配置 + `deploy.sh` 実行済み、`__OME` プレースホルダー残存0・`config.ome` 解決を
+  confirmed。**ただし依存関係の記載と異なり、WI-0.5 (WAN公開) は未完了のまま実施した**: `stream.msjp.pro` は
+  現状 HAProxy `ext_ok` 未登録の LAN 限定構成(WAN からは403)であり、本番投入はこの LAN 限定構成に対して
+  行った。WAN 公開時は improved: WI-0.5 実施(上位ルーターポート開放 + Server.xml グローバルIP化 + HAProxy
+  `ext_ok` 追加)に合わせて `publicWhipUrl` 等の値を再投入する必要がある。詳細は `live-streaming-tls-handoff.md`
+  project memory 参照。
 
 ---
 
