@@ -49,6 +49,8 @@ export const meta = {
 			rtmpUrl: { type: 'string', optional: false, nullable: true },
 			srtUrl: { type: 'string', optional: false, nullable: true },
 			whipUrl: { type: 'string', optional: true, nullable: true },
+			maxVideoBitrate: { type: 'number', optional: true, nullable: true },
+			maxAudioBitrate: { type: 'number', optional: true, nullable: true },
 		},
 	},
 } as const;
@@ -70,7 +72,15 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		super(meta, paramDef, async (ps, me) => {
 			const channel = await this.liveChannelService.show(me.id);
 			if (channel == null) {
-				return { channel: null, streamKey: null, rtmpUrl: null, srtUrl: null, whipUrl: null };
+				return {
+					channel: null,
+					streamKey: null,
+					rtmpUrl: null,
+					srtUrl: null,
+					whipUrl: null,
+					maxVideoBitrate: this.config.ome?.maxVideoBitrate ?? null,
+					maxAudioBitrate: this.config.ome?.maxAudioBitrate ?? null,
+				};
 			}
 
 			const ingest = this.config.ome != null
@@ -83,6 +93,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				rtmpUrl: null,
 				srtUrl: null,
 				whipUrl: ingest?.whip ?? null,
+				maxVideoBitrate: this.config.ome?.maxVideoBitrate ?? null,
+				maxAudioBitrate: this.config.ome?.maxAudioBitrate ?? null,
 			};
 		});
 	}
