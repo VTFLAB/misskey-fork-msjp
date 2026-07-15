@@ -14447,6 +14447,10 @@ export interface Locale extends ILocale {
          */
         "selfStream": string;
         /**
+         * 配信元を切り替え
+         */
+        "switchSource": string;
+        /**
          * チャンネル名
          */
         "channelName": string;
