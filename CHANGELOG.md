@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Client
+- Enhance: 配信設定 (`/settings/streaming`) の OBS セットアップ案内を改善 (bsky-fork 独自)。このサーバーの映像・音声ビットレート上限を表示し、OBS 32系統の「詳細」出力モードの実項目 (x264 / NVENC それぞれのプリセット・プロファイル・Tune・x264 Options 等) に対応した低遅延設定の目安を折りたたみテーブルで掲載。あわせて音声コーデックの注記を「OBS が WHIP 選択時に自動で Opus へ切り替える」という実際の挙動に合わせて修正 (従来は手動選択が必要であるかのような誤解を招く文言だった)
 - Enhance: 配信一覧ページ (/live) に MSJP配信 (OME) の配信中ユーザーも表示するように (bsky-fork 独自)。これまで Twitch 連携ユーザーのみ掲載されていた。カードの LIVE バッジは OME 配信をアクセント色、Twitch 連携を従来の赤で表示し区別
 - Enhance: プロフィールの LIVE バッジが MSJP配信 (OME) 配信中にも表示されるように (bsky-fork 独自)。アイコンは OME 配信の場合 `ti-broadcast`、Twitch 連携の場合 `ti-brand-twitch` を表示。twitchLive フィールドに source ('twitch' | 'ome') を追加し配信ソースを判別可能に
 - Enhance: 配信設定 (/settings/twitch と /settings/live-channel) を「配信」設定ページ (/settings/streaming) に統合 (bsky-fork 独自)。Twitch連携・MSJP配信(OME)・配信者ツール(TTS・コメント生成・ブロック・翻訳・OBSオーバーレイ) を1箇所に集約し、導線を整理。旧URLは新ページへリダイレクト
