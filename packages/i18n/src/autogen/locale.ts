@@ -11571,7 +11571,7 @@ export interface Locale extends ILocale {
              */
             "list": string;
             /**
-             * チャンネル
+             * 配信チャンネル
              */
             "channel": string;
             /**
@@ -13783,6 +13783,10 @@ export interface Locale extends ILocale {
          */
         "twitchIntegration": string;
         /**
+         * Twitch中継
+         */
+        "twitchRelay": string;
+        /**
          * 自分のアカウント
          */
         "myAccount": string;
@@ -14419,6 +14423,14 @@ export interface Locale extends ILocale {
     };
     "_liveChannel": {
         /**
+         * 配信チャンネル
+         */
+        "liveChannels": string;
+        /**
+         * 開設されている配信チャンネルはまだありません。
+         */
+        "noLiveChannels": string;
+        /**
          * ライブチャンネル設定
          */
         "liveChannelSettings": string;
@@ -14614,6 +14626,30 @@ export interface Locale extends ILocale {
          * 全画面
          */
         "fullscreen": string;
+        /**
+         * 自動配信開始ノート
+         */
+        "autoPostNote": string;
+        /**
+         * 配信開始時に自動でノートを投稿する
+         */
+        "autoPostNoteEnabled": string;
+        /**
+         * MSJP配信の開始を検知すると、自動でノートを投稿します。
+         */
+        "autoPostNoteEnabledDescription": string;
+        /**
+         * 投稿テンプレート
+         */
+        "autoPostNoteTemplate": string;
+        /**
+         * {title}(配信タイトル)・{url}(配信ページURL)・{channelName}(チャンネル名) が使えます。空欄の場合は既定の文面を使用します。
+         */
+        "autoPostNoteTemplateDescription": ParameterizedString<"title" | "url" | "channelName">;
+        /**
+         * 「{title}」の配信を開始しました 📡 {url}
+         */
+        "autoPostNoteTemplateDefault": ParameterizedString<"title" | "url">;
     };
     "_remoteGuestLogin": {
         /**
