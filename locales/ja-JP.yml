@@ -3037,7 +3037,7 @@ _deck:
     tl: "タイムライン"
     antenna: "アンテナ"
     list: "リスト"
-    channel: "チャンネル"
+    channel: "配信チャンネル"
     mentions: "メンション"
     direct: "指名"
     roleTimeline: "ロールタイムライン"
