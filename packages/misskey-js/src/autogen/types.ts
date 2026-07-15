@@ -30203,6 +30203,8 @@ export interface operations {
                             streamKeyRegeneratedAt?: string;
                             lastCutReason?: string | null;
                             autoPostNoteTemplate?: string | null;
+                            /** Format: date-time */
+                            blockedUntil?: string | null;
                         } | null;
                         streamKey: string | null;
                         rtmpUrl: string | null;
@@ -30389,6 +30391,8 @@ export interface operations {
                         streamKeyRegeneratedAt?: string;
                         lastCutReason?: string | null;
                         autoPostNoteTemplate?: string | null;
+                        /** Format: date-time */
+                        blockedUntil?: string | null;
                     };
                 };
             };

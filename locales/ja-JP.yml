@@ -3850,6 +3850,8 @@ _liveChannel:
   channelHome: "チャンネルホーム"
   followChannel: "チャンネルをフォロー"
   lastCutReason: "直近の強制切断理由"
+  streamBlockedTitle: "配信が一時的に遮断されています"
+  streamBlockedDescription: "理由: {reason} この streamKey での再配信は解除まで拒否されます (残り約{remainingMinutes}分)。"
   streamServerInfo: "配信サーバー情報"
   showKey: "表示する"
   hideKey: "隠す"

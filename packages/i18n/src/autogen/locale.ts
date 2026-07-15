@@ -14420,6 +14420,14 @@ export interface Locale extends ILocale {
          */
         "lastCutReason": string;
         /**
+         * 配信が一時的に遮断されています
+         */
+        "streamBlockedTitle": string;
+        /**
+         * 理由: {reason} この streamKey での再配信は解除まで拒否されます (残り約{remainingMinutes}分)。
+         */
+        "streamBlockedDescription": ParameterizedString<"reason" | "remainingMinutes">;
+        /**
          * 配信サーバー情報
          */
         "streamServerInfo": string;
