@@ -39,9 +39,11 @@ export const meta = {
 			offlineImageUrl: { type: 'string', optional: false, nullable: true },
 			channelId: { type: 'string', format: 'misskey:id', optional: false, nullable: true },
 			createdAt: { type: 'string', format: 'date-time', optional: false, nullable: false },
+			autoPostNoteEnabled: { type: 'boolean', optional: false, nullable: false },
 			streamKey: { type: 'string', optional: true, nullable: false },
 			streamKeyRegeneratedAt: { type: 'string', format: 'date-time', optional: true, nullable: false },
 			lastCutReason: { type: 'string', optional: true, nullable: true },
+			autoPostNoteTemplate: { type: 'string', optional: true, nullable: true },
 		},
 	},
 } as const;
