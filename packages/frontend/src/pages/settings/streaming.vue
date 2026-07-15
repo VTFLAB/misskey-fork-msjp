@@ -100,6 +100,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 								</template>
 							</div>
 						</FormSection>
+
+						<FormSection>
+							<template #label><i class="ti ti-message-circle"></i> {{ i18n.ts._liveChannel.autoPostNote }}</template>
+
+							<div class="_gaps_m">
+								<MkSwitch :modelValue="autoPostNoteEnabled" @update:modelValue="onToggleAutoPostNote">
+									<template #label>{{ i18n.ts._liveChannel.autoPostNoteEnabled }}</template>
+									<template #caption>{{ i18n.ts._liveChannel.autoPostNoteEnabledDescription }}</template>
+								</MkSwitch>
+
+								<MkTextarea :modelValue="autoPostNoteTemplate" manualSave :max="512" :placeholder="i18n.ts._liveChannel.autoPostNoteTemplateDefault" @update:modelValue="onAutoPostNoteTemplateSave">
+									<template #label>{{ i18n.ts._liveChannel.autoPostNoteTemplate }}</template>
+									<template #caption>{{ i18n.ts._liveChannel.autoPostNoteTemplateDescription }}</template>
+								</MkTextarea>
+							</div>
+						</FormSection>
 					</div>
 				</template>
 			</template>
@@ -210,6 +226,8 @@ const whipUrl = ref<string | null>(null);
 const urlRevealed = ref(false);
 const channelName = ref('');
 const channelDescription = ref('');
+const autoPostNoteEnabled = ref(false);
+const autoPostNoteTemplate = ref('');
 
 const enabled = computed(() => channel.value != null && channel.value.enabled);
 const ingestReady = computed(() => whipUrl.value != null);
@@ -223,6 +241,8 @@ async function fetchMy() {
 	whipUrl.value = res.whipUrl ?? null;
 	channelName.value = res.channel?.name ?? '';
 	channelDescription.value = res.channel?.description ?? '';
+	autoPostNoteEnabled.value = res.channel?.autoPostNoteEnabled ?? false;
+	autoPostNoteTemplate.value = res.channel?.autoPostNoteTemplate ?? '';
 	liveChannelState.value = 'ready';
 }
 
@@ -255,6 +275,20 @@ async function onDescriptionSave(v: string) {
 	if (channel.value == null) return;
 	channelDescription.value = v;
 	const updated = await os.apiWithDialog('live-channels/update', { description: v || null });
+	channel.value = updated;
+}
+
+async function onToggleAutoPostNote(v: boolean) {
+	if (channel.value == null) return;
+	autoPostNoteEnabled.value = v;
+	const updated = await os.apiWithDialog('live-channels/update', { autoPostNoteEnabled: v });
+	channel.value = updated;
+}
+
+async function onAutoPostNoteTemplateSave(v: string) {
+	if (channel.value == null) return;
+	autoPostNoteTemplate.value = v;
+	const updated = await os.apiWithDialog('live-channels/update', { autoPostNoteTemplate: v || null });
 	channel.value = updated;
 }
 
