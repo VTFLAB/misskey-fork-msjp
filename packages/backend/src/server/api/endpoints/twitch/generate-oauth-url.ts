@@ -3,12 +3,14 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { ApiError } from '@/server/api/error.js';
 import { RoleService } from '@/core/RoleService.js';
 import { TwitchApiService } from '@/core/twitch/TwitchApiService.js';
 import { TwitchOAuthService } from '@/core/twitch/TwitchOAuthService.js';
+import type { LiveChannelsRepository } from '@/models/_.js';
+import { DI } from '@/di-symbols.js';
 
 export const meta = {
 	tags: ['twitch', 'account'],
@@ -34,6 +36,11 @@ export const meta = {
 			code: 'ACCESS_DENIED',
 			id: 'c13a2b42-8a01-48b7-a794-c53472998d83',
 		},
+		channelNotEnabled: {
+			message: 'Please enable your live channel before linking a Twitch account.',
+			code: 'CHANNEL_NOT_ENABLED',
+			id: '8e2f1c3a-6b4d-4e9a-9c1e-2f7a5d8b0e3c',
+		},
 	},
 
 	res: {
@@ -56,6 +63,9 @@ export const paramDef = {
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
+		@Inject(DI.liveChannelsRepository)
+		private liveChannelsRepository: LiveChannelsRepository,
+
 		private roleService: RoleService,
 		private twitchApiService: TwitchApiService,
 		private twitchOAuthService: TwitchOAuthService,
@@ -63,8 +73,15 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		super(meta, paramDef, async (ps, me) => {
 			if (!this.twitchApiService.isEnabled) throw new ApiError(meta.errors.notConfigured);
 
-			if (ps.forBot && !await this.roleService.isAdministrator(me)) {
-				throw new ApiError(meta.errors.accessDenied);
+			if (ps.forBot) {
+				if (!await this.roleService.isAdministrator(me)) {
+					throw new ApiError(meta.errors.accessDenied);
+				}
+			} else {
+				const liveChannel = await this.liveChannelsRepository.findOneBy({ userId: me.id });
+				if (liveChannel == null || !liveChannel.enabled) {
+					throw new ApiError(meta.errors.channelNotEnabled);
+				}
 			}
 
 			const url = await this.twitchOAuthService.generateAuthorizeUrl(me.id, ps.forBot);
