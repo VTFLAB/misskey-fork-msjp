@@ -61,11 +61,17 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 		if (!cluster.isPrimary) return;
 
 		this.pollTimer = setInterval(() => {
-			// 先にライブ開始検知 (listStreams → 未 live なチャンネルを isLive 化)、
-			// 続いて既存 live セッションのビットレート監視を回す。
-			this.detectStartedStreams().catch(err => {
-				this.logger.error(`detect failed: ${err instanceof Error ? err.message : err}`);
-			});
+			// 先にライブ開始検知 (listStreams → 未 live なチャンネルを isLive 化)。取得済みの
+			// streamKey 集合を使い回して offline 反映 (detectEndedStreams, WI-7) も同じ周期で行う
+			// (listStreams を二重に呼ばない)。続いて既存 live セッションのビットレート監視を回す。
+			this.detectStartedStreams()
+				.then(omeStreamKeySet => {
+					if (omeStreamKeySet == null) return;
+					return this.detectEndedStreams(omeStreamKeySet);
+				})
+				.catch(err => {
+					this.logger.error(`detect failed: ${err instanceof Error ? err.message : err}`);
+				});
 			this.pollActiveSessions().catch(err => {
 				this.logger.error(`poll failed: ${err instanceof Error ? err.message : err}`);
 			});
@@ -86,21 +92,26 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 	/**
 	 * OME で publish 中 (listStreams) だが DB に live セッションが無い配信を検出し、
 	 * ライブセッション (source=ome, isLive=true) を作成する (bsky-fork 独自)。
-	 * AdmissionWebhooks 無効構成でのライブ「開始」検知を担う (offline 化は reconcileWithOme)。
+	 * AdmissionWebhooks 無効構成でのライブ「開始」検知を担う (offline 化は detectEndedStreams / reconcileWithOme)。
 	 * OME 到達不能時はセッションを勝手に作らずスキップ (縮退方針、reconcile と同思想)。
+	 *
+	 * 戻り値の Set は listStreams() で取得済みの streamKey 集合。呼び出し元の pollTimer が
+	 * 同じ 10 秒周期内で detectEndedStreams (WI-7) に使い回し、OME API 呼び出し回数を増やさない。
+	 * listStreams 自体が失敗した場合は null を返す (呼び出し元は offline 判定をスキップする)。
 	 */
 	@bindThis
-	public async detectStartedStreams(): Promise<void> {
-		if (this.config.ome == null) return;
+	public async detectStartedStreams(): Promise<Set<string> | null> {
+		if (this.config.ome == null) return null;
 
 		let omeStreamKeys: string[];
 		try {
 			omeStreamKeys = await this.omeApiService.listStreams();
 		} catch (err) {
 			this.logger.warn(`detect: listStreams failed, skipping this cycle: ${err instanceof Error ? err.message : err}`);
-			return;
+			return null;
 		}
-		if (omeStreamKeys.length === 0) return;
+		const omeStreamKeySet = new Set(omeStreamKeys);
+		if (omeStreamKeys.length === 0) return omeStreamKeySet;
 
 		const channels = await this.liveChannelsRepository.findBy({ streamKey: In(omeStreamKeys) });
 		for (const channel of channels) {
@@ -108,6 +119,8 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 			if ((await this.redisClient.exists(`ome:blacklist:${channel.streamKey}`)) === 1) continue;
 			await this.twitchStreamService.markOmeStreamLive(channel.userId, channel.name);
 		}
+
+		return omeStreamKeySet;
 	}
 
 	/**
@@ -205,9 +218,34 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 	}
 
 	/**
-	 * OME ダウン時の webhook 取り逃し自己修復: OME の listStreams() と DB の isLive/source=ome セッションを
-	 * 突合し、OME 側に存在しないのに DB 上 isLive のままのセッションを offline に倒す。
-	 * 2分間隔 (決定書 §2「listStreams と DB の突合を2分間隔で実施」)。
+	 * OME の listStreams() 結果 (streamKey 集合) と DB の isLive/source=ome セッションを突合し、
+	 * OME 側に存在しないのに DB 上 isLive のままのセッションを offline に倒す (WI-7)。
+	 * reconcileWithOme (2分間隔、自己修復) と 10秒 pollTimer (detectStartedStreams が取得済みの
+	 * 集合を使い回す、offline反映短縮) の双方から呼ばれる共通ロジック。
+	 */
+	@bindThis
+	private async detectEndedStreams(omeStreamKeySet: Set<string>): Promise<void> {
+		const activeSessions = await this.twitchStreamsRepository.find({ where: { isLive: true, source: 'ome' } });
+		if (activeSessions.length === 0) return;
+
+		const channels = await this.liveChannelsRepository.findBy({ userId: In(activeSessions.map(s => s.userId)) }); // eslint-disable-line
+		const channelByUserId = new Map(channels.map(c => [c.userId, c]));
+
+		for (const session of activeSessions) {
+			const channel = channelByUserId.get(session.userId);
+			if (channel == null) continue;
+			if (!omeStreamKeySet.has(channel.streamKey)) {
+				this.logger.info(`session ${session.id} (streamKey=${channel.streamKey}) is not present on OME, marking offline (webhook likely missed)`);
+				await this.twitchStreamsRepository.update(session.id, { isLive: false, endedAt: new Date() });
+				this.globalEventService.publishTwitchLiveStream(session.id, 'streamEnded', {});
+			}
+		}
+	}
+
+	/**
+	 * OME ダウン時の webhook 取り逃し自己修復: listStreams() を取得し直して detectEndedStreams に渡す。
+	 * 2分間隔 (決定書 §2「listStreams と DB の突合を2分間隔で実施」)。10秒 pollTimer 側の
+	 * offline反映短縮 (WI-7) とは独立したセーフティネットとして存置する。
 	 */
 	@bindThis
 	public async reconcileWithOme(): Promise<void> {
@@ -220,22 +258,7 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 			this.logger.warn(`reconcile: listStreams failed, skipping this cycle: ${err instanceof Error ? err.message : err}`);
 			return; // OME 到達不能時はセッションを勝手に閉じない (縮退方針)
 		}
-		const omeStreamKeySet = new Set(omeStreamKeys);
 
-		const activeSessions = await this.twitchStreamsRepository.find({ where: { isLive: true, source: 'ome' } });
-		if (activeSessions.length === 0) return;
-
-		const channels = await this.liveChannelsRepository.findBy({ userId: In(activeSessions.map(s => s.userId)) }); // eslint-disable-line
-		const channelByUserId = new Map(channels.map(c => [c.userId, c]));
-
-		for (const session of activeSessions) {
-			const channel = channelByUserId.get(session.userId);
-			if (channel == null) continue;
-			if (!omeStreamKeySet.has(channel.streamKey)) {
-				this.logger.info(`reconcile: session ${session.id} (streamKey=${channel.streamKey}) is not present on OME, marking offline (webhook likely missed)`);
-				await this.twitchStreamsRepository.update(session.id, { isLive: false, endedAt: new Date() });
-				this.globalEventService.publishTwitchLiveStream(session.id, 'streamEnded', {});
-			}
-		}
+		await this.detectEndedStreams(new Set(omeStreamKeys));
 	}
 }
