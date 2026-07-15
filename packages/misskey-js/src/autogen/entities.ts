@@ -643,7 +643,6 @@ export type TestRequest = operations['test']['requestBody']['content']['applicat
 export type TestResponse = operations['test']['responses']['200']['content']['application/json'];
 export type TwitchGenerateOauthUrlRequest = operations['twitch___generate-oauth-url']['requestBody']['content']['application/json'];
 export type TwitchGenerateOauthUrlResponse = operations['twitch___generate-oauth-url']['responses']['200']['content']['application/json'];
-export type TwitchLiveStreamsResponse = operations['twitch___live-streams']['responses']['200']['content']['application/json'];
 export type TwitchMyAccountResponse = operations['twitch___my-account']['responses']['200']['content']['application/json'];
 export type TwitchStreamsBlocksCreateRequest = operations['twitch___streams___blocks___create']['requestBody']['content']['application/json'];
 export type TwitchStreamsBlocksCreateResponse = operations['twitch___streams___blocks___create']['responses']['200']['content']['application/json'];
