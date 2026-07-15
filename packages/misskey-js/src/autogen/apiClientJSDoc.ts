@@ -3704,6 +3704,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * 配信機能が有効な配信チャンネルの一覧を返す (`/live` の配信チャンネルタブ用)。MSJP配信 (OME) が配信中かどうかは twitch_stream(source='ome', isLive=true) を突合して isLive/startedAt に反映する。
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'live-channels/list', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * 自分のライブチャンネル設定を返す。未開設なら channel: null。OME 連携有効時は whipUrl を含む。
      * 
      * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
