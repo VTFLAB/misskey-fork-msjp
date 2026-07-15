@@ -7,18 +7,23 @@ import cluster from 'node:cluster';
 import { Injectable, Inject, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 import { IsNull } from 'typeorm';
 import { DI } from '@/di-symbols.js';
-import type { FollowingsRepository, TwitchAccountsRepository, TwitchStreamsRepository } from '@/models/_.js';
+import type { ChannelsRepository, FollowingsRepository, LiveChannelsRepository, TwitchAccountsRepository, TwitchStreamsRepository, UsersRepository } from '@/models/_.js';
 import { MiTwitchStream } from '@/models/TwitchStream.js';
 import type { MiTwitchAccount } from '@/models/TwitchAccount.js';
 import type { MiUser } from '@/models/User.js';
+import type { Config } from '@/config.js';
 import { IdService } from '@/core/IdService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { NotificationService } from '@/core/NotificationService.js';
+import { NoteCreateService } from '@/core/NoteCreateService.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { TwitchApiService } from './TwitchApiService.js';
 import type { TwitchHelixStream } from './TwitchApiService.js';
 import { TwitchLoggerService } from './TwitchLoggerService.js';
+
+const DEFAULT_AUTO_POST_TEMPLATE_WITH_TITLE = '「{title}」の配信を開始しました 📡 {url}';
+const DEFAULT_AUTO_POST_TEMPLATE_WITHOUT_TITLE = '配信を開始しました 📡 {url}';
 
 // EventSub の取り逃しを自己修復するための全件ポーリング間隔。
 // 連携ユーザーが 100 人以下なら Get Streams 1 リクエストで済む。
@@ -40,9 +45,22 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 		@Inject(DI.followingsRepository)
 		private followingsRepository: FollowingsRepository,
 
+		@Inject(DI.liveChannelsRepository)
+		private liveChannelsRepository: LiveChannelsRepository,
+
+		@Inject(DI.channelsRepository)
+		private channelsRepository: ChannelsRepository,
+
+		@Inject(DI.usersRepository)
+		private usersRepository: UsersRepository,
+
+		@Inject(DI.config)
+		private config: Config,
+
 		private idService: IdService,
 		private globalEventService: GlobalEventService,
 		private notificationService: NotificationService,
+		private noteCreateService: NoteCreateService,
 		private twitchApiService: TwitchApiService,
 		private twitchLoggerService: TwitchLoggerService,
 	) {
@@ -145,6 +163,50 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 		this.notifyFollowers(userId, newStream).catch(err => {
 			this.logger.error(`notifyFollowers failed: ${err instanceof Error ? err.message : err}`);
 		});
+		this.postAutoStartNote(userId, title).catch(err => {
+			this.logger.error(`postAutoStartNote failed: ${err instanceof Error ? err.message : err}`);
+		});
+	}
+
+	/**
+	 * 配信開始検知時の自動ノート投稿 (WI-6, bsky-fork 独自)。live_channel.autoPostNoteEnabled が
+	 * ON のユーザーのみ対象。配信開始検知 (markOmeStreamLive) をブロックしないよう
+	 * fire-and-forget で呼ばれる想定 (呼び出し側で .catch 済み)。
+	 */
+	@bindThis
+	private async postAutoStartNote(userId: MiUser['id'], title: string | null): Promise<void> {
+		const liveChannel = await this.liveChannelsRepository.findOneBy({ userId });
+		if (liveChannel == null || !liveChannel.autoPostNoteEnabled) return;
+
+		if (liveChannel.channelId == null) {
+			this.logger.warn(`postAutoStartNote: user=${userId} has autoPostNoteEnabled but no linked channel, skipping`);
+			return;
+		}
+		const channel = await this.channelsRepository.findOneBy({ id: liveChannel.channelId });
+		if (channel == null) {
+			this.logger.warn(`postAutoStartNote: user=${userId} linked channel ${liveChannel.channelId} not found, skipping`);
+			return;
+		}
+
+		const user = await this.usersRepository.findOneBy({ id: userId });
+		if (user == null) return;
+
+		const url = `${this.config.url}/live/${user.username}`;
+		const template = liveChannel.autoPostNoteTemplate ?? (
+			title != null && title !== ''
+				? DEFAULT_AUTO_POST_TEMPLATE_WITH_TITLE
+				: DEFAULT_AUTO_POST_TEMPLATE_WITHOUT_TITLE
+		);
+		const text = template
+			.replaceAll('{title}', title ?? '')
+			.replaceAll('{url}', url)
+			.replaceAll('{channelName}', liveChannel.name ?? channel.name ?? '');
+
+		await this.noteCreateService.create(user, {
+			text,
+			channel,
+		});
+		this.logger.info(`auto-posted stream-start note: user=${userId} channel=${channel.id}`);
 	}
 
 	/**
