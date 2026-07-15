@@ -5,6 +5,7 @@
 
 import { createHmac } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
+import * as Redis from 'ioredis';
 import { DI } from '@/di-symbols.js';
 import type { ChannelsRepository, DriveFilesRepository, LiveChannelsRepository, MiUser } from '@/models/_.js';
 import type { MiChannel } from '@/models/Channel.js';
@@ -27,9 +28,21 @@ export class LiveChannelService {
 		@Inject(DI.driveFilesRepository)
 		private driveFilesRepository: DriveFilesRepository,
 
+		@Inject(DI.redis)
+		private redisClient: Redis.Redis,
+
 		private idService: IdService,
 		private driveFileEntityService: DriveFileEntityService,
 	) {
+	}
+
+	// OmeAdmissionService.blacklistKey() / OmeStreamMonitorService.cutStream() と同じ key 形式。
+	// 配信者本人向けに「現在遮断中か」を可視化するための読み取り専用ヘルパー。
+	@bindThis
+	private async getBlockedUntil(streamKey: string): Promise<string | null> {
+		const ttl = await this.redisClient.ttl(`ome:blacklist:${streamKey}`);
+		if (ttl <= 0) return null;
+		return new Date(Date.now() + (ttl * 1000)).toISOString();
 	}
 
 	// 有効化 (= 「配信機能を利用する」トグル ON)。既に行が存在する場合は ALREADY_EXISTS として呼び出し側でエラーにする
@@ -242,6 +255,10 @@ export class LiveChannelService {
 		}
 		const offlineImageUrl = offlineImage != null ? this.driveFileEntityService.getPublicUrl(offlineImage) : null;
 
+		// ビットレート超過遮断で ome:blacklist:<streamKey> が立っている間、配信者自身に「今まさに
+		// 遮断中で再配信できない」ことを警告表示するために使う (isOwner のときのみ意味を持つ)。
+		const blockedUntil = (isOwner && channel.streamKey != null) ? await this.getBlockedUntil(channel.streamKey) : null;
+
 		return {
 			id: channel.id,
 			userId: channel.userId,
@@ -255,11 +272,12 @@ export class LiveChannelService {
 			channelId: channel.channelId,
 			createdAt: channel.createdAt.toISOString(),
 			autoPostNoteEnabled: channel.autoPostNoteEnabled,
-			// 所有者のみ: ストリームキーと再生成日時、自動投稿テンプレート
+			// 所有者のみ: ストリームキーと再生成日時、自動投稿テンプレート、遮断状態
 			streamKey: isOwner ? channel.streamKey : undefined,
 			streamKeyRegeneratedAt: isOwner ? channel.streamKeyRegeneratedAt.toISOString() : undefined,
 			lastCutReason: isOwner ? channel.lastCutReason : undefined,
 			autoPostNoteTemplate: isOwner ? channel.autoPostNoteTemplate : undefined,
+			blockedUntil: isOwner ? blockedUntil : undefined,
 		};
 	}
 
