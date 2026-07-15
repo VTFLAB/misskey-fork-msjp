@@ -264,8 +264,9 @@ export class LiveChannelService {
 	}
 
 	// 配信チャンネル一覧 (live-channels/list) 用の軽量 pack。streamKey 等の owner-only 分岐を持たないため pack() から分離する。
-	// isLive/startedAt は呼び出し側 (endpoint) が twitch_stream(source='ome') を別クエリで取得し Map 突合した値を渡す。
-	// user は呼び出し側で UserEntityService.packMany してマージする (twitch/live-streams.ts と同型)。
+	// isLive/startedAt は呼び出し側 (endpoint) が twitch_stream(isLive=true) を別クエリで取得し Map 突合した値を渡す
+	// (MSJP配信・Twitch配信いずれの配信中状態も反映する)。
+	// user は呼び出し側で UserEntityService.packMany してマージする。
 	@bindThis
 	public async packForList(
 		channel: MiLiveChannel,
