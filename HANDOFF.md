@@ -1,74 +1,62 @@
 # misskey-bsky-fork — 次セッションへの引き継ぎ
 
-## 🔴 進行中スレッド: ライブ配信機能 (2026-07-14、最優先で読むこと)
+## 🔴 次スレッド: 残検対応 (2026-07-15 時点、最優先)
 
-**このセクションは以下の AT-proto (Bluesky 統合) の引き継ぎ内容とは別スレッド。** ライブチャンネル
-(自己配信、OME=OvenMediaEngine連携) 機能を新規実装中。設計・進捗の一次情報源は
-**`doc/live-streaming/06-implementation-phases.md`** — 次セッションは必ずこれを最初に開くこと
-(本セクションは要約のみ)。
+次セッションの主題は **「残検対応」**(残りの検証 / 検収対応)。**具体スコープはユーザーが保持**して
+おり、本セッションでは詳細未共有。セッション開始時にユーザーから対象項目を受け取ってから着手すること。
 
-### 状態
+- 直前の「配信チャンネル統合整備」(下記 ✅ セクション) は **完了・実機検証済み・クローズ**。この残検とは
+  別件で、片付いているので引きずらない。
+- 開始時の確認事項: 残検の対象範囲(どの機能/どの指摘か)、優先度、本番反映を伴うか。
+- 作業ツリーは clean、`bsky-integration` は `origin` と一致(`39f5680267` まで push 済み)。
 
-- 設計書7本 (`doc/live-streaming/00〜06`) 策定済み、コミット済み (`dbf1457895`)。
-- **Phase 1 (チャンネル基盤 backend, WI-1.1〜1.4) 完了・push 済み** (`670a74c9` 〜 `0cc8b00d`、5コミット)。
-  `live_channel` テーブル・`LiveChannelService`・API 5本 (`live-channels/*`)・i18n・e2e 9ケース。
-  `config.ome` に一切依存せず単体で動作する (OME非依存の完了条件を満たす)。
-- **Phase 3 (チャンネルページ frontend, WI-3.1〜3.8) 完了・push 済み** (13コミット: `3fa3284c` 〜 `e4afcab68c`)。
-  3状態分岐・YouTubeライクなタブ構成 (Home/Posts/Media)・`/settings/live-channel` 設定ページ・
-  `/live/:acct/stream` 視聴ページ分離・ライブインジケータ・チャンネルTL (Misskey channel 紐付け)・
-  リアルタイム更新 (MkStreamingNotesTimeline)・`channelId` lazy初期化・`bannerUrl` 解決。
-  本番デプロイ済み・ユーザー実機検証完了 (全項目パス)。
-  migration `1783986075195-AddChannelIdToLiveChannel.js` 追加 (live_channel.channelId 列)。
-- **Phase 0 (OMEインフラ構築) は未着手** — LXC作成等の物理インフラ作業で、コーディングセッションのスコープ外。
-- Phase 2 (OME連携backend) は Phase 0 + Phase 1 の両方が前提。Phase 0 未着手のため Phase 2 は着手不可。
-- **次に着手可能な作業**: Phase 0 (OMEインフラ、`01-infra-ome-setup.md` を読み WI-0.1 から)。
-  Phase 2 は Phase 0 完了後。
+---
 
-### このセッションで踏んだ落とし穴 (次セッションが同じ沼にハマらないために)
+## ✅ 完了スレッド: ライブ配信 / 配信チャンネル (2026-07-15 クローズ)
 
-1. **Orca (AppImage) が user namespace 内で動作**: Claude Code / OpenCode の Bash ツールが
-   `app-orca-*.scope` 配下の user namespace に隔離されている。このため podman/docker の rootless
-   コンテナ操作 (`docker compose` 等) がツール実行環境から失敗する (`cannot re-exec process to join
-   the existing user namespace`)。Orca 設定でネスト解除・`--no-sandbox` 起動を試したが user namespace は
-   変わらなかった。**回避策**: `DOCKER_HOST=unix:///run/user/1000/podman/podman.sock podman --remote`
-   で socket 経由ならコンテナ操作可能。ローカル dev 環境の DB はこの方法で確認可能だが、認証フローを
-   含む frontend 検証は現実的でない (別ブラウザ・Orca CLI libfuse エラー等の問題も重なる)。Phase 3 の
-   検証は Phase 1 + Phase 3 をまとめて本番デプロイして行う方針が最短。
-2. **`.config/docker.env` が存在しない**: `compose.local-db.yml` の `db` サービスが要求するが repo には無い
-   (`.gitignore` 対象)。作成した (`POSTGRES_HOST_AUTH_METHOD=trust`、`.config/default.yml`/`test.yml` の
-   `pass: ''` に合わせた)。
-3. **`.config/default.yml`/`.config/test.yml` の db/redis ポートが `compose.local-db.yml` の実マッピング
-   (5432/6379) と不一致だった** (54312/56312 になっていた)。5432/6379 に修正して解決 (ホスト側ポート空き
-   確認済み)。ポート変更後は `pnpm --filter backend compile-config` で `built/.config.json` を再コンパイル
-   しないと反映されない (`check-migrations`/`migrate` はこのファイルを読む)。
-4. **`pnpm`/`node` のバージョン不整合**: システムの `pnpm` (corepack自己管理) が壊れており
-   `PATH="/nix/store/$(find /nix/store -maxdepth 1 -iname "*nodejs-26*" -type d | head -1 | xargs basename)/bin:$PATH"`
-   を前置きすることで `generate_api_json.js`/`check-migrations`/`migrate`/`pnpm dev` 等が正常動作する
-   (nix store のハッシュは環境固有で変わる可能性がある — `find` で探し直すこと)。
-   確認時のハッシュ: `k6rg5622i98aqmjy94jki8nz7ghm3x0s-nodejs-slim-26.5.0`。
-5. **migration の TypeORM 制約名は必ず `check-migrations` の実出力で検証すること**: 手書きで
-   `PK_live_channel_id` のような可読名を付けると、TypeORM の自動生成ハッシュ名
-   (`PK_43a1eee100c501a88c0faa3d4c5` 等) と一致せず `check-migrations` が pending DDL として検出する。
-   `@OneToOne` + `@JoinColumn` の列には TypeORM が自動で `REL_*` unique 制約を追加する点も見落としやすい
-   (手書き migration で書き忘れると生成される DDL と食い違う)。
-6. **`secure: true` エンドポイントの未認証時レスポンスは 401 ではなく 400 (`ACCESS_DENIED`)**:
-   `ApiCallService.call()` の `secure` チェックが `requireCredential` の 401 チェックより先に走るため
-   (`packages/backend/src/server/api/ApiCallService.ts:302` 付近)。`requireCredential: true` だが
-   `secure` を付けないエンドポイント (例: `twitch/my-account`) は素直に 401 になる。
+**AT-proto (Bluesky 統合) スレッドとは別。** ライブチャンネル (自己配信、OME=OvenMediaEngine連携)
+機能は **Phase 0〜5 完了・本番 `mi.msjp.pro` デプロイ済み・実機検証済み**。さらに独自「配信チャンネル」
+への導線統合整備 (2026-07-15) も **完了・6課題すべて実機検証で問題なし・クローズ**。
 
-### 次にやること
+このスレッドで新規に着手すべき残作業は無い。詳細な一次情報は以下:
 
-1. **Phase 0 着手**: `doc/live-streaming/01-infra-ome-setup.md` を読み WI-0.1 から。LXC作成 + Docker +
-   OvenMediaEngine コンテナ起動 + Server.xml 初期版。WI-0.5 (WAN公開) はユーザー承認済みだが上位ルーターの
-   ポート開放は人間の手動作業。
-2. **Phase 2 着手** (Phase 0 完了後): `doc/live-streaming/02-backend-ome-integration.md` を読み WI-2.1 から。
-   `config.ts` に `ome` ブロック追加 → `OmeApiService` → `OmeServerService` → `OmeAdmissionService` →
-   セッション統合 → `LiveChannelService.generateIngestUrls()` → `OmeStreamMonitorService` →
-   `twitch/streams/show` の `sessions` 配列拡張 → e2e → AdmissionWebhooks 有効化。
-3. **Phase 4 着手** (Phase 2 完了後): `doc/live-streaming/05-frontend-player.md` を読み WI-4.1 から。
-   `ovenplayer` 依存追加 + `MkOmePlayer.vue` → `MkTwitchPlayer.vue` + `MkStreamPlayer.vue` →
-   `live-stream.vue` セグメントトグル統合 → 実機検証。
-4. Phase 1 (5コミット) + Phase 3 (13コミット) は **push 済み・本番デプロイ済み**。次セッションでの push 不要。
+- 設計: `doc/live-streaming/00〜06`(元設計)、`doc/live-streaming/07-consolidation-plan.md`(統合整備の確定計画)。
+- プロジェクトメモリ(セッション開始時に自動ロードされる `MEMORY.md` 索引):
+  - `live-streaming-channel-consolidation` — 2026-07-15 配信チャンネル統合(最新・クローズ)。
+  - `live-streaming-tls-handoff` — OME TLS 終端 + 本番デプロイ。
+  - `live-streaming-phase0〜4-*` — 各フェーズ実装詳細。
+
+### 2026-07-15 統合整備で入れた変更(push済み・本番反映済み、`18195999dd..39f5680267`、18コミット)
+
+- native `MiChannel` はコアに編み込まれ破棄不可 → **ノート集約エンジンとして裏に存置、discovery導線のみ
+  配信チャンネルへ置換**、が確定原則(今後もこの原則を守る)。
+- `MiChannel.isLiveChannel` フラグで native channels 検索/featured/owned から配信用チャンネル除外(既存データ backfill済)。
+- `live-channels/list` API + `/live` 配信チャンネル一覧ページ(配信中バッジ、Twitch中継はタブ統合)。
+- navbar「配信チャンネル」へ一本化(native `channels` エントリ撤去、`/channels` ルートは残置)、deck の
+  channel カラムを配信チャンネル選択へ転用(既存プロファイル後方互換)。
+- 自動配信開始ノート(`live_channel.autoPostNoteEnabled`/`autoPostNoteTemplate`、ON/OFF可、視聴URL自動埋込)。
+- offline反映 ≤10s化(`OmeStreamMonitorService.detectEndedStreams`、reconcile 2分は自己修復で存置)。
+- navbar 既定順を `preferences/def.ts menu.default` で調整。**ナビ並びは各ブラウザ localStorage 保存で
+  サーバー同期はオプトイン → 管理者側から全ユーザー強制リセットは不可**(既定変更は未カスタマイズ者のみ反映)。
+
+### 保留(このスレッドの唯一の未消化、着手条件付き)
+
+- **WI-0.5 WAN公開**: `stream.msjp.pro` の一般公開。現状は HAProxy で **LAN 限定**。公開には最上位ルータの
+  手動ポート開放 + Server.xml グローバルIP化(§7.5) + HAProxy `ext_ok` 追加 + ユーザー承認が必要。急がない。
+
+### この機能群で不変の環境の罠(次に触るとき用)
+
+1. **Node 26 必須**: PATH 先頭に nix store の nodejs-26(`.node-version`=26.4.0。ハッシュは
+   `find /nix/store -maxdepth 1 -iname "*nodejs-26*"` で都度探す)。デフォルト node v24 は re2 ABI 不一致で
+   全 pnpm スクリプトが落ちる。pnpm は `/home/vtf/.npm-global/bin/pnpm`。
+2. **check-migrations**: 新規 migration の DDL は `nix-shell -p postgresql` の psql で dev DB
+   (127.0.0.1:5432 postgres 無pass test-misskey)へ**直接 up() 適用**して clean 確認。`pnpm migrate` は
+   dev DB の typeorm migrations テーブル desync で Init から失敗するため使わない。制約/カラム名は
+   check-migrations 実出力で確認、手書き推測名禁止。
+3. **本番 DB dump 手順が未確立**: mi-host (CT200) は rootless podman、DB は pod 内で 5432 未公開。
+   デプロイ前バックアップは今回 **PVE VM200 スナップショット**で代替した。pod内 pg_dump するなら
+   misskey ユーザーの `XDG_RUNTIME_DIR=/run/user/10000` でコンテナ特定が要る(`sudo -iu misskey`)。
+4. **locale は `locales/ja-JP.yml` のみ編集**、backend API 変更後は `pnpm build-misskey-js-with-types` 再生成。
 
 ---
 
