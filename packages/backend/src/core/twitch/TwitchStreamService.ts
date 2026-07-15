@@ -97,9 +97,21 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 
 	/**
 	 * stream.online イベント / ポーリングで検知した配信中ストリームを upsert する。
+	 *
+	 * 配信チャンネル (live_channel.enabled) が無効なユーザーは、Twitchアカウントの連携
+	 * (twitch_account) 自体は保持したまま、検知・通知・チャット中継等の「連携」動作のみを
+	 * 停止する (bsky-fork 独自の設計方針: 配信チャンネルが配信行為全体の前提)。ここで
+	 * セッション作成/更新を丸ごとスキップすることで、以降の notifyFollowers・チャット中継・
+	 * コメント欄 (いずれも isLive な twitch_stream 行の存在を前提に動く) を連鎖的に停止させる。
 	 */
 	@bindThis
 	public async upsertLiveStream(userId: MiUser['id'], stream: TwitchHelixStream): Promise<void> {
+		const liveChannel = await this.liveChannelsRepository.findOneBy({ userId });
+		if (liveChannel == null || !liveChannel.enabled) {
+			this.logger.info(`skip Twitch stream detection (live channel not enabled): user=${userId}`);
+			return;
+		}
+
 		const existing = await this.twitchStreamsRepository.findOneBy({ twitchStreamId: stream.id });
 		if (existing != null) {
 			await this.twitchStreamsRepository.update(existing.id, {
