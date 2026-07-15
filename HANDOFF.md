@@ -39,10 +39,15 @@
 - navbar 既定順を `preferences/def.ts menu.default` で調整。**ナビ並びは各ブラウザ localStorage 保存で
   サーバー同期はオプトイン → 管理者側から全ユーザー強制リセットは不可**(既定変更は未カスタマイズ者のみ反映)。
 
-### 保留(このスレッドの唯一の未消化、着手条件付き)
+### 完了(2026-07-16、旧・保留事項)
 
-- **WI-0.5 WAN公開**: `stream.msjp.pro` の一般公開。現状は HAProxy で **LAN 限定**。公開には最上位ルータの
-  手動ポート開放 + Server.xml グローバルIP化(§7.5) + HAProxy `ext_ok` 追加 + ユーザー承認が必要。急がない。
+- **WI-0.5 WAN公開**: 完了・実機検証済み。`stream.msjp.pro` は Cloudflare proxied A レコード → 上位ルーター
+  443 → OPNsense rdr (source cloudflare_v4 限定) → HAProxy 443 TLS 終端 (`is_ome_stream_host` ACL を
+  `ext_ok` に追加) → OME 3333 の経路で WAN 公開済み(設計書 §7 原案の「3333/3334 HAProxy 素通し・専用
+  frontend」は不採用)。メディア (UDP 10000-10009 / TCP 3478) は上位ルーター→OPNsense WAN→192.168.1.111
+  の NAT (XML 直接追記) で開通。`${PublicIP}` STUN 解決が二重 NAT 環境でも真のグローバル IP に正しく
+  解決されることも実機確認済み。外部3拠点・Docomo/Softbank 実回線での視聴成功を確認。詳細は
+  `doc/live-streaming/06-implementation-phases.md` WI-0.5 完了メモ、`01-infra-ome-setup.md` §7.5/§7.6。
 
 ### この機能群で不変の環境の罠(次に触るとき用)
 
