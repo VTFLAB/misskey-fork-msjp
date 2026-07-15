@@ -71,9 +71,8 @@ export const navbarItemDef = reactive<{
 		to: '/updates',
 	},
 	liveStreams: {
-		title: i18n.ts._twitch.liveStreams,
+		title: i18n.ts._liveChannel.liveChannels,
 		icon: 'ti ti-broadcast',
-		show: computed(() => $i != null),
 		to: '/live',
 	},
 	search: {
@@ -132,11 +131,6 @@ export const navbarItemDef = reactive<{
 		icon: 'ti ti-paperclip',
 		show: computed(() => $i != null),
 		to: '/my/clips',
-	},
-	channels: {
-		title: i18n.ts.channel,
-		icon: 'ti ti-device-tv',
-		to: '/channels',
 	},
 	chat: {
 		title: i18n.ts.directMessage_short,

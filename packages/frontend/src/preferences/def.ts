@@ -195,7 +195,7 @@ export const PREF_DEF = definePreferences({
 			'-',
 			'explore',
 			'updateInfo',
-			'channels',
+			'liveStreams',
 			'search',
 			'-',
 			'ui',
