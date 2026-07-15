@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Client
+- Fix: 配信一覧ページ (/live) の「Twitch中継」タブを廃止し、配信チャンネル一覧の「配信中」インジケータのみで統合表示するように (bsky-fork 独自)。MSJP配信と同時にTwitch配信を行った際に同一チャンネルが「Twitch中継」タブへ重複表示される問題も、表示面自体の廃止により解消
 - Fix: 配信視聴ページの Twitch/MSJP配信 (OME) 切替ボタンがプレイヤー上に重畳表示され、常に視界に入り操作の妨げになっていた問題を修正 (bsky-fork 独自)。プレイヤー内へのオーバーレイをやめ、プレイヤー直下の独立した行に配置するように変更 (視聴者全員が使う機能のため、ホバー等での出し入れはせず常時表示のままアクセスしやすさを優先)
 - Enhance: 配信設定 (`/settings/streaming`) の OBS セットアップ案内を改善 (bsky-fork 独自)。このサーバーの映像・音声ビットレート上限を表示し、OBS 32系統の「詳細」出力モードの実項目 (x264 / NVENC それぞれのプリセット・プロファイル・Tune・x264 Options 等) に対応した低遅延設定の目安を折りたたみテーブルで掲載。あわせて音声コーデックの注記を「OBS が WHIP 選択時に自動で Opus へ切り替える」という実際の挙動に合わせて修正 (従来は手動選択が必要であるかのような誤解を招く文言だった)
 - Enhance: 配信一覧ページ (/live) に MSJP配信 (OME) の配信中ユーザーも表示するように (bsky-fork 独自)。これまで Twitch 連携ユーザーのみ掲載されていた。カードの LIVE バッジは OME 配信をアクセント色、Twitch 連携を従来の赤で表示し区別
@@ -68,6 +69,7 @@
 - Enhance: ナビゲーションメニューの「ライブ配信」を「配信チャンネル」に改称し、未ログインでも表示するように (bsky-fork 独自)。ネイティブの「チャンネル」項目は配信チャンネルへ導線を一本化するため撤去 (`/channels` の URL 自体は既存ブックマーク保全のため引き続き利用可能)
 - Enhance: デッキ UI のチャンネルカラムを配信チャンネル選択に対応 (bsky-fork 独自)。カラム追加時・チャンネル選択時に配信チャンネル一覧から選べるようになり、配信中のチャンネルはカラムヘッダに配信中バッジを表示。既存デッキプロファイルが配信チャンネルでない native チャンネルを保持している場合も表示は継続する (バッジのみ非表示)
 - Feat: MSJP配信の配信開始時に自動でノートを投稿する設定を配信設定ページ (`/settings/streaming`) に追加 (bsky-fork 独自)。ON/OFF切り替えと、配信タイトル・配信ページURL・チャンネル名を埋め込めるテンプレート入力に対応
+- Enhance: 配信設定ページ (`/settings/streaming`) の Twitch 連携セクションで、配信チャンネル (`live-channels`) を有効化していない場合は連携ボタンを表示せず「先に配信機能を有効にしてください」という案内を表示するように (bsky-fork 独自)。Twitch 連携が配信チャンネルと独立して単独有効化できてしまっていた導線を整理
 
 ### Server
 
@@ -106,6 +108,9 @@
 - Feat: 配信機能が有効な配信チャンネルの一覧を返す `live-channels/list` エンドポイントを追加 (bsky-fork 独自、認証不要)。MSJP配信 (OME) の配信中状態 (`isLive` / `startedAt`) も突合して返す。native チャンネル discovery 系 (`channels/search`, `channels/featured`, `channels/owned`) からは配信チャンネルの裏付けチャンネルを除外するようにした (`isLiveChannel` フラグ追加)
 - Feat: MSJP配信 (OME) の配信開始を検知したとき、有効化していれば配信チャンネルへ自動でノートを投稿するように (bsky-fork 独自)。`live-channels/update` に `autoPostNoteEnabled` (ON/OFF) と `autoPostNoteTemplate` (`{title}`/`{url}`/`{channelName}` プレースホルダ対応、既定は配信タイトルの有無で文面を切り替え) を追加。投稿はフォロワー通知と同様 fire-and-forget で、失敗しても配信開始検知自体はブロックしない
 - Enhance: MSJP配信 (OME) の配信終了検知を最短10秒程度まで短縮 (bsky-fork 独自)。従来は2分間隔の突合 (自己修復用に存置) のみが offline 反映を担っていたが、既存の10秒ポーリング (配信開始検知) が取得済みの OME 側配信一覧を使い回して同じ周期で offline 判定も行うようにした (OME への問い合わせ回数は増やしていない)
+- Enhance: Twitch アカウント連携 (`twitch/generate-oauth-url`) を配信チャンネル (`live_channel.enabled`) 有効化済みユーザーに限定するように (bsky-fork 独自)。配信チャンネルを有効化しないまま Twitch 連携だけを単独で行えてしまい、`/live` 一覧 (`live_channel.enabled = TRUE` を起点にクエリ) に反映されない仕様不整合を解消。管理者による中継 bot 連携 (`forBot: true`) は対象外
+- Enhance: `live-channels/list` の配信中判定 (`isLive`) を MSJP配信 (OME) 限定から Twitch 配信も含む全配信ソースへ拡張 (bsky-fork 独自)。同じ「配信行為」である以上、どちらの配信中状態もカードに反映されるべきという設計変更
+- Enhance: 配信チャンネルを無効化した際、Twitch配信の検知・通知等の連携動作も停止するように (bsky-fork 独自)。Twitchアカウントの連携 (OAuth 認証) 自体は維持したまま、配信検知 (`upsertLiveStream`)・フォロワー通知・チャット中継/コメント欄が連鎖的に停止する
 
 ## 2026.7.0
 

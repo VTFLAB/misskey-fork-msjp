@@ -17,7 +17,7 @@ export const meta = {
 	requireCredential: false,
 
 	description: '配信機能が有効な配信チャンネルの一覧を返す (`/live` の配信チャンネルタブ用)。' +
-		'MSJP配信 (OME) が配信中かどうかは twitch_stream(source=\'ome\', isLive=true) を突合して isLive/startedAt に反映する。',
+		'MSJP配信・Twitch配信いずれの配信中状態も twitch_stream(isLive=true) を突合して isLive/startedAt に反映する。',
 
 	res: {
 		type: 'array',
@@ -78,9 +78,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			if (channels.length === 0) return [];
 
-			// 少数想定でDBサブクエリ化はせず、別クエリ→Mapで突合する (twitch/live-streams.ts と同パターン)。
-			const liveOmeStreams = await this.twitchStreamsRepository.findBy({ source: 'ome', isLive: true });
-			const liveByUserId = new Map(liveOmeStreams.map(s => [s.userId, s]));
+			// 少数想定でDBサブクエリ化はせず、別クエリ→Mapで突合する。MSJP配信 (source='ome') / Twitch配信のいずれの配信中セッションも対象。
+			const liveStreams = await this.twitchStreamsRepository.findBy({ isLive: true });
+			const liveByUserId = new Map(liveStreams.map(s => [s.userId, s]));
 
 			const users = await this.userEntityService.packMany(channels.map(c => c.userId), me);
 			const userById = new Map(users.map(u => [u.id, u]));
