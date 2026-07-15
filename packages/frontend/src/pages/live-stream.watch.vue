@@ -58,8 +58,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</div>
 			<div :class="$style.chat">
-				<XChat v-if="activeSession != null" :key="activeSession.streamId" :streamId="activeSession.streamId" :live="true" :returnTo="`/live/${props.acct}`" :canModerate="isOwner" @streamEnded="onStreamEnded"/>
-				<XChat v-else-if="isPreview && streamInfo != null" :key="`preview-${streamInfo.id}`" :streamId="streamInfo.id" :live="false" :returnTo="`/live/${props.acct}`" :canModerate="isOwner" @streamEnded="onStreamEnded"/>
+				<XChat v-if="activeSession != null" :key="activeSession.streamId" :streamId="activeSession.streamId" :returnTo="`/live/${props.acct}`" :canModerate="isOwner" @streamEnded="onStreamEnded"/>
+				<XChat v-else-if="isPreview && streamInfo != null" :key="`preview-${streamInfo.id}`" :streamId="streamInfo.id" :returnTo="`/live/${props.acct}`" :canModerate="isOwner" @streamEnded="onStreamEnded"/>
 			</div>
 		</div>
 	</div>
