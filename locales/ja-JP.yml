@@ -3878,6 +3878,12 @@ _liveChannel:
   reconnecting: "再接続中…"
   mute: "ミュート"
   fullscreen: "全画面"
+  autoPostNote: "自動配信開始ノート"
+  autoPostNoteEnabled: "配信開始時に自動でノートを投稿する"
+  autoPostNoteEnabledDescription: "MSJP配信の開始を検知すると、自動でノートを投稿します。"
+  autoPostNoteTemplate: "投稿テンプレート"
+  autoPostNoteTemplateDescription: "{title}(配信タイトル)・{url}(配信ページURL)・{channelName}(チャンネル名) が使えます。空欄の場合は既定の文面を使用します。"
+  autoPostNoteTemplateDefault: "「{title}」の配信を開始しました 📡 {url}"
 _remoteGuestLogin:
   title: "他インスタンスのアカウントでログイン"
   description: "他のMisskeyインスタンスのアカウントでログインすると、視聴とコメント投稿ができます。"
