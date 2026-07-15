@@ -735,6 +735,12 @@ OME 再起動が必要になる。`${PublicIP}` (STUN 自動解決) が二重 NA
 外側 IP を返すかは Phase 0 実機検証項目に含める — 正しく返るなら固定書きせず
 `${PublicIP}` 運用が望ましい。
 
+**2026-07-16 実施結果**: WI-0.5 で実機確認済み。`${PublicIP}` マクロは二重 NAT
+環境でも STUN により真のグローバル IP (106.178.114.110) に正しく解決されることを
+確認した (本節冒頭の未確定事項は解消)。実際の採用構成は静的 IP 書きではなく、
+LAN 内候補 `192.168.1.111` と `${PublicIP}` 候補を併記し、`TcpRelay` は
+`${PublicIP}:3478` とした。IP 変動時は OME 再起動のみで追従する。
+
 ### 7.6 事後検証コマンド
 
 WAN 側 (外部ネットワークからの実行、例: モバイル回線でテザリングした端末等
@@ -750,6 +756,29 @@ nc -zvu stream.msjp.pro 10000
 # TURN relay TCP
 nc -zv stream.msjp.pro 3478
 ```
+
+**2026-07-16 実施メモ**: 上記コマンド例は §7.3 原案 (3333/3334 の HAProxy 素通し)
+を前提にしていたが、実際の採用構成は Cloudflare proxied A レコード → 上位
+ルーター 443 (既存開放) → OPNsense rdr (source cloudflare_v4 限定、既存) →
+HAProxy 443 TLS 終端 (`is_ome_stream_host` ACL を `ext_ok` に追加) → OME 3333
+であり、3333/3334 の直接素通しおよび専用 frontend は不採用とした
+(2026-07-15 の TLS 終端構成を踏襲、live-streaming-tls-handoff project memory
+参照)。事後検証は次のコマンドで代替する:
+
+```bash
+# signalling が Cloudflare 経由の 443 (HTTPS) で到達するか
+curl -sSI https://stream.msjp.pro/
+
+# ICE UDPレンジ (代表ポートのみ)
+nc -zvu stream.msjp.pro 10000
+
+# TURN relay TCP
+nc -zv stream.msjp.pro 3478
+```
+
+外部3拠点からの検証で `https://stream.msjp.pro` = 404 (Cloudflare 経由で開通、
+アプリ側の 404 であり到達自体は成功)、TCP 3478 フルハンドシェイク成立、
+UDP 10000-10009 着弾、Docomo/Softbank 実回線での視聴成功を確認済み。
 
 `homelab-ops` の監査コマンド (basic-memory 「Homelab public (WAN) surface」
 ノート記載) で新規開放ポートを事後棚卸しすること (research-infra.md §6.6)。

@@ -102,7 +102,7 @@ graph LR
 | WI-0.2 | 0 | OME コンテナ起動 + Server.xml 初期版 (WHIP-only, SignedProvider 有効, AdmissionWebhooks コメントアウト) | [x] | WI-0.1 |
 | WI-0.3 | 0 | シークレット生成 + config 対応表確定 (SignedPolicy必須、AdmissionWebhooksオプション) | [x] | WI-0.2 |
 | WI-0.4 | 0 | LAN 内疎通検証 (a)〜(d) + 未確定事項 1,2,4,5,7 の実機解消 (WHIP-only 決定含む) | [x] | WI-0.3 |
-| WI-0.5 | 0 | **[BLOCKING/人間承認] WAN 公開 (OPNsense NAT/HAProxy/DNS)** | [ ] | WI-0.4、ユーザー承認 |
+| WI-0.5 | 0 | **[BLOCKING/人間承認] WAN 公開 (OPNsense NAT/HAProxy/DNS)** | [x] | WI-0.4、ユーザー承認 |
 | WI-1.1 | 1 | `live_channel` entity + migration + 登録4点セット + CoreModule登録 | [x] | なし |
 | WI-1.2 | 1 | `LiveChannelService` 実装 (create/update/regenerateStreamKey/show/pack) | [x] | WI-1.1 |
 | WI-1.3 | 1 | API endpoint 5本 (`live-channels/*`) + misskey-js 再生成 | [x] | WI-1.2 |
@@ -219,6 +219,28 @@ graph LR
 - 完了条件: 01 §7.1〜§7.6 をすべて実施し、§7.6 の事後検証コマンド (WAN外からの nc/curl) が期待どおり応答する。
   CLAUDE.md §10 のとおり OPNsense config export を事前取得済みであること
 - コミット単位: なし (インフラ変更)。事後、`homelab-ops` の WAN 監査ノートを更新する (プロジェクト外)
+- **2026-07-16 完了メモ**: WI-0.5 完了 (`[x]`)。実装は本節・01 §7 の設計から一部変更になった:
+  - **signalling/WHIP**: `stream.msjp.pro` は Cloudflare proxied A レコード (origin IP 秘匿) → 上位ルーター
+    443 (既存開放) → OPNsense rdr (source cloudflare_v4 限定、既存) → HAProxy 443 TLS 終端 (`is_ome_stream_host`
+    ACL を `ext_ok` に追加) → OME 3333 という経路を採用。設計時点の「3333/3334 の HAProxy 素通し」
+    「専用 frontend 新設」(§7.3 原案) は不採用とし、2026-07-15 の TLS 終端構成 (live-streaming-tls-handoff
+    project memory 参照) を踏襲した。
+  - **メディア**: 上位ルーター (Buffalo VR-U500X) で UDP 10000-10009 / TCP 3478 → OPNsense WAN
+    (192.168.13.2)。OPNsense 側は NAT rdr+pass を XML 直接追記で作成 (PHP Model 経由だと DNat の
+    serialize に副作用があるため不使用)。宛先は 192.168.1.111。
+  - **IceCandidates (§7.5)**: `${PublicIP}` マクロが二重 NAT 環境でも STUN により真のグローバル IP
+    (106.178.114.110) に正しく解決されることを実機確認 (Server.xml の未確定事項は解消)。静的 IP 書きでは
+    なく LAN 候補 (192.168.1.111) + `${PublicIP}` 候補の併記、TcpRelay は `${PublicIP}:3478` を採用。
+    IP 変動時は OME 再起動のみで追従する。
+  - **§7.6 検証**: 外部3拠点から `https://stream.msjp.pro` = 404 (Cloudflare 経由で開通)、TCP 3478
+    フルハンドシェイク成立、UDP 10000-10009 着弾、Docomo/Softbank 実回線での視聴成功を確認。
+  - **セキュリティ注記**: WebRTC SDP の ICE candidate によって origin のグローバル IP が視聴者に開示される
+    (Cloudflare による秘匿の例外)。ユーザー承認済み。
+  - **運用注記**: OPNsense config backup 3点取得済み (`/conf/manual-backup-pre-wi05-*.xml`)。ビットレート
+    上限は本番 config で video 6000kbps / audio 256kbps に設定 (2026-07-16、超過閾値は各値×1.1)。
+  - **教訓**: mi-host `default.yml` の `ome.admissionSecret` が homelab-ops リポジトリに未反映のまま
+    deploy.sh 上書きで消失し配信不能になる事故が発生 → deploy.sh に `__OME_ADMISSION_SECRET__` 置換を
+    恒久追加済み (homelab-ops 側で対応済み)。
 
 ---
 
@@ -751,7 +773,7 @@ graph LR
 | 00-overview §5 #3 | WHEP egress対応 | 解消済み (未実装確認済み、対応不要) |
 | 00-overview §5 #4 | `bitrateLatest`/`bitrateAvg` の実挙動 | WI-0.4 (実機記録) → WI-2.7 (`OmeStreamMonitorService` の閾値判定ロジックに反映) |
 | 00-overview §5 #5 | OBS WHIP の Bearer Token と SignedPolicy の統合方法 | WI-0.4 (実機検証)。query直付け方式は03 §6で実装済みのフォールバック |
-| 00-overview §5 #6 | 公開FQDN・WAN公開ポリシー例外 | WI-0.5 (人間承認、BLOCKING) |
+| 00-overview §5 #6 | 公開FQDN・WAN公開ポリシー例外 | WI-0.5 (人間承認、BLOCKING) — 2026-07-16 完了 |
 | 00-overview §5 #7 | OME同時視聴接続数の実用上限 | WI-0.4 (初期ベースライン) + WI-5.1 (本格負荷試験) |
 | 05 §1 | `ovenplayer` のバンドルサイズ実測 | WI-4.1 |
 | 05 §2 実装メモ | `setVolume()` の値域 (0-1/0-100) | WI-4.1 |
