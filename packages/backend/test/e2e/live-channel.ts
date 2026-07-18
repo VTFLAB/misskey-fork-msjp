@@ -135,3 +135,101 @@ describe('ライブチャンネル', () => {
 		assert.strictEqual(castAsError(res.body as any).error.code, 'NO_SUCH_CHANNEL');
 	});
 });
+
+// 視聴制限機能 (WI-視聴制限)。update/my の往復と verify-view-password の成功/失敗を検証する。
+// OME 実体 (admission webhook / 実際の視聴) は対象外 (config.ome 非依存)。
+describe('ライブチャンネル 視聴制限', () => {
+	let alice: misskey.entities.SignupResponse;
+	let bob: misskey.entities.SignupResponse;
+
+	beforeAll(async () => {
+		alice = await signup({ username: 'aliceviewrestrict' });
+		bob = await signup({ username: 'bobviewrestrict' });
+		const created = await api('live-channels/create', {}, alice);
+		assert.strictEqual(created.status, 200);
+	}, 1000 * 60 * 2);
+
+	test('既定値は public', async () => {
+		const res = await api('live-channels/my', {}, alice);
+		assert.strictEqual(res.status, 200);
+		assert.strictEqual((res.body as any).channel.visibility, 'public');
+		assert.deepStrictEqual((res.body as any).channel.visibleUserIds, []);
+		assert.strictEqual((res.body as any).channel.viewPassword, null);
+	});
+
+	test('password モードへ viewPassword 無しで切り替えると VIEW_PASSWORD_REQUIRED', async () => {
+		const res = await api('live-channels/update', { visibility: 'password' }, alice);
+		assert.strictEqual(res.status, 400);
+		assert.strictEqual(castAsError(res.body as any).error.code, 'VIEW_PASSWORD_REQUIRED');
+	});
+
+	test('password モードへ viewPassword 付きで切り替えられ、my に反映される', async () => {
+		const res = await api('live-channels/update', { visibility: 'password', viewPassword: 'himitsu123' }, alice);
+		assert.strictEqual(res.status, 200);
+		assert.strictEqual((res.body as any).visibility, 'password');
+		assert.strictEqual((res.body as any).viewPassword, 'himitsu123');
+
+		const my = await api('live-channels/my', {}, alice);
+		assert.strictEqual((my.body as any).channel.visibility, 'password');
+		assert.strictEqual((my.body as any).channel.viewPassword, 'himitsu123');
+	});
+
+	test('他人には visibility/viewPassword/visibleUserIds が見えない (show 経由)', async () => {
+		const res = await api('live-channels/show', { userId: alice.id }, bob);
+		assert.strictEqual(res.status, 200);
+		assert.strictEqual((res.body as any).visibility, undefined);
+		assert.strictEqual((res.body as any).viewPassword, undefined);
+		assert.strictEqual((res.body as any).visibleUserIds, undefined);
+	});
+
+	test('users モードで visibleUserIds を設定できる', async () => {
+		const res = await api('live-channels/update', { visibility: 'users', visibleUserIds: [bob.id] }, alice);
+		assert.strictEqual(res.status, 200);
+		assert.strictEqual((res.body as any).visibility, 'users');
+		assert.deepStrictEqual((res.body as any).visibleUserIds, [bob.id]);
+	});
+
+	test('visibleUserIds が101件だと 400 (maxItems)', async () => {
+		const tooMany = Array.from({ length: 101 }, (_, i) => i.toString(36).padStart(16, '0'));
+		const res = await api('live-channels/update', { visibility: 'users', visibleUserIds: tooMany }, alice);
+		assert.strictEqual(res.status, 400);
+	});
+
+	test('verify-view-password: 正しいパスワードで viewToken が発行される', async () => {
+		const setPassword = await api('live-channels/update', { visibility: 'password', viewPassword: 'correct-horse' }, alice);
+		assert.strictEqual(setPassword.status, 200);
+
+		const res = await api('live-channels/verify-view-password', { userId: alice.id, password: 'correct-horse' });
+		assert.strictEqual(res.status, 200);
+		assert.strictEqual(typeof (res.body as any).viewToken, 'string');
+		assert.ok((res.body as any).viewToken.length > 0);
+	});
+
+	test('verify-view-password: 誤ったパスワードは INVALID_PASSWORD', async () => {
+		const res = await api('live-channels/verify-view-password', { userId: alice.id, password: 'wrong-password' });
+		assert.strictEqual(res.status, 400);
+		assert.strictEqual(castAsError(res.body as any).error.code, 'INVALID_PASSWORD');
+	});
+
+	test('verify-view-password: ライブチャンネル未開設のユーザーは NO_SUCH_CHANNEL', async () => {
+		// bob はこの describe 内で live-channels/create を呼んでいない (未開設)。
+		const res = await api('live-channels/verify-view-password', { userId: bob.id, password: 'anything' });
+		assert.strictEqual(res.status, 400);
+		assert.strictEqual(castAsError(res.body as any).error.code, 'NO_SUCH_CHANNEL');
+	});
+
+	test('verify-view-password: password モード以外のチャンネルは NO_SUCH_CHANNEL', async () => {
+		const back = await api('live-channels/update', { visibility: 'public' }, alice);
+		assert.strictEqual(back.status, 200);
+
+		const res = await api('live-channels/verify-view-password', { userId: alice.id, password: 'anything' });
+		assert.strictEqual(res.status, 400);
+		assert.strictEqual(castAsError(res.body as any).error.code, 'NO_SUCH_CHANNEL');
+	});
+
+	test('verify-view-password: 存在しない userId は NO_SUCH_CHANNEL', async () => {
+		const res = await api('live-channels/verify-view-password', { userId: '000000000000000000000000', password: 'anything' });
+		assert.strictEqual(res.status, 400);
+		assert.strictEqual(castAsError(res.body as any).error.code, 'NO_SUCH_CHANNEL');
+	});
+});
