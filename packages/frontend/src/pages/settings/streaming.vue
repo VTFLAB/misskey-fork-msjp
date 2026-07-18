@@ -60,6 +60,33 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</FormSection>
 
 						<FormSection>
+							<template #label><i class="ti ti-lock"></i> {{ i18n.ts._liveChannel.viewRestriction }}</template>
+
+							<div class="_gaps_m">
+								<MkSelect :modelValue="viewRestriction" :items="viewRestrictionItems" @update:modelValue="onVisibilitySave">
+									<template #label>{{ i18n.ts._liveChannel.viewRestriction }}</template>
+									<template #caption>{{ i18n.ts._liveChannel.viewRestrictionDescription }}</template>
+								</MkSelect>
+
+								<MkInput v-if="viewRestriction === 'password'" :modelValue="viewPassword" manualSave :max="128" :placeholder="i18n.ts._liveChannel.viewPasswordPlaceholder" @update:modelValue="onViewPasswordSave">
+									<template #label>{{ i18n.ts._liveChannel.viewPassword }}</template>
+									<template #caption>{{ i18n.ts._liveChannel.viewPasswordDescription }}</template>
+								</MkInput>
+
+								<div v-if="viewRestriction === 'users'" :class="$style.visibleUsersBox">
+									<div :class="$style.caption">{{ i18n.ts._liveChannel.visibleUsersDescription }}</div>
+									<div :class="$style.visibleUsersList">
+										<span v-for="u in visibleUsers" :key="u.id" :class="$style.visibleUserItem">
+											<MkAcct :user="u"/>
+											<button class="_button" :class="$style.actionButton" :aria-label="i18n.ts.remove" @click="removeVisibleUser(u.id)"><i class="ti ti-x"></i></button>
+										</span>
+									</div>
+									<MkButton rounded @click="addVisibleUser"><i class="ti ti-plus"></i> {{ i18n.ts._liveChannel.addVisibleUser }}</MkButton>
+								</div>
+							</div>
+						</FormSection>
+
+						<FormSection>
 							<template #label><i class="ti ti-server"></i> {{ i18n.ts._liveChannel.streamServerInfo }}</template>
 
 							<div class="_gaps_m">
@@ -351,10 +378,12 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import FormSection from '@/components/form/section.vue';
 import FormLink from '@/components/form/link.vue';
+import MkAcct from '@/components/global/MkAcct.vue';
 import MkButton from '@/components/MkButton.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import MkInput from '@/components/MkInput.vue';
 import MkKeyValue from '@/components/MkKeyValue.vue';
+import MkSelect from '@/components/MkSelect.vue';
 import MkSwitch from '@/components/MkSwitch.vue';
 import MkTextarea from '@/components/MkTextarea.vue';
 import { chooseDriveFile } from '@/utility/drive.js';
@@ -380,6 +409,16 @@ const channelName = ref('');
 const channelDescription = ref('');
 const autoPostNoteEnabled = ref(false);
 const autoPostNoteTemplate = ref('');
+const viewRestriction = ref<'public' | 'followers' | 'password' | 'users'>('public');
+const viewPassword = ref('');
+const visibleUsers = ref<Misskey.entities.UserDetailed[]>([]);
+
+const viewRestrictionItems = [
+	{ value: 'public' as const, label: i18n.ts._liveChannel.viewRestrictionPublic },
+	{ value: 'followers' as const, label: i18n.ts._liveChannel.viewRestrictionFollowers },
+	{ value: 'password' as const, label: i18n.ts._liveChannel.viewRestrictionPassword },
+	{ value: 'users' as const, label: i18n.ts._liveChannel.viewRestrictionUsers },
+];
 
 const enabled = computed(() => channel.value != null && channel.value.enabled);
 const ingestReady = computed(() => whipUrl.value != null);
@@ -413,7 +452,53 @@ async function fetchMy() {
 	channelDescription.value = res.channel?.description ?? '';
 	autoPostNoteEnabled.value = res.channel?.autoPostNoteEnabled ?? false;
 	autoPostNoteTemplate.value = res.channel?.autoPostNoteTemplate ?? '';
+	viewRestriction.value = res.channel?.visibility ?? 'public';
+	viewPassword.value = res.channel?.viewPassword ?? '';
+	await loadVisibleUsers(res.channel?.visibleUserIds ?? []);
 	liveChannelState.value = 'ready';
+}
+
+async function loadVisibleUsers(ids: string[]) {
+	if (ids.length === 0) {
+		visibleUsers.value = [];
+		return;
+	}
+	const users = await misskeyApi('users/show', { userIds: ids });
+	visibleUsers.value = Array.isArray(users) ? users : [users];
+}
+
+async function onVisibilitySave(v: 'public' | 'followers' | 'password' | 'users') {
+	if (channel.value == null) return;
+	viewRestriction.value = v;
+	const updated = await os.apiWithDialog('live-channels/update', { visibility: v });
+	channel.value = updated;
+	viewRestriction.value = updated.visibility ?? 'public';
+}
+
+async function onViewPasswordSave(v: string) {
+	if (channel.value == null) return;
+	viewPassword.value = v;
+	const updated = await os.apiWithDialog('live-channels/update', { viewPassword: v || null });
+	channel.value = updated;
+	viewPassword.value = updated.viewPassword ?? '';
+}
+
+async function addVisibleUser() {
+	if (channel.value == null) return;
+	const user = await os.selectUser({ includeSelf: false });
+	if (visibleUsers.value.some(u => u.id === user.id)) return;
+	const nextIds = [...visibleUsers.value.map(u => u.id), user.id];
+	const updated = await os.apiWithDialog('live-channels/update', { visibleUserIds: nextIds });
+	channel.value = updated;
+	await loadVisibleUsers(updated.visibleUserIds ?? []);
+}
+
+async function removeVisibleUser(id: string) {
+	if (channel.value == null) return;
+	const nextIds = visibleUsers.value.filter(u => u.id !== id).map(u => u.id);
+	const updated = await os.apiWithDialog('live-channels/update', { visibleUserIds: nextIds });
+	channel.value = updated;
+	await loadVisibleUsers(updated.visibleUserIds ?? []);
 }
 
 async function onToggleEnabled(v: boolean) {
@@ -845,5 +930,26 @@ definePage(() => ({
 		opacity: 0.5;
 		cursor: not-allowed;
 	}
+}
+
+.visibleUsersBox {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.visibleUsersList {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.visibleUserItem {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 6px 6px 6px 10px;
+	border-radius: 999px;
+	background: var(--MI_THEME-panel);
 }
 </style>

@@ -44,6 +44,12 @@ export const meta = {
 					lastCutReason: { type: 'string', optional: true, nullable: true },
 					autoPostNoteTemplate: { type: 'string', optional: true, nullable: true },
 					blockedUntil: { type: 'string', format: 'date-time', optional: true, nullable: true },
+					visibility: { type: 'string', optional: true, nullable: false, enum: ['public', 'followers', 'password', 'users'] },
+					viewPassword: { type: 'string', optional: true, nullable: true },
+					visibleUserIds: {
+						type: 'array', optional: true, nullable: false,
+						items: { type: 'string', format: 'misskey:id', optional: false, nullable: false },
+					},
 				},
 			},
 			streamKey: { type: 'string', optional: false, nullable: true },

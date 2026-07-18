@@ -80,6 +80,21 @@ export class OmeAdmissionService {
 		return `ome:blacklist:${streamKey}`;
 	}
 
+	// LiveChannelService.issueViewToken() / verifyViewToken() と完全に同一の key 形式。
+	@bindThis
+	private viewTokenKey(token: string): string {
+		return `ome:viewtoken:${token}`;
+	}
+
+	@bindThis
+	private extractViewToken(url: string): string | null {
+		try {
+			return new URL(url).searchParams.get('vt');
+		} catch {
+			return null;
+		}
+	}
+
 	/**
 	 * direction: incoming (配信者からの ingest) / outgoing (視聴) の opening 判定。
 	 * OmeServerService から呼ばれ、Server.xml の AdmissionWebhooks Timeout (3000ms) 以内に
@@ -88,8 +103,33 @@ export class OmeAdmissionService {
 	@bindThis
 	public async decideOpening(req: OmeAdmissionRequest): Promise<OmeOpeningDecision> {
 		if (req.direction === 'outgoing') {
-			// 視聴 (WebRTC egress) は常に許可 (SignedPolicy 非適用の匿名視聴のため)。
-			return { allowed: true, reason: 'outgoing (playback) is always allowed' };
+			// 視聴 (WebRTC egress) は SignedPolicy 非適用の匿名視聴を許すため、public 配信は常に許可する。
+			// public 以外 (視聴制限あり) は、twitch/streams/show / verify-view-password が発行した
+			// 視聴トークン (`?vt=`) が Redis 上で streamKey と一致する場合のみ許可する
+			// (視聴制限 enforcement 設計、確定済み — API で playbackUrl を隠すだけでは
+			// OME の wss endpoint へ直結できてしまうため、ここでの実効遮断が必須)。
+			const streamKey = this.extractStreamKey(req.url);
+			if (streamKey == null) {
+				return { allowed: false, reason: 'cannot extract stream key from url' };
+			}
+
+			const liveChannel = await this.liveChannelsRepository.findOneBy({ streamKey });
+			if (liveChannel == null || liveChannel.visibility === 'public') {
+				return { allowed: true, reason: 'outgoing (playback) is always allowed for public streams' };
+			}
+
+			const viewToken = this.extractViewToken(req.url);
+			if (viewToken == null) {
+				return { allowed: false, reason: 'view token required for restricted stream' };
+			}
+
+			const tokenStreamKey = await this.redisClient.get(this.viewTokenKey(viewToken));
+			if (tokenStreamKey !== streamKey) {
+				this.logger.info(`outgoing admission denied (invalid view token): streamKey=${streamKey}`);
+				return { allowed: false, reason: 'invalid or expired view token' };
+			}
+
+			return { allowed: true, reason: 'authorized view token' };
 		}
 
 		const streamKey = this.extractStreamKey(req.url);

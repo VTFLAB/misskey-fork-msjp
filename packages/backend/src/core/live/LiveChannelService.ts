@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { createHmac } from 'node:crypto';
+import { createHmac, randomBytes } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import * as Redis from 'ioredis';
 import { DI } from '@/di-symbols.js';
@@ -15,6 +15,10 @@ import { bindThis } from '@/decorators.js';
 import { secureRndstr } from '@/misc/secure-rndstr.js';
 import { MiLiveChannel } from '@/models/LiveChannel.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
+
+// 視聴トークン (ome:viewtoken:<token> -> streamKey) の TTL。OmeAdmissionService.decideOpening() の
+// outgoing 判定と同じ key 形式を使う (視聴制限 enforcement 設計、確定済み)。
+const VIEW_TOKEN_TTL_SEC = 60 * 60 * 12; // 12時間
 
 @Injectable()
 export class LiveChannelService {
@@ -67,6 +71,9 @@ export class LiveChannelService {
 			channelId: null,
 			autoPostNoteEnabled: false,
 			autoPostNoteTemplate: null,
+			visibility: 'public',
+			viewPassword: null,
+			visibleUserIds: [],
 		}));
 
 		const channel = await this.channelsRepository.insertOne({
@@ -96,6 +103,9 @@ export class LiveChannelService {
 		offlineImageId?: string | null;
 		autoPostNoteEnabled?: boolean;
 		autoPostNoteTemplate?: string | null;
+		visibility?: 'public' | 'followers' | 'password' | 'users';
+		viewPassword?: string | null;
+		visibleUserIds?: string[];
 	}): Promise<MiLiveChannel> {
 		const liveChannel = await this.liveChannelsRepository.findOneByOrFail({ userId });
 
@@ -107,6 +117,9 @@ export class LiveChannelService {
 		if (params.offlineImageId !== undefined) update.offlineImageId = params.offlineImageId;
 		if (params.autoPostNoteEnabled !== undefined) update.autoPostNoteEnabled = params.autoPostNoteEnabled;
 		if (params.autoPostNoteTemplate !== undefined) update.autoPostNoteTemplate = params.autoPostNoteTemplate;
+		if (params.visibility !== undefined) update.visibility = params.visibility;
+		if (params.viewPassword !== undefined) update.viewPassword = params.viewPassword;
+		if (params.visibleUserIds !== undefined) update.visibleUserIds = params.visibleUserIds;
 
 		if (Object.keys(update).length > 0) {
 			await this.liveChannelsRepository.update(liveChannel.id, update);
@@ -136,6 +149,28 @@ export class LiveChannelService {
 		});
 
 		return await this.liveChannelsRepository.findOneByOrFail({ id: channel.id });
+	}
+
+	// 視聴トークンの key 形式は OmeAdmissionService.decideOpening() の outgoing 判定と完全に一致させる。
+	@bindThis
+	private viewTokenKey(token: string): string {
+		return `ome:viewtoken:${token}`;
+	}
+
+	// 認可済み視聴者 (owner 含む) に発行するランダムトークン。playbackUrl の `?vt=` クエリに載せる。
+	// streamKey に紐づくため、streamKey が regenerate されれば旧トークンは自然に無効化される
+	// (新 streamKey とは一致しなくなるため、OmeAdmissionService 側の一致判定で弾かれる)。
+	@bindThis
+	public async issueViewToken(streamKey: string): Promise<string> {
+		const token = randomBytes(32).toString('base64url');
+		await this.redisClient.set(this.viewTokenKey(token), streamKey, 'EX', VIEW_TOKEN_TTL_SEC);
+		return token;
+	}
+
+	@bindThis
+	public async verifyViewToken(streamKey: string, token: string): Promise<boolean> {
+		const value = await this.redisClient.get(this.viewTokenKey(token));
+		return value === streamKey;
 	}
 
 	@bindThis
@@ -278,6 +313,10 @@ export class LiveChannelService {
 			lastCutReason: isOwner ? channel.lastCutReason : undefined,
 			autoPostNoteTemplate: isOwner ? channel.autoPostNoteTemplate : undefined,
 			blockedUntil: isOwner ? blockedUntil : undefined,
+			// 視聴制限設定。password の平文シークレットと users の許可リストは owner 以外へ絶対に返さない。
+			visibility: isOwner ? channel.visibility : undefined,
+			viewPassword: isOwner ? channel.viewPassword : undefined,
+			visibleUserIds: isOwner ? channel.visibleUserIds : undefined,
 		};
 	}
 

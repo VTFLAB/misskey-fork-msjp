@@ -40,6 +40,11 @@ export const meta = {
 			code: 'NO_SUCH_OFFLINE_IMAGE',
 			id: '9d6b6e0b-8e2c-4b9a-9e2a-6b7c2f5e1a3d',
 		},
+		viewPasswordRequired: {
+			message: 'viewPassword is required when visibility is password.',
+			code: 'VIEW_PASSWORD_REQUIRED',
+			id: 'b3f6a2b0-6c3b-4d3c-8f1a-2e6f7c0a9b4d',
+		},
 	},
 
 	res: {
@@ -62,6 +67,12 @@ export const meta = {
 			streamKeyRegeneratedAt: { type: 'string', format: 'date-time', optional: true, nullable: false },
 			lastCutReason: { type: 'string', optional: true, nullable: true },
 			autoPostNoteTemplate: { type: 'string', optional: true, nullable: true },
+			visibility: { type: 'string', optional: true, nullable: false, enum: ['public', 'followers', 'password', 'users'] },
+			viewPassword: { type: 'string', optional: true, nullable: true },
+			visibleUserIds: {
+				type: 'array', optional: true, nullable: false,
+				items: { type: 'string', format: 'misskey:id', optional: false, nullable: false },
+			},
 		},
 	},
 } as const;
@@ -76,6 +87,14 @@ export const paramDef = {
 		offlineImageId: { type: 'string', format: 'misskey:id', nullable: true },
 		autoPostNoteEnabled: { type: 'boolean' },
 		autoPostNoteTemplate: { type: 'string', nullable: true, maxLength: 512 },
+		visibility: { type: 'string', enum: ['public', 'followers', 'password', 'users'] },
+		viewPassword: { type: 'string', nullable: true, maxLength: 128 },
+		visibleUserIds: {
+			type: 'array',
+			uniqueItems: true,
+			maxItems: 100,
+			items: { type: 'string', format: 'misskey:id' },
+		},
 	},
 	required: [],
 } as const;
@@ -102,6 +121,16 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				if (offlineImage == null || offlineImage.userId !== me.id) throw new ApiError(meta.errors.noSuchOfflineImage);
 			}
 
+			// password モードへ切り替える (または既に password モードのまま保つ) 際は
+			// viewPassword が空にならないことを確認する (更新後に有効な値を持つ必要がある)。
+			const nextVisibility = ps.visibility ?? channel.visibility;
+			if (nextVisibility === 'password') {
+				const nextViewPassword = ps.viewPassword !== undefined ? ps.viewPassword : channel.viewPassword;
+				if (nextViewPassword == null || nextViewPassword.length === 0) {
+					throw new ApiError(meta.errors.viewPasswordRequired);
+				}
+			}
+
 			const updated = await this.liveChannelService.update(me.id, {
 				enabled: ps.enabled,
 				name: ps.name,
@@ -110,6 +139,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				offlineImageId: ps.offlineImageId,
 				autoPostNoteEnabled: ps.autoPostNoteEnabled,
 				autoPostNoteTemplate: ps.autoPostNoteTemplate,
+				visibility: ps.visibility,
+				viewPassword: ps.viewPassword,
+				visibleUserIds: ps.visibleUserIds,
 			});
 
 			return await this.liveChannelService.pack(updated, me);
