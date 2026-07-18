@@ -5,7 +5,7 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import { DI } from '@/di-symbols.js';
-import type { DriveFilesRepository, MiMeta } from '@/models/_.js';
+import type { DriveFilesRepository, MiMeta, UsersRepository } from '@/models/_.js';
 import type { MiRemoteUser } from '@/models/User.js';
 import type { MiDriveFile } from '@/models/DriveFile.js';
 import { truncate } from '@/misc/truncate.js';
@@ -28,6 +28,9 @@ export class ApImageService {
 
 		@Inject(DI.driveFilesRepository)
 		private driveFilesRepository: DriveFilesRepository,
+
+		@Inject(DI.usersRepository)
+		private usersRepository: UsersRepository,
 
 		private apResolverService: ApResolverService,
 		private driveService: DriveService,
@@ -63,6 +66,13 @@ export class ApImageService {
 		}
 
 		this.logger.info(`Creating the Image: ${image.url}`);
+
+		// actorがこの時点までに削除されている場合、これから行うダウンロードの完了を待つ間に
+		// アカウント物理削除ジョブが先行してuser行を消してしまい、drive_fileのFK違反になりうるため再確認する
+		const freshActor = await this.usersRepository.findOneBy({ id: actor.id });
+		if (freshActor == null || freshActor.isDeleted) {
+			throw new Error('actor has been deleted');
+		}
 
 		// Cache if remote file cache is on AND either
 		// 1. remote sensitive file is also on
