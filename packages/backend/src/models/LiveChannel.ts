@@ -122,6 +122,24 @@ export class MiLiveChannel {
 	})
 	public autoPostNoteTemplate: string | null;
 
+	@Column('varchar', {
+		length: 32, default: 'public',
+		comment: 'View restriction mode for playback. One of public / followers / password / users.',
+	})
+	public visibility: 'public' | 'followers' | 'password' | 'users';
+
+	@Column('varchar', {
+		length: 128, nullable: true,
+		comment: 'Plaintext shared secret for password-mode view restriction, kept so the owner can review/share it. Never expose to non-owners.',
+	})
+	public viewPassword: string | null;
+
+	@Column('varchar', {
+		length: 32, array: true, default: '{}',
+		comment: 'Allowed viewer user IDs for users-mode view restriction.',
+	})
+	public visibleUserIds: string[];
+
 	constructor(data: Partial<MiLiveChannel>) {
 		if (data == null) return;
 

@@ -12,7 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div :class="$style.main">
 				<div :class="$style.playerContainer">
 					<MkStreamPlayer
-						v-if="activeSession != null"
+						v-if="activeSession != null && activeSession.authorized"
 						:key="activeSession.streamId"
 						:source="activeSession.source"
 						:playbackUrl="activeSession.playbackUrl"
@@ -21,6 +21,32 @@ SPDX-License-Identifier: AGPL-3.0-only
 						:pageKey="props.acct"
 						:offlineImageUrl="channelInfo?.offlineImageUrl ?? null"
 					/>
+					<!-- MSJP配信の視聴制限 (bsky-fork 独自)。authorized: false のセッションはプレイヤーの代わりに
+					制限内容に応じた案内を表示する。Twitch セッションは常に authorized: true のためここには来ない -->
+					<div v-else-if="activeSession != null && !activeSession.authorized" :class="$style.restrictedPanel">
+						<i class="ti ti-lock" :class="$style.restrictedIcon"></i>
+						<template v-if="activeSession.viewRestriction === 'followers'">
+							<div :class="$style.restrictedTitle">{{ i18n.ts._liveChannel.restrictedFollowersTitle }}</div>
+							<div :class="$style.restrictedDescription">{{ i18n.ts._liveChannel.restrictedFollowersDescription }}</div>
+							<MkFollowButton v-if="$i != null && $i.id !== user.id" v-model:user="user" :full="true"/>
+						</template>
+						<template v-else-if="activeSession.viewRestriction === 'password'">
+							<div :class="$style.restrictedTitle">{{ i18n.ts._liveChannel.restrictedPasswordTitle }}</div>
+							<div :class="$style.restrictedDescription">{{ i18n.ts._liveChannel.restrictedPasswordDescription }}</div>
+							<form :class="$style.restrictedPasswordForm" @submit.prevent="submitViewPassword">
+								<label :class="$style.restrictedPasswordLabel">
+									{{ i18n.ts._liveChannel.viewPassword }}
+									<input v-model="passwordInput" type="password" :class="$style.restrictedPasswordInput" :placeholder="i18n.ts._liveChannel.viewPasswordPlaceholder" :disabled="passwordSubmitting">
+								</label>
+								<MkButton primary rounded :disabled="passwordSubmitting || passwordInput === ''" type="submit">{{ i18n.ts._liveChannel.restrictedPasswordSubmit }}</MkButton>
+							</form>
+							<MkInfo v-if="passwordError" warn>{{ i18n.ts._liveChannel.restrictedPasswordIncorrect }}</MkInfo>
+						</template>
+						<template v-else-if="activeSession.viewRestriction === 'users'">
+							<div :class="$style.restrictedTitle">{{ i18n.ts._liveChannel.restrictedUsersTitle }}</div>
+							<div :class="$style.restrictedDescription">{{ i18n.ts._liveChannel.restrictedUsersDescription }}</div>
+						</template>
+					</div>
 				</div>
 				<div :class="$style.info" class="_panel">
 					<div :class="$style.infoHeader">
@@ -72,6 +98,8 @@ import * as Misskey from 'misskey-js';
 import { url as serverUrl } from '@@/js/config.js';
 import XChat from '@/pages/live-stream.chat.vue';
 import MkFollowButton from '@/components/MkFollowButton.vue';
+import MkButton from '@/components/MkButton.vue';
+import MkInfo from '@/components/MkInfo.vue';
 import MkStreamPlayer from '@/components/MkStreamPlayer.vue';
 import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
@@ -102,7 +130,45 @@ type StreamSession = {
 	isLive: boolean;
 	playbackUrl?: string;
 	twitchLogin?: string;
+	authorized: boolean;
+	viewRestriction?: 'followers' | 'password' | 'users';
 };
+
+// MSJP配信の視聴制限 (bsky-fork 独自)。password モードの viewToken はページ内 ref + sessionStorage
+// (キーに配信者IDを含める) の二重保持。sessionStorage はタブを閉じるまで有効なので、リロード/
+// 再訪時に再入力なしで視聴を継続できる
+function viewTokenStorageKey(userId: string): string {
+	return `liveStreamViewToken:${userId}`;
+}
+
+function loadStoredViewToken(userId: string): string | null {
+	try {
+		return sessionStorage.getItem(viewTokenStorageKey(userId));
+	} catch {
+		return null;
+	}
+}
+
+function saveStoredViewToken(userId: string, token: string) {
+	try {
+		sessionStorage.setItem(viewTokenStorageKey(userId), token);
+	} catch {
+		// sessionStorage が使えない環境 (プライベートモード等) では保持を諦める
+	}
+}
+
+function clearStoredViewToken(userId: string) {
+	try {
+		sessionStorage.removeItem(viewTokenStorageKey(userId));
+	} catch {
+		// noop
+	}
+}
+
+const viewToken = ref<string | null>(null);
+const passwordInput = ref('');
+const passwordSubmitting = ref(false);
+const passwordError = ref(false);
 
 const streamInfo = computed(() => twitchInfo.value?.stream ?? previewStream.value ?? null);
 const isPreview = computed(() => twitchInfo.value?.stream == null && previewStream.value != null);
@@ -150,16 +216,24 @@ async function reload() {
 	channelInfo.value = null;
 	twitchInfo.value = null;
 	previewStream.value = null;
+	passwordError.value = false;
 	try {
 		const { username, host } = Misskey.acct.parse(props.acct);
 		const fetchedUser = await misskeyApi('users/show', { username, host: host ?? undefined });
 		user.value = fetchedUser;
+		viewToken.value = loadStoredViewToken(fetchedUser.id);
 		const [channel, twitch] = await Promise.all([
 			misskeyApi('live-channels/show', { userId: fetchedUser.id }).catch(() => null),
-			misskeyApi('twitch/streams/show', { userId: fetchedUser.id }).catch(() => null),
+			misskeyApi('twitch/streams/show', { userId: fetchedUser.id, viewToken: viewToken.value ?? undefined }).catch(() => null),
 		]);
 		channelInfo.value = channel;
 		twitchInfo.value = twitch;
+		// 保持していた viewToken が失効/無効化 (パスワード変更等) されていた場合は、
+		// sessionStorage の古いトークンを掃除して次回以降クリーンな状態から再入力させる
+		if (viewToken.value != null && twitch?.sessions?.some(s => s.source === 'ome' && !s.authorized && s.viewRestriction === 'password')) {
+			clearStoredViewToken(fetchedUser.id);
+			viewToken.value = null;
+		}
 		// ライブ状態で /stream にアクセスした場合、プレビューは不要
 		if (channelState.value !== 'live' && isOwner.value) {
 			await openPreview();
@@ -168,6 +242,26 @@ async function reload() {
 		// user unknown → not found
 	} finally {
 		fetching.value = false;
+	}
+}
+
+// パスワード視聴制限 (bsky-fork 独自)。verify-view-password で viewToken を取得し、
+// それを付けて twitch/streams/show のみ再取得する (reload() はユーザー・チャンネル情報まで
+// 全部作り直すため、フラッシュを避けたい入力直後のケースではこちらを使う)
+async function submitViewPassword() {
+	if (user.value == null || passwordInput.value === '') return;
+	passwordSubmitting.value = true;
+	passwordError.value = false;
+	try {
+		const res = await misskeyApi('live-channels/verify-view-password', { userId: user.value.id, password: passwordInput.value });
+		viewToken.value = res.viewToken;
+		saveStoredViewToken(user.value.id, res.viewToken);
+		passwordInput.value = '';
+		twitchInfo.value = await misskeyApi('twitch/streams/show', { userId: user.value.id, viewToken: viewToken.value }).catch(() => null);
+	} catch {
+		passwordError.value = true;
+	} finally {
+		passwordSubmitting.value = false;
 	}
 }
 
@@ -373,6 +467,57 @@ definePage(() => ({
 	height: 100%;
 	border: none;
 	display: block;
+}
+
+.restrictedPanel {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 24px;
+	color: #fff;
+	text-align: center;
+}
+
+.restrictedIcon {
+	font-size: 2em;
+	opacity: 0.8;
+}
+
+.restrictedTitle {
+	font-weight: bold;
+	font-size: 1.1em;
+}
+
+.restrictedDescription {
+	opacity: 0.85;
+	max-width: 420px;
+}
+
+.restrictedPasswordForm {
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.restrictedPasswordLabel {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 0.9em;
+	text-align: left;
+}
+
+.restrictedPasswordInput {
+	padding: 8px 10px;
+	border-radius: var(--MI-radius);
+	border: solid 1px var(--MI_THEME-divider);
+	background: var(--MI_THEME-panel);
+	color: var(--MI_THEME-fg);
 }
 
 .info {
