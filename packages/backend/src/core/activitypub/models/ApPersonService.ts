@@ -497,6 +497,12 @@ export class ApPersonService implements OnModuleInit {
 		//#region このサーバーに既に登録されているか
 		const exist = await this.fetchPerson(uri) as MiRemoteUser | null;
 		if (exist === null) return;
+
+		// 削除済みユーザーの場合、物理削除ジョブと競合してアバター取り込み時にFK違反を起こすためスキップする
+		if (exist.isDeleted) {
+			this.logger.info(`Skip updating the Person because it has been deleted: ${uri}`);
+			return;
+		}
 		//#endregion
 
 		// eslint-disable-next-line no-param-reassign
