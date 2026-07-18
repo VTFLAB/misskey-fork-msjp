@@ -14731,6 +14731,82 @@ export interface Locale extends ILocale {
          * 「{title}」の配信を開始しました 📡 {url}
          */
         "autoPostNoteTemplateDefault": ParameterizedString<"title" | "url">;
+        /**
+         * 視聴制限
+         */
+        "viewRestriction": string;
+        /**
+         * 配信を視聴できる範囲を制限します。既定は「公開」で、誰でも視聴できます。
+         */
+        "viewRestrictionDescription": string;
+        /**
+         * 公開
+         */
+        "viewRestrictionPublic": string;
+        /**
+         * フォロワー限定
+         */
+        "viewRestrictionFollowers": string;
+        /**
+         * パスワード
+         */
+        "viewRestrictionPassword": string;
+        /**
+         * 指定ユーザー
+         */
+        "viewRestrictionUsers": string;
+        /**
+         * 視聴用パスワード
+         */
+        "viewPassword": string;
+        /**
+         * この配信を視聴するために必要なパスワードです。設定した値は配信者としていつでも再確認できます。
+         */
+        "viewPasswordDescription": string;
+        /**
+         * パスワードを入力
+         */
+        "viewPasswordPlaceholder": string;
+        /**
+         * ここに追加したユーザーのみがこの配信を視聴できます。
+         */
+        "visibleUsersDescription": string;
+        /**
+         * ユーザーを追加
+         */
+        "addVisibleUser": string;
+        /**
+         * フォロワー限定配信です
+         */
+        "restrictedFollowersTitle": string;
+        /**
+         * この配信はフォロワー限定です。配信者をフォローすると視聴できるようになります。フォロー後は再読み込みボタンで視聴を開始できます。
+         */
+        "restrictedFollowersDescription": string;
+        /**
+         * パスワードが必要な配信です
+         */
+        "restrictedPasswordTitle": string;
+        /**
+         * この配信を視聴するにはパスワードを入力してください。
+         */
+        "restrictedPasswordDescription": string;
+        /**
+         * 送信
+         */
+        "restrictedPasswordSubmit": string;
+        /**
+         * パスワードが正しくありません。
+         */
+        "restrictedPasswordIncorrect": string;
+        /**
+         * 視聴が許可されたユーザーのみ視聴できます
+         */
+        "restrictedUsersTitle": string;
+        /**
+         * この配信は配信者が視聴を許可したユーザーのみ視聴できます。
+         */
+        "restrictedUsersDescription": string;
     };
     "_remoteGuestLogin": {
         /**
