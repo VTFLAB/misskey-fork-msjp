@@ -3086,6 +3086,15 @@ export type paths = {
          */
         post: operations['live-channels___update'];
     };
+    '/live-channels/verify-view-password': {
+        /**
+         * live-channels/verify-view-password
+         * @description password モードの視聴制限があるライブチャンネルのパスワードを検証し、成功時に視聴トークンを発行する。匿名視聴者もパスワードで視聴可能にするため認証不要。
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['live-channels___verify-view-password'];
+    };
     '/meta': {
         /**
          * meta
@@ -30205,6 +30214,10 @@ export interface operations {
                             autoPostNoteTemplate?: string | null;
                             /** Format: date-time */
                             blockedUntil?: string | null;
+                            /** @enum {string} */
+                            visibility?: 'public' | 'followers' | 'password' | 'users';
+                            viewPassword?: string | null;
+                            visibleUserIds?: string[];
                         } | null;
                         streamKey: string | null;
                         rtmpUrl: string | null;
@@ -30456,6 +30469,10 @@ export interface operations {
                     offlineImageId?: string | null;
                     autoPostNoteEnabled?: boolean;
                     autoPostNoteTemplate?: string | null;
+                    /** @enum {string} */
+                    visibility?: 'public' | 'followers' | 'password' | 'users';
+                    viewPassword?: string | null;
+                    visibleUserIds?: string[];
                 };
             };
         };
@@ -30490,6 +30507,88 @@ export interface operations {
                         streamKeyRegeneratedAt?: string;
                         lastCutReason?: string | null;
                         autoPostNoteTemplate?: string | null;
+                        /** @enum {string} */
+                        visibility?: 'public' | 'followers' | 'password' | 'users';
+                        viewPassword?: string | null;
+                        visibleUserIds?: string[];
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'live-channels___verify-view-password': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    userId: string;
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        viewToken: string;
                     };
                 };
             };
@@ -37367,6 +37466,7 @@ export interface operations {
                 'application/json': {
                     /** Format: misskey:id */
                     userId: string;
+                    viewToken?: string;
                 };
             };
         };
@@ -37398,6 +37498,9 @@ export interface operations {
                             isLive: boolean;
                             playbackUrl?: string;
                             twitchLogin?: string;
+                            authorized: boolean;
+                            /** @enum {string} */
+                            viewRestriction?: 'followers' | 'password' | 'users';
                         }[];
                     };
                 };
