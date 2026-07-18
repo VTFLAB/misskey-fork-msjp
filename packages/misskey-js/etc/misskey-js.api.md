@@ -2115,6 +2115,8 @@ declare namespace entities {
         LiveChannelsShowResponse,
         LiveChannelsUpdateRequest,
         LiveChannelsUpdateResponse,
+        LiveChannelsVerifyViewPasswordRequest,
+        LiveChannelsVerifyViewPasswordResponse,
         MetaRequest,
         MetaResponse,
         MiauthGenTokenRequest,
@@ -3049,6 +3051,12 @@ type LiveChannelsUpdateRequest = operations['live-channels___update']['requestBo
 
 // @public (undocumented)
 type LiveChannelsUpdateResponse = operations['live-channels___update']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type LiveChannelsVerifyViewPasswordRequest = operations['live-channels___verify-view-password']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type LiveChannelsVerifyViewPasswordResponse = operations['live-channels___verify-view-password']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type MeDetailed = components['schemas']['MeDetailed'];
