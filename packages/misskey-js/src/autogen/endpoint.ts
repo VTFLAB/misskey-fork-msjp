@@ -509,6 +509,8 @@ import type {
 	LiveChannelsShowResponse,
 	LiveChannelsUpdateRequest,
 	LiveChannelsUpdateResponse,
+	LiveChannelsVerifyViewPasswordRequest,
+	LiveChannelsVerifyViewPasswordResponse,
 	MetaRequest,
 	MetaResponse,
 	MiauthGenTokenRequest,
@@ -1060,6 +1062,7 @@ export type Endpoints = {
 	'live-channels/regenerate-key': { req: EmptyRequest; res: LiveChannelsRegenerateKeyResponse };
 	'live-channels/show': { req: LiveChannelsShowRequest; res: LiveChannelsShowResponse };
 	'live-channels/update': { req: LiveChannelsUpdateRequest; res: LiveChannelsUpdateResponse };
+	'live-channels/verify-view-password': { req: LiveChannelsVerifyViewPasswordRequest; res: LiveChannelsVerifyViewPasswordResponse };
 	'meta': { req: MetaRequest; res: MetaResponse };
 	'miauth/gen-token': { req: MiauthGenTokenRequest; res: MiauthGenTokenResponse };
 	'mute/create': { req: MuteCreateRequest; res: EmptyResponse };

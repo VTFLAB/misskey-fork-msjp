@@ -172,3 +172,125 @@ describe('Twitch配信ブロック (配信中の enforcement)', () => {
 		assert.strictEqual(res.status, 200);
 	});
 });
+
+// 視聴制限機能 (WI-視聴制限)。twitch/streams/show の ome セッションに対する canWatch 判定を検証する。
+// config.ome がテスト環境に無いため playbackUrl の実値までは検証しない (authorized/viewRestriction が対象)。
+// twitch_stream (source: 'ome') は OME admission 経由でしか作られないため DB へ直接 seed する。
+describe('視聴制限 (twitch/streams/show の ome セッション)', () => {
+	let broadcaster: misskey.entities.SignupResponse;
+	let follower: misskey.entities.SignupResponse;
+	let stranger: misskey.entities.SignupResponse;
+
+	beforeAll(async () => {
+		broadcaster = await signup({ username: 'restrictbc' });
+		follower = await signup({ username: 'restrictfollower' });
+		stranger = await signup({ username: 'restrictstranger' });
+
+		const created = await api('live-channels/create', {}, broadcaster);
+		assert.strictEqual(created.status, 200);
+
+		const follow = await api('following/create', { userId: broadcaster.id }, follower);
+		assert.strictEqual(follow.status, 200);
+
+		const connection = await initTestDb(true);
+		const streams = connection.getRepository(MiTwitchStream);
+		await streams.save(new MiTwitchStream({
+			id: 'e2eviewrestrictome01',
+			userId: broadcaster.id,
+			twitchUserId: null,
+			twitchStreamId: null,
+			twitchLogin: null,
+			source: 'ome',
+			isLive: true,
+			title: 'view restriction e2e test',
+			viewerCount: 0,
+			startedAt: new Date(),
+		}));
+		await connection.destroy();
+	}, 1000 * 60 * 2);
+
+	function omeSession(res: any) {
+		return (res.body as any).sessions.find((s: any) => s.source === 'ome');
+	}
+
+	test('public: 誰でも authorized:true', async () => {
+		const res = await api('twitch/streams/show', { userId: broadcaster.id }, stranger);
+		assert.strictEqual(res.status, 200);
+		const session = omeSession(res);
+		assert.strictEqual(session.authorized, true);
+		assert.strictEqual(session.viewRestriction, undefined);
+	});
+
+	test('followers: フォロワーでない視聴者は authorized:false + viewRestriction:followers', async () => {
+		const set = await api('live-channels/update', { visibility: 'followers' }, broadcaster);
+		assert.strictEqual(set.status, 200);
+
+		const res = await api('twitch/streams/show', { userId: broadcaster.id }, stranger);
+		assert.strictEqual(res.status, 200);
+		const session = omeSession(res);
+		assert.strictEqual(session.authorized, false);
+		assert.strictEqual(session.viewRestriction, 'followers');
+		assert.strictEqual(session.playbackUrl, undefined);
+	});
+
+	test('followers: フォロワーは authorized:true', async () => {
+		const res = await api('twitch/streams/show', { userId: broadcaster.id }, follower);
+		assert.strictEqual(res.status, 200);
+		const session = omeSession(res);
+		assert.strictEqual(session.authorized, true);
+	});
+
+	test('followers: 未認証は authorized:false + viewRestriction:followers', async () => {
+		const res = await api('twitch/streams/show', { userId: broadcaster.id });
+		assert.strictEqual(res.status, 200);
+		const session = omeSession(res);
+		assert.strictEqual(session.authorized, false);
+		assert.strictEqual(session.viewRestriction, 'followers');
+	});
+
+	test('users: 許可リスト外は authorized:false + viewRestriction:users、リスト内は authorized:true', async () => {
+		const set = await api('live-channels/update', { visibility: 'users', visibleUserIds: [follower.id] }, broadcaster);
+		assert.strictEqual(set.status, 200);
+
+		const denied = await api('twitch/streams/show', { userId: broadcaster.id }, stranger);
+		const deniedSession = omeSession(denied);
+		assert.strictEqual(deniedSession.authorized, false);
+		assert.strictEqual(deniedSession.viewRestriction, 'users');
+
+		const allowed = await api('twitch/streams/show', { userId: broadcaster.id }, follower);
+		const allowedSession = omeSession(allowed);
+		assert.strictEqual(allowedSession.authorized, true);
+	});
+
+	test('password: viewToken 無しは authorized:false + viewRestriction:password、verify-view-password 経由の viewToken 付きは authorized:true', async () => {
+		const set = await api('live-channels/update', { visibility: 'password', viewPassword: 'restriction-e2e-pass' }, broadcaster);
+		assert.strictEqual(set.status, 200);
+
+		const denied = await api('twitch/streams/show', { userId: broadcaster.id });
+		const deniedSession = omeSession(denied);
+		assert.strictEqual(deniedSession.authorized, false);
+		assert.strictEqual(deniedSession.viewRestriction, 'password');
+
+		const verified = await api('live-channels/verify-view-password', { userId: broadcaster.id, password: 'restriction-e2e-pass' });
+		assert.strictEqual(verified.status, 200);
+		const viewToken = (verified.body as any).viewToken;
+		assert.strictEqual(typeof viewToken, 'string');
+
+		const allowed = await api('twitch/streams/show', { userId: broadcaster.id, viewToken });
+		const allowedSession = omeSession(allowed);
+		assert.strictEqual(allowedSession.authorized, true);
+	});
+
+	test('password: 誤った viewToken は authorized:false', async () => {
+		const res = await api('twitch/streams/show', { userId: broadcaster.id, viewToken: 'not-a-real-token' });
+		const session = omeSession(res);
+		assert.strictEqual(session.authorized, false);
+		assert.strictEqual(session.viewRestriction, 'password');
+	});
+
+	test('owner は制限モードに関わらず authorized:true', async () => {
+		const res = await api('twitch/streams/show', { userId: broadcaster.id }, broadcaster);
+		const session = omeSession(res);
+		assert.strictEqual(session.authorized, true);
+	});
+});
