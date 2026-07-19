@@ -4823,6 +4823,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * ライブ字幕イベント (caption/translation/clear) を自分の字幕チャンネルへ中継する。サーバーは中継のみ行い、DB への保存や翻訳処理は行わない。
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'twitch/subtitle/publish', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * Twitch アカウント連携を解除する。
      * 
      * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.

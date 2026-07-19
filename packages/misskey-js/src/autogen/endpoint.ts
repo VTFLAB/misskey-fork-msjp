@@ -655,6 +655,8 @@ import type {
 	TwitchStreamsPreviewResponse,
 	TwitchStreamsShowRequest,
 	TwitchStreamsShowResponse,
+	TwitchSubtitlePublishRequest,
+	TwitchSubtitlePublishResponse,
 	TwitchUpdateSettingsRequest,
 	TwitchUpdateSettingsResponse,
 	UpdateInfoShowRequest,
@@ -1158,6 +1160,7 @@ export type Endpoints = {
 	'twitch/streams/comments/create': { req: TwitchStreamsCommentsCreateRequest; res: TwitchStreamsCommentsCreateResponse };
 	'twitch/streams/preview': { req: EmptyRequest; res: TwitchStreamsPreviewResponse };
 	'twitch/streams/show': { req: TwitchStreamsShowRequest; res: TwitchStreamsShowResponse };
+	'twitch/subtitle/publish': { req: TwitchSubtitlePublishRequest; res: TwitchSubtitlePublishResponse };
 	'twitch/unlink': { req: EmptyRequest; res: EmptyResponse };
 	'twitch/update-settings': { req: TwitchUpdateSettingsRequest; res: TwitchUpdateSettingsResponse };
 	'update-info/show': { req: UpdateInfoShowRequest; res: UpdateInfoShowResponse };

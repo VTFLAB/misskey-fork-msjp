@@ -945,6 +945,25 @@ export type Channels = {
         };
         receives: null;
     };
+    liveSubtitle: {
+        params: {
+            userId: string;
+        };
+        events: {
+            caption: (payload: {
+                id: string;
+                text: string;
+                isFinal: boolean;
+            }) => void;
+            translation: (payload: {
+                id: string;
+                text: string;
+                lang: string;
+            }) => void;
+            clear: (payload: Record<string, never>) => void;
+        };
+        receives: null;
+    };
     chatUser: {
         params: {
             otherId: string;
@@ -2251,6 +2270,8 @@ declare namespace entities {
         TwitchStreamsPreviewResponse,
         TwitchStreamsShowRequest,
         TwitchStreamsShowResponse,
+        TwitchSubtitlePublishRequest,
+        TwitchSubtitlePublishResponse,
         TwitchUpdateSettingsRequest,
         TwitchUpdateSettingsResponse,
         UpdateInfoShowRequest,
@@ -3826,6 +3847,12 @@ type TwitchStreamsShowRequest = operations['twitch___streams___show']['requestBo
 
 // @public (undocumented)
 type TwitchStreamsShowResponse = operations['twitch___streams___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchSubtitlePublishRequest = operations['twitch___subtitle___publish']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchSubtitlePublishResponse = operations['twitch___subtitle___publish']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type TwitchUpdateSettingsRequest = operations['twitch___update-settings']['requestBody']['content']['application/json'];

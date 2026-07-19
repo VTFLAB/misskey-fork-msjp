@@ -281,6 +281,25 @@ export type Channels = {
 		};
 		receives: null;
 	};
+	liveSubtitle: {
+		params: {
+			userId: string;
+		};
+		events: {
+			caption: (payload: {
+				id: string;
+				text: string;
+				isFinal: boolean;
+			}) => void;
+			translation: (payload: {
+				id: string;
+				text: string;
+				lang: string;
+			}) => void;
+			clear: (payload: Record<string, never>) => void;
+		};
+		receives: null;
+	};
 	chatUser: {
 		params: {
 			otherId: string;
