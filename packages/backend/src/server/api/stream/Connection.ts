@@ -36,6 +36,7 @@ import { ChatRoomChannel } from '@/server/api/stream/channels/chat-room.js';
 import { ReversiChannel } from '@/server/api/stream/channels/reversi.js';
 import { ReversiGameChannel } from '@/server/api/stream/channels/reversi-game.js';
 import { TwitchLiveStreamChannel } from '@/server/api/stream/channels/twitch-live-stream.js';
+import { LiveSubtitleChannel } from '@/server/api/stream/channels/live-subtitle.js';
 import type { ChannelRequest } from './channel.js';
 import type { ChannelConstructor } from './channel.js';
 import type Channel from './channel.js';
@@ -340,6 +341,7 @@ export default class Connection {
 			case 'reversi': return ReversiChannel;
 			case 'reversiGame': return ReversiGameChannel;
 			case 'twitchLiveStream': return TwitchLiveStreamChannel;
+			case 'liveSubtitle': return LiveSubtitleChannel;
 
 			default:
 				throw new Error(`no such channel: ${name}`);
