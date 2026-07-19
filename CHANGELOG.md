@@ -115,6 +115,7 @@
 - Enhance: `live-channels/list` の配信中判定 (`isLive`) を MSJP配信 (OME) 限定から Twitch 配信も含む全配信ソースへ拡張 (bsky-fork 独自)。同じ「配信行為」である以上、どちらの配信中状態もカードに反映されるべきという設計変更
 - Enhance: 配信チャンネルを無効化した際、Twitch配信の検知・通知等の連携動作も停止するように (bsky-fork 独自)。Twitchアカウントの連携 (OAuth 認証) 自体は維持したまま、配信検知 (`upsertLiveStream`)・フォロワー通知・チャット中継/コメント欄が連鎖的に停止する
 - Feat: MSJP配信 (OME) に視聴者制限機能を追加 (bsky-fork 独自)。配信者は公開範囲を「公開 / フォロワー限定 / パスワード / 指定ユーザー」から選べるようになり (`live-channels/update` の `visibility` / `viewPassword` / `visibleUserIds`)、視聴用トークン + OME AdmissionWebhooks (outgoing 判定) による実効遮断で、URL を知っていても未認可の視聴者は再生できないようにした。`twitch/streams/show` は認可されなかった ome セッションで `playbackUrl` を省略し、`authorized: false` と `viewRestriction` (制限理由) を返すように変更。パスワード視聴用に `live-channels/verify-view-password` エンドポイントを新規追加 (レート制限・タイミングセーフ比較)。配信設定ページに公開範囲セレクタ・パスワード入力・視聴許可ユーザーの編集 UI を追加し、視聴ページでは未認可時にプレイヤーの代わりにフォローボタン / パスワード入力 / 案内メッセージを表示するようにした
+- Fix: ノート検索がインデックス無しの `LIKE` 全表走査 (200万件超で実質機能不全) だった問題を修正 (bsky-fork 独自)。PGroonga拡張によるノート全文検索インデックスを追加し、`fulltextSearch.provider: sqlPgroonga` を有効化した。トークナイザは TokenBigram、正規化子は NormalizerNFKC150 (かな/ローマ字/長音記号の表記ゆれを吸収) を使用。本番適用にはPostgres側へのpgroonga拡張導入が別途必要
 
 ## 2026.9.0
 
