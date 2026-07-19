@@ -474,6 +474,7 @@ export * as 'twitch/streams/comments/create' from './endpoints/twitch/streams/co
 export * as 'twitch/streams/blocks/create' from './endpoints/twitch/streams/blocks/create.js';
 export * as 'twitch/streams/blocks/delete' from './endpoints/twitch/streams/blocks/delete.js';
 export * as 'twitch/streams/blocks/list' from './endpoints/twitch/streams/blocks/list.js';
+export * as 'twitch/subtitle/publish' from './endpoints/twitch/subtitle/publish.js';
 export * as 'twitch/unlink' from './endpoints/twitch/unlink.js';
 
 // live-channels (ライブチャンネル基盤、fork 独自)
