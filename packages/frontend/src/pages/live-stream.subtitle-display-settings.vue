@@ -19,7 +19,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<div :class="$style.previewSection">
 				<div :class="$style.previewLabel">{{ i18n.ts._twitch.subtitleDisplayLivePreview }}</div>
-				<iframe :class="$style.previewFrame" :src="previewSrc" :title="i18n.ts._twitch.subtitleDisplayLivePreview" frameborder="0"></iframe>
+				<div :class="$style.previewFrameOuter" :style="previewFrameOuterStyle">
+					<iframe :class="$style.previewFrame" :style="previewFrameStyle" :src="previewSrc" :title="i18n.ts._twitch.subtitleDisplayLivePreview" frameborder="0"></iframe>
+					<div :class="$style.previewResolutionBadge">{{ preview.width }}×{{ preview.height }}</div>
+				</div>
 			</div>
 
 			<div :class="$style.applySection">
@@ -83,6 +86,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<MkSelect v-model="draft.interim" :items="interimItems">
 						<template #label>{{ i18n.ts._twitch.subtitleDisplayInterimMode }}</template>
 					</MkSelect>
+				</div>
+			</MkFolder>
+
+			<MkFolder>
+				<template #icon><i class="ti ti-aspect-ratio"></i></template>
+				<template #label>{{ i18n.ts._twitch.subtitleDisplayResolutionGroup }}</template>
+
+				<div class="_gaps_s">
+					<MkInfo>{{ i18n.ts._twitch.subtitleDisplayResolutionDescription }}</MkInfo>
+					<MkSelect :modelValue="selectedResolutionPresetId" :items="resolutionPresetItems" @update:modelValue="onSelectResolutionPreset">
+						<template #label>{{ i18n.ts._twitch.subtitleDisplayResolutionPreset }}</template>
+					</MkSelect>
+					<MkInput v-model="draft.width" type="number" :min="320" :max="3840">
+						<template #label>{{ i18n.ts._twitch.subtitleDisplayResolutionWidth }}</template>
+						<template #suffix>px</template>
+					</MkInput>
+					<MkInput v-model="draft.height" type="number" :min="240" :max="2160">
+						<template #label>{{ i18n.ts._twitch.subtitleDisplayResolutionHeight }}</template>
+						<template #suffix>px</template>
+					</MkInput>
 				</div>
 			</MkFolder>
 
@@ -192,6 +215,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkFolder>
 
 			<div :class="$style.urlSection">
+				<div :class="$style.obsResolutionHint">
+					<i class="ti ti-device-desktop-analytics"></i>
+					<span>{{ i18n.tsx._twitch.subtitleDisplayObsResolutionHint({ width: committed.width, height: committed.height }) }}</span>
+					<button type="button" class="_button" :class="$style.obsResolutionCopyButton" :title="i18n.ts.copy" @click="copyWidth"><i class="ti ti-copy"></i> {{ i18n.ts._twitch.subtitleDisplayResolutionWidth }}</button>
+					<button type="button" class="_button" :class="$style.obsResolutionCopyButton" :title="i18n.ts.copy" @click="copyHeight"><i class="ti ti-copy"></i> {{ i18n.ts._twitch.subtitleDisplayResolutionHeight }}</button>
+				</div>
 				<div :class="$style.urlLabel">
 					{{ i18n.ts._twitch.subtitleDisplayGeneratedUrl }}
 					<span v-if="hasUncommittedChanges" :class="$style.uncommittedBadge">
@@ -273,6 +302,11 @@ type SubtitleDisplaySettings = {
 	minDur: number;
 	maxDur: number;
 	idleClear: number;
+	// OBSブラウザソースの推奨サイズ指標。表示ページはビューポートサイズに追従する設計のため
+	// URLパラメータには含めない (buildUrl の URL_EXCLUDED_KEYS を参照)。miLocalStorage への
+	// 永続化・テンプレート保存・プレビューのスケール計算にのみ使う
+	width: number;
+	height: number;
 };
 
 type SubtitleDisplayTemplate = {
@@ -312,9 +346,15 @@ const DEFAULT_SETTINGS: SubtitleDisplaySettings = {
 	minDur: 1.5,
 	maxDur: 7,
 	idleClear: 6,
+	width: 1920,
+	height: 1080,
 };
 
 const SETTINGS_KEYS = Object.keys(DEFAULT_SETTINGS) as (keyof SubtitleDisplaySettings)[];
+
+// width/height は subtitles.js のクエリパラメータ契約に存在しない (OBS側のブラウザソース
+// サイズ指標として設定ビルダー内でのみ完結させる)。buildUrl から除外する
+const URL_EXCLUDED_KEYS: readonly (keyof SubtitleDisplaySettings)[] = ['width', 'height'];
 
 const ALIGN_VALUES: readonly SubtitleDisplayAlign[] = ['left', 'center', 'right'];
 const POSITION_VALUES: readonly SubtitleDisplayPosition[] = ['top', 'bottom'];
@@ -379,6 +419,8 @@ function sanitizeSettings(raw: unknown): SubtitleDisplaySettings {
 		minDur: clampNumber(src.minDur, DEFAULT_SETTINGS.minDur, 0.5, 5),
 		maxDur: clampNumber(src.maxDur, DEFAULT_SETTINGS.maxDur, 2, 15),
 		idleClear: clampNumber(src.idleClear, DEFAULT_SETTINGS.idleClear, 0, 60),
+		width: clampNumber(src.width, DEFAULT_SETTINGS.width, 320, 3840),
+		height: clampNumber(src.height, DEFAULT_SETTINGS.height, 240, 2160),
 	};
 }
 
@@ -472,6 +514,40 @@ const interimItems = [
 	{ value: 'dim', label: i18n.ts._twitch.subtitleDisplayInterimDim },
 	{ value: 'hidden', label: i18n.ts._twitch.subtitleDisplayInterimHidden },
 ];
+
+//#region 解像度 (OBSブラウザソースに設定すべき幅/高さの指標。subtitles.js の
+// クエリパラメータ契約には存在しない、設定ビルダー完結の値)
+type ResolutionPreset = {
+	id: string;
+	width: number;
+	height: number;
+};
+
+const RESOLUTION_PRESETS: ResolutionPreset[] = [
+	{ id: '1920x1080', width: 1920, height: 1080 },
+	{ id: '1280x720', width: 1280, height: 720 },
+];
+
+const CUSTOM_RESOLUTION_ID = 'custom';
+
+const resolutionPresetItems = computed(() => [
+	...RESOLUTION_PRESETS.map(p => ({ value: p.id, label: `${p.width}×${p.height}` })),
+	{ value: CUSTOM_RESOLUTION_ID, label: i18n.ts._twitch.subtitleDisplayResolutionCustom },
+]);
+
+const selectedResolutionPresetId = computed(() => {
+	const preset = RESOLUTION_PRESETS.find(p => p.width === draft.width && p.height === draft.height);
+	return preset != null ? preset.id : CUSTOM_RESOLUTION_ID;
+});
+
+function onSelectResolutionPreset(id: string) {
+	if (id === CUSTOM_RESOLUTION_ID) return;
+	const preset = RESOLUTION_PRESETS.find(p => p.id === id);
+	if (preset == null) return;
+	draft.width = preset.width;
+	draft.height = preset.height;
+}
+//#endregion
 
 //#region フォント (汎用フォントスタックのプリセット + Driveのカスタムフォント)
 type FontPreset = {
@@ -836,6 +912,7 @@ async function importSettings() {
 function buildUrl(source: SubtitleDisplaySettings, demo: boolean): string {
 	const params = new URLSearchParams();
 	for (const key of SETTINGS_KEYS) {
+		if (URL_EXCLUDED_KEYS.includes(key)) continue;
 		const value = source[key];
 		const defaultValue = DEFAULT_SETTINGS[key];
 		if (value === defaultValue) continue;
@@ -856,6 +933,33 @@ function copyUrl() {
 function openPreviewUrl() {
 	window.open(buildUrl(committed, true), '_blank', 'noopener');
 }
+
+//#region iframeプレビューのスケール表示 (preview.width/height の実寸を、プレビュー枠の
+// 表示幅に収まるよう transform: scale で縮小する。枠自体はチェッカー柄背景を保ったまま
+// アスペクト比に応じた高さになる)
+const PREVIEW_CONTAINER_WIDTH = 432;
+
+const previewScale = computed(() => Math.min(1, PREVIEW_CONTAINER_WIDTH / preview.width));
+const previewScaledHeight = computed(() => Math.round(preview.height * previewScale.value));
+
+const previewFrameOuterStyle = computed(() => ({
+	height: `${previewScaledHeight.value}px`,
+}));
+
+const previewFrameStyle = computed(() => ({
+	width: `${preview.width}px`,
+	height: `${preview.height}px`,
+	transform: `scale(${previewScale.value})`,
+}));
+//#endregion
+
+function copyWidth() {
+	copyToClipboard(String(committed.width));
+}
+
+function copyHeight() {
+	copyToClipboard(String(committed.height));
+}
 </script>
 
 <style lang="scss" module>
@@ -870,10 +974,10 @@ function openPreviewUrl() {
 	opacity: 0.8;
 }
 
-.previewFrame {
+.previewFrameOuter {
+	position: relative;
 	width: 100%;
-	height: 220px;
-	border: none;
+	overflow: hidden;
 	border-radius: var(--MI-radius, 8px);
 	background-color: var(--MI_THEME-panel);
 	background-image:
@@ -883,6 +987,29 @@ function openPreviewUrl() {
 		linear-gradient(-45deg, transparent 75%, var(--MI_THEME-divider) 75%);
 	background-size: 20px 20px;
 	background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+}
+
+// iframeは実解像度 (preview.width/height) のまま置き、枠内に収まるよう
+// transform: scale で縮小する (transform-origin は左上固定)
+.previewFrame {
+	position: absolute;
+	top: 0;
+	left: 0;
+	transform-origin: top left;
+	border: none;
+	background-color: transparent;
+}
+
+.previewResolutionBadge {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	padding: 2px 6px;
+	font-size: 0.75em;
+	color: #fff;
+	background: rgba(0, 0, 0, 0.6);
+	border-radius: 4px;
+	pointer-events: none;
 }
 
 .applySection {
@@ -932,6 +1059,30 @@ function openPreviewUrl() {
 .urlSection {
 	padding-top: 8px;
 	border-top: solid 1px var(--MI_THEME-divider);
+}
+
+.obsResolutionHint {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+	padding-bottom: 10px;
+	font-size: 0.85em;
+	opacity: 0.9;
+}
+
+.obsResolutionCopyButton {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 8px;
+	font-size: 0.9em;
+	background: var(--MI_THEME-buttonBg);
+	border-radius: 6px;
+
+	&:hover {
+		background: var(--MI_THEME-panelHighlight);
+	}
 }
 
 .urlLabel {
