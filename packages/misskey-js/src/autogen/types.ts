@@ -3956,6 +3956,15 @@ export type paths = {
          */
         post: operations['twitch___streams___show'];
     };
+    '/twitch/subtitle/publish': {
+        /**
+         * twitch/subtitle/publish
+         * @description ライブ字幕イベント (caption/translation/clear) を自分の字幕チャンネルへ中継する。サーバーは中継のみ行い、DB への保存や翻訳処理は行わない。
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['twitch___subtitle___publish'];
+    };
     '/twitch/unlink': {
         /**
          * twitch/unlink
@@ -37525,6 +37534,87 @@ export interface operations {
             };
             /** @description I'm Ai */
             418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    twitch___subtitle___publish: {
+        requestBody: {
+            content: {
+                'application/json': {
+                    events: {
+                        /** @enum {string} */
+                        type: 'caption' | 'translation' | 'clear';
+                        id?: string;
+                        text?: string;
+                        isFinal?: boolean;
+                        lang?: string;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': Record<string, never>;
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
