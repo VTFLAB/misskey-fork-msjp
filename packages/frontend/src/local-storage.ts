@@ -13,6 +13,8 @@ export type Keys = (
 	'twitchTts' |
 	'twitchTranslationDisplay' |
 	'twitchCommentGen' |
+	'liveSubtitle' |
+	'liveSubtitleDisplay' |
 	'latestDonationInfoShownAt' |
 	'neverShowDonationInfo' |
 	'neverShowLocalOnlyInfo' |
