@@ -14311,6 +14311,510 @@ export interface Locale extends ILocale {
          * 設定に反映されていない変更があります。破棄して閉じますか？
          */
         "commentGenCloseConfirm": string;
+        /**
+         * 字幕配信
+         */
+        "subtitleSettings": string;
+        /**
+         * 字幕配信を開始
+         */
+        "subtitleStart": string;
+        /**
+         * 字幕配信を停止
+         */
+        "subtitleStop": string;
+        /**
+         * 字幕配信中
+         */
+        "subtitleRunningIndicator": string;
+        /**
+         * このブラウザは音声認識に対応していません。Google Chromeなど、Web Speech APIに対応したブラウザでお試しください。
+         */
+        "subtitleErrorUnsupportedBrowser": string;
+        /**
+         * 音声認識でエラーが発生しました
+         */
+        "subtitleAsrStatusError": string;
+        /**
+         * 認識結果 (原文プレビュー)
+         */
+        "subtitlePreviewCaption": string;
+        /**
+         * 翻訳結果プレビュー
+         */
+        "subtitlePreviewTranslation": string;
+        /**
+         * 音声認識エンジン
+         */
+        "subtitleAsrEngine": string;
+        /**
+         * Web Speech API (推奨)
+         */
+        "subtitleAsrEngineWebSpeech": string;
+        /**
+         * WASM音声認識 (未実装)
+         */
+        "subtitleAsrEngineWasm": string;
+        /**
+         * この認識エンジンは未実装です。今後の拡張のためのインターフェースのみ用意されています。Web Speech APIをご利用ください。
+         */
+        "subtitleAsrEngineWasmNotice": string;
+        /**
+         * マイク
+         */
+        "subtitleMicDevice": string;
+        /**
+         * デフォルト
+         */
+        "subtitleMicDeviceDefault": string;
+        /**
+         * Web Speech APIはマイクを個別に指定する標準的な手段を持たないため、この選択はOSまたはブラウザ側で設定されているデフォルトの入力デバイスが優先されます。
+         */
+        "subtitleMicDeviceWebSpeechNotice": string;
+        /**
+         * オンデバイス認識を使う
+         */
+        "subtitleProcessLocally": string;
+        /**
+         * 対応環境 (Chrome 139以降) では、音声データを外部に送信せずブラウザ内で認識できます。
+         */
+        "subtitleProcessLocallyDescription": string;
+        /**
+         * 利用可能です
+         */
+        "subtitleProcessLocallyAvailable": string;
+        /**
+         * モデルのダウンロードが必要です
+         */
+        "subtitleProcessLocallyDownloadable": string;
+        /**
+         * この環境では利用できません
+         */
+        "subtitleProcessLocallyUnavailable": string;
+        /**
+         * 翻訳エンジン
+         */
+        "subtitleTranslatorEngine": string;
+        /**
+         * ブラウザ内蔵翻訳 (Chrome限定、オンデバイス)
+         */
+        "subtitleTranslatorEngineLocal": string;
+        /**
+         * ローカルWASM翻訳 (完全オフライン、日本語→英語のみ)
+         */
+        "subtitleTranslatorEngineLocalWasm": string;
+        /**
+         * Google翻訳 (非公式エンドポイント)
+         */
+        "subtitleTranslatorEngineGoogle": string;
+        /**
+         * 自前のGoogle Apps Script WebApp
+         */
+        "subtitleTranslatorEngineGas": string;
+        /**
+         * DeepL (APIキーが必要)
+         */
+        "subtitleTranslatorEngineDeepl": string;
+        /**
+         * 翻訳先の言語
+         */
+        "subtitleTargetLang": string;
+        /**
+         * GAS WebApp URL
+         */
+        "subtitleGasUrl": string;
+        /**
+         * GET (?text=&source=ja&target=xx) を受け取り {code, text} 形式のJSONを返すGoogle Apps Script WebAppのURLを指定してください。CORSのpreflightを避けるため、常にGETのsimple requestで呼び出します。
+         */
+        "subtitleGasUrlDescription": string;
+        /**
+         * DeepL APIキー
+         */
+        "subtitleDeeplApiKey": string;
+        /**
+         * Free版のキーは末尾が「:fx」で終わり、自動的にAPIのエンドポイントを切り替えます。このブラウザのローカルストレージにのみ保存され、サーバーには送信されません。
+         */
+        "subtitleDeeplApiKeyDescription": string;
+        /**
+         * DeepLはブラウザからの直接利用を許可していないため使用できません。他の翻訳エンジンをお試しください。
+         */
+        "subtitleDeeplCorsError": string;
+        /**
+         * 確認中...
+         */
+        "subtitleEngineStateChecking": string;
+        /**
+         * この環境では利用できません。
+         */
+        "subtitleEngineStateUnsupported": string;
+        /**
+         * 設定が未入力です。
+         */
+        "subtitleEngineStateNotConfigured": string;
+        /**
+         * リクエストが多すぎます。しばらく待ってから再度お試しください。
+         */
+        "subtitleEngineStateRateLimited": string;
+        /**
+         * エラーが発生しました。
+         */
+        "subtitleEngineStateError": string;
+        /**
+         * モデルをダウンロード中...
+         */
+        "subtitleModelDownloading": string;
+        /**
+         * OBS用字幕URL
+         */
+        "subtitleObsUrl": string;
+        /**
+         * OBSのブラウザソースにこのURLを設定してください。表示の見た目 (フォント・色・位置など) を細かく調整する場合は「見た目を設定」から専用の設定ビルダーを開けます。
+         */
+        "subtitleObsUrlDescription": string;
+        /**
+         * URLをコピー
+         */
+        "subtitleCopyUrl": string;
+        /**
+         * 見た目を設定
+         */
+        "subtitleObsUrlOpenSettings": string;
+        /**
+         * 字幕の見た目設定
+         */
+        "subtitleDisplaySettings": string;
+        /**
+         * OBS用字幕表示ページの見た目 (フォント・色・位置・タイミングなど) を調整し、OBSのブラウザソースに設定するURLを生成します。
+         */
+        "subtitleDisplayDescription": string;
+        /**
+         * プレビュー
+         */
+        "subtitleDisplayLivePreview": string;
+        /**
+         * プレビューに適用
+         */
+        "subtitleDisplayApply": string;
+        /**
+         * 未適用の変更があります
+         */
+        "subtitleDisplayUnappliedChanges": string;
+        /**
+         * テンプレート
+         */
+        "subtitleDisplayTemplateGroup": string;
+        /**
+         * テンプレートを選択
+         */
+        "subtitleDisplayTemplateSelect": string;
+        /**
+         * 新規保存
+         */
+        "subtitleDisplayTemplateSave": string;
+        /**
+         * 上書き保存
+         */
+        "subtitleDisplayTemplateOverwrite": string;
+        /**
+         * 削除
+         */
+        "subtitleDisplayTemplateDelete": string;
+        /**
+         * JSONをコピー
+         */
+        "subtitleDisplayTemplateExport": string;
+        /**
+         * JSONから読込
+         */
+        "subtitleDisplayTemplateImport": string;
+        /**
+         * テンプレート名を入力してください
+         */
+        "subtitleDisplayTemplateNamePrompt": string;
+        /**
+         * テンプレートを保存しました
+         */
+        "subtitleDisplayTemplateSaved": string;
+        /**
+         * テンプレート「{name}」を上書きしますか？
+         */
+        "subtitleDisplayTemplateOverwriteConfirm": ParameterizedString<"name">;
+        /**
+         * テンプレート「{name}」を削除しますか？
+         */
+        "subtitleDisplayTemplateDeleteConfirm": ParameterizedString<"name">;
+        /**
+         * 未保存の変更があります。破棄してテンプレートを適用しますか？
+         */
+        "subtitleDisplayDiscardConfirm": string;
+        /**
+         * エクスポートしたJSONを貼り付けてください
+         */
+        "subtitleDisplayImportPrompt": string;
+        /**
+         * 設定を読み込みました
+         */
+        "subtitleDisplayImported": string;
+        /**
+         * JSONの読み込みに失敗しました
+         */
+        "subtitleDisplayImportFailed": string;
+        /**
+         * 標準
+         */
+        "subtitleDisplayPresetStandard": string;
+        /**
+         * 上部表示
+         */
+        "subtitleDisplayPresetTop": string;
+        /**
+         * ミニマル (背景なし)
+         */
+        "subtitleDisplayPresetMinimal": string;
+        /**
+         * ボックス背景
+         */
+        "subtitleDisplayPresetBoxed": string;
+        /**
+         * 表示位置・要素
+         */
+        "subtitleDisplayPositionGroup": string;
+        /**
+         * 表示位置
+         */
+        "subtitleDisplayPosition": string;
+        /**
+         * 上
+         */
+        "subtitleDisplayPositionTop": string;
+        /**
+         * 下
+         */
+        "subtitleDisplayPositionBottom": string;
+        /**
+         * 揃え
+         */
+        "subtitleDisplayAlign": string;
+        /**
+         * 左揃え
+         */
+        "subtitleDisplayAlignLeft": string;
+        /**
+         * 中央揃え
+         */
+        "subtitleDisplayAlignCenter": string;
+        /**
+         * 右揃え
+         */
+        "subtitleDisplayAlignRight": string;
+        /**
+         * 画面端からの余白
+         */
+        "subtitleDisplayOffset": string;
+        /**
+         * 最大幅
+         */
+        "subtitleDisplayMaxWidth": string;
+        /**
+         * 原文 (上段) を表示
+         */
+        "subtitleDisplayShowOriginal": string;
+        /**
+         * 翻訳 (下段) を表示
+         */
+        "subtitleDisplayShowTranslation": string;
+        /**
+         * 未確定文の表示方式
+         */
+        "subtitleDisplayInterimMode": string;
+        /**
+         * << >> で囲む
+         */
+        "subtitleDisplayInterimBrackets": string;
+        /**
+         * 薄く表示
+         */
+        "subtitleDisplayInterimDim": string;
+        /**
+         * 表示しない
+         */
+        "subtitleDisplayInterimHidden": string;
+        /**
+         * フォント
+         */
+        "subtitleDisplayFontGroup": string;
+        /**
+         * フォント
+         */
+        "subtitleDisplayFont": string;
+        /**
+         * プリセットから選ぶか、Driveのフォントファイル (woff2/woff/ttf/otf) を指定できます。
+         */
+        "subtitleDisplayFontDescription": string;
+        /**
+         * 原文フォントサイズ
+         */
+        "subtitleDisplayFontSize": string;
+        /**
+         * 翻訳フォントサイズ
+         */
+        "subtitleDisplayTransSize": string;
+        /**
+         * フォントの太さ
+         */
+        "subtitleDisplayFontWeight": string;
+        /**
+         * デフォルト
+         */
+        "subtitleDisplayFontPresetDefault": string;
+        /**
+         * ゴシック体
+         */
+        "subtitleDisplayFontPresetGothic": string;
+        /**
+         * 明朝体
+         */
+        "subtitleDisplayFontPresetMincho": string;
+        /**
+         * 丸ゴシック体
+         */
+        "subtitleDisplayFontPresetRounded": string;
+        /**
+         * 等幅
+         */
+        "subtitleDisplayFontPresetMonospace": string;
+        /**
+         * Driveのフォント ({name})
+         */
+        "subtitleDisplayFontDriveLabel": ParameterizedString<"name">;
+        /**
+         * Driveのフォント
+         */
+        "subtitleDisplayFontDriveLabelUnknown": string;
+        /**
+         * Driveから選択...
+         */
+        "subtitleDisplayFontDriveSelect": string;
+        /**
+         * 対応していないファイル形式です。
+         */
+        "subtitleDisplayFontDriveInvalidType": string;
+        /**
+         * 色
+         */
+        "subtitleDisplayColorGroup": string;
+        /**
+         * 原文の色
+         */
+        "subtitleDisplayTextColor": string;
+        /**
+         * 翻訳の色
+         */
+        "subtitleDisplayTransColor": string;
+        /**
+         * 縁取りの色
+         */
+        "subtitleDisplayOutlineColor": string;
+        /**
+         * 背景を透過する
+         */
+        "subtitleDisplayBgTransparent": string;
+        /**
+         * オンにするとテキストボックスの背景を透過し、文字のみ表示します。
+         */
+        "subtitleDisplayBgColorDescription": string;
+        /**
+         * 背景色
+         */
+        "subtitleDisplayBgColor": string;
+        /**
+         * 背景の不透明度
+         */
+        "subtitleDisplayBgOpacity": string;
+        /**
+         * レイアウト・背景画像
+         */
+        "subtitleDisplayLayoutGroup": string;
+        /**
+         * 縁取りの太さ
+         */
+        "subtitleDisplayOutline": string;
+        /**
+         * 0で縁取りなし。
+         */
+        "subtitleDisplayOutlineDescription": string;
+        /**
+         * 角丸
+         */
+        "subtitleDisplayRadius": string;
+        /**
+         * 内側の余白
+         */
+        "subtitleDisplayPadding": string;
+        /**
+         * テキストボックスの背景に画像を敷けます (任意)。Driveの画像ファイルから選択してください。
+         */
+        "subtitleDisplayBgImageDescription": string;
+        /**
+         * Driveから選択...
+         */
+        "subtitleDisplayBgImageSelect": string;
+        /**
+         * 翻訳の表示タイミング
+         */
+        "subtitleDisplayTimingGroup": string;
+        /**
+         * 表示速度 (文字/秒)
+         */
+        "subtitleDisplayCps": string;
+        /**
+         * 翻訳1件あたりの表示時間は「文字数 ÷ この値」で計算されます (最短/最長の範囲内)。
+         */
+        "subtitleDisplayCpsDescription": string;
+        /**
+         * 最短表示時間
+         */
+        "subtitleDisplayMinDur": string;
+        /**
+         * 最長表示時間
+         */
+        "subtitleDisplayMaxDur": string;
+        /**
+         * 無操作時の自動フェードアウトまでの秒数
+         */
+        "subtitleDisplayIdleClear": string;
+        /**
+         * 0にすると自動フェードアウトしません。
+         */
+        "subtitleDisplayIdleClearDescription": string;
+        /**
+         * 生成されたURL
+         */
+        "subtitleDisplayGeneratedUrl": string;
+        /**
+         * URLをコピー
+         */
+        "subtitleDisplayCopyUrl": string;
+        /**
+         * プレビューを開く
+         */
+        "subtitleDisplayOpenPreview": string;
+        /**
+         * 設定を反映
+         */
+        "subtitleDisplayCommit": string;
+        /**
+         * 未反映の変更あり
+         */
+        "subtitleDisplayUncommittedBadge": string;
+        /**
+         * フォームに未プレビューの変更があります。「プレビューに適用」を行うと、その内容もあわせて反映できます。
+         */
+        "subtitleDisplayCommitHint": string;
+        /**
+         * 設定に反映されていない変更があります。破棄して閉じますか？
+         */
+        "subtitleDisplayCloseConfirm": string;
     };
     "_streaming": {
         /**
