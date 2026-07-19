@@ -31,6 +31,10 @@ allowBuilds:
   v-code-diff: true
   vue-demi: true
   exifreader: false
+  # ライブ字幕のローカルWASM翻訳エンジン (@huggingface/transformers) の依存。
+  # ブラウザではonnxruntime-web(wasm)側が使われ、onnxruntime-nodeのネイティブ
+  # バイナリ取得スクリプトはfrontendでは不要なため実行しない (bsky-fork 独自)
+  onnxruntime-node: false
   protobufjs: false
 minimumReleaseAge: 10080 # delay 7days to mitigate supply-chain attack
 minimumReleaseAgeExclude:
