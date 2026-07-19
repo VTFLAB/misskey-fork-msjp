@@ -53,39 +53,68 @@ export type TranslateOptions = {
 };
 
 // --- local: Chrome内蔵 on-device Translator API (Chrome 138+) ---
+//
+// Chrome側は同時生存セッション数に上限があり、TranslatorInstance.destroy() で明示的に
+// 手放す必要がある (型定義 live-subtitle.d.ts 参照)。以前はtargetLangごとにインスタンスを
+// Mapへ無期限に貯め続け、破棄しないまま切替を繰り返すとセッションが蓄積して新規create()が
+// 失敗する/古いインスタンスがブラウザ側で失効する不具合があった (言語・エンジン切替→
+// localへ戻すと翻訳できなくなる、という報告の原因)。常にアクティブなtargetLangのセッション
+// 1本だけを生かし、切替時は古いセッションを破棄する。
 
 const localTranslatorInstances = new Map<string, Promise<TranslatorInstance>>();
+let localActiveTargetLang: string | null = null;
+
+function destroyLocalTranslator(targetLang: string) {
+	const cached = localTranslatorInstances.get(targetLang);
+	localTranslatorInstances.delete(targetLang);
+	if (cached == null) return;
+	cached
+		.then((translator) => { try { translator.destroy?.(); } catch { /* 既に破棄済み等は無視 */ } })
+		.catch(() => { /* create自体が失敗していたインスタンスは破棄不要 */ });
+}
 
 async function getLocalTranslator(targetLang: string): Promise<TranslatorInstance> {
+	if (localActiveTargetLang !== targetLang) {
+		// 言語切替: 古いセッションは全て破棄してから新しいセッションだけを生かす
+		for (const staleLang of [...localTranslatorInstances.keys()]) {
+			if (staleLang !== targetLang) destroyLocalTranslator(staleLang);
+		}
+		localActiveTargetLang = targetLang;
+	}
+
 	const cached = localTranslatorInstances.get(targetLang);
 	if (cached != null) return cached;
 
+	// この生成処理が完了する頃には既に別の言語へ切り替わっている場合、その古い結果で
+	// 現在の状態表示を上書きしてしまわないためのガード
+	const isCurrent = () => localActiveTargetLang === targetLang;
+
 	const promise = (async () => {
 		if (typeof window === 'undefined' || window.Translator == null) {
-			setStatus('local', { state: 'unsupported', errorReason: 'unsupported' });
+			if (isCurrent()) setStatus('local', { state: 'unsupported', errorReason: 'unsupported' });
 			throw new Error('Translator API is not available in this browser');
 		}
-		setStatus('local', { state: 'checking', errorReason: null });
+		if (isCurrent()) setStatus('local', { state: 'checking', errorReason: null });
 		const availability = await window.Translator.availability({ sourceLanguage: 'ja', targetLanguage: targetLang });
 		if (availability === 'unavailable') {
-			setStatus('local', { state: 'unsupported', errorReason: 'unsupported' });
+			if (isCurrent()) setStatus('local', { state: 'unsupported', errorReason: 'unsupported' });
 			throw new Error(`Translator unavailable for ja -> ${targetLang}`);
 		}
 		if (availability === 'downloadable' || availability === 'downloading') {
-			setStatus('local', { state: 'downloading', downloadProgress: 0 });
+			if (isCurrent()) setStatus('local', { state: 'downloading', downloadProgress: 0 });
 		} else {
-			setStatus('local', { state: 'ready', downloadProgress: 100 });
+			if (isCurrent()) setStatus('local', { state: 'ready', downloadProgress: 100 });
 		}
 		const translator = await window.Translator.create({
 			sourceLanguage: 'ja',
 			targetLanguage: targetLang,
 			monitor: (m) => {
 				m.addEventListener('downloadprogress', (ev) => {
-					setStatus('local', { state: 'downloading', downloadProgress: Math.round(ev.loaded * 100) });
+					if (isCurrent()) setStatus('local', { state: 'downloading', downloadProgress: Math.round(ev.loaded * 100) });
 				});
 			},
 		});
-		setStatus('local', { state: 'ready', downloadProgress: 100 });
+		if (isCurrent()) setStatus('local', { state: 'ready', downloadProgress: 100 });
 		return translator;
 	})();
 	localTranslatorInstances.set(targetLang, promise);
