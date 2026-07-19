@@ -62,6 +62,7 @@ import { BiosPage } from './views/bios.js';
 import { CliPage } from './views/cli.js';
 import { FlushPage } from './views/flush.js';
 import { CommentGeneratorPage } from './views/comment-generator.js';
+import { SubtitlesPage } from './views/subtitles.js';
 import { ErrorPage } from './views/error.js';
 
 import type { FastifyError, FastifyInstance, FastifyPluginOptions, FastifyReply } from 'fastify';
@@ -908,6 +909,13 @@ export class ClientServerService {
 		fastify.get('/live/:acct/comment-generator', async (request, reply) => {
 			reply.removeHeader('X-Frame-Options');
 			return await HtmlTemplateService.replyHtml(reply, CommentGeneratorPage());
+		});
+
+		// OBS ブラウザソース用のライブ字幕表示ページ (bsky-fork 独自)。comment-generator と同型で、
+		// 設定ビルダーのライブプレビュー <iframe> に埋め込まれるため X-Frame-Options を外す必要がある。
+		fastify.get('/live/:acct/subtitles', async (request, reply) => {
+			reply.removeHeader('X-Frame-Options');
+			return await HtmlTemplateService.replyHtml(reply, SubtitlesPage());
 		});
 
 		fastify.get('/flush', async (request, reply) => {
