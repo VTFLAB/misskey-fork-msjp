@@ -71,6 +71,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<button class="_button" :class="$style.streamerSettingsButton" :title="i18n.ts.reload" :aria-label="i18n.ts.reload" @click="reload">
 							<i class="ti ti-refresh"></i>
 						</button>
+						<span v-if="isOwner && liveSubtitleRunning" :class="$style.subtitleIndicator" :title="i18n.ts._twitch.subtitleRunningIndicator">
+							<i class="ti ti-closed-captioning"></i>
+						</span>
 						<button v-if="isOwner" class="_button" :class="$style.streamerSettingsButton" :title="i18n.ts._twitch.streamerSettings" :aria-label="i18n.ts._twitch.streamerSettings" @click="openStreamerSettings">
 							<i class="ti ti-settings"></i>
 						</button>
@@ -109,6 +112,7 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { useRouter } from '@/router.js';
 import { remoteGuestSession, saveRemoteGuestSession, clearRemoteGuestSession } from '@/composables/use-remote-guest-session.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
+import { liveSubtitleRunning } from '@/composables/use-live-subtitle.js';
 
 const props = defineProps<{
 	acct: string;
@@ -333,6 +337,16 @@ function openStreamerSettings(ev: MouseEvent) {
 			const { dispose } = await os.popupAsyncWithDialog(
 				import('@/pages/live-stream.translation-settings.vue').then(x => x.default),
 				{},
+				{ closed: () => dispose() },
+			);
+		},
+	}, {
+		text: i18n.ts._twitch.subtitleSettings,
+		icon: 'ti ti-closed-captioning',
+		action: async () => {
+			const { dispose } = await os.popupAsyncWithDialog(
+				import('@/pages/live-stream.subtitle-panel.vue').then(x => x.default),
+				{ acct: props.acct },
 				{ closed: () => dispose() },
 			);
 		},
@@ -567,6 +581,20 @@ definePage(() => ({
 		color: var(--MI_THEME-accent);
 		border-color: var(--MI_THEME-accent);
 	}
+}
+
+// 字幕配信が動作中であることを示す小さなインジケーター (bsky-fork 独自)。
+// ダイアログを閉じても composable シングルトンは動き続けるため、配信ページ滞在中は
+// ここで常時視認できるようにする
+.subtitleIndicator {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	color: var(--MI_THEME-accent);
+	font-size: 1.1em;
 }
 
 .remoteGuestMenu {
