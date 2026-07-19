@@ -28,6 +28,9 @@ export type LiveSubtitleSettings = {
 	gasUrl: string;
 	// miLocalStorageのみに保存、サーバーには送らない
 	deeplApiKey: string;
+	// WASM ASR (Whisper) のモデルID上書き。空文字ならデフォルト (onnx-community/whisper-base) を使う。
+	// 配布元 (HuggingFace) 障害時や、自前ミラーへ切り替えたい場合の逃げ道
+	wasmAsrModelOverride: string;
 };
 
 const DEFAULT_SETTINGS: LiveSubtitleSettings = {
@@ -38,6 +41,7 @@ const DEFAULT_SETTINGS: LiveSubtitleSettings = {
 	targetLang: 'en',
 	gasUrl: '',
 	deeplApiKey: '',
+	wasmAsrModelOverride: '',
 };
 
 function loadSettings(): LiveSubtitleSettings {
@@ -68,8 +72,8 @@ export const liveSubtitleCurrentCaption = ref<{ text: string; isFinal: boolean }
 export const liveSubtitleCurrentTranslation = ref<string | null>(null);
 
 // --- ASRバックエンド抽象化 ---
-// 主経路: Web Speech API。フォールバック (WASM) は今回のスコープではインターフェースの
-// 用意までとし、実推論は未実装 (下記 WasmRecognizerStub 参照)
+// 主経路: Web Speech API。フォールバック: WASM (Whisper、下記 WasmRecognizer 参照。
+// 選定経緯・トレードオフはそのクラスのコメントを参照)
 
 export type SubtitleRecognitionResult = {
 	id: string;
@@ -85,8 +89,42 @@ export interface RecognizerBackend {
 		onError: (code: string) => void;
 		onEnd: () => void;
 	}): void;
-	start(opts: { deviceId: string | null; processLocally: boolean }): void;
+	start(opts: { deviceId: string | null; processLocally: boolean; stream?: MediaStream }): void;
 	stop(): void;
+}
+
+/**
+ * getUserMedia() の失敗を、既存の音声認識エラーコード体系 (SpeechRecognitionErrorEvent.error 相当)
+ * にマッピングする。呼び出し側 (subtitle-panel.vue) はこのコードを liveSubtitleAsrErrorMessage に
+ * そのまま格納すれば、Web Speech 側のエラー表示と同じ分岐で表示できる。
+ */
+export function mapGetUserMediaErrorCode(err: unknown): string {
+	if (err instanceof DOMException) {
+		if (err.name === 'NotAllowedError' || err.name === 'SecurityError') return 'not-allowed';
+		if (err.name === 'NotFoundError' || err.name === 'OverconstrainedError' || err.name === 'DevicesNotFoundError') return 'audio-capture';
+		return err.name;
+	}
+	return 'unknown';
+}
+
+export type MicPermissionState = 'unknown' | 'granted' | 'denied' | 'prompt';
+
+/**
+ * navigator.permissions.query({name:'microphone'}) の現在状態を取得する。
+ * Safari 等 permissions API 非対応環境では 'unknown' を返す (getUserMedia 自体は別途試せる)。
+ * onChange が渡された場合、状態が変わるたびに呼び出す (呼び出し側で reactive ref を更新する用途)。
+ */
+export async function queryMicPermissionState(onChange?: (state: MicPermissionState) => void): Promise<MicPermissionState> {
+	if (typeof navigator === 'undefined' || navigator.permissions?.query == null) return 'unknown';
+	try {
+		const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+		if (onChange != null) {
+			status.onchange = () => onChange(status.state as MicPermissionState);
+		}
+		return status.state as MicPermissionState;
+	} catch {
+		return 'unknown';
+	}
 }
 
 class WebSpeechRecognizer implements RecognizerBackend {
@@ -170,41 +208,296 @@ class WebSpeechRecognizer implements RecognizerBackend {
 	}
 }
 
-// WASM ASR フォールバック (未実装スタブ)。Web Speech API 非対応環境
-// (Firefox / Safari 等) 向けに、将来 sherpa-onnx WASM zipformer-ja-reazonspeech
-// (第一候補) または vosk-browser ja (パッケージング困難な場合の代替) を実装する拡張点。
-// 実装時にやること:
-//   1. isSupported() を true にする (常時 or WASM/SharedArrayBuffer 対応判定)
-//   2. start() で getUserMedia({ deviceId: opts.deviceId ?? undefined }) → AudioWorklet
-//      で PCM フレームを取り出し、モデルへストリーミング推論
-//   3. モデルファイルは Cache Storage に遅延ロード (初回のみダウンロード)
-//   4. 認識結果を onResult ({id, text, isFinal}) で通知 (WebSpeechRecognizer と同じ契約)
-class WasmRecognizerStub implements RecognizerBackend {
+// WASM ASR フォールバック。Web Speech API 非対応環境 (Firefox / Brave 等) 向け。
+//
+// 選定経緯 (詳細は doc/live-streaming/subtitle-contract.md 実装時の調査記録を参照):
+// - 第一候補 sherpa-onnx WASM zipformer-ja-reazonspeech は npm 配布されておらず
+//   (npm の "sherpa-onnx" パッケージは Node ネイティブアドオン用で browser WASM 版は
+//   emscripten で自前ビルドしCDN scriptタグ相当で読み込む前提のため導入基準(a)を満たさない)、
+//   本forkでは不採用。
+// - 次点 vosk-browser は npm 配布・dynamic import 可能だが、公式 Vosk 日本語モデル配布元
+//   (alphacephei.com) が Access-Control-Allow-Origin を返さずクライアント直fetchが
+//   CORSで失敗する (実測済み、基準(d)不成立)。HuggingFace上の代替ミラーも見当たらない。
+// - 採用: 既に翻訳(local-wasm)で使用中の @huggingface/transformers (Apache-2.0) +
+//   Whisper 多言語モデル (onnx-community/whisper-base、ベースは openai/whisper で MIT)。
+//   HuggingFaceは実測でCORS許可 (Access-Control-Allow-Origin をorigin反射) 済み、
+//   pnpm依存として既存、Cache Storageへの自動キャッシュも標準機能。
+//   真のトークンストリーミングではなく「発話区間をエネルギーベースVADで区切りながら
+//   区間ごとに再デコードし、部分結果として都度上書き→無音検知で確定」という擬似ストリーミング
+//   (whisper-web等の実装と同型)。日本語精度は概ねWeb Speechと同等以上だが、確定までの
+//   レイテンシはWeb Speechより大きい (UIに注記する)。
+const WASM_ASR_DEFAULT_MODEL = 'onnx-community/whisper-base';
+const WASM_ASR_PARTIAL_INTERVAL_MS = 1500;
+const WASM_ASR_SILENCE_FINALIZE_MS = 900;
+const WASM_ASR_MAX_UTTERANCE_MS = 20_000;
+const WASM_ASR_VAD_RMS_THRESHOLD = 0.012;
+
+export type WasmAsrStatusState = 'idle' | 'loading' | 'downloading' | 'ready' | 'error';
+
+export type WasmAsrStatus = {
+	state: WasmAsrStatusState;
+	downloadProgress: number | null;
+	errorDetail: string | null;
+};
+
+export const wasmAsrStatus = ref<WasmAsrStatus>({ state: 'idle', downloadProgress: null, errorDetail: null });
+
+type WhisperTranscriber = (audio: Float32Array, options: Record<string, unknown>) => Promise<{ text: string } | { text: string }[]>;
+
+let wasmAsrPipelinePromise: Promise<WhisperTranscriber> | null = null;
+let wasmAsrPipelineModelId: string | null = null;
+
+async function getWasmAsrPipeline(modelId: string): Promise<WhisperTranscriber> {
+	if (wasmAsrPipelinePromise != null && wasmAsrPipelineModelId === modelId) return wasmAsrPipelinePromise;
+	wasmAsrPipelineModelId = modelId;
+	wasmAsrStatus.value = { state: 'loading', downloadProgress: 0, errorDetail: null };
+	wasmAsrPipelinePromise = (async () => {
+		const { pipeline } = await import('@huggingface/transformers');
+		const transcriber = await pipeline('automatic-speech-recognition', modelId, {
+			device: 'wasm',
+			dtype: 'q8',
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			progress_callback: (progress: any) => {
+				if (progress?.status === 'progress' && typeof progress.progress === 'number') {
+					wasmAsrStatus.value = { state: 'downloading', downloadProgress: Math.round(progress.progress), errorDetail: null };
+				}
+			},
+		} as never) as unknown as WhisperTranscriber;
+		wasmAsrStatus.value = { state: 'ready', downloadProgress: 100, errorDetail: null };
+		return transcriber;
+	})();
+	wasmAsrPipelinePromise.catch((err) => {
+		wasmAsrPipelinePromise = null;
+		wasmAsrPipelineModelId = null;
+		wasmAsrStatus.value = { state: 'error', downloadProgress: null, errorDetail: String(err) };
+	});
+	return wasmAsrPipelinePromise;
+}
+
+// AudioWorklet プロセッサ本体。静的アセットを追加せず Blob URL 経由で読み込む
+// (ビルド構成に手を入れない/依存を増やさないための最小実装)
+const PCM_CAPTURE_PROCESSOR_SRC = `
+class PcmCaptureProcessor extends AudioWorkletProcessor {
+	process(inputs) {
+		const input = inputs[0];
+		if (input && input[0] && input[0].length > 0) {
+			this.port.postMessage(input[0].slice(0));
+		}
+		return true;
+	}
+}
+registerProcessor('pcm-capture-processor', PcmCaptureProcessor);
+`;
+
+function resampleTo16k(chunks: Float32Array[], sourceRate: number): Float32Array {
+	let totalLen = 0;
+	for (const c of chunks) totalLen += c.length;
+	const merged = new Float32Array(totalLen);
+	let offset = 0;
+	for (const c of chunks) {
+		merged.set(c, offset);
+		offset += c.length;
+	}
+	if (sourceRate === 16000 || merged.length === 0) return merged;
+	const ratio = sourceRate / 16000;
+	const newLen = Math.max(1, Math.floor(merged.length / ratio));
+	const out = new Float32Array(newLen);
+	for (let i = 0; i < newLen; i++) {
+		const srcIdx = i * ratio;
+		const idx0 = Math.floor(srcIdx);
+		const idx1 = Math.min(idx0 + 1, merged.length - 1);
+		const frac = srcIdx - idx0;
+		out[i] = merged[idx0] * (1 - frac) + merged[idx1] * frac;
+	}
+	return out;
+}
+
+function rms(chunk: Float32Array): number {
+	if (chunk.length === 0) return 0;
+	let sum = 0;
+	for (let i = 0; i < chunk.length; i++) sum += chunk[i] * chunk[i];
+	return Math.sqrt(sum / chunk.length);
+}
+
+class WasmRecognizer implements RecognizerBackend {
 	readonly kind: LiveSubtitleAsrEngine = 'wasm';
+	private handlers: Parameters<RecognizerBackend['setHandlers']>[0] | null = null;
+	private audioCtx: AudioContext | null = null;
+	private workletNode: AudioWorkletNode | null = null;
+	private sourceNode: MediaStreamAudioSourceNode | null = null;
+	private stream: MediaStream | null = null;
+	private ownsStream = false;
+	private running = false;
+	private busy = false;
+	private utteranceChunks: Float32Array[] = [];
+	private utteranceId: string | null = null;
+	private hasSpeech = false;
+	private lastVoiceActivityAt = 0;
+	private utteranceStartedAt = 0;
+	private partialTimer: number | null = null;
 
 	isSupported(): boolean {
-		return false;
+		return typeof window !== 'undefined'
+			&& typeof AudioContext !== 'undefined'
+			&& typeof AudioWorkletNode !== 'undefined'
+			&& typeof WebAssembly !== 'undefined';
 	}
 
-	setHandlers() {
-		// noop: 未実装
+	setHandlers(handlers: Parameters<RecognizerBackend['setHandlers']>[0]) {
+		this.handlers = handlers;
 	}
 
-	start(_opts: { deviceId: string | null; processLocally: boolean }) {
-		void _opts;
-		throw new Error('WASM ASR backend is not implemented yet (Phase C scope: interface only)');
+	start(opts: { deviceId: string | null; processLocally: boolean; stream?: MediaStream }) {
+		void opts.processLocally; // on-deviceは常時 (WASM実行のため意味を持たない)
+		this.running = true;
+		void this.startAsync(opts);
+	}
+
+	private async startAsync(opts: { deviceId: string | null; stream?: MediaStream }) {
+		try {
+			const modelId = liveSubtitleSettings.value.wasmAsrModelOverride.trim() || WASM_ASR_DEFAULT_MODEL;
+			const transcriberPromise = getWasmAsrPipeline(modelId);
+
+			let stream = opts.stream ?? null;
+			if (stream != null) {
+				this.ownsStream = true;
+			} else {
+				stream = await navigator.mediaDevices.getUserMedia({
+					audio: opts.deviceId ? { deviceId: { exact: opts.deviceId } } : true,
+				});
+				this.ownsStream = true;
+			}
+			if (!this.running) {
+				stream.getTracks().forEach(t => t.stop());
+				return;
+			}
+			this.stream = stream;
+
+			const audioCtx = new AudioContext();
+			this.audioCtx = audioCtx;
+			const blobUrl = URL.createObjectURL(new Blob([PCM_CAPTURE_PROCESSOR_SRC], { type: 'application/javascript' }));
+			try {
+				await audioCtx.audioWorklet.addModule(blobUrl);
+			} finally {
+				URL.revokeObjectURL(blobUrl);
+			}
+			if (!this.running) {
+				await audioCtx.close();
+				return;
+			}
+			const sourceNode = audioCtx.createMediaStreamSource(stream);
+			const workletNode = new AudioWorkletNode(audioCtx, 'pcm-capture-processor');
+			this.sourceNode = sourceNode;
+			this.workletNode = workletNode;
+			this.resetUtterance();
+			workletNode.port.onmessage = (ev: MessageEvent<Float32Array>) => {
+				this.onAudioChunk(ev.data, audioCtx.sampleRate);
+			};
+			sourceNode.connect(workletNode);
+
+			// モデルのロードを待ってからストリーミング推論を開始する (待機中も音声は蓄積している)
+			await transcriberPromise;
+			if (!this.running) return;
+
+			this.partialTimer = window.setInterval(() => { void this.maybeRunPartial(audioCtx.sampleRate); }, WASM_ASR_PARTIAL_INTERVAL_MS);
+		} catch (err) {
+			this.handlers?.onError(err instanceof DOMException ? mapGetUserMediaErrorCode(err) : 'wasm-init-failed');
+			this.teardownAudio();
+			this.running = false;
+		}
+	}
+
+	private resetUtterance() {
+		this.utteranceChunks = [];
+		this.utteranceId = crypto.randomUUID();
+		this.hasSpeech = false;
+		this.utteranceStartedAt = Date.now();
+		this.lastVoiceActivityAt = Date.now();
+	}
+
+	private onAudioChunk(chunk: Float32Array, _sampleRate: number) {
+		void _sampleRate;
+		if (!this.running) return;
+		this.utteranceChunks.push(chunk);
+		if (rms(chunk) >= WASM_ASR_VAD_RMS_THRESHOLD) {
+			this.hasSpeech = true;
+			this.lastVoiceActivityAt = Date.now();
+		}
+	}
+
+	private async maybeRunPartial(sampleRate: number) {
+		if (!this.running || this.busy) return;
+		const now = Date.now();
+		const silentFor = now - this.lastVoiceActivityAt;
+		const utteranceAgeMs = now - this.utteranceStartedAt;
+
+		if (!this.hasSpeech) {
+			// 無音のまま長時間 (VADが一度も発話を検知しない) の場合はバッファを捨てて肥大化を防ぐ
+			if (this.utteranceChunks.length > 0 && utteranceAgeMs > WASM_ASR_SILENCE_FINALIZE_MS * 2) {
+				this.utteranceChunks = [];
+				this.utteranceStartedAt = now;
+			}
+			return;
+		}
+
+		const shouldFinalize = silentFor >= WASM_ASR_SILENCE_FINALIZE_MS || utteranceAgeMs >= WASM_ASR_MAX_UTTERANCE_MS;
+		// 発話ID・音声バッファをこの時点でスナップショットする (await中に resetUtterance() が
+		// 呼ばれても、この推論結果は今回の発話に対して発行されるようにするため)
+		const utteranceId = this.utteranceId;
+		if (utteranceId == null) return;
+		this.busy = true;
+		try {
+			const audio = resampleTo16k(this.utteranceChunks.slice(), sampleRate);
+			if (audio.length < 1600) return; // 100ms未満は推論しない
+			const modelId = liveSubtitleSettings.value.wasmAsrModelOverride.trim() || WASM_ASR_DEFAULT_MODEL;
+			const transcriber = await getWasmAsrPipeline(modelId);
+			const result = await transcriber(audio, {
+				language: 'japanese',
+				task: 'transcribe',
+				chunk_length_s: 30,
+			});
+			const text = (Array.isArray(result) ? result[0]?.text : result?.text) ?? '';
+			if (!this.running) return;
+			this.handlers?.onResult({ id: utteranceId, text: text.trim(), isFinal: shouldFinalize });
+			if (shouldFinalize && this.utteranceId === utteranceId) this.resetUtterance();
+		} catch (err) {
+			console.warn('wasm ASR transcription failed:', err);
+		} finally {
+			this.busy = false;
+		}
+	}
+
+	private teardownAudio() {
+		if (this.partialTimer != null) {
+			window.clearInterval(this.partialTimer);
+			this.partialTimer = null;
+		}
+		try { this.sourceNode?.disconnect(); } catch { /* noop */ }
+		try { this.workletNode?.disconnect(); } catch { /* noop */ }
+		this.sourceNode = null;
+		this.workletNode = null;
+		if (this.audioCtx != null) {
+			void this.audioCtx.close();
+			this.audioCtx = null;
+		}
+		if (this.ownsStream) {
+			this.stream?.getTracks().forEach(t => t.stop());
+		}
+		this.stream = null;
+		this.ownsStream = false;
 	}
 
 	stop() {
-		// noop
+		this.running = false;
+		this.teardownAudio();
 	}
 }
 
 const webSpeechRecognizer = new WebSpeechRecognizer();
-const wasmRecognizerStub = new WasmRecognizerStub();
+const wasmRecognizer = new WasmRecognizer();
 
 function getRecognizer(engine: LiveSubtitleAsrEngine): RecognizerBackend {
-	return engine === 'wasm' ? wasmRecognizerStub : webSpeechRecognizer;
+	return engine === 'wasm' ? wasmRecognizer : webSpeechRecognizer;
 }
 
 // --- publishバッチング ---
@@ -320,13 +613,27 @@ function scheduleRestart() {
 	}, delay);
 }
 
+// マイク許可拒否系のエラーコード。リトライしても解決しないため自動再起動を止め、
+// 明示的にUIへ「サイト設定でマイクを許可してください」を出させる (契約: タスク1)
+const MIC_PERMISSION_ERROR_CODES = new Set(['not-allowed', 'service-not-allowed']);
+// その他、リトライしても解決しない終端エラー
+const TERMINAL_ERROR_CODES = new Set(['audio-capture', 'unsupported', 'wasm-init-failed']);
+
+export function isMicPermissionErrorCode(code: string | null): boolean {
+	return code != null && MIC_PERMISSION_ERROR_CODES.has(code);
+}
+
+// startLiveSubtitle() に渡された、権限確定用に事前取得済みのストリーム (WASMエンジン用)。
+// 一度 recognizer.start() へ渡したら使い切りで捨てる (再起動時は自前で再取得させる)
+let pendingInitialStream: MediaStream | null = null;
+
 function startRecognitionOnly() {
 	const settings = liveSubtitleSettings.value;
 	const recognizer = getRecognizer(settings.engine);
 	if (!recognizer.isSupported()) {
 		liveSubtitleAsrStatus.value = 'unsupported';
 		liveSubtitleAsrErrorMessage.value = settings.engine === 'wasm'
-			? 'wasm-not-implemented'
+			? 'wasm-unsupported'
 			: 'webspeech-unsupported';
 		liveSubtitleRunning.value = false;
 		return;
@@ -340,8 +647,8 @@ function startRecognitionOnly() {
 		},
 		onError: (code) => {
 			liveSubtitleAsrErrorMessage.value = code;
-			// 権限拒否・マイク未接続はリトライしても解決しないため自動再起動を止める
-			if (code === 'not-allowed' || code === 'audio-capture' || code === 'unsupported') {
+			// 権限拒否・マイク未接続・非対応はリトライしても解決しないため自動再起動を止める
+			if (MIC_PERMISSION_ERROR_CODES.has(code) || TERMINAL_ERROR_CODES.has(code)) {
 				liveSubtitleAsrStatus.value = 'error';
 				liveSubtitleRunning.value = false;
 				return;
@@ -356,17 +663,28 @@ function startRecognitionOnly() {
 	});
 	liveSubtitleAsrStatus.value = 'starting';
 	liveSubtitleAsrErrorMessage.value = null;
-	recognizer.start({ deviceId: settings.micDeviceId, processLocally: settings.processLocally });
+	const stream = pendingInitialStream ?? undefined;
+	pendingInitialStream = null;
+	recognizer.start({ deviceId: settings.micDeviceId, processLocally: settings.processLocally, stream });
 }
 
 // --- 公開API ---
 
-export function startLiveSubtitle() {
-	if (liveSubtitleRunning.value) return;
+/**
+ * @param stream 呼び出し側 (subtitle-panel.vue のStartボタンハンドラ) がユーザージェスチャー内で
+ *   事前取得した MediaStream。webspeechエンジンでは権限確定用途のみで使われず (Web Speech は
+ *   自前でマイクを掴むため未使用)、wasmエンジンではそのまま音声取得に使い回す。
+ */
+export function startLiveSubtitle(stream?: MediaStream) {
+	if (liveSubtitleRunning.value) {
+		stream?.getTracks().forEach(t => t.stop());
+		return;
+	}
 	liveSubtitleRunning.value = true;
 	consecutiveErrorCount = 0;
 	liveSubtitleCurrentCaption.value = null;
 	liveSubtitleCurrentTranslation.value = null;
+	pendingInitialStream = stream ?? null;
 	ensurePublishTimer();
 	queueClear();
 	startRecognitionOnly();
