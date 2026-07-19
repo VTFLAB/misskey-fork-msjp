@@ -332,6 +332,10 @@ export type GlobalEvents = {
 		name: `twitchLiveStream:${string}`;
 		payload: EventTypesToEventPayload<TwitchLiveStreamEventTypes>;
 	};
+	liveSubtitle: {
+		name: `liveSubtitleStream:${string}`;
+		payload: EventTypesToEventPayload<LiveSubtitleEventTypes>;
+	};
 };
 
 // Twitch 連携 (bsky-fork 独自): 視聴ページ用イベント
@@ -359,6 +363,23 @@ export interface TwitchLiveStreamEventTypes {
 		translatedLang: string;
 	};
 	streamEnded: Record<string, never>;
+}
+
+// ライブ字幕 (bsky-fork 独自): 配信者の字幕スタジオ (Vue, クライアントサイド音声認識+翻訳) から
+// OBS 字幕表示ページへの中継イベント。サーバーは transport only で、テキストの生成・翻訳は
+// 一切行わない。userId 単位のストリームで、配信者本人が publish した内容をそのまま流す。
+export interface LiveSubtitleEventTypes {
+	caption: {
+		id: string;
+		text: string;
+		isFinal: boolean;
+	};
+	translation: {
+		id: string;
+		text: string;
+		lang: string;
+	};
+	clear: Record<string, never>;
 }
 
 // API event definitions
@@ -475,5 +496,10 @@ export class GlobalEventService {
 	@bindThis
 	public publishTwitchLiveStream<K extends keyof TwitchLiveStreamEventTypes>(streamId: string, type: K, value?: TwitchLiveStreamEventTypes[K]): void {
 		this.publish(`twitchLiveStream:${streamId}`, type, typeof value === 'undefined' ? null : value);
+	}
+
+	@bindThis
+	public publishLiveSubtitleStream<K extends keyof LiveSubtitleEventTypes>(userId: MiUser['id'], type: K, value?: LiveSubtitleEventTypes[K]): void {
+		this.publish(`liveSubtitleStream:${userId}`, type, typeof value === 'undefined' ? null : value);
 	}
 }
