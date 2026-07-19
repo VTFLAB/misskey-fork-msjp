@@ -14360,14 +14360,6 @@ export interface Locale extends ILocale {
          */
         "subtitleAsrEngineWebSpeech": string;
         /**
-         * WASM音声認識 (未実装)
-         */
-        "subtitleAsrEngineWasm": string;
-        /**
-         * この認識エンジンは未実装です。今後の拡張のためのインターフェースのみ用意されています。Web Speech APIをご利用ください。
-         */
-        "subtitleAsrEngineWasmNotice": string;
-        /**
          * マイク
          */
         "subtitleMicDevice": string;
