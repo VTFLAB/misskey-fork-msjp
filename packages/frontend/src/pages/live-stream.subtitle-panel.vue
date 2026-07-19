@@ -16,8 +16,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div class="_spacer" style="--MI_SPACER-min: 20px; --MI_SPACER-max: 28px;">
 		<div class="_gaps_m">
 			<div :class="$style.startStopRow">
-				<MkButton v-if="!running" primary rounded @click="onStart">
-					<i class="ti ti-microphone"></i> {{ i18n.ts._twitch.subtitleStart }}
+				<MkButton v-if="!running" primary rounded :disabled="startingMic" @click="onStart">
+					<template v-if="!startingMic"><i class="ti ti-microphone"></i> {{ i18n.ts._twitch.subtitleStart }}</template>
+					<template v-else><MkLoading :em="true"/></template>
 				</MkButton>
 				<MkButton v-else danger rounded @click="onStop">
 					<i class="ti ti-microphone-off"></i> {{ i18n.ts._twitch.subtitleStop }}
@@ -27,8 +28,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</span>
 			</div>
 
+			<MkInfo v-if="micPermissionState === 'denied'" warn>
+				{{ i18n.ts._twitch.subtitleErrorMicDenied }}
+			</MkInfo>
+
 			<MkInfo v-if="asrStatus === 'unsupported'" warn>
 				{{ i18n.ts._twitch.subtitleErrorUnsupportedBrowser }}
+			</MkInfo>
+			<MkInfo v-else-if="asrStatus === 'error' && isMicPermissionErrorMessage && micPermissionState !== 'denied'" warn>
+				{{ i18n.ts._twitch.subtitleErrorMicDenied }}
 			</MkInfo>
 			<MkInfo v-else-if="asrStatus === 'error'">
 				{{ i18n.ts._twitch.subtitleAsrStatusError }}{{ asrErrorMessage ? `: ${asrErrorMessage}` : '' }}
@@ -57,8 +65,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<template #label>{{ i18n.ts._twitch.subtitleAsrEngine }}</template>
 					</MkSelect>
 					<MkInfo v-if="settings.engine === 'wasm'">
-						{{ i18n.ts._twitch.subtitleAsrEngineWasmNotice }}
+						{{ i18n.ts._twitch.subtitleAsrEngineWasmReadyNotice }}
 					</MkInfo>
+					<MkInfo v-if="settings.engine === 'wasm' && wasmAsrStatusText != null" :warn="wasmAsrStatus.state === 'error'">
+						{{ wasmAsrStatusText }}
+					</MkInfo>
+					<MkInput v-if="settings.engine === 'wasm'" v-model="settings.wasmAsrModelOverride" :disabled="running">
+						<template #label>{{ i18n.ts._twitch.subtitleWasmModelOverride }}</template>
+						<template #caption>{{ i18n.ts._twitch.subtitleWasmModelOverrideDescription }}</template>
+					</MkInput>
 
 					<div :class="$style.micRow">
 						<MkSelect v-model="micDeviceIdModel" :items="micItems" :disabled="running">
@@ -69,9 +84,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<template v-else><MkLoading :em="true"/></template>
 						</MkButton>
 					</div>
-					<MkInfo>{{ i18n.ts._twitch.subtitleMicDeviceWebSpeechNotice }}</MkInfo>
+					<MkInfo v-if="settings.engine === 'webspeech'">{{ i18n.ts._twitch.subtitleMicDeviceWebSpeechNotice }}</MkInfo>
 
-					<MkSwitch v-model="settings.processLocally" :disabled="running">
+					<MkSwitch v-if="settings.engine === 'webspeech'" v-model="settings.processLocally" :disabled="running">
 						{{ i18n.ts._twitch.subtitleProcessLocally }}
 						<template #caption>
 							{{ i18n.ts._twitch.subtitleProcessLocallyDescription }}
@@ -140,7 +155,7 @@ import MkLoading from '@/components/global/MkLoading.vue';
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
-import type { ProcessLocallyAvailability } from '@/composables/use-live-subtitle.js';
+import type { ProcessLocallyAvailability, MicPermissionState } from '@/composables/use-live-subtitle.js';
 import {
 	liveSubtitleSettings,
 	liveSubtitleRunning,
@@ -148,10 +163,14 @@ import {
 	liveSubtitleAsrErrorMessage,
 	liveSubtitleCurrentCaption,
 	liveSubtitleCurrentTranslation,
+	wasmAsrStatus,
 	startLiveSubtitle,
 	stopLiveSubtitle,
 	listMicDevices,
 	checkProcessLocallyAvailable,
+	mapGetUserMediaErrorCode,
+	queryMicPermissionState,
+	isMicPermissionErrorCode,
 } from '@/composables/use-live-subtitle.js';
 import { translatorStatuses } from '@/composables/live-subtitle-translators.js';
 
@@ -175,8 +194,20 @@ const currentTranslation = liveSubtitleCurrentTranslation;
 
 const asrEngineItems = computed(() => [
 	{ value: 'webspeech' as const, label: i18n.ts._twitch.subtitleAsrEngineWebSpeech },
-	{ value: 'wasm' as const, label: i18n.ts._twitch.subtitleAsrEngineWasm },
+	{ value: 'wasm' as const, label: i18n.ts._twitch.subtitleAsrEngineWasmLabel },
 ]);
+
+const isMicPermissionErrorMessage = computed(() => isMicPermissionErrorCode(asrErrorMessage.value));
+
+const wasmAsrStatusText = computed(() => {
+	const status = wasmAsrStatus.value;
+	switch (status.state) {
+		case 'loading': return i18n.ts._twitch.subtitleEngineStateChecking;
+		case 'downloading': return `${i18n.ts._twitch.subtitleModelDownloading} (${status.downloadProgress ?? 0}%)`;
+		case 'error': return i18n.ts._twitch.subtitleEngineStateError;
+		default: return null;
+	}
+});
 
 const translatorEngineItems = computed(() => [
 	{ value: 'local' as const, label: i18n.ts._twitch.subtitleTranslatorEngineLocal },
@@ -259,8 +290,37 @@ async function openDisplaySettings() {
 	);
 }
 
-function onStart() {
-	startLiveSubtitle();
+const micPermissionState = ref<MicPermissionState>('unknown');
+const startingMic = ref(false);
+
+async function onStart() {
+	if (startingMic.value || running.value) return;
+	startingMic.value = true;
+	liveSubtitleAsrErrorMessage.value = null;
+	try {
+		// ユーザージェスチャー (このクリック) の中で最初にマイク許可を確定させる。
+		// SpeechRecognition.start() をいきなり呼ぶと、Permissions-Policy等の環境次第で
+		// 許可プロンプトが出ないまま not-allowed になる場合があるための堅牢化 (契約: タスク1)
+		const stream = await navigator.mediaDevices.getUserMedia({
+			audio: settings.value.micDeviceId ? { deviceId: { exact: settings.value.micDeviceId } } : true,
+		});
+		micPermissionState.value = 'granted';
+		if (settings.value.engine === 'webspeech') {
+			// Web Speech API経路は自前でマイクを掴むため、権限確定だけ済ませたらすぐ手放す
+			stream.getTracks().forEach(t => t.stop());
+			startLiveSubtitle();
+		} else {
+			// WASM経路は取得したstreamをそのまま音声認識に使い回す (二重取得しない)
+			startLiveSubtitle(stream);
+		}
+	} catch (err) {
+		const code = mapGetUserMediaErrorCode(err);
+		if (code === 'not-allowed') micPermissionState.value = 'denied';
+		liveSubtitleAsrStatus.value = 'error';
+		liveSubtitleAsrErrorMessage.value = code;
+	} finally {
+		startingMic.value = false;
+	}
 }
 
 function onStop() {
@@ -272,6 +332,7 @@ onMounted(async () => {
 	// 拒否されていても空配列で失敗しないため無条件に試みる
 	await refreshMics();
 	processLocallyAvailability.value = await checkProcessLocallyAvailable();
+	micPermissionState.value = await queryMicPermissionState((state) => { micPermissionState.value = state; });
 });
 
 // ダイアログが閉じられても (onUnmounted) 字幕配信自体は composable シングルトンが
