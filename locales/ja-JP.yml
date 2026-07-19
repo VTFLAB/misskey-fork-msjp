@@ -3834,8 +3834,6 @@ _twitch:
   subtitlePreviewTranslation: "翻訳結果プレビュー"
   subtitleAsrEngine: "音声認識エンジン"
   subtitleAsrEngineWebSpeech: "Web Speech API (推奨)"
-  subtitleAsrEngineWasm: "WASM音声認識 (未実装)"
-  subtitleAsrEngineWasmNotice: "この認識エンジンは未実装です。今後の拡張のためのインターフェースのみ用意されています。Web Speech APIをご利用ください。"
   subtitleMicDevice: "マイク"
   subtitleMicDeviceDefault: "デフォルト"
   subtitleMicDeviceWebSpeechNotice: "Web Speech APIはマイクを個別に指定する標準的な手段を持たないため、この選択はOSまたはブラウザ側で設定されているデフォルトの入力デバイスが優先されます。"
