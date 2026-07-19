@@ -14640,6 +14640,30 @@ export interface Locale extends ILocale {
          */
         "subtitleDisplayInterimHidden": string;
         /**
+         * 解像度 (OBSブラウザソース)
+         */
+        "subtitleDisplayResolutionGroup": string;
+        /**
+         * OBSの「ブラウザソース」に設定する幅・高さの目安です。表示ページ自体はブラウザソースのサイズに追従して表示されるため、ここで選んだ値は生成URLには含まれません。
+         */
+        "subtitleDisplayResolutionDescription": string;
+        /**
+         * 解像度プリセット
+         */
+        "subtitleDisplayResolutionPreset": string;
+        /**
+         * カスタム
+         */
+        "subtitleDisplayResolutionCustom": string;
+        /**
+         * 幅
+         */
+        "subtitleDisplayResolutionWidth": string;
+        /**
+         * 高さ
+         */
+        "subtitleDisplayResolutionHeight": string;
+        /**
          * フォント
          */
         "subtitleDisplayFontGroup": string;
@@ -14788,6 +14812,10 @@ export interface Locale extends ILocale {
          */
         "subtitleDisplayIdleClearDescription": string;
         /**
+         * OBSブラウザソース設定: 幅 {width} / 高さ {height}、カスタムCSSは空でOK
+         */
+        "subtitleDisplayObsResolutionHint": ParameterizedString<"width" | "height">;
+        /**
          * 生成されたURL
          */
         "subtitleDisplayGeneratedUrl": string;
@@ -14815,6 +14843,26 @@ export interface Locale extends ILocale {
          * 設定に反映されていない変更があります。破棄して閉じますか？
          */
         "subtitleDisplayCloseConfirm": string;
+        /**
+         * マイクの使用がブロックされています。ブラウザのサイト設定でマイクを許可してください。
+         */
+        "subtitleErrorMicDenied": string;
+        /**
+         * WASM音声認識 (ローカル実行、フォールバック)
+         */
+        "subtitleAsrEngineWasmLabel": string;
+        /**
+         * 初回起動時にWhisperモデル (多言語、約80MB) をダウンロードします。ダウンロード後はブラウザにキャッシュされ、次回以降は再ダウンロードしません。日本語認識精度はWeb Speech API同等以上を狙っていますが、区切りごとに再認識する方式のため、確定までの遅延はWeb Speech APIより大きくなります。
+         */
+        "subtitleAsrEngineWasmReadyNotice": string;
+        /**
+         * WASMモデル指定 (上級者向け)
+         */
+        "subtitleWasmModelOverride": string;
+        /**
+         * 既定のモデル配布元 (Hugging Face: onnx-community/whisper-base) に接続できない場合、代わりに使用するHugging Face上のモデルリポジトリ名を指定できます。空欄なら既定のモデルを使用します。
+         */
+        "subtitleWasmModelOverrideDescription": string;
     };
     "_streaming": {
         /**
