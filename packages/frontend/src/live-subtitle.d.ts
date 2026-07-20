@@ -7,27 +7,12 @@
 // まだ含まれていない実験的ブラウザ API の最小限のアンビエント型定義。
 // Web Speech API (webkitSpeechRecognition) と Chrome 内蔵翻訳 API (Translator) が対象。
 
+// SpeechRecognitionAlternative / SpeechRecognitionResult / SpeechRecognitionResultList は
+// TypeScript 5.9 の lib.dom.d.ts に取り込まれたため、ここでは宣言しない (二重定義になる)。
+
 interface SpeechRecognitionErrorEvent extends Event {
 	readonly error: string;
 	readonly message: string;
-}
-
-interface SpeechRecognitionAlternative {
-	readonly transcript: string;
-	readonly confidence: number;
-}
-
-interface SpeechRecognitionResult {
-	readonly isFinal: boolean;
-	readonly length: number;
-	item(index: number): SpeechRecognitionAlternative;
-	[index: number]: SpeechRecognitionAlternative;
-}
-
-interface SpeechRecognitionResultList {
-	readonly length: number;
-	item(index: number): SpeechRecognitionResult;
-	[index: number]: SpeechRecognitionResult;
 }
 
 interface SpeechRecognitionEvent extends Event {
@@ -70,7 +55,8 @@ interface TranslatorDownloadProgressEvent extends Event {
 }
 
 interface TranslatorCreateMonitor extends EventTarget {
-	addEventListener(type: 'downloadprogress', listener: (ev: TranslatorDownloadProgressEvent) => void): void;
+	addEventListener(type: 'downloadprogress', listener: (ev: TranslatorDownloadProgressEvent) => void, options?: boolean | AddEventListenerOptions): void;
+	addEventListener(type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | AddEventListenerOptions): void;
 }
 
 interface TranslatorInstance {
