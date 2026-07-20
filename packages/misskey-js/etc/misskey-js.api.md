@@ -2051,6 +2051,10 @@ declare namespace entities {
         GetOnlineUsersCountResponse,
         GetWeatherRequest,
         GetWeatherResponse,
+        GoogleDriveGenerateOauthUrlResponse,
+        GoogleDriveMyAccountResponse,
+        GoogleDriveRecordingStatusRequest,
+        GoogleDriveRecordingStatusResponse,
         HashtagsListRequest,
         HashtagsListResponse,
         HashtagsSearchRequest,
@@ -2682,6 +2686,18 @@ type GetWeatherRequest = operations['get-weather']['requestBody']['content']['ap
 
 // @public (undocumented)
 type GetWeatherResponse = operations['get-weather']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type GoogleDriveGenerateOauthUrlResponse = operations['google-drive___generate-oauth-url']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type GoogleDriveMyAccountResponse = operations['google-drive___my-account']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type GoogleDriveRecordingStatusRequest = operations['google-drive___recording-status']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type GoogleDriveRecordingStatusResponse = operations['google-drive___recording-status']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type Hashtag = components['schemas']['Hashtag'];

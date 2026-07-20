@@ -7,7 +7,6 @@ import { Injectable, Inject } from '@nestjs/common';
 import * as Redis from 'ioredis';
 import { DI } from '@/di-symbols.js';
 import type { LiveChannelsRepository, TwitchStreamsRepository } from '@/models/_.js';
-import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { TwitchStreamService } from '@/core/twitch/TwitchStreamService.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
@@ -55,7 +54,6 @@ export class OmeAdmissionService {
 		private redisClient: Redis.Redis,
 
 		private twitchStreamService: TwitchStreamService,
-		private globalEventService: GlobalEventService,
 		private liveLoggerService: LiveLoggerService,
 	) {
 		this.logger = this.liveLoggerService.child('admission');
@@ -157,8 +155,7 @@ export class OmeAdmissionService {
 			source: 'ome',
 		});
 		for (const s of existingLive) {
-			await this.twitchStreamsRepository.update(s.id, { isLive: false, endedAt: new Date() });
-			this.globalEventService.publishTwitchLiveStream(s.id, 'streamEnded', {});
+			await this.twitchStreamService.markOmeStreamEnded(s.id);
 			this.logger.info(`closed stale ome session: streamId=${s.id} (superseded by new opening)`);
 		}
 
@@ -199,8 +196,7 @@ export class OmeAdmissionService {
 			source: 'ome',
 		});
 		for (const s of liveSessions) {
-			await this.twitchStreamsRepository.update(s.id, { isLive: false, endedAt: new Date() });
-			this.globalEventService.publishTwitchLiveStream(s.id, 'streamEnded', {});
+			await this.twitchStreamService.markOmeStreamEnded(s.id);
 		}
 		if (liveSessions.length > 0) {
 			this.logger.info(`ome stream ended (admission closing): user=${liveChannel.userId} streamKey=${streamKey}`);
