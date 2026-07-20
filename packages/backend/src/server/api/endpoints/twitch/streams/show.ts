@@ -61,6 +61,18 @@ export const meta = {
 						twitchLogin: { type: 'string', optional: true, nullable: false },
 						authorized: { type: 'boolean', optional: false, nullable: false },
 						viewRestriction: { type: 'string', optional: true, nullable: false, enum: ['followers', 'password', 'users'] },
+						// 配信アーカイブ (Google Drive、bsky-fork 独自)。過去 (isLive=false) の ome セッションのみ設定される
+						title: { type: 'string', optional: true, nullable: true },
+						startedAt: { type: 'string', format: 'date-time', optional: true, nullable: true },
+						endedAt: { type: 'string', format: 'date-time', optional: true, nullable: true },
+						recordingStatus: {
+							type: 'string', optional: true, nullable: false,
+							enum: ['none', 'pending', 'remuxing', 'uploading', 'processing', 'ready', 'failed'],
+						},
+						recordingGoogleDriveFileId: { type: 'string', optional: true, nullable: true },
+						recordingGoogleDriveThumbnailLink: { type: 'string', optional: true, nullable: true },
+						// オーナー本人のリクエストのみ値が入る (他人には常に省略/undefined)
+						recordingError: { type: 'string', optional: true, nullable: true },
 					},
 				},
 			},
@@ -107,6 +119,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const stream = await this.twitchStreamService.getLiveStreamByUserId(ps.userId);
 			const allSessions = await this.twitchStreamService.getAllLiveStreamsByUserId(ps.userId);
 
+			// 配信アーカイブ (Google Drive、bsky-fork 独自)。オーナー本人には failed も含めて見せる
+			// (recordingStatus='none' は getRecentEndedOmeStreamsByUserId 側で常に除外済み)。
+			const isOwner = me != null && me.id === ps.userId;
+			const pastOmeSessions = await this.twitchStreamService.getRecentEndedOmeStreamsByUserId(ps.userId);
+			const visiblePastOmeSessions = isOwner ? pastOmeSessions : pastOmeSessions.filter(s => s.recordingStatus !== 'failed');
+
 			const sessions = allSessions.map(s => {
 				if (s.source === 'ome') {
 					// 認可判定 (canWatch) は config.ome の有無に関わらず成立する (viewRestriction はモード名であって
@@ -151,6 +169,22 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				};
 			});
 
+			// 過去セッションは常に authorized:true (Drive 側の共有権限で既にアクセス制御済みのため、
+			// ライブ視聴のような canWatch 判定は行わない)。playbackUrl は持たない (Drive 埋め込みで再生する)。
+			const pastSessions = visiblePastOmeSessions.map(s => ({
+				source: 'ome' as const,
+				streamId: s.id,
+				isLive: false as const,
+				authorized: true as const,
+				title: s.title,
+				startedAt: s.startedAt.toISOString(),
+				endedAt: s.endedAt?.toISOString() ?? null,
+				recordingStatus: s.recordingStatus,
+				recordingGoogleDriveFileId: s.recordingGoogleDriveFileId,
+				recordingGoogleDriveThumbnailLink: s.recordingGoogleDriveThumbnailLink,
+				recordingError: isOwner ? s.recordingError : undefined,
+			}));
+
 			return {
 				twitchLogin: account?.twitchLogin ?? '',
 				twitchDisplayName: account?.twitchDisplayName ?? '',
@@ -162,7 +196,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					thumbnailUrl: stream.thumbnailUrl,
 					startedAt: stream.startedAt.toISOString(),
 				},
-				sessions,
+				sessions: [...sessions, ...pastSessions],
 			};
 		});
 	}

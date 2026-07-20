@@ -297,7 +297,31 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 		</FormSection>
 
-		<!-- Section 2: Twitch連携 -->
+		<!-- Section 2: 配信アーカイブ (Google Drive連携) -->
+		<FormSection>
+			<template #label><i class="ti ti-brand-google-drive"></i> {{ i18n.ts._liveChannel.archiveGoogleDriveIntegration }}</template>
+
+			<MkInfo v-if="googleDriveState === 'loading'">{{ i18n.ts.loading }}</MkInfo>
+			<MkInfo v-else-if="!googleDriveAvailable" warn>{{ i18n.ts._liveChannel.archiveGoogleDriveNotConfigured }}</MkInfo>
+
+			<template v-else-if="googleDriveLinked">
+				<div class="_gaps_m">
+					<MkKeyValue>
+						<template #key>{{ i18n.ts._liveChannel.archiveGoogleDriveLinkedAs }}</template>
+						<template #value>{{ googleDriveEmail }}</template>
+					</MkKeyValue>
+					<MkButton danger @click="unlinkGoogleDrive">{{ i18n.ts._liveChannel.archiveGoogleDriveUnlink }}</MkButton>
+				</div>
+			</template>
+			<template v-else>
+				<div class="_gaps_m">
+					<div>{{ i18n.ts._liveChannel.archiveGoogleDriveDescription }}</div>
+					<MkButton primary @click="linkGoogleDrive">{{ i18n.ts._liveChannel.archiveGoogleDriveConnect }}</MkButton>
+				</div>
+			</template>
+		</FormSection>
+
+		<!-- Section 3: Twitch連携 -->
 		<FormSection>
 			<template #label><i class="ti ti-brand-twitch"></i> {{ i18n.ts._twitch.twitchIntegration }}</template>
 
@@ -342,7 +366,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 		</FormSection>
 
-		<!-- Section 3: 配信者ツール -->
+		<!-- Section 4: 配信者ツール -->
 		<FormSection>
 			<template #label><i class="ti ti-settings"></i> {{ i18n.ts._twitch.streamerSettings }}</template>
 
@@ -643,6 +667,35 @@ async function regenerateKey() {
 	await fetchMy();
 }
 
+// Google Drive state (配信アーカイブ連携)
+const googleDriveState = ref<'loading' | 'ready'>('loading');
+const googleDriveAvailable = ref(false);
+const googleDriveLinked = ref(false);
+const googleDriveEmail = ref<string | null>(null);
+
+async function fetchGoogleDriveStatus() {
+	const res = await misskeyApi('google-drive/my-account', {});
+	googleDriveAvailable.value = res.available;
+	googleDriveLinked.value = res.linked;
+	googleDriveEmail.value = res.googleEmail;
+	googleDriveState.value = 'ready';
+}
+
+async function linkGoogleDrive() {
+	const { url } = await os.apiWithDialog('google-drive/generate-oauth-url', {});
+	window.location.href = url;
+}
+
+async function unlinkGoogleDrive() {
+	const { canceled } = await os.confirm({
+		type: 'warning',
+		text: i18n.ts._liveChannel.archiveGoogleDriveUnlinkConfirm,
+	});
+	if (canceled) return;
+	await os.apiWithDialog('google-drive/unlink', {});
+	await fetchGoogleDriveStatus();
+}
+
 // Twitch state
 const twitchState = ref<'loading' | 'ready'>('loading');
 const twitchAvailable = ref(false);
@@ -690,13 +743,14 @@ async function unlink() {
 
 function handleCallbackResult() {
 	const params = new URLSearchParams(window.location.search);
-	const result = params.get('twitchResult');
-	if (result == null) return;
+	const twitchResult = params.get('twitchResult');
+	const googleDriveResult = params.get('googleDriveResult');
+	if (twitchResult == null && googleDriveResult == null) return;
 
 	// query を消してリロード/共有時の再表示を防ぐ
 	window.history.replaceState(null, '', window.location.pathname);
 
-	switch (result) {
+	switch (twitchResult) {
 		case 'linked':
 			os.alert({ type: 'success', text: i18n.ts._twitch.linked });
 			break;
@@ -709,6 +763,20 @@ function handleCallbackResult() {
 		case 'error': {
 			const reason = params.get('reason');
 			os.alert({ type: 'error', text: reason != null ? `${i18n.ts._twitch.linkError}\n${reason}` : i18n.ts._twitch.linkError });
+			break;
+		}
+	}
+
+	switch (googleDriveResult) {
+		case 'linked':
+			os.alert({ type: 'success', text: i18n.ts._liveChannel.archiveGoogleDriveLinked });
+			break;
+		case 'denied':
+			os.alert({ type: 'warning', text: i18n.ts._liveChannel.archiveGoogleDriveLinkDenied });
+			break;
+		case 'error': {
+			const reason = params.get('reason');
+			os.alert({ type: 'error', text: reason != null ? `${i18n.ts._liveChannel.archiveGoogleDriveLinkError}\n${reason}` : i18n.ts._liveChannel.archiveGoogleDriveLinkError });
 			break;
 		}
 	}
@@ -755,7 +823,7 @@ async function openTranslationSettings() {
 
 onMounted(async () => {
 	handleCallbackResult();
-	await Promise.all([fetchMy(), fetchStatus()]);
+	await Promise.all([fetchMy(), fetchStatus(), fetchGoogleDriveStatus()]);
 	nowTimer = window.setInterval(() => {
 		now.value = Date.now();
 	}, 1000);
