@@ -41,6 +41,7 @@ import { MiFollowing } from '@/models/Following.js';
 import { MiFollowRequest } from '@/models/FollowRequest.js';
 import { MiGalleryLike } from '@/models/GalleryLike.js';
 import { MiGalleryPost } from '@/models/GalleryPost.js';
+import { MiGoogleAccount } from '@/models/GoogleAccount.js';
 import { MiHashtag } from '@/models/Hashtag.js';
 import { MiInstance } from '@/models/Instance.js';
 import { MiLiveChannel } from '@/models/LiveChannel.js';
@@ -129,6 +130,7 @@ export {
 	MiFollowRequest,
 	MiGalleryLike,
 	MiGalleryPost,
+	MiGoogleAccount,
 	MiHashtag,
 	MiInstance,
 	MiLiveChannel,
@@ -217,6 +219,7 @@ export type FollowingsRepository = Repository<MiFollowing> & MiRepository<MiFoll
 export type FollowRequestsRepository = Repository<MiFollowRequest> & MiRepository<MiFollowRequest>;
 export type GalleryLikesRepository = Repository<MiGalleryLike> & MiRepository<MiGalleryLike>;
 export type GalleryPostsRepository = Repository<MiGalleryPost> & MiRepository<MiGalleryPost>;
+export type GoogleAccountsRepository = Repository<MiGoogleAccount> & MiRepository<MiGoogleAccount>;
 export type HashtagsRepository = Repository<MiHashtag> & MiRepository<MiHashtag>;
 export type InstancesRepository = Repository<MiInstance> & MiRepository<MiInstance>;
 export type LiveChannelsRepository = Repository<MiLiveChannel> & MiRepository<MiLiveChannel>;
