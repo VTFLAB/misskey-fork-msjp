@@ -63,6 +63,7 @@ import { MiSignin } from '@/models/Signin.js';
 import { MiSwSubscription } from '@/models/SwSubscription.js';
 import { MiTwitchAccount } from '@/models/TwitchAccount.js';
 import { MiTwitchStream } from '@/models/TwitchStream.js';
+import { MiGoogleAccount } from '@/models/GoogleAccount.js';
 import { MiTwitchStreamComment } from '@/models/TwitchStreamComment.js';
 import { MiTwitchStreamBlock } from '@/models/TwitchStreamBlock.js';
 import { MiUpdateInfo } from '@/models/UpdateInfo.js';
@@ -205,6 +206,7 @@ export const entities = [
 	MiUserSecurityKey,
 	MiTwitchAccount,
 	MiTwitchStream,
+	MiGoogleAccount,
 	MiTwitchStreamComment,
 	MiTwitchStreamBlock,
 	MiLiveChannel,

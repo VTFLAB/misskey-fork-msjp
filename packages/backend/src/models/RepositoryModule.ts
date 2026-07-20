@@ -34,6 +34,7 @@ import {
 	MiFollowRequest,
 	MiGalleryLike,
 	MiGalleryPost,
+	MiGoogleAccount,
 	MiHashtag,
 	MiInstance,
 	MiLiveChannel,
@@ -600,6 +601,12 @@ const $remoteGuestSessionsRepository: Provider = {
 	inject: [DI.db],
 };
 
+const $googleAccountsRepository: Provider = {
+	provide: DI.googleAccountsRepository,
+	useFactory: (db: DataSource) => db.getRepository(MiGoogleAccount).extend(miRepository as MiRepository<MiGoogleAccount>),
+	inject: [DI.db],
+};
+
 @Module({
 	imports: [],
 	providers: [
@@ -687,6 +694,7 @@ const $remoteGuestSessionsRepository: Provider = {
 		$twitchStreamBlocksRepository,
 		$remoteGuestAccountsRepository,
 		$remoteGuestSessionsRepository,
+		$googleAccountsRepository,
 	],
 	exports: [
 		$usersRepository,
@@ -773,6 +781,7 @@ const $remoteGuestSessionsRepository: Provider = {
 		$twitchStreamBlocksRepository,
 		$remoteGuestAccountsRepository,
 		$remoteGuestSessionsRepository,
+		$googleAccountsRepository,
 	],
 })
 export class RepositoryModule {

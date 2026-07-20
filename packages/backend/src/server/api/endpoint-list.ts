@@ -477,6 +477,12 @@ export * as 'twitch/streams/blocks/list' from './endpoints/twitch/streams/blocks
 export * as 'twitch/subtitle/publish' from './endpoints/twitch/subtitle/publish.js';
 export * as 'twitch/unlink' from './endpoints/twitch/unlink.js';
 
+// google-drive (配信アーカイブの Google Drive 連携、private fork 専用)
+export * as 'google-drive/generate-oauth-url' from './endpoints/google-drive/generate-oauth-url.js';
+export * as 'google-drive/unlink' from './endpoints/google-drive/unlink.js';
+export * as 'google-drive/my-account' from './endpoints/google-drive/my-account.js';
+export * as 'google-drive/recording-status' from './endpoints/google-drive/recording-status.js';
+
 // live-channels (ライブチャンネル基盤、fork 独自)
 export * as 'live-channels/show' from './endpoints/live-channels/show.js';
 export * as 'live-channels/create' from './endpoints/live-channels/create.js';
