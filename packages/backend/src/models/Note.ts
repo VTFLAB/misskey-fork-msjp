@@ -22,6 +22,9 @@ import type { MiDriveFile } from './DriveFile.js';
 // Not appending `{ concurrent: true }` to `@Index` will not cause any problem in production,
 
 @Index(['userId', 'id']) // Note: this index is ("userId", "id" DESC) in production, but not in test.
+// PGroonga全文検索index (bsky-fork 独自、1784461873905-AddPgroongaIndexToNote.js で作成)。
+// USING pgroonga はTypeORMのschema diffで表現できないため synchronize: false で管理外にする。
+@Index('IDX_note_text_pgroonga', { synchronize: false })
 @Entity('note')
 export class MiNote {
 	@PrimaryColumn(id())
