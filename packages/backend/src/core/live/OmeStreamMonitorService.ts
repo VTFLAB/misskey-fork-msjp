@@ -10,7 +10,6 @@ import { In } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { LiveChannelsRepository, TwitchStreamsRepository } from '@/models/_.js';
 import type { Config } from '@/config.js';
-import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { MiTwitchStream } from '@/models/TwitchStream.js';
@@ -49,7 +48,6 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 
 		private omeApiService: OmeApiService,
 		private twitchStreamService: TwitchStreamService,
-		private globalEventService: GlobalEventService,
 		private liveLoggerService: LiveLoggerService,
 	) {
 		this.logger = this.liveLoggerService.child('monitor');
@@ -212,9 +210,8 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 		//    Phase 4 のフロント実装と合わせて検討、Phase 2 では DB 記録のみ行う)
 		await this.liveChannelsRepository.update({ userId: session.userId }, { lastCutReason: reason });
 
-		// 4. markOffline 相当 + streamEnded 配信
-		await this.twitchStreamsRepository.update(session.id, { isLive: false, endedAt: new Date() });
-		this.globalEventService.publishTwitchLiveStream(session.id, 'streamEnded', {});
+		// 4. markOffline 相当 + streamEnded 配信 (+ 録画パイプライン起動)
+		await this.twitchStreamService.markOmeStreamEnded(session.id);
 	}
 
 	/**
@@ -236,8 +233,7 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 			if (channel == null) continue;
 			if (!omeStreamKeySet.has(channel.streamKey)) {
 				this.logger.info(`session ${session.id} (streamKey=${channel.streamKey}) is not present on OME, marking offline (webhook likely missed)`);
-				await this.twitchStreamsRepository.update(session.id, { isLive: false, endedAt: new Date() });
-				this.globalEventService.publishTwitchLiveStream(session.id, 'streamEnded', {});
+				await this.twitchStreamService.markOmeStreamEnded(session.id);
 			}
 		}
 	}

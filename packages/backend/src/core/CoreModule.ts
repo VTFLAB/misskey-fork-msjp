@@ -174,9 +174,13 @@ import { LiveChannelService } from './live/LiveChannelService.js';
 import { OmeApiService } from './live/OmeApiService.js';
 import { OmeStreamMonitorService } from './live/OmeStreamMonitorService.js';
 import { OmeAdmissionService } from './live/OmeAdmissionService.js';
+import { LiveRecordingService } from './live/LiveRecordingService.js';
 import { RemoteGuestLoggerService } from './remote-guest/RemoteGuestLoggerService.js';
 import { RemoteGuestHostAllowlistService } from './remote-guest/RemoteGuestHostAllowlistService.js';
 import { RemoteGuestAccountService } from './remote-guest/RemoteGuestAccountService.js';
+import { GoogleLoggerService } from './google/GoogleLoggerService.js';
+import { GoogleOAuthService } from './google/GoogleOAuthService.js';
+import { GoogleDriveService } from './google/GoogleDriveService.js';
 import { RemoteGuestSessionService } from './remote-guest/RemoteGuestSessionService.js';
 import { RemoteGuestMiAuthClientService } from './remote-guest/RemoteGuestMiAuthClientService.js';
 import { EarthquakeAlertService } from './earthquake/EarthquakeAlertService.js';
@@ -365,6 +369,11 @@ const $RemoteGuestHostAllowlistService: Provider = { provide: 'RemoteGuestHostAl
 const $RemoteGuestAccountService: Provider = { provide: 'RemoteGuestAccountService', useExisting: RemoteGuestAccountService };
 const $RemoteGuestSessionService: Provider = { provide: 'RemoteGuestSessionService', useExisting: RemoteGuestSessionService };
 const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthClientService', useExisting: RemoteGuestMiAuthClientService };
+
+const $GoogleLoggerService: Provider = { provide: 'GoogleLoggerService', useExisting: GoogleLoggerService };
+const $GoogleOAuthService: Provider = { provide: 'GoogleOAuthService', useExisting: GoogleOAuthService };
+const $GoogleDriveService: Provider = { provide: 'GoogleDriveService', useExisting: GoogleDriveService };
+const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useExisting: LiveRecordingService };
 //#endregion
 
 @Module({
@@ -548,6 +557,10 @@ const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthC
 		RemoteGuestAccountService,
 		RemoteGuestSessionService,
 		RemoteGuestMiAuthClientService,
+		GoogleLoggerService,
+		GoogleOAuthService,
+		GoogleDriveService,
+		LiveRecordingService,
 		EarthquakeAlertService,
 
 		QueueService,
@@ -731,6 +744,10 @@ const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthC
 		$RemoteGuestAccountService,
 		$RemoteGuestSessionService,
 		$RemoteGuestMiAuthClientService,
+		$GoogleLoggerService,
+		$GoogleOAuthService,
+		$GoogleDriveService,
+		$LiveRecordingService,
 		//#endregion
 	],
 	exports: [
@@ -910,6 +927,10 @@ const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthC
 		RemoteGuestAccountService,
 		RemoteGuestSessionService,
 		RemoteGuestMiAuthClientService,
+		GoogleLoggerService,
+		GoogleOAuthService,
+		GoogleDriveService,
+		LiveRecordingService,
 		EarthquakeAlertService,
 
 		QueueService,
@@ -1091,6 +1112,10 @@ const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthC
 		$RemoteGuestAccountService,
 		$RemoteGuestSessionService,
 		$RemoteGuestMiAuthClientService,
+		$GoogleLoggerService,
+		$GoogleOAuthService,
+		$GoogleDriveService,
+		$LiveRecordingService,
 		//#endregion
 	],
 })
