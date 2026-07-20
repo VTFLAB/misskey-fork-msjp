@@ -152,6 +152,12 @@ type Source = {
 		maxVideoBitrate?: number;
 		maxAudioBitrate?: number;
 		admissionSecret?: string;
+		recordingsDir?: string;
+	};
+
+	google?: {
+		clientId?: string;
+		clientSecret?: string;
 	};
 
 	remoteGuestLogin?: {
@@ -292,6 +298,14 @@ export type Config = {
 		maxVideoBitrate: number;
 		maxAudioBitrate: number;
 		admissionSecret?: string;
+		// backend から見えるローカルの OME 録画ファイルディレクトリ (NFS mount 等)。未設定なら配信アーカイブ機能が無効。
+		recordingsDir?: string;
+	} | undefined;
+
+	// Google Drive 配信アーカイブ連携 (fork 独自)。未設定なら機能全体が無効。
+	google: {
+		clientId: string;
+		clientSecret: string;
 	} | undefined;
 
 	// リモートMisskeyインスタンスのユーザー向けゲストログイン (fork 独自)。
@@ -446,6 +460,11 @@ export function loadConfig(): Config {
 			maxVideoBitrate: config.ome.maxVideoBitrate ?? 3000,
 			maxAudioBitrate: config.ome.maxAudioBitrate ?? 128,
 			...(config.ome.admissionSecret ? { admissionSecret: config.ome.admissionSecret } : {}),
+			...(config.ome.recordingsDir ? { recordingsDir: config.ome.recordingsDir } : {}),
+		} : undefined,
+		google: (config.google?.clientId && config.google.clientSecret) ? {
+			clientId: config.google.clientId,
+			clientSecret: config.google.clientSecret,
 		} : undefined,
 		remoteGuestLogin: (config.remoteGuestLogin?.allowedHosts && config.remoteGuestLogin.allowedHosts.length > 0) ? {
 			allowedHosts: config.remoteGuestLogin.allowedHosts.map(host => {

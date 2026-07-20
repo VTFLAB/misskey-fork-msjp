@@ -15351,6 +15351,62 @@ export interface Locale extends ILocale {
          * この配信は配信者が視聴を許可したユーザーのみ視聴できます。
          */
         "restrictedUsersDescription": string;
+        /**
+         * 配信アーカイブ (Google Drive連携)
+         */
+        "archiveGoogleDriveIntegration": string;
+        /**
+         * Google Driveアカウントを連携すると、MSJP配信の終了後に配信アーカイブが自動でGoogle Driveへ保存されます。
+         */
+        "archiveGoogleDriveDescription": string;
+        /**
+         * Google Driveに接続
+         */
+        "archiveGoogleDriveConnect": string;
+        /**
+         * 連携中のGoogleアカウント
+         */
+        "archiveGoogleDriveLinkedAs": string;
+        /**
+         * 連携を解除
+         */
+        "archiveGoogleDriveUnlink": string;
+        /**
+         * Google Driveの連携を解除しますか？ 以後の配信は自動でアーカイブされなくなります。
+         */
+        "archiveGoogleDriveUnlinkConfirm": string;
+        /**
+         * Google Driveを連携しました。
+         */
+        "archiveGoogleDriveLinked": string;
+        /**
+         * Google Drive連携がキャンセルされました。
+         */
+        "archiveGoogleDriveLinkDenied": string;
+        /**
+         * Google Drive連携に失敗しました。
+         */
+        "archiveGoogleDriveLinkError": string;
+        /**
+         * このサーバーではGoogle Drive連携が設定されていません。
+         */
+        "archiveGoogleDriveNotConfigured": string;
+        /**
+         * アーカイブ処理中…
+         */
+        "archiveProcessing": string;
+        /**
+         * アーカイブに失敗しました
+         */
+        "archiveFailed": string;
+        /**
+         * Google Driveを接続すると、配信終了後にアーカイブが自動で保存されるようになります。
+         */
+        "connectGoogleDriveHint": string;
+        /**
+         * 配信設定を開く
+         */
+        "goToStreamingSettings": string;
     };
     "_remoteGuestLogin": {
         /**
