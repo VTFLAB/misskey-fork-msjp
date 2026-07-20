@@ -5,7 +5,7 @@
 
 import cluster from 'node:cluster';
 import { Injectable, Inject, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
-import { IsNull } from 'typeorm';
+import { IsNull, Not } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { ChannelsRepository, FollowingsRepository, LiveChannelsRepository, TwitchAccountsRepository, TwitchStreamsRepository, UsersRepository } from '@/models/_.js';
 import { MiTwitchStream } from '@/models/TwitchStream.js';
@@ -16,6 +16,7 @@ import { IdService } from '@/core/IdService.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { NotificationService } from '@/core/NotificationService.js';
 import { NoteCreateService } from '@/core/NoteCreateService.js';
+import { LiveRecordingService } from '@/core/live/LiveRecordingService.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { TwitchApiService } from './TwitchApiService.js';
@@ -63,6 +64,7 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 		private noteCreateService: NoteCreateService,
 		private twitchApiService: TwitchApiService,
 		private twitchLoggerService: TwitchLoggerService,
+		private liveRecordingService: LiveRecordingService,
 	) {
 		this.logger = this.twitchLoggerService.child('stream');
 	}
@@ -248,6 +250,24 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 	}
 
 	/**
+	 * OME 配信の終了を反映する (markOmeStreamLive と対称、bsky-fork 独自)。
+	 * cutStream (ビットレート超過切断) / detectEndedStreams (10s poll / 2min reconcile) /
+	 * OmeAdmissionService.handleClosing (AdmissionWebhook closing) / decideOpening
+	 * (再接続時の前セッション閉鎖) の全経路がこれを呼ぶ単一の出口。update + publish は
+	 * 既存3(4)箇所と同一挙動のまま、末尾で録画パイプラインを fire-and-forget 起動する。
+	 */
+	@bindThis
+	public async markOmeStreamEnded(streamId: MiTwitchStream['id']): Promise<void> {
+		await this.twitchStreamsRepository.update(streamId, { isLive: false, endedAt: new Date() });
+		this.globalEventService.publishTwitchLiveStream(streamId, 'streamEnded', {});
+
+		const stream = await this.twitchStreamsRepository.findOneBy({ id: streamId });
+		if (stream != null) {
+			this.liveRecordingService.triggerRecording(stream);
+		}
+	}
+
+	/**
 	 * stream.offline イベント / ポーリングで検知した配信終了を反映する。
 	 */
 	@bindThis
@@ -337,6 +357,26 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 		return await this.twitchStreamsRepository.find({
 			where: { isLive: true },
 			order: { viewerCount: 'DESC' },
+		});
+	}
+
+	/**
+	 * 配信アーカイブ (Google Drive) 表示用の過去 OME セッション取得 (BE-2, bsky-fork 独自)。
+	 * recordingStatus='none' (録画対象外/未処理) は一覧上ノイズになるため常に除外する。
+	 * 'failed' を一般視聴者に見せるかどうかは呼び出し側 (show.ts、オーナー判定後) の責務とする。
+	 */
+	@bindThis
+	public async getRecentEndedOmeStreamsByUserId(userId: MiUser['id'], limit = 20): Promise<MiTwitchStream[]> {
+		return await this.twitchStreamsRepository.find({
+			where: {
+				userId,
+				source: 'ome',
+				isLive: false,
+				endedAt: Not(IsNull()),
+				recordingStatus: Not('none'),
+			},
+			order: { endedAt: 'DESC' },
+			take: limit,
 		});
 	}
 

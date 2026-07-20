@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div class="_spacer" :style="{ '--MI_SPACER-w': '1100px' }">
 		<MkLoading v-if="fetching"/>
 		<MkResult v-else-if="user == null || channelState === 'none'" type="notFound"/>
-		<XChannelHome v-else-if="channelInfo != null" :user="user" :channel="channelInfo" :isOwner="isOwner" :isLive="channelState === 'live'" :acct="props.acct" @reload="reload"/>
+		<XChannelHome v-else-if="channelInfo != null" :user="user" :channel="channelInfo" :isOwner="isOwner" :isLive="channelState === 'live'" :acct="props.acct" :sessions="twitchInfo?.sessions ?? []" @reload="reload"/>
 	</div>
 </PageWithHeader>
 </template>
@@ -36,7 +36,6 @@ const isOwner = computed(() => $i != null && user.value != null && $i.id === use
 
 const channelState = computed<'live' | 'offline' | 'none'>(() => {
 	if (twitchInfo.value?.stream != null) return 'live';
-	// Phase 2 will add sessions[] to twitchInfo; for now stream field is the live signal.
 	if (channelInfo.value != null && channelInfo.value.enabled) return 'offline';
 	return 'none';
 });
