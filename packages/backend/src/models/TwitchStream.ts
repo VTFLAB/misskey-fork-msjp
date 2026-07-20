@@ -99,6 +99,41 @@ export class MiTwitchStream {
 	})
 	public endedAt: Date | null;
 
+	// 配信アーカイブ (Google Drive) の処理状態。none: 対象外/未処理。
+	// pending: ファイル特定待ち → remuxing: mp4化中 → uploading: Drive アップロード中 →
+	// processing: サムネイル生成待ち → ready: 再生可能 / failed: 失敗
+	@Column('varchar', {
+		length: 16, default: 'none',
+	})
+	public recordingStatus: 'none' | 'pending' | 'remuxing' | 'uploading' | 'processing' | 'ready' | 'failed';
+
+	@Column('varchar', {
+		length: 1024, nullable: true,
+		comment: 'Local (remuxed) recording file path, cleared once uploaded or on failure.',
+	})
+	public recordingFilePath: string | null;
+
+	@Column('bigint', {
+		nullable: true,
+	})
+	public recordingFileSize: string | null;
+
+	@Column('varchar', {
+		length: 256, nullable: true,
+		comment: 'Google Drive file id of the uploaded recording.',
+	})
+	public recordingGoogleDriveFileId: string | null;
+
+	@Column('varchar', {
+		length: 2048, nullable: true,
+	})
+	public recordingGoogleDriveThumbnailLink: string | null;
+
+	@Column('varchar', {
+		length: 512, nullable: true,
+	})
+	public recordingError: string | null;
+
 	constructor(data: Partial<MiTwitchStream>) {
 		if (data == null) return;
 

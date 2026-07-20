@@ -58,6 +58,7 @@
 		"@fastify/http-proxy": "11.5.0",
 		"@fastify/multipart": "10.1.0",
 		"@fastify/static": "10.1.2",
+		"@googleapis/drive": "20.2.0",
 		"@kitajs/html": "4.2.13",
 		"@misskey-dev/emoji-assets": "17.0.3",
 		"@misskey-dev/emoji-data": "17.0.3",

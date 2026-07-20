@@ -410,6 +410,10 @@ import type {
 	GetOnlineUsersCountResponse,
 	GetWeatherRequest,
 	GetWeatherResponse,
+	GoogleDriveGenerateOauthUrlResponse,
+	GoogleDriveMyAccountResponse,
+	GoogleDriveRecordingStatusRequest,
+	GoogleDriveRecordingStatusResponse,
 	HashtagsListRequest,
 	HashtagsListResponse,
 	HashtagsSearchRequest,
@@ -992,6 +996,10 @@ export type Endpoints = {
 	'get-avatar-decorations': { req: EmptyRequest; res: GetAvatarDecorationsResponse };
 	'get-online-users-count': { req: EmptyRequest; res: GetOnlineUsersCountResponse };
 	'get-weather': { req: GetWeatherRequest; res: GetWeatherResponse };
+	'google-drive/generate-oauth-url': { req: EmptyRequest; res: GoogleDriveGenerateOauthUrlResponse };
+	'google-drive/my-account': { req: EmptyRequest; res: GoogleDriveMyAccountResponse };
+	'google-drive/recording-status': { req: GoogleDriveRecordingStatusRequest; res: GoogleDriveRecordingStatusResponse };
+	'google-drive/unlink': { req: EmptyRequest; res: EmptyResponse };
 	'hashtags/list': { req: HashtagsListRequest; res: HashtagsListResponse };
 	'hashtags/search': { req: HashtagsSearchRequest; res: HashtagsSearchResponse };
 	'hashtags/show': { req: HashtagsShowRequest; res: HashtagsShowResponse };
