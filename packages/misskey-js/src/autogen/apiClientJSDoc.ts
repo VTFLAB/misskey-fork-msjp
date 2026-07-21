@@ -2968,7 +2968,7 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * 配信アーカイブの Google Drive 連携を解除する。
+     * 配信アーカイブの Google 連携を解除する。target を指定すると Drive/YouTube 片方のみ解除する (target 省略時は両方まとめて解除・トークンも revoke)。
      * 
      * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
      * **Credential required**: *Yes*
@@ -4885,6 +4885,17 @@ declare module '../api.js' {
      * **Credential required**: *No*
      */
     request<E extends 'twitch/streams/show', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * password モードの視聴制限がある配信アーカイブのパスワードを検証し、成功時に視聴トークンを発行する。匿名視聴者もパスワードで視聴可能にするため認証不要。
+     * 
+     * **Credential required**: *No*
+     */
+    request<E extends 'twitch/streams/verify-archive-view-password', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
       credential?: string | null,

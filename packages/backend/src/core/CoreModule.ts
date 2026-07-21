@@ -171,6 +171,7 @@ import { TwitchStreamBlockService } from './twitch/TwitchStreamBlockService.js';
 import { TwitchTranslationService } from './twitch/TwitchTranslationService.js';
 import { LiveLoggerService } from './live/LiveLoggerService.js';
 import { LiveChannelService } from './live/LiveChannelService.js';
+import { LiveArchiveAccessService } from './live/LiveArchiveAccessService.js';
 import { OmeApiService } from './live/OmeApiService.js';
 import { OmeStreamMonitorService } from './live/OmeStreamMonitorService.js';
 import { OmeAdmissionService } from './live/OmeAdmissionService.js';
@@ -361,6 +362,7 @@ const $TwitchStreamBlockService: Provider = { provide: 'TwitchStreamBlockService
 const $TwitchTranslationService: Provider = { provide: 'TwitchTranslationService', useExisting: TwitchTranslationService };
 const $LiveLoggerService: Provider = { provide: 'LiveLoggerService', useExisting: LiveLoggerService };
 const $LiveChannelService: Provider = { provide: 'LiveChannelService', useExisting: LiveChannelService };
+const $LiveArchiveAccessService: Provider = { provide: 'LiveArchiveAccessService', useExisting: LiveArchiveAccessService };
 const $OmeApiService: Provider = { provide: 'OmeApiService', useExisting: OmeApiService };
 const $OmeStreamMonitorService: Provider = { provide: 'OmeStreamMonitorService', useExisting: OmeStreamMonitorService };
 const $OmeAdmissionService: Provider = { provide: 'OmeAdmissionService', useExisting: OmeAdmissionService };
@@ -551,6 +553,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		TwitchTranslationService,
 		LiveLoggerService,
 		LiveChannelService,
+		LiveArchiveAccessService,
 		OmeApiService,
 		OmeStreamMonitorService,
 		OmeAdmissionService,
@@ -739,6 +742,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$TwitchTranslationService,
 		$LiveLoggerService,
 		$LiveChannelService,
+		$LiveArchiveAccessService,
 		$OmeApiService,
 		$OmeStreamMonitorService,
 		$OmeAdmissionService,
@@ -923,6 +927,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		TwitchTranslationService,
 		LiveLoggerService,
 		LiveChannelService,
+		LiveArchiveAccessService,
 		OmeApiService,
 		OmeStreamMonitorService,
 		OmeAdmissionService,
@@ -1109,6 +1114,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$TwitchTranslationService,
 		$LiveLoggerService,
 		$LiveChannelService,
+		$LiveArchiveAccessService,
 		$OmeApiService,
 		$OmeStreamMonitorService,
 		$OmeAdmissionService,

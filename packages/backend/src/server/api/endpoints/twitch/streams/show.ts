@@ -11,6 +11,7 @@ import type { FollowingsRepository, TwitchAccountsRepository } from '@/models/_.
 import type { Config } from '@/config.js';
 import { TwitchStreamService } from '@/core/twitch/TwitchStreamService.js';
 import { LiveChannelService } from '@/core/live/LiveChannelService.js';
+import { LiveArchiveAccessService } from '@/core/live/LiveArchiveAccessService.js';
 import type { MiLiveChannel } from '@/models/LiveChannel.js';
 
 export const meta = {
@@ -81,6 +82,8 @@ export const meta = {
 						youtubeVideoId: { type: 'string', optional: true, nullable: true },
 						// オーナー本人のリクエストのみ値が入る (他人には常に省略/undefined)
 						youtubeUploadError: { type: 'string', optional: true, nullable: true },
+						// アーカイブ公開取り消し (bsky-fork 独自)。recordingError 等と同じくオーナー本人のみ値が入る
+						archiveUnpublished: { type: 'boolean', optional: true, nullable: false },
 					},
 				},
 			},
@@ -93,6 +96,9 @@ export const paramDef = {
 	properties: {
 		userId: { type: 'string', format: 'misskey:id' },
 		viewToken: { type: 'string', minLength: 1 },
+		// アーカイブ視聴制限 (password モード) 用トークン。専用視聴ページが 1 アーカイブ = 1 ページで
+		// 扱う設計のため、ライブ用 viewToken と異なり単数のみ (bsky-fork 独自)。
+		archiveViewToken: { type: 'string', minLength: 1 },
 	},
 	required: ['userId'],
 } as const;
@@ -112,6 +118,8 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private twitchStreamService: TwitchStreamService,
 
 		private liveChannelService: LiveChannelService,
+
+		private liveArchiveAccessService: LiveArchiveAccessService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const account = await this.twitchAccountsRepository.findOneBy({ userId: ps.userId });
@@ -131,7 +139,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			// (recordingStatus='none' は getRecentEndedOmeStreamsByUserId 側で常に除外済み)。
 			const isOwner = me != null && me.id === ps.userId;
 			const pastOmeSessions = await this.twitchStreamService.getRecentEndedOmeStreamsByUserId(ps.userId);
-			const visiblePastOmeSessions = isOwner ? pastOmeSessions : pastOmeSessions.filter(s => s.recordingStatus !== 'failed');
+			const visiblePastOmeSessions = isOwner
+				? pastOmeSessions
+				: pastOmeSessions.filter(s => s.recordingStatus !== 'failed' && s.archiveUnpublishedAt == null);
 
 			const sessions = allSessions.map(s => {
 				if (s.source === 'ome') {
@@ -177,23 +187,31 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				};
 			});
 
-			// 過去セッションは常に authorized:true (Drive 側の共有権限で既にアクセス制御済みのため、
-			// ライブ視聴のような canWatch 判定は行わない)。playbackUrl は持たない (Drive 埋め込みで再生する)。
-			const pastSessions = visiblePastOmeSessions.map(s => ({
-				source: 'ome' as const,
-				streamId: s.id,
-				isLive: false as const,
-				authorized: true as const,
-				title: s.title,
-				startedAt: s.startedAt.toISOString(),
-				endedAt: s.endedAt?.toISOString() ?? null,
-				recordingStatus: s.recordingStatus,
-				recordingGoogleDriveFileId: s.recordingGoogleDriveFileId,
-				recordingGoogleDriveThumbnailLink: s.recordingGoogleDriveThumbnailLink,
-				recordingError: isOwner ? s.recordingError : undefined,
-				youtubeUploadStatus: s.youtubeUploadStatus,
-				youtubeVideoId: s.youtubeVideoId,
-				youtubeUploadError: isOwner ? s.youtubeUploadError : undefined,
+			// 過去セッション (アーカイブ) は配信終了時点の視聴制限スナップショットに基づき canWatchArchive で判定する
+			// (bsky-fork 独自、視聴制限のアーカイブ引き継ぎ)。非認可でも title/startedAt/endedAt/recordingStatus 等の
+			// 非機微情報は返すが、recordingGoogleDriveFileId/recordingGoogleDriveThumbnailLink/youtubeVideoId は省略する。
+			const pastSessions = await Promise.all(visiblePastOmeSessions.map(async s => {
+				const { authorized, viewRestriction } = await this.liveArchiveAccessService.canWatchArchive(s, me, ps.archiveViewToken);
+
+				return {
+					source: 'ome' as const,
+					streamId: s.id,
+					isLive: false as const,
+					authorized,
+					viewRestriction,
+					title: s.title,
+					startedAt: s.startedAt.toISOString(),
+					endedAt: s.endedAt?.toISOString() ?? null,
+					recordingStatus: s.recordingStatus,
+					recordingGoogleDriveFileId: authorized ? s.recordingGoogleDriveFileId : undefined,
+					recordingGoogleDriveThumbnailLink: authorized ? s.recordingGoogleDriveThumbnailLink : undefined,
+					recordingError: isOwner ? s.recordingError : undefined,
+					youtubeUploadStatus: s.youtubeUploadStatus,
+					youtubeVideoId: authorized ? s.youtubeVideoId : undefined,
+					youtubeUploadError: isOwner ? s.youtubeUploadError : undefined,
+					// アーカイブ公開取り消しフラグ。オーナー本人のみ値が入る (recordingError と同じ owner-only 扱い)。
+					archiveUnpublished: isOwner ? s.archiveUnpublishedAt != null : undefined,
+				};
 			}));
 
 			return {
