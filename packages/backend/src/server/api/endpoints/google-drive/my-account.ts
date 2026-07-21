@@ -6,6 +6,7 @@
 import { Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { GoogleOAuthService } from '@/core/google/GoogleOAuthService.js';
+import { GoogleYoutubeService } from '@/core/google/GoogleYoutubeService.js';
 
 export const meta = {
 	tags: ['google-drive', 'account'],
@@ -22,6 +23,7 @@ export const meta = {
 			available: { type: 'boolean', optional: false, nullable: false },
 			linked: { type: 'boolean', optional: false, nullable: false },
 			googleEmail: { type: 'string', optional: false, nullable: true },
+			youtubeAuthorized: { type: 'boolean', optional: false, nullable: false },
 		},
 	},
 } as const;
@@ -36,6 +38,7 @@ export const paramDef = {
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
 	constructor(
 		private googleOAuthService: GoogleOAuthService,
+		private googleYoutubeService: GoogleYoutubeService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			if (!this.googleOAuthService.isEnabled) {
@@ -43,6 +46,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					available: false,
 					linked: false,
 					googleEmail: null,
+					youtubeAuthorized: false,
 				};
 			}
 
@@ -52,6 +56,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				available: true,
 				linked: account != null,
 				googleEmail: account?.googleEmail ?? null,
+				youtubeAuthorized: await this.googleYoutubeService.isAuthorizedForUpload(me.id),
 			};
 		});
 	}

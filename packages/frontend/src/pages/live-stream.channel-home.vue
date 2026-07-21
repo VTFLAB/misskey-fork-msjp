@@ -49,44 +49,84 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<div v-else :class="$style.archiveGrid">
 				<div v-for="a in archives" :key="a.streamId" :class="$style.archiveCard">
-					<button
-						v-if="a.recordingStatus === 'ready' && a.recordingGoogleDriveFileId != null"
-						class="_button"
-						:class="$style.archiveCardHeader"
-						:aria-expanded="selectedArchiveId === a.streamId"
-						@click="toggleArchive(a.streamId)"
-					>
-						<div :class="$style.archiveThumb" :style="a.recordingGoogleDriveThumbnailLink ? { backgroundImage: `url(${a.recordingGoogleDriveThumbnailLink})` } : {}">
-							<i v-if="!a.recordingGoogleDriveThumbnailLink" class="ti ti-movie"></i>
-							<i v-if="selectedArchiveId !== a.streamId" class="ti ti-player-play" :class="$style.archivePlayIcon"></i>
-						</div>
-						<div :class="$style.archiveInfo">
-							<div v-if="a.title" :class="$style.archiveTitle">{{ a.title }}</div>
-							<MkTime :time="a.endedAt" mode="detail"/>
-							<div v-if="archiveDuration(a) != null" :class="$style.archiveDuration">{{ archiveDuration(a) }}</div>
-						</div>
-					</button>
-
-					<div v-else :class="[$style.archiveCardHeader, $style.archiveCardHeaderStatic]">
-						<div :class="$style.archiveThumb">
-							<i class="ti ti-movie"></i>
-						</div>
-						<div :class="$style.archiveInfo">
-							<div v-if="a.title" :class="$style.archiveTitle">{{ a.title }}</div>
-							<MkTime :time="a.endedAt" mode="detail"/>
-							<div v-if="archiveDuration(a) != null" :class="$style.archiveDuration">{{ archiveDuration(a) }}</div>
-							<div v-if="a.recordingStatus === 'failed'" :class="[$style.archiveBadge, $style.archiveBadgeFailed]">
-								{{ i18n.ts._liveChannel.archiveFailed }}
+					<!-- 再生可能: YouTube (優先) / Drive の順で表示する (bsky-fork 独自: YouTube優先+Driveフォールバック方式) -->
+					<template v-if="a.youtubeVideoId != null">
+						<a :href="`https://www.youtube.com/watch?v=${a.youtubeVideoId}`" target="_blank" rel="noopener" :class="$style.archiveCardHeader">
+							<div :class="$style.archiveThumb" :style="a.recordingGoogleDriveThumbnailLink ? { backgroundImage: `url(${a.recordingGoogleDriveThumbnailLink})` } : {}">
+								<i v-if="!a.recordingGoogleDriveThumbnailLink" class="ti ti-brand-youtube"></i>
+								<i class="ti ti-player-play" :class="$style.archivePlayIcon"></i>
 							</div>
-							<div v-else :class="$style.archiveBadge">
-								<MkLoading em :class="$style.archiveBadgeSpinner"/>
-								{{ i18n.ts._liveChannel.archiveProcessing }}
+							<div :class="$style.archiveInfo">
+								<div v-if="a.title" :class="$style.archiveTitle">{{ a.title }}</div>
+								<MkTime :time="a.endedAt" mode="detail"/>
+								<div v-if="archiveDuration(a) != null" :class="$style.archiveDuration">{{ archiveDuration(a) }}</div>
 							</div>
-							<div v-if="a.recordingStatus === 'failed' && isOwner && a.recordingError" :class="$style.caption">{{ a.recordingError }}</div>
-						</div>
-					</div>
+						</a>
+					</template>
 
-					<div v-if="selectedArchiveId === a.streamId && a.recordingGoogleDriveFileId != null" :class="$style.archivePlayer">
+					<template v-else-if="a.recordingGoogleDriveFileId != null">
+						<button
+							class="_button"
+							:class="$style.archiveCardHeader"
+							:aria-expanded="selectedArchiveId === a.streamId"
+							@click="toggleArchive(a.streamId)"
+						>
+							<div :class="$style.archiveThumb" :style="a.recordingGoogleDriveThumbnailLink ? { backgroundImage: `url(${a.recordingGoogleDriveThumbnailLink})` } : {}">
+								<i v-if="!a.recordingGoogleDriveThumbnailLink" class="ti ti-movie"></i>
+								<i v-if="selectedArchiveId !== a.streamId" class="ti ti-player-play" :class="$style.archivePlayIcon"></i>
+							</div>
+							<div :class="$style.archiveInfo">
+								<div v-if="a.title" :class="$style.archiveTitle">{{ a.title }}</div>
+								<MkTime :time="a.endedAt" mode="detail"/>
+								<div v-if="archiveDuration(a) != null" :class="$style.archiveDuration">{{ archiveDuration(a) }}</div>
+							</div>
+						</button>
+					</template>
+
+					<!-- 未再生可能かつ進行中: スピナー表示 -->
+					<template v-else-if="isProcessing(a)">
+						<div :class="[$style.archiveCardHeader, $style.archiveCardHeaderStatic]">
+							<div :class="$style.archiveThumb">
+								<i class="ti ti-movie"></i>
+							</div>
+							<div :class="$style.archiveInfo">
+								<div v-if="a.title" :class="$style.archiveTitle">{{ a.title }}</div>
+								<MkTime :time="a.endedAt" mode="detail"/>
+								<div v-if="archiveDuration(a) != null" :class="$style.archiveDuration">{{ archiveDuration(a) }}</div>
+								<div :class="$style.archiveBadge">
+									<MkLoading em :class="$style.archiveBadgeSpinner"/>
+									{{ i18n.ts._liveChannel.archiveProcessing }}
+								</div>
+							</div>
+						</div>
+					</template>
+
+					<!-- 未再生可能かつ進行中でもない: 失敗/未使用/キャンセル済み -->
+					<template v-else>
+						<div :class="[$style.archiveCardHeader, $style.archiveCardHeaderStatic]">
+							<div :class="$style.archiveThumb">
+								<i class="ti ti-movie"></i>
+							</div>
+							<div :class="$style.archiveInfo">
+								<div v-if="a.title" :class="$style.archiveTitle">{{ a.title }}</div>
+								<MkTime :time="a.endedAt" mode="detail"/>
+								<div v-if="archiveDuration(a) != null" :class="$style.archiveDuration">{{ archiveDuration(a) }}</div>
+								<div v-if="a.recordingStatus === 'failed'" :class="[$style.archiveBadge, $style.archiveBadgeFailed]">
+									{{ i18n.ts._liveChannel.archiveFailed }}
+								</div>
+								<div v-if="a.recordingStatus === 'failed' && isOwner && a.recordingError" :class="$style.caption">{{ a.recordingError }}</div>
+								<div v-if="a.youtubeUploadStatus === 'failed'" :class="[$style.archiveBadge, $style.archiveBadgeFailed]">
+									{{ i18n.ts._liveChannel.archiveYoutubeFailed }}
+								</div>
+								<div v-if="a.youtubeUploadStatus === 'failed' && isOwner && a.youtubeUploadError" :class="$style.caption">{{ a.youtubeUploadError }}</div>
+								<div v-if="a.youtubeUploadStatus === 'cancelled'" :class="$style.archiveBadge">
+									{{ i18n.ts._liveChannel.archiveYoutubeCancelled }}
+								</div>
+							</div>
+						</div>
+					</template>
+
+					<div v-if="selectedArchiveId === a.streamId && a.youtubeVideoId == null && a.recordingGoogleDriveFileId != null" :class="$style.archivePlayer">
 						<button class="_button" :class="$style.archiveCloseButton" :aria-label="i18n.ts.close" @click="toggleArchive(a.streamId)">
 							<i class="ti ti-x"></i>
 						</button>
@@ -215,15 +255,32 @@ const bannerUrl = computed(() => {
 	return props.user.bannerUrl;
 });
 
-// 配信アーカイブ (Google Drive、bsky-fork 独自)
+// 配信アーカイブ (Google Drive / YouTube、bsky-fork 独自)
 const PENDING_RECORDING_STATUSES = ['pending', 'remuxing', 'uploading', 'processing'] as const;
+const PENDING_YOUTUBE_STATUSES = ['pending', 'uploading'] as const;
 const ARCHIVE_POLL_INTERVAL_MS = 30 * 1000;
 
 const selectedArchiveId = ref<string | null>(null);
 const googleDriveLinked = ref<boolean | null>(null);
-// google-drive/recording-status のポーリング結果でローカル上書きする分 (親の sessions 再取得を待たずに反映する)
-const statusOverrides = ref<Record<string, { recordingStatus: string; recordingGoogleDriveFileId: string | null }>>({});
+// google-drive/recording-status / twitch/streams/archive-history のポーリング結果でローカル上書きする分
+// (親の sessions 再取得を待たずに反映する)
+const statusOverrides = ref<Record<string, {
+	recordingStatus?: string;
+	recordingGoogleDriveFileId?: string | null;
+	youtubeUploadStatus?: string;
+	youtubeVideoId?: string | null;
+	youtubeUploadError?: string | null;
+}>>({});
 const pollTimers = new Map<string, number>();
+const youtubePollTimers = new Map<string, number>();
+
+function isDriveTerminal(recordingStatus: string): boolean {
+	return !PENDING_RECORDING_STATUSES.includes(recordingStatus as typeof PENDING_RECORDING_STATUSES[number]);
+}
+
+function isYoutubeTerminal(youtubeUploadStatus: string | null | undefined): boolean {
+	return youtubeUploadStatus == null || !PENDING_YOUTUBE_STATUSES.includes(youtubeUploadStatus as typeof PENDING_YOUTUBE_STATUSES[number]);
+}
 
 const archives = computed(() => {
 	return props.sessions
@@ -234,10 +291,28 @@ const archives = computed(() => {
 			return {
 				...s,
 				recordingStatus: override?.recordingStatus ?? s.recordingStatus,
-				recordingGoogleDriveFileId: override?.recordingGoogleDriveFileId ?? s.recordingGoogleDriveFileId,
+				recordingGoogleDriveFileId: override?.recordingGoogleDriveFileId !== undefined ? override.recordingGoogleDriveFileId : s.recordingGoogleDriveFileId,
+				youtubeUploadStatus: override?.youtubeUploadStatus ?? s.youtubeUploadStatus,
+				youtubeVideoId: override?.youtubeVideoId !== undefined ? override.youtubeVideoId : s.youtubeVideoId,
+				youtubeUploadError: override?.youtubeUploadError !== undefined ? override.youtubeUploadError : s.youtubeUploadError,
 			};
 		});
 });
+
+// 再生可能かどうか (bsky-fork 独自: YouTube優先+Driveフォールバック方式)。
+// どちらか一方でも実体があれば再生可能カードを表示する (表示優先順位はテンプレート側で youtubeVideoId を優先)。
+function isPlayable(a: { recordingGoogleDriveFileId?: string | null; youtubeVideoId?: string | null }): boolean {
+	return a.recordingGoogleDriveFileId != null || a.youtubeVideoId != null;
+}
+
+// まだどちらも再生可能でなく、かつ進行中 (recordingStatus/youtubeUploadStatus のいずれかが
+// pending/remuxing/uploading/processing) の場合のみスピナーを表示する。
+function isProcessing(a: { recordingStatus: string; youtubeUploadStatus?: string | null; recordingGoogleDriveFileId?: string | null; youtubeVideoId?: string | null }): boolean {
+	if (isPlayable(a)) return false;
+	const recordingProcessing = PENDING_RECORDING_STATUSES.includes(a.recordingStatus as typeof PENDING_RECORDING_STATUSES[number]);
+	const youtubeProcessing = a.youtubeUploadStatus != null && PENDING_RECORDING_STATUSES.includes(a.youtubeUploadStatus as typeof PENDING_RECORDING_STATUSES[number]);
+	return recordingProcessing || youtubeProcessing;
+}
 
 function archiveDuration(a: { startedAt?: string | null; endedAt: string }): string | null {
 	if (a.startedAt == null) return null;
@@ -269,8 +344,8 @@ function scheduleArchivePoll(streamId: string) {
 		pollTimers.delete(streamId);
 		try {
 			const res = await misskeyApi('google-drive/recording-status', { streamId });
-			statusOverrides.value = { ...statusOverrides.value, [streamId]: res };
-			if (PENDING_RECORDING_STATUSES.includes(res.recordingStatus as typeof PENDING_RECORDING_STATUSES[number])) {
+			statusOverrides.value = { ...statusOverrides.value, [streamId]: { ...statusOverrides.value[streamId], ...res } };
+			if (!isDriveTerminal(res.recordingStatus)) {
 				scheduleArchivePoll(streamId);
 			}
 		} catch {
@@ -280,12 +355,59 @@ function scheduleArchivePoll(streamId: string) {
 	pollTimers.set(streamId, timer);
 }
 
+function clearYoutubePoll(streamId: string) {
+	const timer = youtubePollTimers.get(streamId);
+	if (timer != null) {
+		window.clearTimeout(timer);
+		youtubePollTimers.delete(streamId);
+	}
+}
+
+// YouTube アップロードは videos.insert 完了時点で即 ready/failed が確定する設計 (ポーリング不要な想定) だが、
+// このページを開いたまま配信終了直後のアップロード中の瞬間に居合わせると youtubeUploadStatus が pending/uploading の
+// まま固定表示され続けてしまう (旧実装のスピナー固着バグと同じ症状)。twitch/streams/archive-history は配信者本人限定
+// エンドポイントのため、オーナー表示時のみポーリング対象に含める (非オーナー視聴者は次回リロードで反映される)。
+function scheduleYoutubePoll(streamId: string) {
+	if (!props.isOwner) return;
+	if (youtubePollTimers.has(streamId)) return;
+	const timer = window.setTimeout(async () => {
+		youtubePollTimers.delete(streamId);
+		try {
+			const res = await misskeyApi('twitch/streams/archive-history', { limit: 50 });
+			const match = res.find(item => item.streamId === streamId);
+			if (match != null) {
+				statusOverrides.value = {
+					...statusOverrides.value,
+					[streamId]: {
+						...statusOverrides.value[streamId],
+						youtubeUploadStatus: match.youtubeUploadStatus,
+						youtubeVideoId: match.youtubeVideoId,
+						youtubeUploadError: match.youtubeUploadError,
+					},
+				};
+				if (!isYoutubeTerminal(match.youtubeUploadStatus)) {
+					scheduleYoutubePoll(streamId);
+				}
+			}
+		} catch {
+			// 一時的な失敗は次回のマウント時の再ポーリングに任せる (このセッションでは打ち切り)
+		}
+	}, ARCHIVE_POLL_INTERVAL_MS);
+	youtubePollTimers.set(streamId, timer);
+}
+
 watch(archives, (list) => {
 	for (const a of list) {
-		if (PENDING_RECORDING_STATUSES.includes(a.recordingStatus as typeof PENDING_RECORDING_STATUSES[number])) {
+		if (!isDriveTerminal(a.recordingStatus)) {
 			scheduleArchivePoll(a.streamId);
 		} else {
 			clearArchivePoll(a.streamId);
+		}
+
+		if (!isYoutubeTerminal(a.youtubeUploadStatus)) {
+			scheduleYoutubePoll(a.streamId);
+		} else {
+			clearYoutubePoll(a.streamId);
 		}
 	}
 }, { immediate: true });
@@ -306,6 +428,8 @@ watch(() => props.isOwner, fetchGoogleDriveLinked);
 function clearAllArchivePolls() {
 	for (const timer of pollTimers.values()) window.clearTimeout(timer);
 	pollTimers.clear();
+	for (const timer of youtubePollTimers.values()) window.clearTimeout(timer);
+	youtubePollTimers.clear();
 }
 
 onBeforeUnmount(clearAllArchivePolls);

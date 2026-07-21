@@ -181,6 +181,7 @@ import { RemoteGuestAccountService } from './remote-guest/RemoteGuestAccountServ
 import { GoogleLoggerService } from './google/GoogleLoggerService.js';
 import { GoogleOAuthService } from './google/GoogleOAuthService.js';
 import { GoogleDriveService } from './google/GoogleDriveService.js';
+import { GoogleYoutubeService } from './google/GoogleYoutubeService.js';
 import { RemoteGuestSessionService } from './remote-guest/RemoteGuestSessionService.js';
 import { RemoteGuestMiAuthClientService } from './remote-guest/RemoteGuestMiAuthClientService.js';
 import { EarthquakeAlertService } from './earthquake/EarthquakeAlertService.js';
@@ -373,6 +374,7 @@ const $RemoteGuestMiAuthClientService: Provider = { provide: 'RemoteGuestMiAuthC
 const $GoogleLoggerService: Provider = { provide: 'GoogleLoggerService', useExisting: GoogleLoggerService };
 const $GoogleOAuthService: Provider = { provide: 'GoogleOAuthService', useExisting: GoogleOAuthService };
 const $GoogleDriveService: Provider = { provide: 'GoogleDriveService', useExisting: GoogleDriveService };
+const $GoogleYoutubeService: Provider = { provide: 'GoogleYoutubeService', useExisting: GoogleYoutubeService };
 const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useExisting: LiveRecordingService };
 //#endregion
 
@@ -560,6 +562,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		GoogleLoggerService,
 		GoogleOAuthService,
 		GoogleDriveService,
+		GoogleYoutubeService,
 		LiveRecordingService,
 		EarthquakeAlertService,
 
@@ -747,6 +750,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$GoogleLoggerService,
 		$GoogleOAuthService,
 		$GoogleDriveService,
+		$GoogleYoutubeService,
 		$LiveRecordingService,
 		//#endregion
 	],
@@ -930,6 +934,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		GoogleLoggerService,
 		GoogleOAuthService,
 		GoogleDriveService,
+		GoogleYoutubeService,
 		LiveRecordingService,
 		EarthquakeAlertService,
 
@@ -1115,6 +1120,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$GoogleLoggerService,
 		$GoogleOAuthService,
 		$GoogleDriveService,
+		$GoogleYoutubeService,
 		$LiveRecordingService,
 		//#endregion
 	],
