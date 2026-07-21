@@ -4892,6 +4892,28 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * 配信者本人が自分の配信アーカイブの公開を取り消す (冪等)。Google Drive / YouTube 上の実ファイルは削除しない。MSJP 側の一覧・視聴・コメントリプレイから見えなくなるのみで、再公開する endpoint は存在しない (一方向)。
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'twitch/streams/unpublish-archive', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * 配信者本人が自分の配信アーカイブの視聴制限 (視聴可否モード・パスワード・許可ユーザー) を個別に上書きする。配信終了時点の live_channel 設定のスナップショットを上書きするのみで、live_channel 側の設定自体には影響しない。
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'twitch/streams/update-archive-settings', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * password モードの視聴制限がある配信アーカイブのパスワードを検証し、成功時に視聴トークンを発行する。匿名視聴者もパスワードで視聴可能にするため認証不要。
      * 
      * **Credential required**: *No*

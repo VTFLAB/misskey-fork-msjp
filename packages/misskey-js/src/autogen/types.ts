@@ -4012,6 +4012,24 @@ export type paths = {
          */
         post: operations['twitch___streams___show'];
     };
+    '/twitch/streams/unpublish-archive': {
+        /**
+         * twitch/streams/unpublish-archive
+         * @description 配信者本人が自分の配信アーカイブの公開を取り消す (冪等)。Google Drive / YouTube 上の実ファイルは削除しない。MSJP 側の一覧・視聴・コメントリプレイから見えなくなるのみで、再公開する endpoint は存在しない (一方向)。
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['twitch___streams___unpublish-archive'];
+    };
+    '/twitch/streams/update-archive-settings': {
+        /**
+         * twitch/streams/update-archive-settings
+         * @description 配信者本人が自分の配信アーカイブの視聴制限 (視聴可否モード・パスワード・許可ユーザー) を個別に上書きする。配信終了時点の live_channel 設定のスナップショットを上書きするのみで、live_channel 側の設定自体には影響しない。
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['twitch___streams___update-archive-settings'];
+    };
     '/twitch/streams/verify-archive-view-password': {
         /**
          * twitch/streams/verify-archive-view-password
@@ -37392,6 +37410,11 @@ export interface operations {
                         youtubeUploadStatus: 'none' | 'pending' | 'uploading' | 'ready' | 'failed' | 'queued' | 'cancelled';
                         youtubeVideoId: string | null;
                         youtubeUploadError: string | null;
+                        /** @enum {string} */
+                        archiveViewVisibility: 'public' | 'followers' | 'password' | 'users';
+                        archiveViewPassword: string | null;
+                        archiveVisibleUserIds: string[];
+                        archiveUnpublished: boolean;
                     }[];
                 };
             };
@@ -37753,6 +37776,7 @@ export interface operations {
                 'application/json': {
                     /** Format: misskey:id */
                     streamId: string;
+                    archiveViewToken?: string;
                     /** @default 30 */
                     limit?: number;
                     /** Format: misskey:id */
@@ -38096,6 +38120,167 @@ export interface operations {
             };
             /** @description I'm Ai */
             418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'twitch___streams___unpublish-archive': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    streamId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** Format: misskey:id */
+                        streamId: string;
+                        /** @enum {string} */
+                        archiveViewVisibility: 'public' | 'followers' | 'password' | 'users';
+                        archiveViewPassword: string | null;
+                        archiveVisibleUserIds: string[];
+                        archiveUnpublished: boolean;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'twitch___streams___update-archive-settings': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    streamId: string;
+                    /** @enum {string} */
+                    visibility?: 'public' | 'followers' | 'password' | 'users';
+                    viewPassword?: string | null;
+                    visibleUserIds?: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** Format: misskey:id */
+                        streamId: string;
+                        /** @enum {string} */
+                        archiveViewVisibility: 'public' | 'followers' | 'password' | 'users';
+                        archiveViewPassword: string | null;
+                        archiveVisibleUserIds: string[];
+                        archiveUnpublished: boolean;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

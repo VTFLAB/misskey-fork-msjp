@@ -665,6 +665,10 @@ import type {
 	TwitchStreamsPreviewResponse,
 	TwitchStreamsShowRequest,
 	TwitchStreamsShowResponse,
+	TwitchStreamsUnpublishArchiveRequest,
+	TwitchStreamsUnpublishArchiveResponse,
+	TwitchStreamsUpdateArchiveSettingsRequest,
+	TwitchStreamsUpdateArchiveSettingsResponse,
 	TwitchStreamsVerifyArchiveViewPasswordRequest,
 	TwitchStreamsVerifyArchiveViewPasswordResponse,
 	TwitchSubtitlePublishRequest,
@@ -1178,6 +1182,8 @@ export type Endpoints = {
 	'twitch/streams/comments/create': { req: TwitchStreamsCommentsCreateRequest; res: TwitchStreamsCommentsCreateResponse };
 	'twitch/streams/preview': { req: EmptyRequest; res: TwitchStreamsPreviewResponse };
 	'twitch/streams/show': { req: TwitchStreamsShowRequest; res: TwitchStreamsShowResponse };
+	'twitch/streams/unpublish-archive': { req: TwitchStreamsUnpublishArchiveRequest; res: TwitchStreamsUnpublishArchiveResponse };
+	'twitch/streams/update-archive-settings': { req: TwitchStreamsUpdateArchiveSettingsRequest; res: TwitchStreamsUpdateArchiveSettingsResponse };
 	'twitch/streams/verify-archive-view-password': { req: TwitchStreamsVerifyArchiveViewPasswordRequest; res: TwitchStreamsVerifyArchiveViewPasswordResponse };
 	'twitch/subtitle/publish': { req: TwitchSubtitlePublishRequest; res: TwitchSubtitlePublishResponse };
 	'twitch/unlink': { req: EmptyRequest; res: EmptyResponse };
