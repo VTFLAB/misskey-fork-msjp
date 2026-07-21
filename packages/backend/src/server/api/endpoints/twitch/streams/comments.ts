@@ -5,10 +5,12 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import { Endpoint } from '@/server/api/endpoint-base.js';
+import { ApiError } from '@/server/api/error.js';
 import { DI } from '@/di-symbols.js';
-import type { TwitchStreamCommentsRepository } from '@/models/_.js';
+import type { TwitchStreamCommentsRepository, TwitchStreamsRepository } from '@/models/_.js';
 import { QueryService } from '@/core/QueryService.js';
 import { TwitchCommentService } from '@/core/twitch/TwitchCommentService.js';
+import { LiveArchiveAccessService } from '@/core/live/LiveArchiveAccessService.js';
 
 export const meta = {
 	tags: ['twitch'],
@@ -24,6 +26,16 @@ export const meta = {
 	limit: {
 		duration: 60 * 1000,
 		max: 120,
+	},
+
+	// アーカイブ (source==='ome' && !isLive) にのみ視聴制限を適用する (bsky-fork 独自)。
+	// ライブ配信中はこのエラーを一切返さない (OBS オーバーレイ互換のため無制限のまま)。
+	errors: {
+		archiveRestricted: {
+			message: 'This archive is not accessible.',
+			code: 'ARCHIVE_RESTRICTED',
+			id: 'd05e1680-d4c0-4055-ab35-1f8e3a211ec5',
+		},
 	},
 
 	res: {
@@ -79,6 +91,9 @@ export const paramDef = {
 	type: 'object',
 	properties: {
 		streamId: { type: 'string', format: 'misskey:id' },
+		// アーカイブ視聴制限 (password モード) 用トークン。ライブ配信中のコメント取得では無視される
+		// (bsky-fork 独自、show.ts の archiveViewToken と同じ Redis key 空間を参照)。
+		archiveViewToken: { type: 'string', minLength: 1 },
 		limit: { type: 'integer', minimum: 1, maximum: 100, default: 30 },
 		sinceId: { type: 'string', format: 'misskey:id' },
 		untilId: { type: 'string', format: 'misskey:id' },
@@ -92,10 +107,23 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		@Inject(DI.twitchStreamCommentsRepository)
 		private twitchStreamCommentsRepository: TwitchStreamCommentsRepository,
 
+		@Inject(DI.twitchStreamsRepository)
+		private twitchStreamsRepository: TwitchStreamsRepository,
+
 		private queryService: QueryService,
 		private twitchCommentService: TwitchCommentService,
+		private liveArchiveAccessService: LiveArchiveAccessService,
 	) {
-		super(meta, paramDef, async (ps) => {
+		super(meta, paramDef, async (ps, me) => {
+			// アーカイブ (source==='ome' && !isLive) のみ視聴制限を適用する。ライブ配信中
+			// (isLive:true) は OBS オーバーレイの匿名アクセス要件により意図的に無制限のまま
+			// 変更しない (bsky-fork 独自、視聴制限のアーカイブ引き継ぎ)。
+			const stream = await this.twitchStreamsRepository.findOneBy({ id: ps.streamId });
+			if (stream != null && stream.source === 'ome' && !stream.isLive) {
+				const { authorized } = await this.liveArchiveAccessService.canWatchArchive(stream, me, ps.archiveViewToken);
+				if (!authorized) throw new ApiError(meta.errors.archiveRestricted);
+			}
+
 			const query = this.queryService.makePaginationQuery(
 				this.twitchStreamCommentsRepository.createQueryBuilder('comment'),
 				ps.sinceId,
