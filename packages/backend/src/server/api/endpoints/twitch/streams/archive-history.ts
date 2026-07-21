@@ -40,6 +40,12 @@ export const meta = {
 				},
 				youtubeVideoId: { type: 'string', optional: false, nullable: true },
 				youtubeUploadError: { type: 'string', optional: false, nullable: true },
+				// アーカイブ視聴制限 (bsky-fork 独自)。オーナー専用一覧のため常に値を返す
+				// (show.ts の owner-only optional 分岐とは異なり optional にしない)。
+				archiveViewVisibility: { type: 'string', optional: false, nullable: false, enum: ['public', 'followers', 'password', 'users'] },
+				archiveViewPassword: { type: 'string', optional: false, nullable: true },
+				archiveVisibleUserIds: { type: 'array', optional: false, nullable: false, items: { type: 'string', format: 'misskey:id' } },
+				archiveUnpublished: { type: 'boolean', optional: false, nullable: false },
 			},
 		},
 	},
@@ -74,6 +80,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				youtubeUploadStatus: s.youtubeUploadStatus,
 				youtubeVideoId: s.youtubeVideoId,
 				youtubeUploadError: s.youtubeUploadError,
+				archiveViewVisibility: s.archiveViewVisibility,
+				archiveViewPassword: s.archiveViewPassword,
+				archiveVisibleUserIds: s.archiveVisibleUserIds,
+				archiveUnpublished: s.archiveUnpublishedAt != null,
 			}));
 		});
 	}
