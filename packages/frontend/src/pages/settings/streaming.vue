@@ -297,8 +297,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 		</FormSection>
 
-		<!-- Section 2: 配信アーカイブ (Google Drive連携) -->
-		<FormSection>
+		<!-- Section 2: 配信アーカイブ (Google Drive連携) (Google OAuth審査完了までadmin限定表示、bsky-fork独自の暫定措置) -->
+		<FormSection v-if="iAmAdmin">
 			<template #label><i class="ti ti-brand-google-drive"></i> {{ i18n.ts._liveChannel.archiveGoogleDriveIntegration }}</template>
 
 			<MkInfo v-if="googleDriveState === 'loading'">{{ i18n.ts.loading }}</MkInfo>
@@ -310,7 +310,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<template #key>{{ i18n.ts._liveChannel.archiveGoogleDriveLinkedAs }}</template>
 						<template #value>{{ googleDriveEmail }}</template>
 					</MkKeyValue>
-					<MkButton danger @click="unlinkGoogleDrive">{{ i18n.ts._liveChannel.archiveGoogleDriveUnlink }}</MkButton>
+					<MkInfo v-if="youtubeAuthorized" warn>{{ i18n.ts._liveChannel.archiveGoogleDriveUnlinkBlockedByYoutube }}</MkInfo>
+					<MkButton v-else danger @click="unlinkGoogleDrive">{{ i18n.ts._liveChannel.archiveGoogleDriveUnlink }}</MkButton>
 				</div>
 			</template>
 			<template v-else>
@@ -321,8 +322,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 		</FormSection>
 
-		<!-- Section 2.5: YouTube アップロード -->
-		<FormSection>
+		<!-- Section 2.5: YouTube アップロード (Google OAuth審査完了までadmin限定表示、bsky-fork独自の暫定措置) -->
+		<FormSection v-if="iAmAdmin">
 			<template #label><i class="ti ti-brand-youtube"></i> {{ i18n.ts._liveChannel.youtubeUploadIntegration }}</template>
 
 			<MkInfo v-if="googleDriveState === 'loading'">{{ i18n.ts.loading }}</MkInfo>
@@ -356,6 +357,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<template #label>{{ i18n.ts._liveChannel.youtubeUploadPrivacyStatus }}</template>
 						<template #caption>{{ i18n.ts._liveChannel.youtubeUploadPrivacyStatusDescription }}</template>
 					</MkSelect>
+
+					<MkButton danger @click="unlinkYoutube">{{ i18n.ts._liveChannel.youtubeUploadUnlink }}</MkButton>
 				</div>
 			</template>
 		</FormSection>
@@ -426,7 +429,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #icon><i class="ti ti-ban"></i></template>
 					{{ i18n.ts._twitch.manageBlocks }}
 				</FormLink>
-				<FormLink @click="openArchiveHistory">
+				<FormLink v-if="iAmAdmin" @click="openArchiveHistory">
 					<template #icon><i class="ti ti-history"></i></template>
 					{{ i18n.ts._liveChannel.archiveHistory }}
 				</FormLink>
@@ -784,7 +787,17 @@ async function unlinkGoogleDrive() {
 		text: i18n.ts._liveChannel.archiveGoogleDriveUnlinkConfirm,
 	});
 	if (canceled) return;
-	await os.apiWithDialog('google-drive/unlink', {});
+	await os.apiWithDialog('google-drive/unlink', { target: 'drive' });
+	await fetchGoogleDriveStatus();
+}
+
+async function unlinkYoutube() {
+	const { canceled } = await os.confirm({
+		type: 'warning',
+		text: i18n.ts._liveChannel.youtubeUploadUnlinkConfirm,
+	});
+	if (canceled) return;
+	await os.apiWithDialog('google-drive/unlink', { target: 'youtube' });
 	await fetchGoogleDriveStatus();
 }
 
