@@ -26,14 +26,18 @@ const STATE_TTL_SEC = 60 * 10;
 
 // drive.file: アプリが作成/開いたファイルのみアクセス可 (配信アーカイブのアップロード専用に十分)
 // youtube.upload と同一の認可リクエストでは要求できない (Google が
-// "scopes that cannot be requested together" で invalid_request を返す) ため、
-// Drive を常に最初のステップ、YouTube を後続の追加認証 (incremental authorization) に分離する。
-// GoogleYoutubeService.isAuthorizedForUpload が実際に許可されたか scopes を都度確認する。
+// "scopes that cannot be requested together" で invalid_request を返す)。実機検証の結果、
+// include_granted_scopes=true によるインクリメンタル認可 (段階的追加) でも同じ invalid_request
+// が発生する (「このユーザー + この OAuth クライアントに対して drive.file と youtube.upload
+// 両方を許可する」こと自体が拒否される) ため、Drive と YouTube は完全に独立した 2 つの OAuth
+// グラント (別々の refresh_token) として扱い、include_granted_scopes は使わない。
 const DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.file', 'openid', 'email'];
 const YOUTUBE_SCOPES = ['https://www.googleapis.com/auth/youtube.upload'];
 
 // accessToken の残り有効期間がこれを切ったら refresh する
 const TOKEN_REFRESH_MARGIN_MS = 1000 * 60 * 5;
+
+type GoogleTarget = 'drive' | 'youtube';
 
 type GoogleTokenResponse = {
 	access_token: string;
@@ -70,8 +74,23 @@ export class GoogleOAuthCallbackError extends Error {
 
 type OAuthStatePayload = {
 	userId: MiUser['id'];
-	target: 'drive' | 'youtube';
+	target: GoogleTarget;
 };
+
+/**
+ * Drive 側トークンが未連携かどうか (accessToken/refreshToken 双方が null)。
+ * expiresAt は NOT NULL 列のため連携解除後も値が残るが、判定には使わない。
+ */
+function isDriveUnlinked(account: MiGoogleAccount): boolean {
+	return account.accessToken == null && account.refreshToken == null;
+}
+
+/**
+ * YouTube 側トークンが未連携かどうか (accessToken/refreshToken/expiresAt すべて null)。
+ */
+function isYoutubeUnlinked(account: MiGoogleAccount): boolean {
+	return account.youtubeAccessToken == null && account.youtubeRefreshToken == null && account.youtubeExpiresAt == null;
+}
 
 @Injectable()
 export class GoogleOAuthService {
@@ -114,11 +133,12 @@ export class GoogleOAuthService {
 	 * 認可 URL を生成する。state は Redis に保存され callback で一度だけ消費される。
 	 * access_type=offline + prompt=consent で refresh_token を確実に取得する。
 	 * target='drive' (既定): Drive 連携 (常にフロー最初のステップ)。
-	 * target='youtube': YouTube アップロード権限の追加認証。include_granted_scopes=true により
-	 * 既存の Drive 権限を失わずに追加できる (incremental authorization)。
+	 * target='youtube': YouTube アップロード権限の認証。Drive とは完全に独立した OAuth グラントとして
+	 * 要求する (include_granted_scopes は使わない。Drive スコープとの合算でも Google に
+	 * invalid_request として拒否されることが実機検証で判明したため)。
 	 */
 	@bindThis
-	public async generateAuthorizeUrl(userId: MiUser['id'], target: 'drive' | 'youtube' = 'drive'): Promise<string> {
+	public async generateAuthorizeUrl(userId: MiUser['id'], target: GoogleTarget = 'drive'): Promise<string> {
 		const { clientId } = this.getCredentials();
 
 		const state = randomBytes(32).toString('hex');
@@ -135,17 +155,17 @@ export class GoogleOAuthService {
 		url.searchParams.set('state', state);
 		url.searchParams.set('access_type', 'offline');
 		url.searchParams.set('prompt', 'consent');
-		url.searchParams.set('include_granted_scopes', 'true');
 		return url.toString();
 	}
 
 	/**
 	 * OAuth callback を処理し、google_account を upsert する。
-	 * どちらの認可フロー (Drive / YouTube 追加認証) から戻ってきたかを呼び出し元 (リダイレクト先の
+	 * どちらの認可フロー (Drive / YouTube) から戻ってきたかを呼び出し元 (リダイレクト先の
 	 * 出し分け) が判別できるよう、state に紐付けた target を返す。
+	 * Drive と YouTube は別々のカラム (完全に独立したトークン) に書き込む。
 	 */
 	@bindThis
-	public async handleCallback(code: string, state: string): Promise<'drive' | 'youtube'> {
+	public async handleCallback(code: string, state: string): Promise<GoogleTarget> {
 		const stateKey = `${STATE_REDIS_PREFIX}${state}`;
 		const payloadRaw = await this.redisClient.getdel(stateKey);
 		if (payloadRaw == null) {
@@ -157,28 +177,41 @@ export class GoogleOAuthService {
 		if (token.refresh_token == null) {
 			// prompt=consent を指定しているので通常は発行されるが、既存の同意状態によっては
 			// refresh_token が省略されることがある。既存行の refreshToken を維持する。
-			this.logger.warn(`no refresh_token returned for user=${payload.userId}, keeping existing one if any`);
-		}
-
-		const userInfo = await this.getUserInfo(token.access_token);
-		if (userInfo.email == null) {
-			throw new GoogleOAuthCallbackError('Failed to fetch the Google account email for the granted token.');
+			this.logger.warn(`no refresh_token returned for user=${payload.userId} target=${payload.target}, keeping existing one if any`);
 		}
 
 		const expiresAt = new Date(Date.now() + token.expires_in * 1000);
 		const existing = await this.googleAccountsRepository.findOneBy({ userId: payload.userId });
 
-		// include_granted_scopes=true を付けているので token.scope は通常
-		// 既存の許可済みスコープ+新規許可スコープの和集合を返すはずだが、
-		// Google 側の挙動を全面的には信頼せず、既存 scopes との配列マージ (重複排除) で保険をかける。
-		// これにより仮に token.scope が新規スコープのみを返した場合でも、追加認証で既存の
-		// Drive 権限が scopes 列から失われることはない。
+		if (payload.target === 'youtube') {
+			// YouTube はフロー上 Drive 連携済みユーザーにのみ提示される追加認証なので、既存行が
+			// 無いケースは通常発生しないが、念のためガードする。
+			if (existing == null) {
+				throw new GoogleOAuthCallbackError('Google Drive連携が先に必要です。');
+			}
+
+			await this.googleAccountsRepository.update(existing.id, {
+				youtubeAccessToken: token.access_token,
+				youtubeRefreshToken: token.refresh_token ?? existing.youtubeRefreshToken ?? null,
+				youtubeExpiresAt: expiresAt,
+				youtubeScopes: token.scope?.split(' ') ?? existing.youtubeScopes ?? [],
+			});
+			this.logger.info(`youtube linked: user=${payload.userId}`);
+			return payload.target;
+		}
+
+		// target === 'drive'
+		const userInfo = await this.getUserInfo(token.access_token);
+		if (userInfo.email == null) {
+			throw new GoogleOAuthCallbackError('Failed to fetch the Google account email for the granted token.');
+		}
+
 		const values = {
 			googleEmail: userInfo.email,
 			accessToken: token.access_token,
 			refreshToken: token.refresh_token ?? existing?.refreshToken ?? null,
 			expiresAt,
-			scopes: Array.from(new Set([...(existing?.scopes ?? []), ...(token.scope?.split(' ') ?? [])])),
+			scopes: token.scope?.split(' ') ?? existing?.scopes ?? [],
 		} satisfies Partial<MiGoogleAccount>;
 
 		if (existing != null) {
@@ -188,28 +221,79 @@ export class GoogleOAuthService {
 				id: this.idService.gen(),
 				userId: payload.userId,
 				folderId: null,
+				youtubeRefreshToken: null,
+				youtubeAccessToken: null,
+				youtubeExpiresAt: null,
+				youtubeScopes: [],
 				...values,
 			}));
 		}
-		this.logger.info(`account linked: user=${payload.userId} google=${userInfo.email} target=${payload.target}`);
+		this.logger.info(`drive linked: user=${payload.userId} google=${userInfo.email}`);
 		return payload.target;
 	}
 
 	/**
 	 * 連携解除。トークンの revoke は best-effort。
+	 * target 未指定: 従来通り行全体を削除 (Drive/YouTube 両方解除)。
+	 * target 指定: その側のトークンのみ revoke + null 化する。もう片方が残っていれば行は削除せず、
+	 * 両方 null になった場合のみ行ごと削除する。
 	 */
 	@bindThis
-	public async unlink(userId: MiUser['id']): Promise<boolean> {
+	public async unlink(userId: MiUser['id'], target?: GoogleTarget): Promise<boolean> {
 		const account = await this.googleAccountsRepository.findOneBy({ userId });
 		if (account == null) return false;
 
-		if (account.accessToken != null) {
-			await this.revokeToken(account.accessToken).catch(err => {
-				this.logger.warn(`token revoke failed: ${err instanceof Error ? err.message : err}`);
-			});
+		if (target == null) {
+			if (account.accessToken != null) {
+				await this.revokeToken(account.accessToken).catch(err => {
+					this.logger.warn(`drive token revoke failed: ${err instanceof Error ? err.message : err}`);
+				});
+			}
+			if (account.youtubeAccessToken != null) {
+				await this.revokeToken(account.youtubeAccessToken).catch(err => {
+					this.logger.warn(`youtube token revoke failed: ${err instanceof Error ? err.message : err}`);
+				});
+			}
+			await this.googleAccountsRepository.delete(account.id);
+			this.logger.info(`account unlinked: user=${userId} google=${account.googleEmail}`);
+			return true;
 		}
-		await this.googleAccountsRepository.delete(account.id);
-		this.logger.info(`account unlinked: user=${userId} google=${account.googleEmail}`);
+
+		if (target === 'drive') {
+			if (account.accessToken != null) {
+				await this.revokeToken(account.accessToken).catch(err => {
+					this.logger.warn(`drive token revoke failed: ${err instanceof Error ? err.message : err}`);
+				});
+			}
+			await this.googleAccountsRepository.update(account.id, {
+				accessToken: null,
+				refreshToken: null,
+			});
+			account.accessToken = null;
+			account.refreshToken = null;
+		} else {
+			if (account.youtubeAccessToken != null) {
+				await this.revokeToken(account.youtubeAccessToken).catch(err => {
+					this.logger.warn(`youtube token revoke failed: ${err instanceof Error ? err.message : err}`);
+				});
+			}
+			await this.googleAccountsRepository.update(account.id, {
+				youtubeAccessToken: null,
+				youtubeRefreshToken: null,
+				youtubeExpiresAt: null,
+				youtubeScopes: [],
+			});
+			account.youtubeAccessToken = null;
+			account.youtubeRefreshToken = null;
+			account.youtubeExpiresAt = null;
+		}
+
+		if (isDriveUnlinked(account) && isYoutubeUnlinked(account)) {
+			await this.googleAccountsRepository.delete(account.id);
+			this.logger.info(`account fully unlinked (both sides empty): user=${userId}`);
+		} else {
+			this.logger.info(`${target} unlinked: user=${userId}`);
+		}
 		return true;
 	}
 
@@ -220,39 +304,73 @@ export class GoogleOAuthService {
 
 	/**
 	 * 有効な access token を返す。失効間際なら refresh して DB を更新する。
-	 * refresh が拒否された (ユーザーが Google 側で連携解除した) 場合は行を削除して null を返す。
+	 * target='drive' (既定) / 'youtube' で参照・更新するカラムを切り替える。
+	 * refresh が拒否された (ユーザーが Google 側で連携解除した) 場合は対象 target 側のトークンのみ
+	 * null 化する (もう片方の連携は残す)。両側とも未連携になった場合のみ行を削除する。
 	 */
 	@bindThis
-	public async getValidAccessToken(userId: MiUser['id']): Promise<string | null> {
+	public async getValidAccessToken(userId: MiUser['id'], target: GoogleTarget = 'drive'): Promise<string | null> {
 		const account = await this.googleAccountsRepository.findOneBy({ userId });
 		if (account == null) return null;
 
-		if (account.accessToken != null && account.expiresAt.getTime() - Date.now() > TOKEN_REFRESH_MARGIN_MS) {
-			return account.accessToken;
+		const accessToken = target === 'youtube' ? account.youtubeAccessToken : account.accessToken;
+		const refreshToken = target === 'youtube' ? account.youtubeRefreshToken : account.refreshToken;
+		const expiresAt = target === 'youtube' ? account.youtubeExpiresAt : account.expiresAt;
+
+		if (accessToken != null && expiresAt != null && expiresAt.getTime() - Date.now() > TOKEN_REFRESH_MARGIN_MS) {
+			return accessToken;
 		}
 
-		if (account.refreshToken == null) {
-			this.logger.warn(`token expired without refresh token: ${account.googleEmail}`);
-			await this.googleAccountsRepository.delete(account.id);
+		if (refreshToken == null) {
 			return null;
 		}
 
 		try {
-			const token = await this.refreshToken(account.refreshToken);
-			await this.googleAccountsRepository.update(account.id, {
-				accessToken: token.access_token,
-				expiresAt: new Date(Date.now() + token.expires_in * 1000),
-				scopes: token.scope?.split(' ') ?? account.scopes,
-			});
+			const token = await this.refreshToken(refreshToken);
+			const newExpiresAt = new Date(Date.now() + token.expires_in * 1000);
+			if (target === 'youtube') {
+				await this.googleAccountsRepository.update(account.id, {
+					youtubeAccessToken: token.access_token,
+					youtubeExpiresAt: newExpiresAt,
+					youtubeScopes: token.scope?.split(' ') ?? account.youtubeScopes,
+				});
+			} else {
+				await this.googleAccountsRepository.update(account.id, {
+					accessToken: token.access_token,
+					expiresAt: newExpiresAt,
+					scopes: token.scope?.split(' ') ?? account.scopes,
+				});
+			}
 			return token.access_token;
 		} catch (err) {
-			// invalid_grant (400) = Google 側で許可が取り消されている → 連携を解除する。
+			// invalid_grant (400) = Google 側で許可が取り消されている → 対象 target 側のみ連携解除。
 			// ネットワーク断や Google 障害などの一時的エラーで連携を消さないよう、削除は明確な拒否時のみ
 			if (err instanceof GoogleApiError && err.status === 400 && err.body.includes('invalid_grant')) {
-				this.logger.warn(`token refresh rejected, unlinking ${account.googleEmail}: ${err.message}`);
-				await this.googleAccountsRepository.delete(account.id);
+				this.logger.warn(`${target} token refresh rejected, clearing ${target} tokens for user=${userId}: ${err.message}`);
+				if (target === 'youtube') {
+					await this.googleAccountsRepository.update(account.id, {
+						youtubeAccessToken: null,
+						youtubeRefreshToken: null,
+						youtubeExpiresAt: null,
+						youtubeScopes: [],
+					});
+					account.youtubeAccessToken = null;
+					account.youtubeRefreshToken = null;
+					account.youtubeExpiresAt = null;
+				} else {
+					await this.googleAccountsRepository.update(account.id, {
+						accessToken: null,
+						refreshToken: null,
+					});
+					account.accessToken = null;
+					account.refreshToken = null;
+				}
+				if (isDriveUnlinked(account) && isYoutubeUnlinked(account)) {
+					await this.googleAccountsRepository.delete(account.id);
+					this.logger.info(`account fully unlinked (both sides empty): user=${userId}`);
+				}
 			} else {
-				this.logger.warn(`token refresh failed (transient, keeping account) ${account.googleEmail}: ${err instanceof Error ? err.message : err}`);
+				this.logger.warn(`${target} token refresh failed (transient, keeping account) user=${userId}: ${err instanceof Error ? err.message : err}`);
 			}
 			return null;
 		}
