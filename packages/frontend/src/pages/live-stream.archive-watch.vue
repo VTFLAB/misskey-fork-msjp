@@ -293,6 +293,9 @@ definePage(() => ({
 	justify-content: center;
 	gap: 8px;
 	padding: 24px;
+	// 動画プレイヤー領域のプレースホルダーとして、テーマに関わらず常に黒背景+白文字にする
+	// (live-stream.watch.vue の restrictedPanel と同じ意図的な例外。動画プレイヤー自体が
+	// ライト/ダークテーマの影響を受けない黒背景で描画されるため、その代替パネルも合わせる)
 	background: #000;
 	color: #fff;
 	text-align: center;
