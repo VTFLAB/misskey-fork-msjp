@@ -285,11 +285,36 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 
 		const stream = await this.twitchStreamsRepository.findOneBy({ id: streamId });
 		if (stream != null) {
+			// 視聴制限スナップショット (bsky-fork 独自)。DBのみの軽量処理のため、Google API呼び出しを
+			// 含む stopRecordingIfNeeded/triggerRecording と異なり fire-and-forget にしない。
+			await this.snapshotArchiveViewRestriction(stream);
+
 			this.stopRecordingIfNeeded(stream).catch(err => {
 				this.logger.error(`stopRecordingIfNeeded failed: ${err instanceof Error ? err.message : err}`);
 			});
 			this.liveRecordingService.triggerRecording(stream);
 		}
+	}
+
+	/**
+	 * 配信終了時点の live_channel 視聴制限設定を twitch_stream 側へスナップショットする
+	 * (bsky-fork 独自)。以後 live_channel 側の設定を変更してもこのアーカイブの制限は変わらない
+	 * (アーカイブ設定画面から個別に上書き可能)。markOmeStreamEnded から同期的に await される
+	 * DB のみの軽量処理 (Google API 呼び出しを含む stopRecordingIfNeeded とは異なり
+	 * fire-and-forget にしてはならない、AdmissionWebhooks Timeout 3000ms 予算内で完結する)。
+	 */
+	@bindThis
+	private async snapshotArchiveViewRestriction(stream: MiTwitchStream): Promise<void> {
+		if (stream.source !== 'ome') return;
+
+		const liveChannel = await this.liveChannelsRepository.findOneBy({ userId: stream.userId });
+		if (liveChannel == null) return;
+
+		await this.twitchStreamsRepository.update(stream.id, {
+			archiveViewVisibility: liveChannel.visibility,
+			archiveViewPassword: liveChannel.viewPassword,
+			archiveVisibleUserIds: liveChannel.visibleUserIds,
+		});
 	}
 
 	/**
