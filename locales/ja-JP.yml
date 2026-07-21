@@ -4138,6 +4138,8 @@ _liveChannel:
   archiveFailed: "アーカイブに失敗しました"
   connectGoogleDriveHint: "Google Driveを接続すると、配信終了後にアーカイブが自動で保存されるようになります。"
   goToStreamingSettings: "配信設定を開く"
+  archiveCommentReplaySeekTo: "この位置から再生 ({time})"
+  archiveCommentReplayStaticNotice: "このアーカイブは同期再生に対応していません。すべてのコメントを時系列で表示しています。"
 _remoteGuestLogin:
   title: "他インスタンスのアカウントでログイン"
   description: "他のMisskeyインスタンスのアカウントでログインすると、視聴とコメント投稿ができます。"

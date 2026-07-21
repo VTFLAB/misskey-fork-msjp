@@ -15571,6 +15571,14 @@ export interface Locale extends ILocale {
          * 配信設定を開く
          */
         "goToStreamingSettings": string;
+        /**
+         * この位置から再生 ({time})
+         */
+        "archiveCommentReplaySeekTo": ParameterizedString<"time">;
+        /**
+         * このアーカイブは同期再生に対応していません。すべてのコメントを時系列で表示しています。
+         */
+        "archiveCommentReplayStaticNotice": string;
     };
     "_remoteGuestLogin": {
         /**
