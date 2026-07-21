@@ -94,6 +94,29 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 				<div v-if="item.recordingStatus === 'failed' && item.recordingError" :class="$style.errorText">{{ item.recordingError }}</div>
 				<div v-if="item.youtubeUploadStatus === 'failed' && item.youtubeUploadError" :class="$style.errorText">{{ item.youtubeUploadError }}</div>
+
+				<div :class="$style.actions">
+					<button v-if="hasPreview(item)" class="_button" :class="$style.actionButton" @click="togglePreview(item)">
+						<i class="ti" :class="isExpanded(item) ? 'ti-eye-off' : 'ti-eye'"></i>
+						{{ isExpanded(item) ? i18n.ts._liveChannel.archivePreviewHide : i18n.ts._liveChannel.archivePreviewShow }}
+					</button>
+					<button class="_button" :class="$style.actionButton" @click="openArchiveSettings(item)">
+						<i class="ti ti-settings"></i> {{ i18n.ts._liveChannel.archiveSettingsTitle }}
+					</button>
+					<button v-if="!item.archiveUnpublished" class="_button" :class="[$style.actionButton, $style.actionButtonDanger]" @click="unpublishArchive(item)">
+						<i class="ti ti-ban"></i> {{ i18n.ts._liveChannel.archiveUnpublish }}
+					</button>
+					<div v-else :class="$style.statusBadge">
+						<i class="ti ti-lock" :class="$style.statusIcon"></i> {{ i18n.ts._liveChannel.archiveUnpublishedBadge }}
+					</div>
+				</div>
+
+				<MkArchivePlayer
+					v-if="isExpanded(item)"
+					:class="$style.previewPlayer"
+					:youtubeVideoId="item.youtubeVideoId"
+					:recordingGoogleDriveFileId="item.recordingGoogleDriveFileId"
+				/>
 			</div>
 			<MkButton v-if="hasMore" :class="$style.more" @click="fetchMore">{{ i18n.ts.loadMore }}</MkButton>
 		</div>
@@ -106,11 +129,13 @@ import { ref, useTemplateRef, onMounted } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkButton from '@/components/MkButton.vue';
+import MkArchivePlayer from '@/components/MkArchivePlayer.vue';
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 
 type ArchiveItem = Misskey.Endpoints['twitch/streams/archive-history']['res'][number];
+type ArchiveSettings = Misskey.Endpoints['twitch/streams/update-archive-settings']['res'];
 
 const LIMIT = 20;
 
@@ -123,6 +148,10 @@ const dialog = useTemplateRef('dialog');
 const items = ref<ArchiveItem[]>([]);
 const fetching = ref(true);
 const hasMore = ref(false);
+
+// プレビュー展開中の streamId 集合 (bsky-fork 独自)。複数項目を同時に展開してよい
+// (制約する要件が無いため単純化)。Set は Vue のリアクティブ Proxy 越しに直接 add/delete してよい
+const expandedStreamIds = ref<Set<string>>(new Set());
 
 // Drive はサムネイル生成待ちの processing 状態が「録画処理中」より遅く発生するため、
 // 「アーカイブ処理中(サムネイル生成含む)」の文言は processing のときだけ差し替える。
@@ -165,6 +194,61 @@ async function cancelYoutubeUpload(item: ArchiveItem) {
 	});
 	if (canceled) return;
 	await os.apiWithDialog('twitch/streams/cancel-youtube-upload', { streamId: item.streamId });
+	await fetchInitial();
+}
+
+// プレビュー (bsky-fork 独自): オーナー専用一覧のため常に authorized:true 相当として扱い、
+// 認可判定を挟まず直接 youtubeVideoId / recordingGoogleDriveFileId を MkArchivePlayer に渡す
+function hasPreview(item: ArchiveItem): boolean {
+	return item.youtubeVideoId != null || item.recordingGoogleDriveFileId != null;
+}
+
+function isExpanded(item: ArchiveItem): boolean {
+	return expandedStreamIds.value.has(item.streamId);
+}
+
+function togglePreview(item: ArchiveItem) {
+	if (expandedStreamIds.value.has(item.streamId)) {
+		expandedStreamIds.value.delete(item.streamId);
+	} else {
+		expandedStreamIds.value.add(item.streamId);
+	}
+}
+
+// アーカイブ個別の視聴制限設定モーダル (bsky-fork 独自)。更新結果は emit('updated', ...) で
+// 受け取り、一覧を再取得せず対象項目だけをその場で書き換える
+async function openArchiveSettings(item: ArchiveItem) {
+	const { dispose } = await os.popupAsyncWithDialog(
+		import('@/pages/live-stream.archive-settings.vue').then(x => x.default),
+		{
+			streamId: item.streamId,
+			archiveViewVisibility: item.archiveViewVisibility,
+			archiveViewPassword: item.archiveViewPassword,
+			archiveVisibleUserIds: item.archiveVisibleUserIds,
+		},
+		{
+			updated: (updated: ArchiveSettings) => {
+				const target = items.value.find(i => i.streamId === updated.streamId);
+				if (target == null) return;
+				target.archiveViewVisibility = updated.archiveViewVisibility;
+				target.archiveViewPassword = updated.archiveViewPassword;
+				target.archiveVisibleUserIds = updated.archiveVisibleUserIds;
+				target.archiveUnpublished = updated.archiveUnpublished;
+			},
+			closed: () => dispose(),
+		},
+	);
+}
+
+// 公開取り消し (bsky-fork 独自): 冪等な操作のため archiveUnpublished:true の項目にはボタン自体を
+// 出さず (テンプレート側で分岐)、成功後は一覧を再取得して表示を最新化する
+async function unpublishArchive(item: ArchiveItem) {
+	const { canceled } = await os.confirm({
+		type: 'warning',
+		text: i18n.ts._liveChannel.archiveUnpublishConfirm,
+	});
+	if (canceled) return;
+	await os.apiWithDialog('twitch/streams/unpublish-archive', { streamId: item.streamId });
 	await fetchInitial();
 }
 
@@ -236,6 +320,36 @@ onMounted(() => {
 .errorText {
 	font-size: 0.85em;
 	color: var(--MI_THEME-error);
+}
+
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-top: 4px;
+}
+
+.actionButton {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 10px;
+	border-radius: 999px;
+	background: var(--MI_THEME-panel);
+	font-size: 0.85em;
+
+	&:hover:not(:disabled) {
+		background: var(--MI_THEME-panelHighlight);
+	}
+}
+
+.actionButtonDanger {
+	color: var(--MI_THEME-error);
+}
+
+.previewPlayer {
+	margin-top: 4px;
 }
 
 .more {
