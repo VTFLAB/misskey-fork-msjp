@@ -15571,6 +15571,34 @@ export interface Locale extends ILocale {
          * このアーカイブは同期再生に対応していません。すべてのコメントを時系列で表示しています。
          */
         "archiveCommentReplayStaticNotice": string;
+        /**
+         * フォロワー限定アーカイブです
+         */
+        "archiveRestrictedFollowersTitle": string;
+        /**
+         * このアーカイブはフォロワー限定です。配信者をフォローすると視聴できるようになります。フォロー後は再読み込みボタンで視聴を開始できます。
+         */
+        "archiveRestrictedFollowersDescription": string;
+        /**
+         * パスワードが必要なアーカイブです
+         */
+        "archiveRestrictedPasswordTitle": string;
+        /**
+         * このアーカイブを視聴するにはパスワードを入力してください。
+         */
+        "archiveRestrictedPasswordDescription": string;
+        /**
+         * 視聴が許可されたユーザーのみ視聴できるアーカイブです
+         */
+        "archiveRestrictedUsersTitle": string;
+        /**
+         * このアーカイブは配信者が視聴を許可したユーザーのみ視聴できます。
+         */
+        "archiveRestrictedUsersDescription": string;
+        /**
+         * 非公開 (自分のみ表示)
+         */
+        "archiveUnpublishedBadge": string;
     };
     "_remoteGuestLogin": {
         /**
