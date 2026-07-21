@@ -2061,6 +2061,7 @@ declare namespace entities {
         GetOnlineUsersCountResponse,
         GetWeatherRequest,
         GetWeatherResponse,
+        GoogleDriveGenerateOauthUrlRequest,
         GoogleDriveGenerateOauthUrlResponse,
         GoogleDriveMyAccountResponse,
         GoogleDriveRecordingStatusRequest,
@@ -2700,6 +2701,9 @@ type GetWeatherRequest = operations['get-weather']['requestBody']['content']['ap
 
 // @public (undocumented)
 type GetWeatherResponse = operations['get-weather']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type GoogleDriveGenerateOauthUrlRequest = operations['google-drive___generate-oauth-url']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
 type GoogleDriveGenerateOauthUrlResponse = operations['google-drive___generate-oauth-url']['responses']['200']['content']['application/json'];
