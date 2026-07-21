@@ -17,6 +17,7 @@ import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { NotificationService } from '@/core/NotificationService.js';
 import { NoteCreateService } from '@/core/NoteCreateService.js';
 import { LiveRecordingService } from '@/core/live/LiveRecordingService.js';
+import { OmeApiService } from '@/core/live/OmeApiService.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { TwitchApiService } from './TwitchApiService.js';
@@ -65,6 +66,7 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 		private twitchApiService: TwitchApiService,
 		private twitchLoggerService: TwitchLoggerService,
 		private liveRecordingService: LiveRecordingService,
+		private omeApiService: OmeApiService,
 	) {
 		this.logger = this.twitchLoggerService.child('stream');
 	}
@@ -174,12 +176,32 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 		});
 		await this.twitchStreamsRepository.insertOne(newStream);
 		this.logger.info(`ome stream online: user=${userId} "${(title ?? '').slice(0, 40)}"`);
+		this.startRecordingIfEnabled(userId, newStream.id).catch(err => {
+			this.logger.error(`startRecordingIfEnabled failed: ${err instanceof Error ? err.message : err}`);
+		});
 		this.notifyFollowers(userId, newStream).catch(err => {
 			this.logger.error(`notifyFollowers failed: ${err instanceof Error ? err.message : err}`);
 		});
 		this.postAutoStartNote(userId, title).catch(err => {
 			this.logger.error(`postAutoStartNote failed: ${err instanceof Error ? err.message : err}`);
 		});
+	}
+
+	/**
+	 * 配信開始時に OME 録画 REST API (:startRecord) を叩く (bsky-fork 独自)。Drive/YouTube
+	 * いずれも無効なユーザーは対象外 (LiveRecordingService.isRecordingEnabledForUser で判定、
+	 * 終了時の判定と共通)。markOmeStreamLive から fire-and-forget で呼ばれる想定
+	 * (呼び出し側で .catch 済み)。
+	 */
+	@bindThis
+	private async startRecordingIfEnabled(userId: MiUser['id'], streamId: MiTwitchStream['id']): Promise<void> {
+		if (!await this.liveRecordingService.isRecordingEnabledForUser(userId)) return;
+
+		const liveChannel = await this.liveChannelsRepository.findOneBy({ userId });
+		if (liveChannel == null) return;
+
+		await this.omeApiService.startRecord(liveChannel.streamKey, streamId);
+		this.logger.info(`recording started: user=${userId} streamKey=${liveChannel.streamKey}`);
 	}
 
 	/**
@@ -263,8 +285,29 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 
 		const stream = await this.twitchStreamsRepository.findOneBy({ id: streamId });
 		if (stream != null) {
+			this.stopRecordingIfNeeded(stream).catch(err => {
+				this.logger.error(`stopRecordingIfNeeded failed: ${err instanceof Error ? err.message : err}`);
+			});
 			this.liveRecordingService.triggerRecording(stream);
 		}
+	}
+
+	/**
+	 * 配信終了時に OME 録画 REST API (:stopRecord) を叩く (bsky-fork 独自)。
+	 * markOmeStreamEnded は OmeAdmissionService.decideOpening() 経由で AdmissionWebhooks の
+	 * 応答 (Server.xml Timeout 3000ms) として同期的に await されるパスがあるため、
+	 * このメソッドは markOmeStreamEnded から絶対に await してはならない (.catch 付きの
+	 * fire-and-forget のみ許可)。要否判定 (録画していたか等) は行わず無条件 best-effort で呼ぶ
+	 * (録画していない stream への stop が OME 側でエラーになってもログに落とすだけで後続を止めない)。
+	 */
+	@bindThis
+	private async stopRecordingIfNeeded(stream: MiTwitchStream): Promise<void> {
+		if (stream.source !== 'ome') return;
+
+		const liveChannel = await this.liveChannelsRepository.findOneBy({ userId: stream.userId });
+		if (liveChannel == null) return;
+
+		await this.omeApiService.stopRecord(liveChannel.streamKey, stream.id);
 	}
 
 	/**

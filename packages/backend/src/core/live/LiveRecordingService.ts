@@ -12,6 +12,7 @@ import type { Config } from '@/config.js';
 import type { LiveChannelsRepository, TwitchStreamsRepository } from '@/models/_.js';
 import { MiTwitchStream } from '@/models/TwitchStream.js';
 import type { MiLiveChannel } from '@/models/LiveChannel.js';
+import type { MiUser } from '@/models/User.js';
 import { GoogleOAuthService } from '@/core/google/GoogleOAuthService.js';
 import { GoogleDriveService } from '@/core/google/GoogleDriveService.js';
 import { GoogleYoutubeService, GoogleYoutubeQuotaExceededError } from '@/core/google/GoogleYoutubeService.js';
@@ -72,21 +73,33 @@ export class LiveRecordingService {
 		});
 	}
 
+	/**
+	 * 指定ユーザーの配信アーカイブ (Drive/YouTube) が有効かどうかを判定する (bsky-fork 独自)。
+	 * stream インスタンス固有の情報 (endedAt 等) に依存しないため、録画開始時点
+	 * (TwitchStreamService.markOmeStreamLive) と終了時点 (checkAndStart 経由) の両方で
+	 * 同じ判定として使い回せる。
+	 */
+	@bindThis
+	public async isRecordingEnabledForUser(userId: MiUser['id']): Promise<boolean> {
+		if (this.config.google == null) return false;
+		if (this.config.ome?.recordingsDir == null) return false;
+
+		const liveChannel = await this.liveChannelsRepository.findOneBy({ userId });
+		const account = await this.googleOAuthService.getLinkedAccount(userId);
+		const youtubeEnabled = liveChannel?.youtubeUploadEnabled ?? false;
+		return account != null || youtubeEnabled;
+	}
+
 	@bindThis
 	private async checkAndStart(stream: MiTwitchStream): Promise<void> {
 		if (stream.source !== 'ome') return;
 		if (stream.recordingStatus !== 'none') return;
-		if (this.config.google == null) return;
+		if (!await this.isRecordingEnabledForUser(stream.userId)) return;
 
+		// isRecordingEnabledForUser が true を返した時点で recordingsDir は non-null 確定だが、
+		// TypeScript の型を絞り込むためにここでも参照する。
 		const recordingsDir = this.config.ome?.recordingsDir;
 		if (recordingsDir == null) return;
-
-		// Drive/YouTube いずれも無効ならこのフックは何もしない (bsky-fork 独自)。
-		const liveChannel = await this.liveChannelsRepository.findOneBy({ userId: stream.userId });
-		const account = await this.googleOAuthService.getLinkedAccount(stream.userId);
-		const driveEnabled = account != null;
-		const youtubeEnabled = liveChannel?.youtubeUploadEnabled ?? false;
-		if (!driveEnabled && !youtubeEnabled) return;
 
 		await this.twitchStreamsRepository.update(stream.id, { recordingStatus: 'pending' });
 		this.logger.info(`recording pending: streamId=${stream.id} user=${stream.userId}`);
