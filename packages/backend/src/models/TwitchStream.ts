@@ -134,6 +134,26 @@ export class MiTwitchStream {
 	})
 	public recordingError: string | null;
 
+	// YouTube アップロードの処理状態。none: 対象外/未処理。pending: アップロード待ち →
+	// uploading: YouTube アップロード中 → ready: 公開済み / failed: 失敗。
+	// queued: クォータ超過により Drive へ一時退避済み、1時間ごとの自動リトライキュー待ち →
+	// cancelled: ユーザーがキュー (queued 状態) を明示的にキャンセルした。
+	@Column('varchar', {
+		length: 16, default: 'none',
+	})
+	public youtubeUploadStatus: 'none' | 'pending' | 'uploading' | 'ready' | 'failed' | 'queued' | 'cancelled';
+
+	@Column('varchar', {
+		length: 32, nullable: true,
+		comment: 'YouTube video id of the uploaded recording.',
+	})
+	public youtubeVideoId: string | null;
+
+	@Column('varchar', {
+		length: 512, nullable: true,
+	})
+	public youtubeUploadError: string | null;
+
 	constructor(data: Partial<MiTwitchStream>) {
 		if (data == null) return;
 

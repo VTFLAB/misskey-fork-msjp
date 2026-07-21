@@ -44,6 +44,7 @@ import { AggregateRetentionProcessorService } from './processors/AggregateRetent
 import { ExportFavoritesProcessorService } from './processors/ExportFavoritesProcessorService.js';
 import { RelationshipProcessorService } from './processors/RelationshipProcessorService.js';
 import { TwitchCommentTranslateProcessorService } from './processors/TwitchCommentTranslateProcessorService.js';
+import { YoutubeUploadRetryProcessorService } from './processors/YoutubeUploadRetryProcessorService.js';
 
 @Module({
 	imports: [
@@ -79,6 +80,7 @@ import { TwitchCommentTranslateProcessorService } from './processors/TwitchComme
 		CleanRemoteFilesProcessorService,
 		RelationshipProcessorService,
 		TwitchCommentTranslateProcessorService,
+		YoutubeUploadRetryProcessorService,
 		UserWebhookDeliverProcessorService,
 		SystemWebhookDeliverProcessorService,
 		EndedPollNotificationProcessorService,

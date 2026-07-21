@@ -5,7 +5,7 @@
 
 import cluster from 'node:cluster';
 import { Injectable, Inject, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
-import { IsNull, Not } from 'typeorm';
+import { IsNull, LessThan, Not } from 'typeorm';
 import { DI } from '@/di-symbols.js';
 import type { ChannelsRepository, FollowingsRepository, LiveChannelsRepository, TwitchAccountsRepository, TwitchStreamsRepository, UsersRepository } from '@/models/_.js';
 import { MiTwitchStream } from '@/models/TwitchStream.js';
@@ -361,21 +361,37 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 	}
 
 	/**
-	 * 配信アーカイブ (Google Drive) 表示用の過去 OME セッション取得 (BE-2, bsky-fork 独自)。
-	 * recordingStatus='none' (録画対象外/未処理) は一覧上ノイズになるため常に除外する。
+	 * 配信アーカイブ (Google Drive / YouTube) 表示用の過去 OME セッション取得 (BE-2, bsky-fork 独自)。
+	 * recordingStatus='none' かつ youtubeUploadStatus='none' (Drive/YouTube いずれも対象外/未処理) は
+	 * 一覧上ノイズになるため常に除外する (OR条件: どちらか一方でも処理対象なら含める)。
 	 * 'failed' を一般視聴者に見せるかどうかは呼び出し側 (show.ts、オーナー判定後) の責務とする。
 	 */
 	@bindThis
 	public async getRecentEndedOmeStreamsByUserId(userId: MiUser['id'], limit = 20): Promise<MiTwitchStream[]> {
 		return await this.twitchStreamsRepository.find({
-			where: {
-				userId,
-				source: 'ome',
-				isLive: false,
-				endedAt: Not(IsNull()),
-				recordingStatus: Not('none'),
-			},
+			where: [
+				{ userId, source: 'ome', isLive: false, endedAt: Not(IsNull()), recordingStatus: Not('none') },
+				{ userId, source: 'ome', isLive: false, endedAt: Not(IsNull()), youtubeUploadStatus: Not('none') },
+			],
 			order: { endedAt: 'DESC' },
+			take: limit,
+		});
+	}
+
+	/**
+	 * 配信者本人向けアーカイブ履歴一覧 (Drive/YouTube) 用のカーソルページネーション取得 (BE-3, bsky-fork 独自)。
+	 * 条件は getRecentEndedOmeStreamsByUserId と同じ OR 条件 (Drive/YouTube いずれか処理対象) だが、
+	 * `endedAt DESC` の代わりに ULID である `id DESC` をカーソル基準にする (endedAt は index が無く
+	 * untilId とは独立した軸のため)。
+	 */
+	@bindThis
+	public async getArchiveHistoryByUserId(userId: MiUser['id'], limit = 20, untilId?: string): Promise<MiTwitchStream[]> {
+		return await this.twitchStreamsRepository.find({
+			where: [
+				{ userId, source: 'ome', isLive: false, endedAt: Not(IsNull()), recordingStatus: Not('none'), ...(untilId != null ? { id: LessThan(untilId) } : {}) },
+				{ userId, source: 'ome', isLive: false, endedAt: Not(IsNull()), youtubeUploadStatus: Not('none'), ...(untilId != null ? { id: LessThan(untilId) } : {}) },
+			],
+			order: { id: 'DESC' },
 			take: limit,
 		});
 	}

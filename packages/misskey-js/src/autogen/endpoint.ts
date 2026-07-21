@@ -647,11 +647,15 @@ import type {
 	TwitchGenerateOauthUrlRequest,
 	TwitchGenerateOauthUrlResponse,
 	TwitchMyAccountResponse,
+	TwitchStreamsArchiveHistoryRequest,
+	TwitchStreamsArchiveHistoryResponse,
 	TwitchStreamsBlocksCreateRequest,
 	TwitchStreamsBlocksCreateResponse,
 	TwitchStreamsBlocksDeleteRequest,
 	TwitchStreamsBlocksListRequest,
 	TwitchStreamsBlocksListResponse,
+	TwitchStreamsCancelYoutubeUploadRequest,
+	TwitchStreamsCancelYoutubeUploadResponse,
 	TwitchStreamsCommentsRequest,
 	TwitchStreamsCommentsResponse,
 	TwitchStreamsCommentsCreateRequest,
@@ -1161,9 +1165,11 @@ export type Endpoints = {
 	'test': { req: TestRequest; res: TestResponse };
 	'twitch/generate-oauth-url': { req: TwitchGenerateOauthUrlRequest; res: TwitchGenerateOauthUrlResponse };
 	'twitch/my-account': { req: EmptyRequest; res: TwitchMyAccountResponse };
+	'twitch/streams/archive-history': { req: TwitchStreamsArchiveHistoryRequest; res: TwitchStreamsArchiveHistoryResponse };
 	'twitch/streams/blocks/create': { req: TwitchStreamsBlocksCreateRequest; res: TwitchStreamsBlocksCreateResponse };
 	'twitch/streams/blocks/delete': { req: TwitchStreamsBlocksDeleteRequest; res: EmptyResponse };
 	'twitch/streams/blocks/list': { req: TwitchStreamsBlocksListRequest; res: TwitchStreamsBlocksListResponse };
+	'twitch/streams/cancel-youtube-upload': { req: TwitchStreamsCancelYoutubeUploadRequest; res: TwitchStreamsCancelYoutubeUploadResponse };
 	'twitch/streams/comments': { req: TwitchStreamsCommentsRequest; res: TwitchStreamsCommentsResponse };
 	'twitch/streams/comments/create': { req: TwitchStreamsCommentsCreateRequest; res: TwitchStreamsCommentsCreateResponse };
 	'twitch/streams/preview': { req: EmptyRequest; res: TwitchStreamsPreviewResponse };
