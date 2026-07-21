@@ -155,6 +155,36 @@ export class OmeApiService {
 		);
 	}
 
+	/**
+	 * 録画を開始する (bsky-fork 独自、配信アーカイブ機能)。File Publisher は配信開始と同時に
+	 * 自動録画しないため、TwitchStreamService.markOmeStreamLive から明示的に呼ぶ必要がある。
+	 * エラーはここで握りつぶさず呼び出し側で catch すること (deleteStream と同方針)。
+	 */
+	@bindThis
+	public async startRecord(streamKey: string, transactionId: string): Promise<void> {
+		const ome = this.getConfig();
+		// app レベルのエンドポイントに対し stream.name で対象を指定する (streams/{streamKey}:startRecord は
+		// 404 Controller not found になることを実機検証で確認済み、OME実機検証 2026-07-21)
+		await this.fetchJson<unknown>(
+			`${ome.apiUrl}/v1/vhosts/${ome.vhost}/apps/${ome.app}:startRecord`,
+			{ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: transactionId, stream: { name: streamKey } }) },
+		);
+	}
+
+	/**
+	 * 録画を停止する (bsky-fork 独自、配信アーカイブ機能)。TwitchStreamService.markOmeStreamEnded
+	 * から呼ばれる。エラーはここで握りつぶさず呼び出し側で catch すること (deleteStream と同方針)。
+	 */
+	@bindThis
+	public async stopRecord(streamKey: string, transactionId: string): Promise<void> {
+		const ome = this.getConfig();
+		// startRecord と同じ形式 (app レベルのエンドポイント + body の stream.name)。OME実機検証 2026-07-21 で確認済み。
+		await this.fetchJson<unknown>(
+			`${ome.apiUrl}/v1/vhosts/${ome.vhost}/apps/${ome.app}:stopRecord`,
+			{ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: transactionId, stream: { name: streamKey } }) },
+		);
+	}
+
 	@bindThis
 	private async fetchJson<T>(urlStr: string, init: RequestInit): Promise<T> {
 		const ome = this.getConfig();
