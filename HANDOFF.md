@@ -1,14 +1,110 @@
 # misskey-bsky-fork — 次セッションへの引き継ぎ
 
-## 🔴 次スレッド: 残検対応 (2026-07-15 時点、最優先)
+## 🔴 次スレッド: アーカイブ視聴をMSJP内で完結させる (コメントリプレイ・削除機能) (2026-07-22 時点、最優先・未着手)
 
-次セッションの主題は **「残検対応」**(残りの検証 / 検収対応)。**具体スコープはユーザーが保持**して
-おり、本セッションでは詳細未共有。セッション開始時にユーザーから対象項目を受け取ってから着手すること。
+作業ツリーは clean、`bsky-integration` は `origin` と一致 (`1f2a26d64f` まで push 済み、本番デプロイ・実機検証済み)。配信アーカイブの録画パイプライン自体 (前スレッド) はクローズ済みで、これは**その先の視聴体験の作り込み**。ユーザーからの要望 (2026-07-22) は以下の通り、**実装はまだ一切していない、次セッションでゼロから着手すること**。
 
-- 直前の「配信チャンネル統合整備」(下記 ✅ セクション) は **完了・実機検証済み・クローズ**。この残検とは
-  別件で、片付いているので引きずらない。
-- 開始時の確認事項: 残検の対象範囲(どの機能/どの指摘か)、優先度、本番反映を伴うか。
-- 作業ツリーは clean、`bsky-integration` は `origin` と一致(`39f5680267` まで push 済み)。
+### 要望 (ユーザー原文の要旨)
+
+1. 現状「チャンネルの履歴から直接YouTubeに飛ぶ」仕様になっているが、そうではなく**MSJP (Misskeyインスタンス) 上で完結する視聴体験**にしたい
+2. 当時のライブ配信中のチャット (コメント) を**復元して表示**する
+3. 動画プレイヤーは**埋め込み**でMSJP上に表示
+4. アーカイブ視聴中は**新規コメント投稿は無効化** (あくまで過去の再現、書き込み不可)
+5. 可能であれば**動画の再生時間に同期してコメントが出現する** (YouTubeのライブアーカイブのチャットリプレイと同じ体験)
+6. **アーカイブを削除できる機能**も必要
+
+### 事前調査で判明した現状 (2026-07-22、Explore調査済み、コード未変更)
+
+**A. 現状の視聴UI**:
+- `packages/frontend/src/pages/live-stream.channel-home.vue` (50-141行目): Drive側は**既にiframe埋め込み実装済み** (`<iframe :src="https://drive.google.com/file/d/${fileId}/preview">`, 133-138行目)。**YouTube側は外部リンクのみ** (`<a href="https://www.youtube.com/watch?v=...">`, 53-65行目)、埋め込みは無い。しかも `youtubeVideoId != null` なら常にYouTubeリンクが優先され、Drive iframeは表示されない (129行目の条件分岐)。
+- `live-stream.archive-history.vue` (配信者本人向け): 状態バッジ+YouTubeキャンセルボタンのみ、埋め込み・削除ボタンいずれも無し。
+
+**B. コメント永続化 (最重要、設計の土台)**:
+- テーブル `MiTwitchStreamComment` (`packages/backend/src/models/TwitchStreamComment.ts`) に配信中コメントは既に永続化されている (`streamId`/`source`/`userId`/`text`/`fragments`等)。**`createdAt`カラムは存在せず**、Misskey ID (ULID) から `idService.parse(comment.id).date` で生成時刻を逆算する設計。動画同期には `コメント生成時刻 (ID由来) - stream.startedAt` のオフセット計算が必要 (`stream.startedAt`は`MiTwitchStream.startedAt`として実在)。
+- 履歴取得API `twitch/streams/comments.ts` (streamId+sinceId/untilId/limit) が**既に終了済みセッションでもそのまま動作する設計**、これを流用できる見込み。
+- **無期限保存、削除処理は現状無い** (CASCADE削除はstream行自体が消えた場合のみだが、その削除経路も無い)。
+
+**C. YouTube埋め込みの可否 (要検証)**:
+- `privacyStatus` (`public`/`unlisted`/`private`、配信者が選択可能、デフォルト`unlisted`) の embeddable 可否は**コードから確認できず、YouTube側の一般仕様として `private` は埋め込み再生不可の可能性が高い**(未検証、次セッションで実機確認要)。埋め込みiframeの実装はフロント/バック全体で0件、新規実装が必要。
+
+**D. 削除機能の現状**:
+- アーカイブ削除APIは存在しない。`GoogleDriveService.deleteFile(userId, fileId)` (`GoogleDriveService.ts` 139-152行目) は**実装済みだが内部処理専用** (リトライ時の一時ファイル掃除のみ)、ユーザー向け削除には未使用。
+- YouTube動画の削除メソッド (`videos.delete`) はバックエンド全体で0件、新規実装が必要。**現在のOAuthスコープは`youtube.upload`のみで、このスコープで`videos.delete`が許可されるか未検証** (次セッションで最初に確認すべき事項、許可されなければスコープ追加+再認可フローが必要になり手戻りが大きい)。
+
+### 次セッションで最初にやるべきこと (推奨順)
+
+1. **YouTube APIのスコープ・embeddable検証を最優先で行う** (上記C/D、これ次第で設計が変わる大きな不確定要素)。`youtube.upload`スコープで`videos.delete`が呼べるか、`privacyStatus: 'unlisted'`の動画がembed可能か、実際にAPIを叩いて確認してから設計を確定させること (Googleの複数プロダクトスコープ絡みで過去2回設計をやり直した教訓を踏まえ、小さなテストを先にすること)
+2. YouTube埋め込みiframe実装 (`live-stream.channel-home.vue`のDriveパターンを踏襲、130行目前後を参考に)
+3. コメントリプレイ機能: `twitch/streams/comments.ts`で該当streamIdの全コメント取得→フロントで動画再生位置(currentTime)と`コメント時刻オフセット`を突き合わせて逐次表示するロジックを新規実装。YouTube IFrame Player APIの`getCurrentTime()`が使えるはず (Drive埋め込み`/preview`形式は再生位置取得APIが乏しい可能性があり、Drive視聴時は同期リプレイを諦める/劣化させる判断もありうる、要検討)
+4. アーカイブ視聴モードでの新規コメント投稿無効化 (既存のコメント入力コンポーネントをreadonly化 or 非表示)
+5. 削除機能: Drive側は`deleteFile`を新規endpoint経由でユーザーに公開するだけで比較的軽い。YouTube側は新規削除メソュード実装+DB側のレコード扱い(アーカイブ一覧から除外する方式か、レコード自体削除か)を設計すること
+
+## ✅ 完了スレッド: 配信アーカイブ (Google Drive + YouTube) — OME側インフラ構築+実機検証 (2026-07-21〜22 クローズ)
+
+### 現在地: バックエンド/フロントエンド実装+OME側インフラ+実機検証まで全て完了、本番稼働中
+
+前セッション終了時点では「バックエンド/フロントエンド実装は完了、OME側インフラが未着手のため機能は実質休眠中」だったが、本セッションで全て解消しクローズした。
+
+**最大の見落とし (当初の引き継ぎの前提が誤りだった)**: 「Server.xmlにFile Publisherを追加すれば自動的に録画される」という前提は誤りで、実際のOME (v0.20.5) はREST API (`POST /v1/vhosts/{vhost}/apps/{app}:startRecord`/`:stopRecord`、bodyの`stream.name`でstreamKey指定、streamKeyをURLパスに含めると`404 Controller not found`になる) の明示的呼び出しが必要だった。これは実機検証で発見し、`OmeApiService.startRecord`/`stopRecord`を新規実装、`TwitchStreamService`の配信開始/終了検知(`markOmeStreamLive`/`markOmeStreamEnded`)から呼ぶ形で対応した(commit `1f2a26d64f`)。
+
+**インフラ構築の要点**:
+1. TNAS (192.168.1.33) に `ome-recordings` NFS共有を新設 (`omv-rpc`経由、`all_squash`+クライアント別anonuid/anongidでUID不一致を吸収)
+2. CT100 (OME, unprivileged LXC) は user namespace 制約で直接NFS mount不可と判明 → PVE2ホスト側でNFS mount + `pct set 100 -mp0` でbind mountする方式に変更
+3. CT200 (mi-host、実体はQEMU VM) は直接NFS mount可能、Quadletに `Volume=/mnt/nfs-recordings:/misskey/recordings:Z` 追加
+4. Server.xml `<Publishers>`最後尾に`<FILE>`(全大文字、`<File>`だと`Unknown item found`でOMEクラッシュ、実機で一度発生させ即ロールバック済み)追加
+5. `homelab-ops`のIaC (`config/default.yml`) に `google:` ブロックが存在しない (IaC外で直接投入されていた) ことを発見。放置すると`deploy.sh`実行時に本番の値ごと消える、過去の`admissionSecret`消失事故と同型の罠だったため先に復元 (homelab-ops commit `0fb964b0a7`)
+
+**実機検証結果 (2026-07-22)**: OBS実配信で全パイプライン (録画開始→NFS上にファイル生成→配信終了→rename+remux→YouTubeアップロード→DB更新→クリーンアップ) が正常動作することを確認。CT100/CT200のブートディスク使用量は録画前後で無変化 (NAS直接読み書き設計の裏付け)。
+
+詳細な設計・トラブルシューティング記録は `doc/live-streaming/08-google-drive-timeshift.md` の「インフラ構築記録」節、プロジェクトメモリ (`~/.claude/projects/-home-vtf-projects-misskey/memory/`) を参照。
+
+### この機能スレッドの実装経緯 (2026-07-20〜22、6 commit)
+
+| commit | 内容 |
+|---|---|
+| `b3dd8abe0a` | 配信アーカイブ (Google Drive連携) 追加。OAuth (`drive.file`+`openid`+`email`)・remux→アップロードパイプライン・設定UI一式 |
+| `2d5bf833a2` | YouTube直接アップロード追加 (v1: Drive/YouTube独立ON/OFF・並行アップロード方式) |
+| `f0f4ab6dc4` | **v2 に全面書き換え**: YouTube優先+クォータ超過時Driveフォールバック+1時間ごとのBullMQリトライキュー。ユーザーからの「YouTube日次クォータが厳しいのでキュー方式にすべき」という設計指摘を受けて再設計 |
+| `cda127e263` | **OAuthスコープ統合の破棄**: `drive.file` と `youtube.upload` は同一ユーザー+同一OAuthクライアントに対し「単一リクエストでも `include_granted_scopes=true` の段階的追加でも同時に許可できない」ことが実機検証 (Error 400: invalid_request, "scopes that cannot be requested together") で判明。Drive/YouTube用トークンを `google_account` テーブル内で完全に独立したカラム (`youtubeAccessToken`/`youtubeRefreshToken`/`youtubeExpiresAt`/`youtubeScopes`) として持つよう作り直した |
+| `8262ec871d` | YouTube単独連携解除ボタン追加 (Drive→YouTube段階認証の非対称性を解消)。**Google OAuth審査完了まで一般ユーザーが機能を使えないため、配信アーカイブ機能全体 (Google Drive/YouTube連携セクション・配信アーカイブ履歴リンク) を `iAmAdmin` 限定表示にする暫定措置** |
+| `1f2a26d64f` | **OME録画REST API連携を追加**。`OmeApiService.startRecord`/`stopRecord`新設+`TwitchStreamService`の配信開始/終了検知から呼ぶ配線。録画要否判定は`LiveRecordingService.isRecordingEnabledForUser`として開始/終了両方の経路で共通化。これで前セッションまで休眠していた録画パイプラインが実際に動くようになった |
+
+**学び (次に同種の機能を作るとき用)**:
+- Googleの複数プロダクトスコープ (今回は Drive と YouTube) は、同一 OAuth クライアント + 同一ユーザーに対して同時に許可できない組み合わせが存在する。実装前に小さなテストで実際に両スコープを同時取得できるか検証してから設計すべきだった (今回は本番デプロイ後の実機検証で発覚し、2 回の設計やり直しが発生した)。
+- OMEのようなサードパーティ製ミドルウェアの「設定を追加すれば自動的に機能する」という思い込みは危険。File Publisherは典型例で、設定を足しただけでは動かず、REST APIの明示的な呼び出しが必要だった。ドキュメントの記述を鵜呑みにせず、実機のAPIレスポンスで確認してから設計・実装すべき。
+
+### Google OAuth 審査 (テストユーザーでの検証は完了、一般公開はまだ)
+
+- `satellite.doll@gmail.com` (VTF) をテストユーザーに登録し、Drive→YouTube 両方の段階認証に成功済み
+  (`google_account` テーブルで `drive_linked=t`, `youtube_linked=t` を確認済み)
+- スコープ使用方法の説明文・デモ動画要件の回避手順 (テストユーザーモードでの撮影) はプロジェクトメモリ
+  `youtube-upload-oauth-verification-text` に保存済み。**アプリ公開申請時に再展開すること**
+- YouTube Data API v3 のクォータ増枠申請は未着手 (デフォルト 10,000 units/日 ≒ 1 日 6 アップロード)
+
+### 実装ファイルの要点
+
+- `packages/backend/src/core/live/LiveRecordingService.ts` — 録画パイプライン中核。`youtubeUploadEnabled`
+  で Drive-only / YouTube優先+Driveフォールバック を分岐。`isRecordingEnabledForUser`が録画要否判定の単一入口
+- `packages/backend/src/core/live/OmeApiService.ts` — OME REST APIクライアント。`startRecord`/`stopRecord`は
+  appレベルエンドポイント+body `stream.name`形式 (streamKeyをURLに含めると404になる罠に注意)
+- `packages/backend/src/core/twitch/TwitchStreamService.ts` — `markOmeStreamLive`/`markOmeStreamEnded`が
+  配信開始/終了の唯一の入口。`stopRecordingIfNeeded`は`OmeAdmissionService.decideOpening`経由で
+  AdmissionWebhooks応答(3000msタイムアウト)として同期awaitされる経路があるため絶対にfire-and-forgetのまま維持すること
+- `packages/backend/src/queue/processors/YoutubeUploadRetryProcessorService.ts` — 1時間ごとの
+  リトライキュー (`core/QueueService.ts` の `REPEATABLE_SYSTEM_JOB_DEF` に登録)
+- `packages/backend/src/core/google/{GoogleOAuthService,GoogleDriveService,GoogleYoutubeService}.ts`
+- `packages/frontend/src/pages/settings/streaming.vue` (Section 2/2.5, `iAmAdmin` 限定表示中、Google審査完了後に解除)
+- `packages/frontend/src/pages/live-stream.archive-history.vue` — 配信者本人向け履歴確認画面 (これも `iAmAdmin` 限定表示中)
+- `homelab-ops/misskey/{config/default.yml,deploy.sh,quadlet/misskey-web.container}` — `google:`ブロック/
+  `ome.recordingsDir`/NFS Volume。IaCとして正しく管理されている状態 (前セッションまでの`google:`欠落は解消済み)
+
+---
+
+## ✅ 完了スレッド: AT-proto残検対応 (2026-07-15、詳細ユーザー未共有のまま完了扱い)
+
+上記YouTube/Driveスレッドの前に予定されていた「残検対応」は、本ファイルへの記録が無いまま
+別セッションで解消済みと判断 (作業ツリーが2026-07-15時点でclean だった形跡)。詳細が必要になったら
+git log (`39f5680267`〜`b3dd8abe0a` 間) を確認すること。
 
 ---
 
