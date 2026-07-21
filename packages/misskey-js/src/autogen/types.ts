@@ -2433,7 +2433,7 @@ export type paths = {
     '/google-drive/unlink': {
         /**
          * google-drive/unlink
-         * @description 配信アーカイブの Google Drive 連携を解除する。
+         * @description 配信アーカイブの Google 連携を解除する。target を指定すると Drive/YouTube 片方のみ解除する (target 省略時は両方まとめて解除・トークンも revoke)。
          *
          *     **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
          *     **Credential required**: *Yes*
@@ -4011,6 +4011,15 @@ export type paths = {
          *     **Credential required**: *No*
          */
         post: operations['twitch___streams___show'];
+    };
+    '/twitch/streams/verify-archive-view-password': {
+        /**
+         * twitch/streams/verify-archive-view-password
+         * @description password モードの視聴制限がある配信アーカイブのパスワードを検証し、成功時に視聴トークンを発行する。匿名視聴者もパスワードで視聴可能にするため認証不要。
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['twitch___streams___verify-archive-view-password'];
     };
     '/twitch/subtitle/publish': {
         /**
@@ -25549,6 +25558,14 @@ export interface operations {
         };
     };
     'google-drive___unlink': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** @enum {string} */
+                    target?: 'drive' | 'youtube';
+                };
+            };
+        };
         responses: {
             /** @description OK (without any results) */
             204: {
@@ -37987,6 +38004,7 @@ export interface operations {
                     /** Format: misskey:id */
                     userId: string;
                     viewToken?: string;
+                    archiveViewToken?: string;
                 };
             };
         };
@@ -38035,6 +38053,7 @@ export interface operations {
                             youtubeUploadStatus?: 'none' | 'pending' | 'uploading' | 'ready' | 'failed' | 'queued' | 'cancelled';
                             youtubeVideoId?: string | null;
                             youtubeUploadError?: string | null;
+                            archiveUnpublished?: boolean;
                         }[];
                     };
                 };
@@ -38068,6 +38087,84 @@ export interface operations {
             };
             /** @description I'm Ai */
             418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'twitch___streams___verify-archive-view-password': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    streamId: string;
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        viewToken: string;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
