@@ -15400,6 +15400,10 @@ export interface Locale extends ILocale {
          */
         "archiveGoogleDriveNotConfigured": string;
         /**
+         * YouTube連携が有効な間はGoogle Drive連携を解除できません。先に下のYouTube連携を解除してください。
+         */
+        "archiveGoogleDriveUnlinkBlockedByYoutube": string;
+        /**
          * YouTube アップロード
          */
         "youtubeUploadIntegration": string;
@@ -15471,6 +15475,14 @@ export interface Locale extends ILocale {
          * YouTube連携が完了しました。
          */
         "youtubeUploadLinked": string;
+        /**
+         * YouTube連携を解除
+         */
+        "youtubeUploadUnlink": string;
+        /**
+         * YouTube連携を解除しますか？ 以後YouTubeへのアップロードは行われません。順番待ち中のアップロードがある場合、次回のリトライ時に権限エラーで失敗扱いになります。
+         */
+        "youtubeUploadUnlinkConfirm": string;
         /**
          * 配信アーカイブ履歴
          */
