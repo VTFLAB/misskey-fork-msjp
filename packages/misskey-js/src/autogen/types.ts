@@ -2405,7 +2405,7 @@ export type paths = {
     '/google-drive/generate-oauth-url': {
         /**
          * google-drive/generate-oauth-url
-         * @description 配信アーカイブの Google Drive 連携の認可 URL を発行する。
+         * @description 配信アーカイブの Google Drive 連携、または YouTube アップロード追加認証の認可 URL を発行する。target=youtube の場合は既存の Drive 権限を維持したまま (incremental authorization) YouTube アップロード権限のみを追加要求する。
          *
          *     **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
          *     **Credential required**: *Yes*
@@ -25328,6 +25328,17 @@ export interface operations {
         };
     };
     'google-drive___generate-oauth-url': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /**
+                     * @default drive
+                     * @enum {string}
+                     */
+                    target?: 'drive' | 'youtube';
+                };
+            };
+        };
         responses: {
             /** @description OK (with results) */
             200: {
