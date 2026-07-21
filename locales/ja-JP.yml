@@ -4145,6 +4145,12 @@ _liveChannel:
   archiveRestrictedUsersTitle: "視聴が許可されたユーザーのみ視聴できるアーカイブです"
   archiveRestrictedUsersDescription: "このアーカイブは配信者が視聴を許可したユーザーのみ視聴できます。"
   archiveUnpublishedBadge: "非公開 (自分のみ表示)"
+  archivePreviewShow: "プレビュー"
+  archivePreviewHide: "プレビューを閉じる"
+  archiveSettingsTitle: "アーカイブの視聴制限"
+  archiveSettingsDescription: "この設定はこのアーカイブのみに適用され、配信チャンネルの既定の視聴制限には影響しません。"
+  archiveUnpublish: "公開を取り消す"
+  archiveUnpublishConfirm: "このアーカイブの公開を取り消しますか？ 取り消すと、視聴者は動画とコメントリプレイのどちらも閲覧できなくなります。YouTube / Google Drive上の実ファイルは削除されません。この操作は元に戻せません。"
 _remoteGuestLogin:
   title: "他インスタンスのアカウントでログイン"
   description: "他のMisskeyインスタンスのアカウントでログインすると、視聴とコメント投稿ができます。"

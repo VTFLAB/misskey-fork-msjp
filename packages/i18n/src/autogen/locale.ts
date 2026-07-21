@@ -15599,6 +15599,30 @@ export interface Locale extends ILocale {
          * 非公開 (自分のみ表示)
          */
         "archiveUnpublishedBadge": string;
+        /**
+         * プレビュー
+         */
+        "archivePreviewShow": string;
+        /**
+         * プレビューを閉じる
+         */
+        "archivePreviewHide": string;
+        /**
+         * アーカイブの視聴制限
+         */
+        "archiveSettingsTitle": string;
+        /**
+         * この設定はこのアーカイブのみに適用され、配信チャンネルの既定の視聴制限には影響しません。
+         */
+        "archiveSettingsDescription": string;
+        /**
+         * 公開を取り消す
+         */
+        "archiveUnpublish": string;
+        /**
+         * このアーカイブの公開を取り消しますか？ 取り消すと、視聴者は動画とコメントリプレイのどちらも閲覧できなくなります。YouTube / Google Drive上の実ファイルは削除されません。この操作は元に戻せません。
+         */
+        "archiveUnpublishConfirm": string;
     };
     "_remoteGuestLogin": {
         /**
