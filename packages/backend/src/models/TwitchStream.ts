@@ -154,6 +154,32 @@ export class MiTwitchStream {
 	})
 	public youtubeUploadError: string | null;
 
+	// アーカイブ視聴制限 (bsky-fork 独自)。配信終了時点の live_channel 側同名カラムのスナップショット
+	// (アーカイブ設定画面から個別上書き可)。migration 1784670503199 で追加。
+	@Column('varchar', {
+		length: 32, default: 'public',
+		comment: 'View restriction mode snapshot for the archive, captured from live_channel.visibility when the stream ended. One of public / followers / password / users.',
+	})
+	public archiveViewVisibility: 'public' | 'followers' | 'password' | 'users';
+
+	@Column('varchar', {
+		length: 128, nullable: true,
+		comment: 'Plaintext shared secret snapshot/override for password-mode archive view restriction, kept so the owner can review/share it. Never expose to non-owners.',
+	})
+	public archiveViewPassword: string | null;
+
+	@Column('varchar', {
+		length: 32, array: true, default: '{}',
+		comment: 'Allowed viewer user IDs snapshot/override for users-mode archive view restriction.',
+	})
+	public archiveVisibleUserIds: string[];
+
+	@Column('timestamp with time zone', {
+		nullable: true,
+		comment: 'Non-null once the owner has unpublished this archive from the MSJP listing. The underlying Google Drive/YouTube file is not deleted.',
+	})
+	public archiveUnpublishedAt: Date | null;
+
 	constructor(data: Partial<MiTwitchStream>) {
 		if (data == null) return;
 
