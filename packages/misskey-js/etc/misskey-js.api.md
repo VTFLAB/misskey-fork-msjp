@@ -2304,6 +2304,10 @@ declare namespace entities {
         TwitchStreamsPreviewResponse,
         TwitchStreamsShowRequest,
         TwitchStreamsShowResponse,
+        TwitchStreamsUnpublishArchiveRequest,
+        TwitchStreamsUnpublishArchiveResponse,
+        TwitchStreamsUpdateArchiveSettingsRequest,
+        TwitchStreamsUpdateArchiveSettingsResponse,
         TwitchStreamsVerifyArchiveViewPasswordRequest,
         TwitchStreamsVerifyArchiveViewPasswordResponse,
         TwitchSubtitlePublishRequest,
@@ -3914,6 +3918,18 @@ type TwitchStreamsShowRequest = operations['twitch___streams___show']['requestBo
 
 // @public (undocumented)
 type TwitchStreamsShowResponse = operations['twitch___streams___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsUnpublishArchiveRequest = operations['twitch___streams___unpublish-archive']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsUnpublishArchiveResponse = operations['twitch___streams___unpublish-archive']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsUpdateArchiveSettingsRequest = operations['twitch___streams___update-archive-settings']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsUpdateArchiveSettingsResponse = operations['twitch___streams___update-archive-settings']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type TwitchStreamsVerifyArchiveViewPasswordRequest = operations['twitch___streams___verify-archive-view-password']['requestBody']['content']['application/json'];
