@@ -14,7 +14,7 @@ export const meta = {
 	requireCredential: true,
 	secure: true,
 
-	description: '配信アーカイブの Google Drive 連携の認可 URL を発行する。',
+	description: '配信アーカイブの Google Drive 連携、または YouTube アップロード追加認証の認可 URL を発行する。target=youtube の場合は既存の Drive 権限を維持したまま (incremental authorization) YouTube アップロード権限のみを追加要求する。',
 
 	limit: {
 		duration: 60 * 1000,
@@ -40,7 +40,9 @@ export const meta = {
 
 export const paramDef = {
 	type: 'object',
-	properties: {},
+	properties: {
+		target: { type: 'string', enum: ['drive', 'youtube'], default: 'drive' },
+	},
 	required: [],
 } as const;
 
@@ -52,7 +54,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		super(meta, paramDef, async (ps, me) => {
 			if (!this.googleOAuthService.isEnabled) throw new ApiError(meta.errors.notConfigured);
 
-			const url = await this.googleOAuthService.generateAuthorizeUrl(me.id);
+			const url = await this.googleOAuthService.generateAuthorizeUrl(me.id, ps.target);
 			return { url };
 		});
 	}
