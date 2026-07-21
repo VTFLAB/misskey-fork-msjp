@@ -49,9 +49,26 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<div v-else :class="$style.archiveGrid">
 				<div v-for="a in archives" :key="a.streamId" :class="$style.archiveCard">
-					<!-- 再生可能: YouTube (優先) / Drive の順で表示する (bsky-fork 独自: YouTube優先+Driveフォールバック方式) -->
-					<template v-if="a.youtubeVideoId != null">
-						<a :href="`https://www.youtube.com/watch?v=${a.youtubeVideoId}`" target="_blank" rel="noopener" :class="$style.archiveCardHeader">
+					<!-- 非認可アーカイブ: show.ts 側で ID が省略済みのため、既存の「サムネイル無し」フォールバック表示を
+					鍵アイコンで転用する。クリックすると専用視聴ページ (archive-watch.vue) に遷移し、そちら側で
+					パスワード入力等の制限パネルが表示される (このカード側は複雑な認可分岐を持たない、bsky-fork 独自) -->
+					<template v-if="!a.authorized">
+						<MkA :to="`/live/${acct}/archive/${a.streamId}`" :class="$style.archiveCardHeader">
+							<div :class="$style.archiveThumb">
+								<i class="ti ti-lock"></i>
+							</div>
+							<div :class="$style.archiveInfo">
+								<div v-if="a.title" :class="$style.archiveTitle">{{ a.title }}</div>
+								<MkTime :time="a.endedAt" mode="detail"/>
+								<div v-if="archiveDuration(a) != null" :class="$style.archiveDuration">{{ archiveDuration(a) }}</div>
+							</div>
+						</MkA>
+					</template>
+
+					<!-- 再生可能: YouTube (優先) / Drive の順で表示する (bsky-fork 独自: YouTube優先+Driveフォールバック方式)。
+					専用視聴ページ (archive-watch.vue) への内部リンクに統一し、Misskey 外への離脱を無くす -->
+					<template v-else-if="a.youtubeVideoId != null">
+						<MkA :to="`/live/${acct}/archive/${a.streamId}`" :class="$style.archiveCardHeader">
 							<div :class="$style.archiveThumb" :style="a.recordingGoogleDriveThumbnailLink ? { backgroundImage: `url(${a.recordingGoogleDriveThumbnailLink})` } : {}">
 								<i v-if="!a.recordingGoogleDriveThumbnailLink" class="ti ti-brand-youtube"></i>
 								<i class="ti ti-player-play" :class="$style.archivePlayIcon"></i>
@@ -60,27 +77,30 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<div v-if="a.title" :class="$style.archiveTitle">{{ a.title }}</div>
 								<MkTime :time="a.endedAt" mode="detail"/>
 								<div v-if="archiveDuration(a) != null" :class="$style.archiveDuration">{{ archiveDuration(a) }}</div>
+								<!-- 公開取り消し済みアーカイブのオーナー閲覧時のみ表示するバッジ (bsky-fork 独自)。
+								live-stream.archive-watch.vue の unpublishedBadge と同じ文言・アイコンで統一する -->
+								<div v-if="isOwner && a.archiveUnpublished" :class="$style.archiveUnpublishedBadge">
+									<i class="ti ti-eye-off"></i> {{ i18n.ts._liveChannel.archiveUnpublishedBadge }}
+								</div>
 							</div>
-						</a>
+						</MkA>
 					</template>
 
 					<template v-else-if="a.recordingGoogleDriveFileId != null">
-						<button
-							class="_button"
-							:class="$style.archiveCardHeader"
-							:aria-expanded="selectedArchiveId === a.streamId"
-							@click="toggleArchive(a.streamId)"
-						>
+						<MkA :to="`/live/${acct}/archive/${a.streamId}`" :class="$style.archiveCardHeader">
 							<div :class="$style.archiveThumb" :style="a.recordingGoogleDriveThumbnailLink ? { backgroundImage: `url(${a.recordingGoogleDriveThumbnailLink})` } : {}">
 								<i v-if="!a.recordingGoogleDriveThumbnailLink" class="ti ti-movie"></i>
-								<i v-if="selectedArchiveId !== a.streamId" class="ti ti-player-play" :class="$style.archivePlayIcon"></i>
+								<i class="ti ti-player-play" :class="$style.archivePlayIcon"></i>
 							</div>
 							<div :class="$style.archiveInfo">
 								<div v-if="a.title" :class="$style.archiveTitle">{{ a.title }}</div>
 								<MkTime :time="a.endedAt" mode="detail"/>
 								<div v-if="archiveDuration(a) != null" :class="$style.archiveDuration">{{ archiveDuration(a) }}</div>
+								<div v-if="isOwner && a.archiveUnpublished" :class="$style.archiveUnpublishedBadge">
+									<i class="ti ti-eye-off"></i> {{ i18n.ts._liveChannel.archiveUnpublishedBadge }}
+								</div>
 							</div>
-						</button>
+						</MkA>
 					</template>
 
 					<!-- 未再生可能かつ進行中: スピナー表示 -->
@@ -96,6 +116,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<div :class="$style.archiveBadge">
 									<MkLoading em :class="$style.archiveBadgeSpinner"/>
 									{{ i18n.ts._liveChannel.archiveProcessing }}
+								</div>
+								<div v-if="isOwner && a.archiveUnpublished" :class="$style.archiveUnpublishedBadge">
+									<i class="ti ti-eye-off"></i> {{ i18n.ts._liveChannel.archiveUnpublishedBadge }}
 								</div>
 							</div>
 						</div>
@@ -122,21 +145,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<div v-if="a.youtubeUploadStatus === 'cancelled'" :class="$style.archiveBadge">
 									{{ i18n.ts._liveChannel.archiveYoutubeCancelled }}
 								</div>
+								<div v-if="isOwner && a.archiveUnpublished" :class="$style.archiveUnpublishedBadge">
+									<i class="ti ti-eye-off"></i> {{ i18n.ts._liveChannel.archiveUnpublishedBadge }}
+								</div>
 							</div>
 						</div>
 					</template>
-
-					<div v-if="selectedArchiveId === a.streamId && a.youtubeVideoId == null && a.recordingGoogleDriveFileId != null" :class="$style.archivePlayer">
-						<button class="_button" :class="$style.archiveCloseButton" :aria-label="i18n.ts.close" @click="toggleArchive(a.streamId)">
-							<i class="ti ti-x"></i>
-						</button>
-						<iframe
-							:src="`https://drive.google.com/file/d/${a.recordingGoogleDriveFileId}/preview`"
-							:class="$style.archiveIframe"
-							allow="autoplay; fullscreen"
-							allowfullscreen
-						></iframe>
-					</div>
 				</div>
 			</div>
 		</div>
@@ -260,7 +274,6 @@ const PENDING_RECORDING_STATUSES = ['pending', 'remuxing', 'uploading', 'process
 const PENDING_YOUTUBE_STATUSES = ['pending', 'uploading'] as const;
 const ARCHIVE_POLL_INTERVAL_MS = 30 * 1000;
 
-const selectedArchiveId = ref<string | null>(null);
 const googleDriveLinked = ref<boolean | null>(null);
 // google-drive/recording-status / twitch/streams/archive-history のポーリング結果でローカル上書きする分
 // (親の sessions 再取得を待たずに反映する)
@@ -324,10 +337,6 @@ function archiveDuration(a: { startedAt?: string | null; endedAt: string }): str
 	const s = totalSec % 60;
 	const pad = (n: number) => String(n).padStart(2, '0');
 	return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
-}
-
-function toggleArchive(streamId: string) {
-	selectedArchiveId.value = selectedArchiveId.value === streamId ? null : streamId;
 }
 
 function clearArchivePoll(streamId: string) {
@@ -710,34 +719,18 @@ watch(() => props.channel, () => {
 	opacity: 1;
 }
 
-.archivePlayer {
-	position: relative;
-}
-
-.archiveIframe {
-	display: block;
-	width: 100%;
-	aspect-ratio: 16 / 9;
-	border: none;
-}
-
-.archiveCloseButton {
-	position: absolute;
-	top: 8px;
-	right: 8px;
-	z-index: 1;
-	width: 32px;
-	height: 32px;
+// 公開取り消し済みアーカイブのオーナー閲覧時バッジ (bsky-fork 独自)。
+// live-stream.archive-watch.vue の .unpublishedBadge と同じ配色・角丸で統一する
+.archiveUnpublishedBadge {
 	display: flex;
 	align-items: center;
-	justify-content: center;
+	gap: 4px;
+	width: fit-content;
+	padding: 2px 8px;
+	font-size: 0.8em;
 	border-radius: 999px;
-	background: color-mix(in srgb, #000, transparent 30%);
-	color: var(--MI_THEME-fgOnAccent);
-
-	&:hover {
-		background: color-mix(in srgb, #000, transparent 10%);
-	}
+	background: var(--MI_THEME-infoWarnBg);
+	color: var(--MI_THEME-infoWarnFg);
 }
 
 .postFormArea {
