@@ -4792,6 +4792,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * 配信者本人が自分の過去配信のアーカイブ (Google Drive / YouTube) 状況を確認するための一覧。カーソルページネーション (untilId) 対応。
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'twitch/streams/archive-history', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * 自分の配信チャットからコメントの投稿者をブロックする (配信者専用)。対象はコメント行から導出され、以後この配信者の配信にコメントできなくなる。Twitch 由来コメントの場合は Misskey 側への取り込みが止まる。
      * 
      * **Credential required**: *Yes* / **Permission**: *write:account*
@@ -4819,6 +4830,17 @@ declare module '../api.js' {
      * **Credential required**: *Yes* / **Permission**: *read:account*
      */
     request<E extends 'twitch/streams/blocks/list', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * YouTubeアップロードのリトライキューをキャンセルする(配信者本人のみ)。Drive側に一時退避されたファイルは削除しない (視聴者が引き続き閲覧できるようにするため)。
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'twitch/streams/cancel-youtube-upload', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
       credential?: string | null,

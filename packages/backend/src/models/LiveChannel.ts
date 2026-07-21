@@ -122,6 +122,30 @@ export class MiLiveChannel {
 	})
 	public autoPostNoteTemplate: string | null;
 
+	@Column('boolean', {
+		default: false,
+		comment: 'Whether to upload the recording to YouTube after the stream ends.',
+	})
+	public youtubeUploadEnabled: boolean;
+
+	@Column('varchar', {
+		length: 256, nullable: true,
+		comment: 'Template for the YouTube video title. Supports {title}/{date}/{channelName} placeholders. Falls back to a default template when null.',
+	})
+	public youtubeTitleTemplate: string | null;
+
+	@Column('varchar', {
+		length: 2048, nullable: true,
+		comment: 'Template for the YouTube video description. Supports {title}/{date}/{channelName} placeholders. Falls back to a default template when null.',
+	})
+	public youtubeDescriptionTemplate: string | null;
+
+	@Column('varchar', {
+		length: 16, default: 'unlisted',
+		comment: 'YouTube privacy status for uploaded recordings.',
+	})
+	public youtubePrivacyStatus: 'public' | 'unlisted' | 'private';
+
 	@Column('varchar', {
 		length: 32, default: 'public',
 		comment: 'View restriction mode for playback. One of public / followers / password / users.',

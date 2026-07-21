@@ -2296,11 +2296,15 @@ declare namespace entities {
         TwitchGenerateOauthUrlRequest,
         TwitchGenerateOauthUrlResponse,
         TwitchMyAccountResponse,
+        TwitchStreamsArchiveHistoryRequest,
+        TwitchStreamsArchiveHistoryResponse,
         TwitchStreamsBlocksCreateRequest,
         TwitchStreamsBlocksCreateResponse,
         TwitchStreamsBlocksDeleteRequest,
         TwitchStreamsBlocksListRequest,
         TwitchStreamsBlocksListResponse,
+        TwitchStreamsCancelYoutubeUploadRequest,
+        TwitchStreamsCancelYoutubeUploadResponse,
         TwitchStreamsCommentsRequest,
         TwitchStreamsCommentsResponse,
         TwitchStreamsCommentsCreateRequest,
@@ -3864,6 +3868,12 @@ type TwitchGenerateOauthUrlResponse = operations['twitch___generate-oauth-url'][
 type TwitchMyAccountResponse = operations['twitch___my-account']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type TwitchStreamsArchiveHistoryRequest = operations['twitch___streams___archive-history']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsArchiveHistoryResponse = operations['twitch___streams___archive-history']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type TwitchStreamsBlocksCreateRequest = operations['twitch___streams___blocks___create']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -3877,6 +3887,12 @@ type TwitchStreamsBlocksListRequest = operations['twitch___streams___blocks___li
 
 // @public (undocumented)
 type TwitchStreamsBlocksListResponse = operations['twitch___streams___blocks___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsCancelYoutubeUploadRequest = operations['twitch___streams___cancel-youtube-upload']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsCancelYoutubeUploadResponse = operations['twitch___streams___cancel-youtube-upload']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type TwitchStreamsCommentsCreateRequest = operations['twitch___streams___comments___create']['requestBody']['content']['application/json'];
