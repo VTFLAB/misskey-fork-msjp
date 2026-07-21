@@ -321,6 +321,41 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 		</FormSection>
 
+		<!-- Section 2.5: YouTube アップロード -->
+		<FormSection>
+			<template #label><i class="ti ti-brand-youtube"></i> {{ i18n.ts._liveChannel.youtubeUploadIntegration }}</template>
+
+			<MkInfo v-if="googleDriveState === 'loading'">{{ i18n.ts.loading }}</MkInfo>
+			<MkInfo v-else-if="!googleDriveLinked" warn>{{ i18n.ts._liveChannel.youtubeUploadNeedsGoogleDrive }}</MkInfo>
+			<MkInfo v-else-if="!youtubeAuthorized" warn>
+				{{ i18n.ts._liveChannel.youtubeUploadReauthRequired }}
+			</MkInfo>
+
+			<template v-else>
+				<div class="_gaps_m">
+					<MkSwitch :modelValue="youtubeUploadEnabled" @update:modelValue="onToggleYoutubeUploadEnabled">
+						<template #label>{{ i18n.ts._liveChannel.youtubeUploadEnabledLabel }}</template>
+						<template #caption>{{ i18n.ts._liveChannel.youtubeUploadEnabledDescription }}</template>
+					</MkSwitch>
+
+					<MkTextarea :modelValue="youtubeTitleTemplate" manualSave :max="256" :placeholder="i18n.ts._liveChannel.youtubeUploadTitleTemplateDefault" @update:modelValue="onYoutubeTitleTemplateSave">
+						<template #label>{{ i18n.ts._liveChannel.youtubeUploadTitleTemplate }}</template>
+						<template #caption>{{ i18n.ts._liveChannel.youtubeUploadTitleTemplateDescription }}</template>
+					</MkTextarea>
+
+					<MkTextarea :modelValue="youtubeDescriptionTemplate" manualSave :max="2048" :placeholder="i18n.ts._liveChannel.youtubeUploadDescriptionTemplateDefault" @update:modelValue="onYoutubeDescriptionTemplateSave">
+						<template #label>{{ i18n.ts._liveChannel.youtubeUploadDescriptionTemplate }}</template>
+						<template #caption>{{ i18n.ts._liveChannel.youtubeUploadDescriptionTemplateDescription }}</template>
+					</MkTextarea>
+
+					<MkSelect :modelValue="youtubePrivacyStatus" :items="youtubePrivacyStatusItems" @update:modelValue="onYoutubePrivacyStatusSave">
+						<template #label>{{ i18n.ts._liveChannel.youtubeUploadPrivacyStatus }}</template>
+						<template #caption>{{ i18n.ts._liveChannel.youtubeUploadPrivacyStatusDescription }}</template>
+					</MkSelect>
+				</div>
+			</template>
+		</FormSection>
+
 		<!-- Section 3: Twitch連携 -->
 		<FormSection>
 			<template #label><i class="ti ti-brand-twitch"></i> {{ i18n.ts._twitch.twitchIntegration }}</template>
@@ -387,6 +422,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<template #icon><i class="ti ti-ban"></i></template>
 					{{ i18n.ts._twitch.manageBlocks }}
 				</FormLink>
+				<FormLink @click="openArchiveHistory">
+					<template #icon><i class="ti ti-history"></i></template>
+					{{ i18n.ts._liveChannel.archiveHistory }}
+				</FormLink>
 				<FormLink @click="openTranslationSettings">
 					<template #icon><i class="ti ti-language"></i></template>
 					{{ i18n.ts._twitch.translationSettings }}
@@ -436,12 +475,22 @@ const autoPostNoteTemplate = ref('');
 const viewRestriction = ref<'public' | 'followers' | 'password' | 'users'>('public');
 const viewPassword = ref('');
 const visibleUsers = ref<Misskey.entities.UserDetailed[]>([]);
+const youtubeUploadEnabled = ref(false);
+const youtubeTitleTemplate = ref('');
+const youtubeDescriptionTemplate = ref('');
+const youtubePrivacyStatus = ref<'public' | 'unlisted' | 'private'>('unlisted');
 
 const viewRestrictionItems = [
 	{ value: 'public' as const, label: i18n.ts._liveChannel.viewRestrictionPublic },
 	{ value: 'followers' as const, label: i18n.ts._liveChannel.viewRestrictionFollowers },
 	{ value: 'password' as const, label: i18n.ts._liveChannel.viewRestrictionPassword },
 	{ value: 'users' as const, label: i18n.ts._liveChannel.viewRestrictionUsers },
+];
+
+const youtubePrivacyStatusItems = [
+	{ value: 'public' as const, label: i18n.ts._liveChannel.youtubeUploadPrivacyStatusPublic },
+	{ value: 'unlisted' as const, label: i18n.ts._liveChannel.youtubeUploadPrivacyStatusUnlisted },
+	{ value: 'private' as const, label: i18n.ts._liveChannel.youtubeUploadPrivacyStatusPrivate },
 ];
 
 const enabled = computed(() => channel.value != null && channel.value.enabled);
@@ -478,6 +527,10 @@ async function fetchMy() {
 	autoPostNoteTemplate.value = res.channel?.autoPostNoteTemplate ?? '';
 	viewRestriction.value = res.channel?.visibility ?? 'public';
 	viewPassword.value = res.channel?.viewPassword ?? '';
+	youtubeUploadEnabled.value = res.channel?.youtubeUploadEnabled ?? false;
+	youtubeTitleTemplate.value = res.channel?.youtubeTitleTemplate ?? '';
+	youtubeDescriptionTemplate.value = res.channel?.youtubeDescriptionTemplate ?? '';
+	youtubePrivacyStatus.value = res.channel?.youtubePrivacyStatus ?? 'unlisted';
 	await loadVisibleUsers(res.channel?.visibleUserIds ?? []);
 	liveChannelState.value = 'ready';
 }
@@ -568,6 +621,34 @@ async function onAutoPostNoteTemplateSave(v: string) {
 	if (channel.value == null) return;
 	autoPostNoteTemplate.value = v;
 	const updated = await os.apiWithDialog('live-channels/update', { autoPostNoteTemplate: v || null });
+	channel.value = updated;
+}
+
+async function onToggleYoutubeUploadEnabled(v: boolean) {
+	if (channel.value == null) return;
+	youtubeUploadEnabled.value = v;
+	const updated = await os.apiWithDialog('live-channels/update', { youtubeUploadEnabled: v });
+	channel.value = updated;
+}
+
+async function onYoutubeTitleTemplateSave(v: string) {
+	if (channel.value == null) return;
+	youtubeTitleTemplate.value = v;
+	const updated = await os.apiWithDialog('live-channels/update', { youtubeTitleTemplate: v || null });
+	channel.value = updated;
+}
+
+async function onYoutubeDescriptionTemplateSave(v: string) {
+	if (channel.value == null) return;
+	youtubeDescriptionTemplate.value = v;
+	const updated = await os.apiWithDialog('live-channels/update', { youtubeDescriptionTemplate: v || null });
+	channel.value = updated;
+}
+
+async function onYoutubePrivacyStatusSave(v: 'public' | 'unlisted' | 'private') {
+	if (channel.value == null) return;
+	youtubePrivacyStatus.value = v;
+	const updated = await os.apiWithDialog('live-channels/update', { youtubePrivacyStatus: v });
 	channel.value = updated;
 }
 
@@ -672,12 +753,14 @@ const googleDriveState = ref<'loading' | 'ready'>('loading');
 const googleDriveAvailable = ref(false);
 const googleDriveLinked = ref(false);
 const googleDriveEmail = ref<string | null>(null);
+const youtubeAuthorized = ref(false);
 
 async function fetchGoogleDriveStatus() {
 	const res = await misskeyApi('google-drive/my-account', {});
 	googleDriveAvailable.value = res.available;
 	googleDriveLinked.value = res.linked;
 	googleDriveEmail.value = res.googleEmail;
+	youtubeAuthorized.value = res.youtubeAuthorized;
 	googleDriveState.value = 'ready';
 }
 
@@ -808,6 +891,14 @@ async function openCommentGeneratorSettings() {
 async function openBlocks() {
 	const { dispose } = await os.popupAsyncWithDialog(
 		import('@/pages/live-stream.blocks.vue').then(x => x.default),
+		{},
+		{ closed: () => dispose() },
+	);
+}
+
+async function openArchiveHistory() {
+	const { dispose } = await os.popupAsyncWithDialog(
+		import('@/pages/live-stream.archive-history.vue').then(x => x.default),
 		{},
 		{ closed: () => dispose() },
 	);
