@@ -80,6 +80,7 @@
 
 ### Server
 
+- Enhance: 配信アーカイブ (Google Drive/YouTube) の録画パイプラインを実際に起動するように (bsky-fork 独自)。これまでは OME (自己配信基盤) 側で録画ファイルが生成されず機能が休眠していたが、OME の録画 REST API (`:startRecord`/`:stopRecord`) を配信開始/終了検知から明示的に呼び出す実装を追加し、実配信でのアーカイブ生成・YouTube アップロードまで動作することを確認した
 - Fix: OME (自己配信) でビットレート超過により強制切断された配信者が、同じ streamKey で即座に再接続すると OME が普通に受理してしまい、高負荷配信によるサーバー負荷を実質的に防げていなかった問題を修正 (bsky-fork 独自)。これまではブラックリスト (Redis) を Misskey 側のライブ検知ポーリングでのみ参照しており、ingest 自体を止める手段がなかった。OME の AdmissionWebhooks (`/ome/admission`) を有効化し、ブラックリスト中の streamKey への配信開始要求を ingest 開始時点で拒否するようにした
 - Fix: OME (自己配信) で OBS 配信を開始してもチャンネルがライブ表示にならず視聴プレイヤーも起動しない問題を修正 (bsky-fork 独自)。AdmissionWebhooks を使わない構成にもかかわらずライブ開始を検知する経路が実装されておらず、DB にライブセッション (source=ome) が作られていなかった。OmeStreamMonitorService の 10 秒ポーリングで OME の listStreams() を突合し、publish 中の streamKey に対応するチャンネルのライブセッションを自動作成 (+ フォロワー通知) するようにした (offline 化は既存の reconcile が担当)
 - Fix: OME (自己配信) の WHIP ingest URL の SignedPolicy 署名が、HAProxy TLS 終端の背後で OME が再構成する URL と一致せず ingest が 401 で弾かれる問題を修正 (bsky-fork 独自)。OME は `https://stream.msjp.pro/...` への接続でも署名検証時は Host ヘッダ + 自身の signalling listener で `http://stream.msjp.pro:3333/...` として URL を再構成するため、HMAC の署名基準をこの再構成 URL に合わせた (OBS へ渡す URL は従来どおり HAProxy 経由の HTTPS)
