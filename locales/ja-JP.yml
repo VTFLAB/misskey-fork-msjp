@@ -4140,6 +4140,13 @@ _liveChannel:
   goToStreamingSettings: "配信設定を開く"
   archiveCommentReplaySeekTo: "この位置から再生 ({time})"
   archiveCommentReplayStaticNotice: "このアーカイブは同期再生に対応していません。すべてのコメントを時系列で表示しています。"
+  archiveRestrictedFollowersTitle: "フォロワー限定アーカイブです"
+  archiveRestrictedFollowersDescription: "このアーカイブはフォロワー限定です。配信者をフォローすると視聴できるようになります。フォロー後は再読み込みボタンで視聴を開始できます。"
+  archiveRestrictedPasswordTitle: "パスワードが必要なアーカイブです"
+  archiveRestrictedPasswordDescription: "このアーカイブを視聴するにはパスワードを入力してください。"
+  archiveRestrictedUsersTitle: "視聴が許可されたユーザーのみ視聴できるアーカイブです"
+  archiveRestrictedUsersDescription: "このアーカイブは配信者が視聴を許可したユーザーのみ視聴できます。"
+  archiveUnpublishedBadge: "非公開 (自分のみ表示)"
 _remoteGuestLogin:
   title: "他インスタンスのアカウントでログイン"
   description: "他のMisskeyインスタンスのアカウントでログインすると、視聴とコメント投稿ができます。"

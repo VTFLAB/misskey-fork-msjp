@@ -239,6 +239,11 @@ export const ROUTE_DEF = [{
 	name: 'live-stream-watch',
 	component: page(() => import('@/pages/live-stream.watch.vue')),
 }, {
+	// 配信アーカイブ専用視聴ページ (bsky-fork 独自)。1 アーカイブ = 1 URL で直接共有できるようにする
+	path: '/live/:acct/archive/:streamId',
+	name: 'live-stream-archive-watch',
+	component: page(() => import('@/pages/live-stream.archive-watch.vue')),
+}, {
 	path: '/live/:acct',
 	name: 'live-stream',
 	component: page(() => import('@/pages/live-stream.vue')),
