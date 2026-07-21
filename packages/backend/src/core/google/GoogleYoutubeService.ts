@@ -111,6 +111,7 @@ export class GoogleYoutubeService {
 					status: {
 						privacyStatus: params.privacyStatus,
 						selfDeclaredMadeForKids: false,
+						embeddable: true, // bsky-fork 独自: MSJP内埋め込み再生のため明示的に許可
 					},
 				},
 				media: {
