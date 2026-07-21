@@ -475,6 +475,7 @@ export * as 'twitch/streams/blocks/create' from './endpoints/twitch/streams/bloc
 export * as 'twitch/streams/blocks/delete' from './endpoints/twitch/streams/blocks/delete.js';
 export * as 'twitch/streams/blocks/list' from './endpoints/twitch/streams/blocks/list.js';
 export * as 'twitch/streams/archive-history' from './endpoints/twitch/streams/archive-history.js';
+export * as 'twitch/streams/verify-archive-view-password' from './endpoints/twitch/streams/verify-archive-view-password.js';
 export * as 'twitch/streams/cancel-youtube-upload' from './endpoints/twitch/streams/cancel-youtube-upload.js';
 export * as 'twitch/subtitle/publish' from './endpoints/twitch/subtitle/publish.js';
 export * as 'twitch/unlink' from './endpoints/twitch/unlink.js';

@@ -415,6 +415,7 @@ import type {
 	GoogleDriveMyAccountResponse,
 	GoogleDriveRecordingStatusRequest,
 	GoogleDriveRecordingStatusResponse,
+	GoogleDriveUnlinkRequest,
 	HashtagsListRequest,
 	HashtagsListResponse,
 	HashtagsSearchRequest,
@@ -664,6 +665,8 @@ import type {
 	TwitchStreamsPreviewResponse,
 	TwitchStreamsShowRequest,
 	TwitchStreamsShowResponse,
+	TwitchStreamsVerifyArchiveViewPasswordRequest,
+	TwitchStreamsVerifyArchiveViewPasswordResponse,
 	TwitchSubtitlePublishRequest,
 	TwitchSubtitlePublishResponse,
 	TwitchUpdateSettingsRequest,
@@ -1004,7 +1007,7 @@ export type Endpoints = {
 	'google-drive/generate-oauth-url': { req: GoogleDriveGenerateOauthUrlRequest; res: GoogleDriveGenerateOauthUrlResponse };
 	'google-drive/my-account': { req: EmptyRequest; res: GoogleDriveMyAccountResponse };
 	'google-drive/recording-status': { req: GoogleDriveRecordingStatusRequest; res: GoogleDriveRecordingStatusResponse };
-	'google-drive/unlink': { req: EmptyRequest; res: EmptyResponse };
+	'google-drive/unlink': { req: GoogleDriveUnlinkRequest; res: EmptyResponse };
 	'hashtags/list': { req: HashtagsListRequest; res: HashtagsListResponse };
 	'hashtags/search': { req: HashtagsSearchRequest; res: HashtagsSearchResponse };
 	'hashtags/show': { req: HashtagsShowRequest; res: HashtagsShowResponse };
@@ -1175,6 +1178,7 @@ export type Endpoints = {
 	'twitch/streams/comments/create': { req: TwitchStreamsCommentsCreateRequest; res: TwitchStreamsCommentsCreateResponse };
 	'twitch/streams/preview': { req: EmptyRequest; res: TwitchStreamsPreviewResponse };
 	'twitch/streams/show': { req: TwitchStreamsShowRequest; res: TwitchStreamsShowResponse };
+	'twitch/streams/verify-archive-view-password': { req: TwitchStreamsVerifyArchiveViewPasswordRequest; res: TwitchStreamsVerifyArchiveViewPasswordResponse };
 	'twitch/subtitle/publish': { req: TwitchSubtitlePublishRequest; res: TwitchSubtitlePublishResponse };
 	'twitch/unlink': { req: EmptyRequest; res: EmptyResponse };
 	'twitch/update-settings': { req: TwitchUpdateSettingsRequest; res: TwitchUpdateSettingsResponse };

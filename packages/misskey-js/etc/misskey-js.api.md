@@ -2056,6 +2056,7 @@ declare namespace entities {
         GoogleDriveMyAccountResponse,
         GoogleDriveRecordingStatusRequest,
         GoogleDriveRecordingStatusResponse,
+        GoogleDriveUnlinkRequest,
         HashtagsListRequest,
         HashtagsListResponse,
         HashtagsSearchRequest,
@@ -2303,6 +2304,8 @@ declare namespace entities {
         TwitchStreamsPreviewResponse,
         TwitchStreamsShowRequest,
         TwitchStreamsShowResponse,
+        TwitchStreamsVerifyArchiveViewPasswordRequest,
+        TwitchStreamsVerifyArchiveViewPasswordResponse,
         TwitchSubtitlePublishRequest,
         TwitchSubtitlePublishResponse,
         TwitchUpdateSettingsRequest,
@@ -2706,6 +2709,9 @@ type GoogleDriveRecordingStatusRequest = operations['google-drive___recording-st
 
 // @public (undocumented)
 type GoogleDriveRecordingStatusResponse = operations['google-drive___recording-status']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type GoogleDriveUnlinkRequest = operations['google-drive___unlink']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
 type Hashtag = components['schemas']['Hashtag'];
@@ -3908,6 +3914,12 @@ type TwitchStreamsShowRequest = operations['twitch___streams___show']['requestBo
 
 // @public (undocumented)
 type TwitchStreamsShowResponse = operations['twitch___streams___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsVerifyArchiveViewPasswordRequest = operations['twitch___streams___verify-archive-view-password']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsVerifyArchiveViewPasswordResponse = operations['twitch___streams___verify-archive-view-password']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type TwitchSubtitlePublishRequest = operations['twitch___subtitle___publish']['requestBody']['content']['application/json'];
