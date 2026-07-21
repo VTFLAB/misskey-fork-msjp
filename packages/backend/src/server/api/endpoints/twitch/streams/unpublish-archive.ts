@@ -19,6 +19,11 @@ export const meta = {
 	description: '配信者本人が自分の配信アーカイブの公開を取り消す (冪等)。Google Drive / YouTube 上の実ファイルは削除しない。' +
 		'MSJP 側の一覧・視聴・コメントリプレイから見えなくなるのみで、再公開する endpoint は存在しない (一方向)。',
 
+	limit: {
+		duration: 60 * 1000,
+		max: 10,
+	},
+
 	errors: {
 		noSuchArchive: {
 			message: 'No such archive owned by you.',
