@@ -413,6 +413,7 @@ export type GetAvatarDecorationsResponse = operations['get-avatar-decorations'][
 export type GetOnlineUsersCountResponse = operations['get-online-users-count']['responses']['200']['content']['application/json'];
 export type GetWeatherRequest = operations['get-weather']['requestBody']['content']['application/json'];
 export type GetWeatherResponse = operations['get-weather']['responses']['200']['content']['application/json'];
+export type GoogleDriveGenerateOauthUrlRequest = operations['google-drive___generate-oauth-url']['requestBody']['content']['application/json'];
 export type GoogleDriveGenerateOauthUrlResponse = operations['google-drive___generate-oauth-url']['responses']['200']['content']['application/json'];
 export type GoogleDriveMyAccountResponse = operations['google-drive___my-account']['responses']['200']['content']['application/json'];
 export type GoogleDriveRecordingStatusRequest = operations['google-drive___recording-status']['requestBody']['content']['application/json'];

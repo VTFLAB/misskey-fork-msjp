@@ -327,9 +327,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<MkInfo v-if="googleDriveState === 'loading'">{{ i18n.ts.loading }}</MkInfo>
 			<MkInfo v-else-if="!googleDriveLinked" warn>{{ i18n.ts._liveChannel.youtubeUploadNeedsGoogleDrive }}</MkInfo>
-			<MkInfo v-else-if="!youtubeAuthorized" warn>
-				{{ i18n.ts._liveChannel.youtubeUploadReauthRequired }}
-			</MkInfo>
+
+			<template v-else-if="!youtubeAuthorized">
+				<div class="_gaps_m">
+					<MkInfo warn>{{ i18n.ts._liveChannel.youtubeUploadReauthRequired }}</MkInfo>
+					<MkButton primary @click="linkYoutube">{{ i18n.ts._liveChannel.youtubeUploadLinkAccount }}</MkButton>
+				</div>
+			</template>
 
 			<template v-else>
 				<div class="_gaps_m">
@@ -765,7 +769,12 @@ async function fetchGoogleDriveStatus() {
 }
 
 async function linkGoogleDrive() {
-	const { url } = await os.apiWithDialog('google-drive/generate-oauth-url', {});
+	const { url } = await os.apiWithDialog('google-drive/generate-oauth-url', { target: 'drive' });
+	window.location.href = url;
+}
+
+async function linkYoutube() {
+	const { url } = await os.apiWithDialog('google-drive/generate-oauth-url', { target: 'youtube' });
 	window.location.href = url;
 }
 
@@ -853,6 +862,9 @@ function handleCallbackResult() {
 	switch (googleDriveResult) {
 		case 'linked':
 			os.alert({ type: 'success', text: i18n.ts._liveChannel.archiveGoogleDriveLinked });
+			break;
+		case 'youtubeLinked':
+			os.alert({ type: 'success', text: i18n.ts._liveChannel.youtubeUploadLinked });
 			break;
 		case 'denied':
 			os.alert({ type: 'warning', text: i18n.ts._liveChannel.archiveGoogleDriveLinkDenied });
