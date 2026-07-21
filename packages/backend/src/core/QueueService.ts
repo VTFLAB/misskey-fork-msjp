@@ -86,6 +86,10 @@ const REPEATABLE_SYSTEM_JOB_DEF = [{
 	name: 'cleanRemoteNotes',
 	// 毎日午前4時に起動(最も人の少ない時間帯)
 	pattern: '0 4 * * *',
+}, {
+	name: 'youtubeUploadRetry',
+	// YouTubeアップロードのクォータ超過リトライキュー (bsky-fork 独自)。1時間ごとに最古の1件を再試行する。
+	pattern: '0 * * * *',
 }];
 
 function parseRedisInfo(infoText: string): Record<string, string> {

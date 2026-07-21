@@ -73,6 +73,14 @@ export const meta = {
 						recordingGoogleDriveThumbnailLink: { type: 'string', optional: true, nullable: true },
 						// オーナー本人のリクエストのみ値が入る (他人には常に省略/undefined)
 						recordingError: { type: 'string', optional: true, nullable: true },
+						// YouTube アップロード (bsky-fork 独自)。過去 (isLive=false) の ome セッションのみ設定される
+						youtubeUploadStatus: {
+							type: 'string', optional: true, nullable: false,
+							enum: ['none', 'pending', 'uploading', 'ready', 'failed', 'queued', 'cancelled'],
+						},
+						youtubeVideoId: { type: 'string', optional: true, nullable: true },
+						// オーナー本人のリクエストのみ値が入る (他人には常に省略/undefined)
+						youtubeUploadError: { type: 'string', optional: true, nullable: true },
 					},
 				},
 			},
@@ -183,6 +191,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				recordingGoogleDriveFileId: s.recordingGoogleDriveFileId,
 				recordingGoogleDriveThumbnailLink: s.recordingGoogleDriveThumbnailLink,
 				recordingError: isOwner ? s.recordingError : undefined,
+				youtubeUploadStatus: s.youtubeUploadStatus,
+				youtubeVideoId: s.youtubeVideoId,
+				youtubeUploadError: isOwner ? s.youtubeUploadError : undefined,
 			}));
 
 			return {
