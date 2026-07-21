@@ -410,6 +410,7 @@ import type {
 	GetOnlineUsersCountResponse,
 	GetWeatherRequest,
 	GetWeatherResponse,
+	GoogleDriveGenerateOauthUrlRequest,
 	GoogleDriveGenerateOauthUrlResponse,
 	GoogleDriveMyAccountResponse,
 	GoogleDriveRecordingStatusRequest,
@@ -1000,7 +1001,7 @@ export type Endpoints = {
 	'get-avatar-decorations': { req: EmptyRequest; res: GetAvatarDecorationsResponse };
 	'get-online-users-count': { req: EmptyRequest; res: GetOnlineUsersCountResponse };
 	'get-weather': { req: GetWeatherRequest; res: GetWeatherResponse };
-	'google-drive/generate-oauth-url': { req: EmptyRequest; res: GoogleDriveGenerateOauthUrlResponse };
+	'google-drive/generate-oauth-url': { req: GoogleDriveGenerateOauthUrlRequest; res: GoogleDriveGenerateOauthUrlResponse };
 	'google-drive/my-account': { req: EmptyRequest; res: GoogleDriveMyAccountResponse };
 	'google-drive/recording-status': { req: GoogleDriveRecordingStatusRequest; res: GoogleDriveRecordingStatusResponse };
 	'google-drive/unlink': { req: EmptyRequest; res: EmptyResponse };

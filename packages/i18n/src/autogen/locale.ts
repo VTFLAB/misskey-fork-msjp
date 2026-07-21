@@ -15456,13 +15456,21 @@ export interface Locale extends ILocale {
          */
         "youtubeUploadPrivacyStatusPrivate": string;
         /**
-         * YouTube機能を使うには権限の再許可が必要です。一度連携を解除して再連携してください。
+         * YouTubeアップロード機能を使うには追加の連携が必要です。下のボタンから連携してください。
          */
         "youtubeUploadReauthRequired": string;
         /**
          * YouTubeアップロード機能を使うには、上のGoogle Drive連携が必要です。
          */
         "youtubeUploadNeedsGoogleDrive": string;
+        /**
+         * YouTube連携
+         */
+        "youtubeUploadLinkAccount": string;
+        /**
+         * YouTube連携が完了しました。
+         */
+        "youtubeUploadLinked": string;
         /**
          * 配信アーカイブ履歴
          */
