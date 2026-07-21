@@ -25,9 +25,12 @@ const STATE_REDIS_PREFIX = 'googleOAuthState:';
 const STATE_TTL_SEC = 60 * 10;
 
 // drive.file: アプリが作成/開いたファイルのみアクセス可 (配信アーカイブのアップロード専用に十分)
-// youtube.upload: 配信アーカイブの YouTube アップロード専用 (granular consent で拒否されうるため
-// GoogleYoutubeService.isAuthorizedForUpload が実際に許可されたか scopes を都度確認する)
-const SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/youtube.upload', 'openid', 'email'];
+// youtube.upload と同一の認可リクエストでは要求できない (Google が
+// "scopes that cannot be requested together" で invalid_request を返す) ため、
+// Drive を常に最初のステップ、YouTube を後続の追加認証 (incremental authorization) に分離する。
+// GoogleYoutubeService.isAuthorizedForUpload が実際に許可されたか scopes を都度確認する。
+const DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.file', 'openid', 'email'];
+const YOUTUBE_SCOPES = ['https://www.googleapis.com/auth/youtube.upload'];
 
 // accessToken の残り有効期間がこれを切ったら refresh する
 const TOKEN_REFRESH_MARGIN_MS = 1000 * 60 * 5;
@@ -67,6 +70,7 @@ export class GoogleOAuthCallbackError extends Error {
 
 type OAuthStatePayload = {
 	userId: MiUser['id'];
+	target: 'drive' | 'youtube';
 };
 
 @Injectable()
@@ -109,31 +113,39 @@ export class GoogleOAuthService {
 	/**
 	 * 認可 URL を生成する。state は Redis に保存され callback で一度だけ消費される。
 	 * access_type=offline + prompt=consent で refresh_token を確実に取得する。
+	 * target='drive' (既定): Drive 連携 (常にフロー最初のステップ)。
+	 * target='youtube': YouTube アップロード権限の追加認証。include_granted_scopes=true により
+	 * 既存の Drive 権限を失わずに追加できる (incremental authorization)。
 	 */
 	@bindThis
-	public async generateAuthorizeUrl(userId: MiUser['id']): Promise<string> {
+	public async generateAuthorizeUrl(userId: MiUser['id'], target: 'drive' | 'youtube' = 'drive'): Promise<string> {
 		const { clientId } = this.getCredentials();
 
 		const state = randomBytes(32).toString('hex');
-		const payload: OAuthStatePayload = { userId };
+		const payload: OAuthStatePayload = { userId, target };
 		await this.redisClient.set(`${STATE_REDIS_PREFIX}${state}`, JSON.stringify(payload), 'EX', STATE_TTL_SEC);
+
+		const scopes = target === 'youtube' ? YOUTUBE_SCOPES : DRIVE_SCOPES;
 
 		const url = new URL(AUTHORIZE_URL);
 		url.searchParams.set('response_type', 'code');
 		url.searchParams.set('client_id', clientId);
 		url.searchParams.set('redirect_uri', this.redirectUri);
-		url.searchParams.set('scope', SCOPES.join(' '));
+		url.searchParams.set('scope', scopes.join(' '));
 		url.searchParams.set('state', state);
 		url.searchParams.set('access_type', 'offline');
 		url.searchParams.set('prompt', 'consent');
+		url.searchParams.set('include_granted_scopes', 'true');
 		return url.toString();
 	}
 
 	/**
 	 * OAuth callback を処理し、google_account を upsert する。
+	 * どちらの認可フロー (Drive / YouTube 追加認証) から戻ってきたかを呼び出し元 (リダイレクト先の
+	 * 出し分け) が判別できるよう、state に紐付けた target を返す。
 	 */
 	@bindThis
-	public async handleCallback(code: string, state: string): Promise<void> {
+	public async handleCallback(code: string, state: string): Promise<'drive' | 'youtube'> {
 		const stateKey = `${STATE_REDIS_PREFIX}${state}`;
 		const payloadRaw = await this.redisClient.getdel(stateKey);
 		if (payloadRaw == null) {
@@ -156,12 +168,17 @@ export class GoogleOAuthService {
 		const expiresAt = new Date(Date.now() + token.expires_in * 1000);
 		const existing = await this.googleAccountsRepository.findOneBy({ userId: payload.userId });
 
+		// include_granted_scopes=true を付けているので token.scope は通常
+		// 既存の許可済みスコープ+新規許可スコープの和集合を返すはずだが、
+		// Google 側の挙動を全面的には信頼せず、既存 scopes との配列マージ (重複排除) で保険をかける。
+		// これにより仮に token.scope が新規スコープのみを返した場合でも、追加認証で既存の
+		// Drive 権限が scopes 列から失われることはない。
 		const values = {
 			googleEmail: userInfo.email,
 			accessToken: token.access_token,
 			refreshToken: token.refresh_token ?? existing?.refreshToken ?? null,
 			expiresAt,
-			scopes: token.scope?.split(' ') ?? existing?.scopes ?? [],
+			scopes: Array.from(new Set([...(existing?.scopes ?? []), ...(token.scope?.split(' ') ?? [])])),
 		} satisfies Partial<MiGoogleAccount>;
 
 		if (existing != null) {
@@ -174,7 +191,8 @@ export class GoogleOAuthService {
 				...values,
 			}));
 		}
-		this.logger.info(`account linked: user=${payload.userId} google=${userInfo.email}`);
+		this.logger.info(`account linked: user=${payload.userId} google=${userInfo.email} target=${payload.target}`);
+		return payload.target;
 	}
 
 	/**

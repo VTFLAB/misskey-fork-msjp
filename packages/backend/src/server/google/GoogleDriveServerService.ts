@@ -100,8 +100,8 @@ export class GoogleDriveServerService {
 			}
 
 			try {
-				await this.googleOAuthService.handleCallback(code, state);
-				return await reply.redirect(`${settingsUrl}?googleDriveResult=linked`);
+				const target = await this.googleOAuthService.handleCallback(code, state);
+				return await reply.redirect(`${settingsUrl}?googleDriveResult=${target === 'youtube' ? 'youtubeLinked' : 'linked'}`);
 			} catch (err) {
 				if (err instanceof GoogleOAuthCallbackError) {
 					this.logger.warn(`oauth callback rejected: ${err.message}`);

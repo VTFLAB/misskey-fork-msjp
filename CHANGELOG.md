@@ -1,6 +1,7 @@
 ## Unreleased
 
 ### Client
+- Fix: Google Drive連携とYouTubeアップロード機能の追加認証で「Error 400: invalid_request」が発生し、どちらも連携できなくなっていた不具合を修正 (bsky-fork 独自)。`drive.file` と `youtube.upload` は Google 側の制約で同一の認可リクエストにまとめて要求できないため、Drive連携を必須の最初のステップとし、YouTube連携はDrive連携完了後にインクリメンタル認可 (`include_granted_scopes=true`) で追加要求する2段階フローに変更。配信設定 (`/settings/streaming`) のYouTube設定セクションに、Drive連携済み・YouTube未認証時のみ表示される「YouTube連携」ボタンを追加
 - Feat: 配信アーカイブの YouTube 自動アップロード機能を追加 (bsky-fork 独自)。「YouTube優先+Driveフォールバック+リトライキュー」方式: 有効化すると配信終了後まず YouTube へのアップロードを試み、アップロード数上限 (クォータ) に達した場合のみ Google Drive へ一時保存し、1時間ごとの自動リトライで空き次第 YouTube へ再アップロードする (無効時は従来通り Drive のみのアーカイブ機能が動作)。配信設定 (`/settings/streaming`) に YouTube アップロード有効化・動画タイトル/概要欄テンプレート・公開範囲 (公開/限定公開/非公開) の設定セクションを追加し、配信者ツールから「配信アーカイブ履歴」ページで自分の過去配信の Google Drive / YouTube それぞれのアーカイブ状況・エラー内容を一覧確認でき、リトライ待ち (順番待ち) の YouTube アップロードはこの画面からキャンセルできる。チャンネルホームのアーカイブカードは YouTube 動画があれば優先的に外部リンクを表示し、無ければ (リトライ待ちの一時退避中など) Drive の埋め込みプレイヤーで再生できるようにした
 - Feat: MSJP配信 (OME) のチャンネルホームに「配信アーカイブ」一覧を追加し、配信終了後に自分の Google Drive へ自動保存した過去配信を Google Drive 埋め込みプレイヤーで再生できるように (bsky-fork 独自)。配信設定 (`/settings/streaming`) に Google Drive 連携 (OAuth 接続/解除) セクションを追加。アーカイブ処理中はステータス表示・自動ポーリングで完了を反映し、失敗時は配信者本人にのみエラー内容を表示する
 - Feat: OBS用ライブ字幕ソース (`/live/:acct/subtitles`) を追加 (bsky-fork 独自)。配信ページの字幕機能から音声認識 (Web Speech API) + クライアントサイド自動翻訳 (ブラウザ内蔵翻訳/ローカルWASM翻訳/Google翻訳/自前GAS/DeepLから選択) の結果をOBSブラウザソースへリアルタイム配信できる。専用の設定ビルダーでフォント・色・位置・表示タイミングなどを調整し、テンプレート保存/エクスポート・インポートにも対応
