@@ -58,6 +58,30 @@ export class MiGoogleAccount {
 	})
 	public folderId: string | null;
 
+	// YouTube 用トークンは Drive 用と完全に独立した OAuth グラントとして別カラムで保持する。
+	// Google が drive.file と youtube.upload の組み合わせ (単一リクエスト・incremental 双方) を
+	// invalid_request として拒否するため、同一行内でも別グラント/別リフレッシュトークンとして扱う。
+	@Column('varchar', {
+		length: 512, nullable: true,
+	})
+	public youtubeRefreshToken: string | null;
+
+	@Column('varchar', {
+		length: 512, nullable: true,
+	})
+	public youtubeAccessToken: string | null;
+
+	@Column('timestamp with time zone', {
+		nullable: true,
+		comment: 'Expiry of youtubeAccessToken. null = YouTube not linked.',
+	})
+	public youtubeExpiresAt: Date | null;
+
+	@Column('varchar', {
+		length: 128, array: true, default: '{}',
+	})
+	public youtubeScopes: string[];
+
 	constructor(data: Partial<MiGoogleAccount>) {
 		if (data == null) return;
 

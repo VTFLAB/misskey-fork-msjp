@@ -76,13 +76,14 @@ export class GoogleYoutubeService {
 	}
 
 	/**
-	 * リンク済み Google アカウントが youtube.upload スコープを許可しているかどうか。
-	 * drive.file のみ許可 (YouTube は拒否) されている granular consent のケースを検出するために使う。
+	 * リンク済み Google アカウントが YouTube 側の連携 (youtube.upload スコープの独立した OAuth グラント)
+	 * を完了しているかどうか。Drive 用トークンとは別カラムで管理されているため、
+	 * youtubeRefreshToken の有無 + youtubeScopes を確認する。
 	 */
 	@bindThis
 	public async isAuthorizedForUpload(userId: MiUser['id']): Promise<boolean> {
 		const account = await this.googleOAuthService.getLinkedAccount(userId);
-		return account?.scopes.includes(YOUTUBE_UPLOAD_SCOPE) ?? false;
+		return account?.youtubeRefreshToken != null && (account?.youtubeScopes.includes(YOUTUBE_UPLOAD_SCOPE) ?? false);
 	}
 
 	/**
@@ -136,7 +137,7 @@ export class GoogleYoutubeService {
 
 	@bindThis
 	private async buildClient(userId: MiUser['id']): Promise<youtube_v3.Youtube> {
-		const accessToken = await this.googleOAuthService.getValidAccessToken(userId);
+		const accessToken = await this.googleOAuthService.getValidAccessToken(userId, 'youtube');
 		if (accessToken == null) {
 			throw new GoogleYoutubeNotAuthorizedError(userId);
 		}
