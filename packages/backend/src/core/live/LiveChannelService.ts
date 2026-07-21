@@ -71,6 +71,10 @@ export class LiveChannelService {
 			channelId: null,
 			autoPostNoteEnabled: false,
 			autoPostNoteTemplate: null,
+			youtubeUploadEnabled: false,
+			youtubeTitleTemplate: null,
+			youtubeDescriptionTemplate: null,
+			youtubePrivacyStatus: 'unlisted',
 			visibility: 'public',
 			viewPassword: null,
 			visibleUserIds: [],
@@ -103,6 +107,10 @@ export class LiveChannelService {
 		offlineImageId?: string | null;
 		autoPostNoteEnabled?: boolean;
 		autoPostNoteTemplate?: string | null;
+		youtubeUploadEnabled?: boolean;
+		youtubeTitleTemplate?: string | null;
+		youtubeDescriptionTemplate?: string | null;
+		youtubePrivacyStatus?: 'public' | 'unlisted' | 'private';
 		visibility?: 'public' | 'followers' | 'password' | 'users';
 		viewPassword?: string | null;
 		visibleUserIds?: string[];
@@ -117,6 +125,10 @@ export class LiveChannelService {
 		if (params.offlineImageId !== undefined) update.offlineImageId = params.offlineImageId;
 		if (params.autoPostNoteEnabled !== undefined) update.autoPostNoteEnabled = params.autoPostNoteEnabled;
 		if (params.autoPostNoteTemplate !== undefined) update.autoPostNoteTemplate = params.autoPostNoteTemplate;
+		if (params.youtubeUploadEnabled !== undefined) update.youtubeUploadEnabled = params.youtubeUploadEnabled;
+		if (params.youtubeTitleTemplate !== undefined) update.youtubeTitleTemplate = params.youtubeTitleTemplate;
+		if (params.youtubeDescriptionTemplate !== undefined) update.youtubeDescriptionTemplate = params.youtubeDescriptionTemplate;
+		if (params.youtubePrivacyStatus !== undefined) update.youtubePrivacyStatus = params.youtubePrivacyStatus;
 		if (params.visibility !== undefined) update.visibility = params.visibility;
 		if (params.viewPassword !== undefined) update.viewPassword = params.viewPassword;
 		if (params.visibleUserIds !== undefined) update.visibleUserIds = params.visibleUserIds;
@@ -313,6 +325,12 @@ export class LiveChannelService {
 			lastCutReason: isOwner ? channel.lastCutReason : undefined,
 			autoPostNoteTemplate: isOwner ? channel.autoPostNoteTemplate : undefined,
 			blockedUntil: isOwner ? blockedUntil : undefined,
+			// YouTube アップロード設定 (bsky-fork 独自)。有効/無効自体は autoPostNoteEnabled と同様に公開する一方、
+			// テンプレートと公開範囲設定は所有者のみに返す (autoPostNoteTemplate と同じ扱い)。
+			youtubeUploadEnabled: channel.youtubeUploadEnabled,
+			youtubeTitleTemplate: isOwner ? channel.youtubeTitleTemplate : undefined,
+			youtubeDescriptionTemplate: isOwner ? channel.youtubeDescriptionTemplate : undefined,
+			youtubePrivacyStatus: isOwner ? channel.youtubePrivacyStatus : undefined,
 			// 視聴制限設定。password の平文シークレットと users の許可リストは owner 以外へ絶対に返さない。
 			visibility: isOwner ? channel.visibility : undefined,
 			viewPassword: isOwner ? channel.viewPassword : undefined,
