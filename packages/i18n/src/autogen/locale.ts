@@ -15392,6 +15392,142 @@ export interface Locale extends ILocale {
          */
         "archiveGoogleDriveNotConfigured": string;
         /**
+         * YouTube アップロード
+         */
+        "youtubeUploadIntegration": string;
+        /**
+         * 配信終了後にYouTubeへ自動アップロードする
+         */
+        "youtubeUploadEnabledLabel": string;
+        /**
+         * YouTubeへの優先アップロードを試み、アップロード数上限に達した場合は自動的にGoogle Driveへ一時保存し、1時間ごとに空きが出次第YouTubeへ再アップロードします。無効の場合は、上のGoogle Drive連携による既存のアーカイブ機能がそのまま動作します。
+         */
+        "youtubeUploadEnabledDescription": string;
+        /**
+         * 動画タイトルテンプレート
+         */
+        "youtubeUploadTitleTemplate": string;
+        /**
+         * {title}(配信タイトル)・{date}(配信日時)・{channelName}(チャンネル名) が使えます。空欄の場合は既定の書式「{title} ({date})」を使用します。
+         */
+        "youtubeUploadTitleTemplateDescription": ParameterizedString<"title" | "date" | "channelName" | "title" | "date">;
+        /**
+         * {title} ({date})
+         */
+        "youtubeUploadTitleTemplateDefault": ParameterizedString<"title" | "date">;
+        /**
+         * 概要欄テンプレート
+         */
+        "youtubeUploadDescriptionTemplate": string;
+        /**
+         * {title}(配信タイトル)・{date}(配信日時)・{channelName}(チャンネル名) が使えます。空欄の場合は既定の文面を使用します。
+         */
+        "youtubeUploadDescriptionTemplateDescription": ParameterizedString<"title" | "date" | "channelName">;
+        /**
+         * 配信アーカイブ: {channelName}
+         */
+        "youtubeUploadDescriptionTemplateDefault": ParameterizedString<"channelName">;
+        /**
+         * 公開範囲
+         */
+        "youtubeUploadPrivacyStatus": string;
+        /**
+         * 限定公開(unlisted)推奨: リンクを知っている人だけが視聴できます。
+         */
+        "youtubeUploadPrivacyStatusDescription": string;
+        /**
+         * 公開
+         */
+        "youtubeUploadPrivacyStatusPublic": string;
+        /**
+         * 限定公開
+         */
+        "youtubeUploadPrivacyStatusUnlisted": string;
+        /**
+         * 非公開
+         */
+        "youtubeUploadPrivacyStatusPrivate": string;
+        /**
+         * YouTube機能を使うには権限の再許可が必要です。一度連携を解除して再連携してください。
+         */
+        "youtubeUploadReauthRequired": string;
+        /**
+         * YouTubeアップロード機能を使うには、上のGoogle Drive連携が必要です。
+         */
+        "youtubeUploadNeedsGoogleDrive": string;
+        /**
+         * 配信アーカイブ履歴
+         */
+        "archiveHistory": string;
+        /**
+         * アーカイブ済みの配信はまだありません。
+         */
+        "archiveHistoryEmpty": string;
+        /**
+         * Drive: 完了
+         */
+        "archiveDriveReady": string;
+        /**
+         * Drive: 未使用
+         */
+        "archiveDriveUnused": string;
+        /**
+         * Drive: 失敗
+         */
+        "archiveDriveFailed": string;
+        /**
+         * Drive: 処理中…
+         */
+        "archiveDriveProcessing": string;
+        /**
+         * Drive: サムネイル生成中…
+         */
+        "archiveDriveThumbnailProcessing": string;
+        /**
+         * YouTube: 未使用
+         */
+        "archiveYoutubeUnused": string;
+        /**
+         * YouTube: アップロード中…
+         */
+        "archiveYoutubeProcessing": string;
+        /**
+         * YouTube: 完了
+         */
+        "archiveYoutubeReady": string;
+        /**
+         * YouTube: 失敗
+         */
+        "archiveYoutubeFailed": string;
+        /**
+         * YouTube: 順番待ち
+         */
+        "archiveYoutubeQueued": string;
+        /**
+         * YouTube: キャンセル済み
+         */
+        "archiveYoutubeCancelled": string;
+        /**
+         * キャンセル
+         */
+        "archiveYoutubeCancel": string;
+        /**
+         * YouTubeアップロードの順番待ちをキャンセルしますか？
+         */
+        "archiveYoutubeCancelConfirm": string;
+        /**
+         * (現在Driveで一時視聴可能)
+         */
+        "archiveDriveTemporaryAvailable": string;
+        /**
+         * Driveで見る
+         */
+        "viewOnDrive": string;
+        /**
+         * YouTubeで見る
+         */
+        "viewOnYoutube": string;
+        /**
          * アーカイブ処理中…
          */
         "archiveProcessing": string;

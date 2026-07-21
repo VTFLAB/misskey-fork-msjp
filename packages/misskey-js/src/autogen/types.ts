@@ -3931,6 +3931,15 @@ export type paths = {
          */
         post: operations['twitch___my-account'];
     };
+    '/twitch/streams/archive-history': {
+        /**
+         * twitch/streams/archive-history
+         * @description 配信者本人が自分の過去配信のアーカイブ (Google Drive / YouTube) 状況を確認するための一覧。カーソルページネーション (untilId) 対応。
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         */
+        post: operations['twitch___streams___archive-history'];
+    };
     '/twitch/streams/blocks/create': {
         /**
          * twitch/streams/blocks/create
@@ -3957,6 +3966,15 @@ export type paths = {
          *     **Credential required**: *Yes* / **Permission**: *read:account*
          */
         post: operations['twitch___streams___blocks___list'];
+    };
+    '/twitch/streams/cancel-youtube-upload': {
+        /**
+         * twitch/streams/cancel-youtube-upload
+         * @description YouTubeアップロードのリトライキューをキャンセルする(配信者本人のみ)。Drive側に一時退避されたファイルは削除しない (視聴者が引き続き閲覧できるようにするため)。
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['twitch___streams___cancel-youtube-upload'];
     };
     '/twitch/streams/comments': {
         /**
@@ -25399,6 +25417,7 @@ export interface operations {
                         available: boolean;
                         linked: boolean;
                         googleEmail: string | null;
+                        youtubeAuthorized: boolean;
                     };
                 };
             };
@@ -30355,6 +30374,11 @@ export interface operations {
                         streamKeyRegeneratedAt?: string;
                         lastCutReason?: string | null;
                         autoPostNoteTemplate?: string | null;
+                        youtubeUploadEnabled: boolean;
+                        youtubeTitleTemplate?: string | null;
+                        youtubeDescriptionTemplate?: string | null;
+                        /** @enum {string} */
+                        youtubePrivacyStatus?: 'public' | 'unlisted' | 'private';
                     };
                 };
             };
@@ -30532,6 +30556,11 @@ export interface operations {
                             streamKeyRegeneratedAt?: string;
                             lastCutReason?: string | null;
                             autoPostNoteTemplate?: string | null;
+                            youtubeUploadEnabled: boolean;
+                            youtubeTitleTemplate?: string | null;
+                            youtubeDescriptionTemplate?: string | null;
+                            /** @enum {string} */
+                            youtubePrivacyStatus?: 'public' | 'unlisted' | 'private';
                             /** Format: date-time */
                             blockedUntil?: string | null;
                             /** @enum {string} */
@@ -30724,6 +30753,11 @@ export interface operations {
                         streamKeyRegeneratedAt?: string;
                         lastCutReason?: string | null;
                         autoPostNoteTemplate?: string | null;
+                        youtubeUploadEnabled: boolean;
+                        youtubeTitleTemplate?: string | null;
+                        youtubeDescriptionTemplate?: string | null;
+                        /** @enum {string} */
+                        youtubePrivacyStatus?: 'public' | 'unlisted' | 'private';
                         /** Format: date-time */
                         blockedUntil?: string | null;
                     };
@@ -30789,6 +30823,11 @@ export interface operations {
                     offlineImageId?: string | null;
                     autoPostNoteEnabled?: boolean;
                     autoPostNoteTemplate?: string | null;
+                    youtubeUploadEnabled?: boolean;
+                    youtubeTitleTemplate?: string | null;
+                    youtubeDescriptionTemplate?: string | null;
+                    /** @enum {string} */
+                    youtubePrivacyStatus?: 'public' | 'unlisted' | 'private';
                     /** @enum {string} */
                     visibility?: 'public' | 'followers' | 'password' | 'users';
                     viewPassword?: string | null;
@@ -30827,6 +30866,11 @@ export interface operations {
                         streamKeyRegeneratedAt?: string;
                         lastCutReason?: string | null;
                         autoPostNoteTemplate?: string | null;
+                        youtubeUploadEnabled: boolean;
+                        youtubeTitleTemplate?: string | null;
+                        youtubeDescriptionTemplate?: string | null;
+                        /** @enum {string} */
+                        youtubePrivacyStatus?: 'public' | 'unlisted' | 'private';
                         /** @enum {string} */
                         visibility?: 'public' | 'followers' | 'password' | 'users';
                         viewPassword?: string | null;
@@ -37285,6 +37329,91 @@ export interface operations {
             };
         };
     };
+    'twitch___streams___archive-history': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** @default 20 */
+                    limit?: number;
+                    /** Format: misskey:id */
+                    untilId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** Format: misskey:id */
+                        streamId: string;
+                        title: string;
+                        /** Format: date-time */
+                        startedAt: string;
+                        /** Format: date-time */
+                        endedAt: string | null;
+                        /** @enum {string} */
+                        recordingStatus: 'none' | 'pending' | 'remuxing' | 'uploading' | 'processing' | 'ready' | 'failed';
+                        recordingGoogleDriveFileId: string | null;
+                        recordingGoogleDriveThumbnailLink: string | null;
+                        recordingError: string | null;
+                        /** @enum {string} */
+                        youtubeUploadStatus: 'none' | 'pending' | 'uploading' | 'ready' | 'failed' | 'queued' | 'cancelled';
+                        youtubeVideoId: string | null;
+                        youtubeUploadError: string | null;
+                    }[];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     twitch___streams___blocks___create: {
         requestBody: {
             content: {
@@ -37472,6 +37601,75 @@ export interface operations {
                             displayName: string | null;
                         } | null;
                     }[];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'twitch___streams___cancel-youtube-upload': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    streamId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** @enum {string} */
+                        youtubeUploadStatus: 'none' | 'pending' | 'uploading' | 'ready' | 'failed' | 'queued' | 'cancelled';
+                    };
                 };
             };
             /** @description Client error */
@@ -37831,6 +38029,10 @@ export interface operations {
                             recordingGoogleDriveFileId?: string | null;
                             recordingGoogleDriveThumbnailLink?: string | null;
                             recordingError?: string | null;
+                            /** @enum {string} */
+                            youtubeUploadStatus?: 'none' | 'pending' | 'uploading' | 'ready' | 'failed' | 'queued' | 'cancelled';
+                            youtubeVideoId?: string | null;
+                            youtubeUploadError?: string | null;
                         }[];
                     };
                 };
