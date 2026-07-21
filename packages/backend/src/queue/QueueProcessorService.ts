@@ -46,6 +46,7 @@ import { CleanProcessorService } from './processors/CleanProcessorService.js';
 import { AggregateRetentionProcessorService } from './processors/AggregateRetentionProcessorService.js';
 import { CleanRemoteNotesProcessorService } from './processors/CleanRemoteNotesProcessorService.js';
 import { TwitchCommentTranslateProcessorService } from './processors/TwitchCommentTranslateProcessorService.js';
+import { YoutubeUploadRetryProcessorService } from './processors/YoutubeUploadRetryProcessorService.js';
 import { QueueLoggerService } from './QueueLoggerService.js';
 import { QUEUE, baseWorkerOptions } from './const.js';
 
@@ -132,6 +133,7 @@ export class QueueProcessorService implements OnApplicationShutdown {
 		private cleanProcessorService: CleanProcessorService,
 		private cleanRemoteNotesProcessorService: CleanRemoteNotesProcessorService,
 		private twitchCommentTranslateProcessorService: TwitchCommentTranslateProcessorService,
+		private youtubeUploadRetryProcessorService: YoutubeUploadRetryProcessorService,
 	) {
 		this.logger = this.queueLoggerService.logger;
 
@@ -176,6 +178,7 @@ export class QueueProcessorService implements OnApplicationShutdown {
 					case 'checkModeratorsActivity': return this.checkModeratorsActivityProcessorService.process();
 					case 'clean': return this.cleanProcessorService.process();
 					case 'cleanRemoteNotes': return this.cleanRemoteNotesProcessorService.process(job);
+					case 'youtubeUploadRetry': return this.youtubeUploadRetryProcessorService.process();
 					default: throw new Error(`unrecognized job type ${job.name} for system`);
 				}
 			};

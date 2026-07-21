@@ -25,7 +25,9 @@ const STATE_REDIS_PREFIX = 'googleOAuthState:';
 const STATE_TTL_SEC = 60 * 10;
 
 // drive.file: アプリが作成/開いたファイルのみアクセス可 (配信アーカイブのアップロード専用に十分)
-const SCOPES = ['https://www.googleapis.com/auth/drive.file', 'openid', 'email'];
+// youtube.upload: 配信アーカイブの YouTube アップロード専用 (granular consent で拒否されうるため
+// GoogleYoutubeService.isAuthorizedForUpload が実際に許可されたか scopes を都度確認する)
+const SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/youtube.upload', 'openid', 'email'];
 
 // accessToken の残り有効期間がこれを切ったら refresh する
 const TOKEN_REFRESH_MARGIN_MS = 1000 * 60 * 5;

@@ -4,6 +4,7 @@
  */
 
 import * as fs from 'node:fs';
+import { pipeline } from 'node:stream/promises';
 import { Injectable } from '@nestjs/common';
 import { auth as googleAuth, drive, drive_v3 } from '@googleapis/drive';
 import type { MiUser } from '@/models/User.js';
@@ -23,6 +24,17 @@ export class GoogleDriveNotAuthorizedError extends Error {
 		super(`No valid Google access token for user ${userId}.`);
 		this.name = 'GoogleDriveNotAuthorizedError';
 	}
+}
+
+/**
+ * @googleapis/drive の GaxiosError (googleapis-common 経由の再エクスポート) を backend の
+ * 直接 dependency にはせずダックタイピングで判定する (GoogleYoutubeService.isQuotaExceededError と同方針)。
+ */
+function isNotFoundError(err: unknown): boolean {
+	if (err == null || typeof err !== 'object') return false;
+	const status = (err as { status?: number; response?: { status?: number } }).status
+		?? (err as { response?: { status?: number } }).response?.status;
+	return status === 404;
 }
 
 /**
@@ -100,6 +112,43 @@ export class GoogleDriveService {
 			fields: 'thumbnailLink, videoMediaMetadata',
 		});
 		return { thumbnailLink: res.data.thumbnailLink ?? null };
+	}
+
+	/**
+	 * Drive 上のファイルをローカルパスへダウンロードする (bsky-fork 独自)。
+	 * YouTube アップロードリトライキュー (YoutubeUploadRetryProcessorService) が、クォータ超過時に
+	 * 一時退避した Drive ファイルを再度 YouTube へアップロードする前段として使う。
+	 */
+	@bindThis
+	public async downloadFile(userId: MiUser['id'], fileId: string, destPath: string): Promise<void> {
+		const driveClient = await this.buildClient(userId);
+		const res = await driveClient.files.get(
+			{ fileId, alt: 'media' },
+			{ responseType: 'stream' },
+		);
+
+		await pipeline(res.data, fs.createWriteStream(destPath));
+		this.logger.info(`downloaded file: user=${userId} fileId=${fileId}`);
+	}
+
+	/**
+	 * Drive 上のファイルを削除する (bsky-fork 独自)。YouTube アップロードリトライキューが
+	 * クォータ超過時の一時退避ファイルを、YouTube への再アップロード成功後に掃除するために使う。
+	 * 既に削除済み (404) の場合はエラーにしない (二重実行や手動削除に対して冪等)。
+	 */
+	@bindThis
+	public async deleteFile(userId: MiUser['id'], fileId: string): Promise<void> {
+		const driveClient = await this.buildClient(userId);
+		try {
+			await driveClient.files.delete({ fileId });
+			this.logger.info(`deleted file: user=${userId} fileId=${fileId}`);
+		} catch (err) {
+			if (isNotFoundError(err)) {
+				this.logger.info(`deleteFile: already gone (fileId=${fileId})`);
+				return;
+			}
+			throw err;
+		}
 	}
 
 	@bindThis
