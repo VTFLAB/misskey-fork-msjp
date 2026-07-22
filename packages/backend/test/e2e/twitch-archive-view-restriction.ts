@@ -57,6 +57,7 @@ describe('配信アーカイブ視聴制限 (canWatchArchive, twitch/streams/sho
 			recordingGoogleDriveThumbnailLink: 'https://example.com/thumb-show-01.jpg',
 			youtubeUploadStatus: 'ready',
 			youtubeVideoId: 'ytvideo-show-01',
+			youtubeThumbnailUrl: 'https://i.ytimg.com/vi/ytvideo-show-01/hqdefault.jpg',
 			// archiveViewVisibility はデフォルト 'public' のまま (public モードのテストを先頭に置くため明示しない)
 		}));
 		await connection.destroy();
@@ -73,6 +74,7 @@ describe('配信アーカイブ視聴制限 (canWatchArchive, twitch/streams/sho
 		assert.strictEqual(session.authorized, true);
 		assert.strictEqual(session.viewRestriction, undefined);
 		assert.strictEqual(session.youtubeVideoId, 'ytvideo-show-01');
+		assert.strictEqual(session.youtubeThumbnailUrl, 'https://i.ytimg.com/vi/ytvideo-show-01/hqdefault.jpg');
 		assert.strictEqual(session.recordingGoogleDriveFileId, 'drivefile-show-01');
 		assert.strictEqual(session.recordingGoogleDriveThumbnailLink, 'https://example.com/thumb-show-01.jpg');
 	});
@@ -87,6 +89,7 @@ describe('配信アーカイブ視聴制限 (canWatchArchive, twitch/streams/sho
 		assert.strictEqual(deniedSession.authorized, false);
 		assert.strictEqual(deniedSession.viewRestriction, 'followers');
 		assert.strictEqual(deniedSession.youtubeVideoId, undefined);
+		assert.strictEqual(deniedSession.youtubeThumbnailUrl, undefined);
 		assert.strictEqual(deniedSession.recordingGoogleDriveFileId, undefined);
 		assert.strictEqual(deniedSession.recordingGoogleDriveThumbnailLink, undefined);
 
@@ -94,6 +97,7 @@ describe('配信アーカイブ視聴制限 (canWatchArchive, twitch/streams/sho
 		const allowedSession = archiveSession(allowed);
 		assert.strictEqual(allowedSession.authorized, true);
 		assert.strictEqual(allowedSession.youtubeVideoId, 'ytvideo-show-01');
+		assert.strictEqual(allowedSession.youtubeThumbnailUrl, 'https://i.ytimg.com/vi/ytvideo-show-01/hqdefault.jpg');
 	});
 
 	test('users: archiveVisibleUserIds に含まれるユーザーのみ authorized:true', async () => {
