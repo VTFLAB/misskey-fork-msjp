@@ -154,6 +154,12 @@ export class MiTwitchStream {
 	})
 	public youtubeUploadError: string | null;
 
+	@Column('varchar', {
+		length: 2048, nullable: true,
+		comment: 'YouTube thumbnail URL from the videos.insert response snippet.thumbnails (may be null if not yet available at upload time).',
+	})
+	public youtubeThumbnailUrl: string | null;
+
 	// アーカイブ視聴制限 (bsky-fork 独自)。配信終了時点の live_channel 側同名カラムのスナップショット
 	// (アーカイブ設定画面から個別上書き可)。migration 1784670503199 で追加。
 	@Column('varchar', {
