@@ -47,6 +47,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<div :class="$style.restrictedDescription">{{ i18n.ts._liveChannel.restrictedUsersDescription }}</div>
 						</template>
 					</div>
+					<!-- 完全オフライン、またはプレビューモード中 (isPreview) は activeSession が無いため、
+					プレイヤーの代わりにオフライン画像 or メッセージを表示する (bsky-fork 独自) -->
+					<div v-else :class="$style.offlinePanel">
+						<img v-if="channelInfo?.offlineImageUrl != null" :src="channelInfo.offlineImageUrl" alt="" :class="$style.offlineImage">
+						<div v-else :class="$style.offlineMessage">
+							<i class="ti ti-broadcast-off" :class="$style.offlineIcon"></i>
+							<div :class="$style.offlineTitle">{{ i18n.ts._twitch.streamOffline }}</div>
+						</div>
+					</div>
 				</div>
 				<div :class="$style.info" class="_panel">
 					<div :class="$style.infoHeader">
@@ -534,6 +543,45 @@ definePage(() => ({
 	border: solid 1px var(--MI_THEME-divider);
 	background: var(--MI_THEME-panel);
 	color: var(--MI_THEME-fg);
+}
+
+// オフライン時のプレイヤー領域 (bsky-fork 独自)。動画プレイヤー領域は .restrictedPanel と
+// 同様にテーマに関わらず常に黒背景+白文字にする方針のため、color は意図的に #fff ハードコード。
+// 画像表示時に .restrictedPanel のような padding で欠けさせたくないため、padding/gap は
+// テキストメッセージ側の .offlineMessage に持たせ、.offlinePanel 自体は無地の全面領域とする
+.offlinePanel {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #fff;
+}
+
+.offlineImage {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
+.offlineMessage {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 24px;
+	text-align: center;
+}
+
+.offlineIcon {
+	font-size: 2em;
+	opacity: 0.8;
+}
+
+.offlineTitle {
+	font-weight: bold;
+	font-size: 1.1em;
 }
 
 .info {
