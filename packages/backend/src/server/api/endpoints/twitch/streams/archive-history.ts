@@ -39,6 +39,7 @@ export const meta = {
 					enum: ['none', 'pending', 'uploading', 'ready', 'failed', 'queued', 'cancelled'],
 				},
 				youtubeVideoId: { type: 'string', optional: false, nullable: true },
+				youtubeThumbnailUrl: { type: 'string', optional: false, nullable: true },
 				youtubeUploadError: { type: 'string', optional: false, nullable: true },
 				// アーカイブ視聴制限 (bsky-fork 独自)。オーナー専用一覧のため常に値を返す
 				// (show.ts の owner-only optional 分岐とは異なり optional にしない)。
@@ -79,6 +80,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				recordingError: s.recordingError,
 				youtubeUploadStatus: s.youtubeUploadStatus,
 				youtubeVideoId: s.youtubeVideoId,
+				youtubeThumbnailUrl: s.youtubeThumbnailUrl,
 				youtubeUploadError: s.youtubeUploadError,
 				archiveViewVisibility: s.archiveViewVisibility,
 				archiveViewPassword: s.archiveViewPassword,
