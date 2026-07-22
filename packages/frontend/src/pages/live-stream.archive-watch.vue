@@ -255,6 +255,8 @@ definePage(() => ({
 	hideDeckNav: true,
 	// スマホのグローバルボトムナビは視聴の邪魔になるため非表示にする
 	hideMobileFooter: true,
+	// universal/visitor UI でもサイドバー・ウィジェット等を隠し、Misskeyのグローバルレイアウトから完全に切り離す
+	immersive: true,
 }));
 </script>
 
