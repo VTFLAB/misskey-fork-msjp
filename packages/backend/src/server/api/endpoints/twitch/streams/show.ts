@@ -80,6 +80,7 @@ export const meta = {
 							enum: ['none', 'pending', 'uploading', 'ready', 'failed', 'queued', 'cancelled'],
 						},
 						youtubeVideoId: { type: 'string', optional: true, nullable: true },
+						youtubeThumbnailUrl: { type: 'string', optional: true, nullable: true },
 						// オーナー本人のリクエストのみ値が入る (他人には常に省略/undefined)
 						youtubeUploadError: { type: 'string', optional: true, nullable: true },
 						// アーカイブ公開取り消し (bsky-fork 独自)。recordingError 等と同じくオーナー本人のみ値が入る
@@ -189,7 +190,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 			// 過去セッション (アーカイブ) は配信終了時点の視聴制限スナップショットに基づき canWatchArchive で判定する
 			// (bsky-fork 独自、視聴制限のアーカイブ引き継ぎ)。非認可でも title/startedAt/endedAt/recordingStatus 等の
-			// 非機微情報は返すが、recordingGoogleDriveFileId/recordingGoogleDriveThumbnailLink/youtubeVideoId は省略する。
+			// 非機微情報は返すが、recordingGoogleDriveFileId/recordingGoogleDriveThumbnailLink/youtubeVideoId/youtubeThumbnailUrl は省略する。
 			const pastSessions = await Promise.all(visiblePastOmeSessions.map(async s => {
 				const { authorized, viewRestriction } = await this.liveArchiveAccessService.canWatchArchive(s, me, ps.archiveViewToken);
 
@@ -208,6 +209,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					recordingError: isOwner ? s.recordingError : undefined,
 					youtubeUploadStatus: s.youtubeUploadStatus,
 					youtubeVideoId: authorized ? s.youtubeVideoId : undefined,
+					youtubeThumbnailUrl: authorized ? s.youtubeThumbnailUrl : undefined,
 					youtubeUploadError: isOwner ? s.youtubeUploadError : undefined,
 					// アーカイブ公開取り消しフラグ。オーナー本人のみ値が入る (recordingError と同じ owner-only 扱い)。
 					archiveUnpublished: isOwner ? s.archiveUnpublishedAt != null : undefined,
