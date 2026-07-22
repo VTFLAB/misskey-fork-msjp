@@ -21,6 +21,11 @@ export type PageMetadata = {
 	// スマホのグローバルボトムナビ (ホーム/通知/ウィジェット) を非表示にする (bsky-fork 独自)。
 	// フルスクリーンアプリ的な没入表示にしたいページ (配信視聴ページ等) が使う
 	hideMobileFooter?: boolean;
+	// サイドバー・ウィジェット・タイトルバー・ステータスバー等のグローバルUIを一括で非表示にする (bsky-fork 独自)。
+	// universal UI / visitor UI で Misskey のグローバルレイアウトから完全に切り離した
+	// 没入表示にしたいページ (配信視聴ページ等) が使う。deck UI は既存の
+	// deck.useSimpleUiForNonRootPages (非ルートページの zen 自動降格) で別途対応済み
+	immersive?: boolean;
 };
 
 type PageMetadataGetter = () => PageMetadata;
