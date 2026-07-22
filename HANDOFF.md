@@ -1,8 +1,29 @@
 # misskey-bsky-fork — 次セッションへの引き継ぎ
 
-## ⚠️ 次アクション: アーカイブ視聴制限・MSJP内完結視聴・コメントリプレイ・削除機能 — 実装・デプロイ済み、Drive埋め込みが最優先の未検証事項 (2026-07-22 実装、同日実機検証で1件修正済み)
+## ⚠️ 次アクション: 視聴制限4モードの実地検証・コメントリプレイ精度確認 (2026-07-22時点)
 
-**現在地**: 前スレッドの要望 (MSJP内完結視聴・コメントリプレイ・削除機能) に加え、ユーザーから追加で「アーカイブにも配信時の視聴制限を引き継ぐ」要望が来たため、4機能セットとして設計・実装した。**push・本番デプロイ済み** (`88f3db7a49` まで反映確認済み)。実機検証はYouTube側のみ着手・1件のバグを発見修正しユーザー確認済み。**Drive埋め込みプレイヤーは今回一度も実機検証していない、次セッションの最優先事項**。
+**現在地**: アーカイブ視聴制限・MSJP内完結視聴・コメントリプレイ・削除機能は実装・push・本番デプロイ済み (`88f3db7a49` まで反映確認済み)。**Drive埋め込みプレイヤーの実機検証は完了・クローズ済み** (下記参照)。残る未検証は主に視聴制限4モードの実地検証とコメントリプレイの同期精度確認 (詳細は下の「未検証事項」)。
+
+### 今回セッション (2026-07-22 後半) で完了した項目
+
+1. **配信視聴ページの没入レイアウト修正**: デフォルトUI (universal) / 未ログイン (visitor) UI で配信視聴・アーカイブ視聴・OBSオーバーレイページを開くとサイドバー・ウィジェット等のグローバルUIが残留する不具合を修正 (`PageMetadata.immersive` 新設、commit `3ba526b12b`)。**重要な技術的発見**: Misskeyのルーティング (Nirax) は通常SPA内遷移 (`pushState`) のため `boot/main-boot.ts` は初回ロード時にしか実行されない。「特定パスだけUIモードを変える」対応は `main-boot.ts` のパス判定では機能せず (既存の `deck.useSimpleUiForNonRootPages` も同じ制約を受けている可能性がある)、`PageMetadata` (provide/inject でリアクティブに伝播) ベースの制御が必須。詳細はプロジェクトメモリ `live-streaming-immersive-layout-fix` 参照
+2. **Drive埋め込みプレイヤーの実機検証完了 (クローズ)**: 事前コードレビュー (YouTube側で踏んだ「DOM要素置換によるVueバインディング焼き付き」問題は、Drive側が素の `<iframe>` のみで外部JS APIを使わないため構造的に発生しない、共有権限 `permissions.create(anyone/reader)` も正しく付与済み、Misskey側CSPもブロック要因なし、まで確認済み) → 実際に5分間OBS配信 → 終了 → バックエンドログ・DBで録画→Google Driveアップロード→アーカイブ登録の全パイプラインが正常動作することを確認。詳細はプロジェクトメモリ `live-streaming-drive-archive-verification` 参照
+3. **NAS/OME/Misskeyインスタンス上のファイル残留チェック**: TNAS/CT100(OME)/CT200(mi-host)いずれも `.ts`/`.mp4` 実体ファイルの残留なし (`LiveRecordingService.cleanupFiles()` が正常機能、成功・失敗どちらの経路でも確実に削除される設計)。ただし `info/*.xml` 完了マーカーファイル (691バイト/配信) はクリーンアップ対象から漏れており配信のたびに残り続ける (軽微、実害僅少、対応保留)
+4. **アーカイブ連携未設定ユーザーの録画抑制を確認**: `markOmeStreamLive` → `startRecordingIfEnabled` → `isRecordingEnabledForUser` のガードにより、Drive/YouTubeいずれも連携していないユーザーは `OmeApiService.startRecord` 自体が呼ばれず、OME側で録画ファイル (`.ts`) が一切生成されないことをコードレベルで確認済み (ストレージ消費面で健全な設計)
+5. **YouTube埋め込みプレイヤーの音量デフォルト値修正**: 初期音量が100% (最大) だった問題を `onReady` 時の `setVolume(50)` で修正 (commit `071e4051a5`)。**Drive側は技術的に対応不可と確定** (Google Drive `/preview` 埋め込みには音量制御用のJS API/URLパラメータが一切存在しない。代替の `<video>` タグ直接埋め込みも「100MB超ファイルはウイルススキャン対象外で再生不可」という制約がありアーカイブ用途には不採用と判断。出典・詳細は basic-memory `tools/Google Drive iframe embed の音量制御は不可能` 参照)
+
+**⚠️ 重大インシデント (次回必読)**: NASのファイル残留調査中に `built/.config.json` を安易に `cat` してしまい、複数のシークレット値 (`objectStorage.secretKey`/`twitch.clientSecret`/`ome.apiToken`/`ome.admissionSecret`/`ome.signedPolicySecret`/`google.clientSecret`) が会話ログに平文で出力される事故が発生した。ユーザーに開示済み、ローテーションの要否はユーザー判断待ち (2026-07-22時点で未対応)。**次回このプロジェクトで設定ファイルの中身を確認する必要がある場合、`cat`ではなく`grep`で該当キーのみ抽出すること**。詳細・教訓はプロジェクトメモリの feedback (`secrets-handling-config-json` 相当、下記参照) にも記録。
+
+### 未検証事項・残タスク (優先順位順)
+
+1. **視聴制限4モード (public/followers/password/users) の実地検証**: 実際にOBS配信→視聴制限を各モードに設定→終了→アーカイブ化→意図通り遮断/許可されるか。特にpasswordモードの `verify-archive-view-password` → `viewToken` → 再取得のフローをブラウザで
+2. **コメントリプレイの同期精度**: YouTube再生位置とコメント表示タイミングのズレが体感で許容範囲か (プレイヤー自体の表示バグ・音量は修正済みなので、次はこの精度確認に進める)
+3. **`archive-settings.vue` のフロント側パスワード必須バリデーション**: 現状バックエンドのfail-closeのみ、UXとしては改善余地あり
+4. **Google OAuth再申請**: 前々回セッションで判明、前回の検証リクエストがキャンセルされていた (Gmail確認済み)。Cloud ConsoleでPublishing Statusを確認し、Testing/Internalになっていれば戻して再申請
+5. `info/*.xml` マーカーファイルのクリーンアップ漏れ対応 (優先度低、実害僅少、`LiveRecordingService.cleanupFiles` に対応するinfoファイル削除を追加するだけの見込み)
+6. vox-aivis CORS 403 (Twitch読み上げ機能、NixOS側 `--cors_policy_mode all` 追加要)
+7. live-subtitle: googleエンジンのCORS実測・Chrome Translator API実機確認
+8. upstream-sync cron復活 (stableリリース到達までブロック中、現在alpha.6)
 
 ### 実装した機能
 
@@ -31,13 +52,13 @@
 
 **教訓**: YouTube IFrame Player API (および恐らく類似の「渡したDOM要素を丸ごと差し替える」系の外部ウィジェットAPI全般) を素のVue `ref` 要素に対して呼ぶ場合、その要素自体にリアクティブなバインディング (`:style`/`:class`等) を持たせてはならない。差し替え後の要素はフレームワーク管理外になるため、以後の更新が届かない。
 
-### 未検証事項 (次セッションの最優先、実機での確認が必要)
+### 未検証事項 (2026-07-22時点、Drive埋め込み検証は完了・冒頭セクション参照)
 
-1. **【最優先】Drive埋め込みプレイヤーの動作確認**: 今回のセッションでは一度も実機検証していない。`MkArchivePlayer.vue`のDrive分岐 (YouTube視聴と違い`MkYoutubeArchivePlayer`を介さず素の`<iframe :src="drive.google.com/.../preview">`をインライン実装) 自体はYouTube側のような「DOM要素置換」問題は起きない設計のはずだが、未確認。Drive連携済みかつYouTube未連携 (またはYouTube優先ロジックでDriveが選ばれるケース) のアーカイブで実際に埋め込み再生できるか、`XArchiveCommentReplay`の`mode:'static'`(時系列一覧表示) が正しく出るかを確認すること
-2. **視聴制限4モードの実地検証**: 実際にOBS配信→視聴制限をfollowers/password/users等に設定→終了→アーカイブ化→各モードで意図通り遮断/許可されるか。特にpasswordモードの `verify-archive-view-password` → `viewToken` → 再取得のフローをブラウザで
-3. **コメントリプレイの同期精度**: YouTube再生位置とコメント表示タイミングのズレが体感で許容範囲か (プレイヤー自体の表示バグは修正済みなので、次はこの精度確認に進める)
-4. **`update-archive-settings.ts` のパスワード必須バリデーション**: e2eテスト実装中に「パスワード未設定のままpasswordモードに切り替えると誰も解錠できなくなる」バグを発見し `live-channels/update.ts` と同じガードを追加済みだが、フロント側 (`archive-settings.vue`) でも同様に空パスワードでの送信を防ぐUI側のバリデーションがあるとより親切 (現状バックエンドのfail-closeのみ)
-5. **既存アーカイブへの`embeddable`遡及バックフィル**: 今回のテスト動画1件については embeddable 自体は元々有効だった (YouTube Studio確認済み) ため今回は不要だったが、もし将来的に「embeddable=falseの既存動画」に遭遇したら、`GoogleYoutubeService`から呼べる`videos.update`は現行スコープ (`youtube.upload`のみ) では`insufficient authentication scopes`エラーになることを確認済み。読み書きには`youtube`または`youtube.force-ssl`スコープの追加+ユーザー再認可が必要になる (今回はスコープ追加を避けYouTube Studioでの手動確認に倒した経緯がある)
+旧1〜4番 (Drive埋め込み検証・視聴制限4モード・コメントリプレイ精度・パスワードバリデーション) は
+冒頭「未検証事項・残タスク」セクションに統合済み (Drive埋め込みは検証完了、他は引き続き残タスク)。
+以下は参考情報として残す:
+
+- **既存アーカイブへの`embeddable`遡及バックフィル**: 今回のテスト動画1件については embeddable 自体は元々有効だった (YouTube Studio確認済み) ため今回は不要だったが、もし将来的に「embeddable=falseの既存動画」に遭遇したら、`GoogleYoutubeService`から呼べる`videos.update`は現行スコープ (`youtube.upload`のみ) では`insufficient authentication scopes`エラーになることを確認済み。読み書きには`youtube`または`youtube.force-ssl`スコープの追加+ユーザー再認可が必要になる (今回はスコープ追加を避けYouTube Studioでの手動確認に倒した経緯がある)
 
 ### この機能群固有の環境の罠 (新規発見、2026-07-22)
 
@@ -45,6 +66,7 @@
 - **`test:e2e` を直接vitestで実行する場合は事前に `compile-config` が必須**: `pnpm --filter backend test:e2e` は内部で `compile-config` を実行してから vitest を呼ぶが、`vitest run --config vitest.config.e2e.ts <file>` のように直接呼ぶと `.config/test.yml` が反映されずRedis接続先がデフォルトの `6379` に固定されてしまい `ECONNREFUSED` で全滅する。`NODE_ENV=test pnpm compile-config` を先に実行してから vitest を呼ぶこと
 - ローカルdev DB (`migrations` 履歴テーブル) が空という既存の不整合が本セッション開始時点で存在した (前セッション由来、`pnpm migrate` が `Init` から再実行を試みて失敗する)。今回は各migrationの `up()` SQLを直接psqlで当てて整合性を確保した。根本的な解消は別タスク
 - **mi-host上でGoogle API系の一時デバッグスクリプトを動かす場合**: `packages/backend`は`"type":"module"`なので拡張子は`.cjs`にする。`google-auth-library`はbackendの直接依存ではなくrequireできない (pnpm strict node_modules)。`@googleapis/youtube`が`auth.OAuth2()`を再エクスポートしているのでそちらを使う (`GoogleYoutubeService.buildClient`と同じパターン)。トークンrefreshは生fetchで`https://oauth2.googleapis.com/token`に`grant_type=refresh_token`をPOSTするだけで良い (`GoogleOAuthService.refreshToken`と同じ、google-auth-library不要)。DB接続情報は`built/.config.json`の`db`ブロックに`user`/`pass`が無い (Quadlet側で別注入されている模様、深追いせず`podman exec misskey-postgres psql`経由でトークンだけ一時ファイル抽出する方が早い)
+- **`built/.config.json`を直接`cat`しない (2026-07-22、実際に事故発生)**: `objectStorage.secretKey`/`twitch.clientSecret`/`ome.apiToken`等の複数シークレットが平文で丸ごと出力される。特定キーの値だけ確認したい場合は必ず`grep -A2 <key>`等で絞り込むこと
 
 ### 実装ファイルの要点 (新規)
 
