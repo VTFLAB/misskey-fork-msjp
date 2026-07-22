@@ -315,11 +315,6 @@ onBeforeUnmount(async () => {
 	// live-stream.vue の .playerContainer と同じ 100cqh 系コンテナクエリ前提の
 	// 親 (MkStreamPlayer.vue) の中に置かれる想定。このコンポーネント自身は
 	// container-type を張らない (親側で完結させる、§8 の CSS Modules ソース順序の罠を参照)
-}
-
-.playerContainer {
-	width: 100%;
-	height: 100%;
 
 	// ovenplayer (node_modules/ovenplayer、サードパーティ) が自身のルート要素として生成する
 	// .op-wrapper は height を指定せず、代わりに内部の空 div .op-ratio が
@@ -331,18 +326,29 @@ onBeforeUnmount(async () => {
 	// 下に大きな黒帯が残る (実機の DOM 計測で確認済み)。
 	// !important が必要な理由: .op-ratio 側の実セレクタは .op-wrapper.ovenplayer .op-ratio
 	// という 3 クラス複合セレクタ (padding-bottom に !important 無し) で、ここでの記述
-	// (実質 2 クラス相当) より詳細度が高いため、!important を付けないと確実には勝てない。
+	// (単一クラスの子孫セレクタ) より詳細度が高いため、!important を付けないと確実には勝てない。
 	// .op-wrapper / .op-ratio は ovenplayer が配布する CSS 由来のクラス名なので、
 	// ovenplayer をバージョンアップした際はこれらのクラス名が変わっていないか要確認
 	// (変わっていた場合、この上書きが無効化されて本バグが再発する)。
 	// なお .op-wrapper.ovenplayer.op-fullscreen{height:100vh !important} は 3 クラス複合で
 	// 詳細度がさらに高いため、フルスクリーン時の挙動とは衝突しない。
+	//
+	// 【重要】.playerContainer (#playerElementId の div) ではなく、この .root に書くこと。
+	// ovenplayer は createPlayer() 時に #playerElementId 要素そのものを .op-wrapper 要素で
+	// 置き換える (要素の中に挿入するのではなく置換する) ため、初期化後は .playerContainer
+	// 自身がDOMから無くなり、.op-wrapper の親は直接 .root になる (実機DOM調査で確認済み)。
+	// .playerContainer 側に :global(.op-wrapper) を書いても対象要素が存在せず無効になる。
 	:global(.op-wrapper) {
 		height: 100% !important;
 	}
 	:global(.op-ratio) {
 		padding-bottom: 0 !important;
 	}
+}
+
+.playerContainer {
+	width: 100%;
+	height: 100%;
 }
 
 .unmuteOverlay {
