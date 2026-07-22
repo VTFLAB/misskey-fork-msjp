@@ -1,43 +1,48 @@
 # misskey-bsky-fork — 次セッションへの引き継ぎ
 
-## 🔴 次スレッド: アーカイブ視聴をMSJP内で完結させる (コメントリプレイ・削除機能) (2026-07-22 時点、最優先・未着手)
+## ⚠️ 次アクション: アーカイブ視聴制限・MSJP内完結視聴・コメントリプレイ・削除機能 — 実装完了、push/デプロイ/実機検証が未了 (2026-07-22 実装)
 
-作業ツリーは clean、`bsky-integration` は `origin` と一致 (`1f2a26d64f` まで push 済み、本番デプロイ・実機検証済み)。配信アーカイブの録画パイプライン自体 (前スレッド) はクローズ済みで、これは**その先の視聴体験の作り込み**。ユーザーからの要望 (2026-07-22) は以下の通り、**実装はまだ一切していない、次セッションでゼロから着手すること**。
+**現在地**: 前スレッドの要望 (MSJP内完結視聴・コメントリプレイ・削除機能) に加え、ユーザーから追加で「アーカイブにも配信時の視聴制限を引き継ぐ」要望が来たため、4機能セットとして設計・実装した。**実装は全19コミット完了、`bsky-integration` ブランチにローカルコミット済みだが未push**。次セッションはまず push → CI ビルド確認 → 本番デプロイ → 実機検証 (下記「未検証事項」) から始めること。
 
-### 要望 (ユーザー原文の要旨)
+### 実装した機能
 
-1. 現状「チャンネルの履歴から直接YouTubeに飛ぶ」仕様になっているが、そうではなく**MSJP (Misskeyインスタンス) 上で完結する視聴体験**にしたい
-2. 当時のライブ配信中のチャット (コメント) を**復元して表示**する
-3. 動画プレイヤーは**埋め込み**でMSJP上に表示
-4. アーカイブ視聴中は**新規コメント投稿は無効化** (あくまで過去の再現、書き込み不可)
-5. 可能であれば**動画の再生時間に同期してコメントが出現する** (YouTubeのライブアーカイブのチャットリプレイと同じ体験)
-6. **アーカイブを削除できる機能**も必要
+1. **視聴制限の引き継ぎ** (最重要、当初のプライバシー問題への対応): `twitch_stream` に `archiveViewVisibility`/`archiveViewPassword`/`archiveVisibleUserIds`/`archiveUnpublishedAt` を追加。配信終了時 (`TwitchStreamService.markOmeStreamEnded`) に `live_channel` の視聴制限を**スナップショット**してコピーする (以後 `live_channel` 側を変えてもこのアーカイブの制限は変わらない)。`LiveArchiveAccessService.canWatchArchive()` が新設の認可判定ロジック (owner常時許可→public→followers→users→password)。アーカイブ設定画面から個別に上書き変更可能
+2. **YouTube/Drive埋め込みの統一**: `channel-home.vue` の非対称実装 (YouTube=外部リンク/Drive=iframeトグル) を廃止し、新設の専用視聴ページ `/live/:acct/archive/:streamId` (`live-stream.archive-watch.vue`) への内部リンクに統一。`MkArchivePlayer`(dispatcher)+`MkYoutubeArchivePlayer`(IFrame Player API) を新設
+3. **コメントリプレイ**: 新設 `XArchiveCommentReplay` (`live-stream.archive-comment-replay.vue`)。YouTube視聴時は `getCurrentTime()` を1秒ポーリングし再生位置に同期して段階表示 (シーク・巻き戻しにも自動追従)。**Drive視聴時は再生位置取得APIが存在しないため同期不可**、全コメントを時系列一覧で静的表示するのみ
+4. **アーカイブ公開取り消し (削除機能)**: `twitch/streams/unpublish-archive`。**YouTube/Google Drive上の実ファイルは一切削除しない** (ユーザー明示の要件)。MSJP側の一覧・視聴・コメントリプレイから見えなくなるだけ、一方向のみ (再公開エンドポイントは無い)。`archive-history.vue` の確認ダイアログで「コメントリプレイも含めて閲覧不可になること」を警告
 
-### 事前調査で判明した現状 (2026-07-22、Explore調査済み、コード未変更)
+新規コメント投稿の無効化は、既存の `comments/create.ts` が既に `!stream.isLive` で弾く実装済みだったため追加実装不要だった。
 
-**A. 現状の視聴UI**:
-- `packages/frontend/src/pages/live-stream.channel-home.vue` (50-141行目): Drive側は**既にiframe埋め込み実装済み** (`<iframe :src="https://drive.google.com/file/d/${fileId}/preview">`, 133-138行目)。**YouTube側は外部リンクのみ** (`<a href="https://www.youtube.com/watch?v=...">`, 53-65行目)、埋め込みは無い。しかも `youtubeVideoId != null` なら常にYouTubeリンクが優先され、Drive iframeは表示されない (129行目の条件分岐)。
-- `live-stream.archive-history.vue` (配信者本人向け): 状態バッジ+YouTubeキャンセルボタンのみ、埋め込み・削除ボタンいずれも無し。
+### 設計上の重要な制約 (次に触るとき必読)
 
-**B. コメント永続化 (最重要、設計の土台)**:
-- テーブル `MiTwitchStreamComment` (`packages/backend/src/models/TwitchStreamComment.ts`) に配信中コメントは既に永続化されている (`streamId`/`source`/`userId`/`text`/`fragments`等)。**`createdAt`カラムは存在せず**、Misskey ID (ULID) から `idService.parse(comment.id).date` で生成時刻を逆算する設計。動画同期には `コメント生成時刻 (ID由来) - stream.startedAt` のオフセット計算が必要 (`stream.startedAt`は`MiTwitchStream.startedAt`として実在)。
-- 履歴取得API `twitch/streams/comments.ts` (streamId+sinceId/untilId/limit) が**既に終了済みセッションでもそのまま動作する設計**、これを流用できる見込み。
-- **無期限保存、削除処理は現状無い** (CASCADE削除はstream行自体が消えた場合のみだが、その削除経路も無い)。
+- **視聴制限の実効性はAPI層での情報秘匿まで**。ライブ配信は `OmeAdmissionService.decideOpening()` がOME WebRTC接続を直接遮断できるが、アーカイブ (Drive iframe/YouTube embed) はGoogle CDNから直接配信されMisskeyバックエンドを経由しないため、「非認可ユーザーにはAPIがYouTube video ID/Drive file IDを返さない」以上の遮断はできない (ユーザー確認済み・許容範囲)。認可済みユーザーがURLを直接転送すれば防げない
+- **視聴制限はコメント読み取りにも適用したが、対象はアーカイブのみ**。`twitch/streams/comments.ts` は `stream.source==='ome' && !stream.isLive` の場合だけ `canWatchArchive()` を通す。ライブ配信中 (`isLive:true`) のコメント取得はOBSオーバーレイの匿名アクセス要件により無制限のまま (意図的に変更していない、回帰テスト有り)
+- 視聴トークンはライブ用 (`ome:viewtoken:`, TTL12h, OME AdmissionWebhooksが消費) とは別のRedisキー空間 (`archive:viewtoken:`, TTL30日, API層のみが消費) を使う
+- `settings/streaming.vue`・`live-stream.watch.vue`・`live-stream.chat.vue` は**一切変更していない** (ユーザー方針: 既存の安定コードに触れずアーカイブ側は独立実装、3箇所目の重複が生じたら将来 rule of three で共通化を検討)
 
-**C. YouTube埋め込みの可否 (要検証)**:
-- `privacyStatus` (`public`/`unlisted`/`private`、配信者が選択可能、デフォルト`unlisted`) の embeddable 可否は**コードから確認できず、YouTube側の一般仕様として `private` は埋め込み再生不可の可能性が高い**(未検証、次セッションで実機確認要)。埋め込みiframeの実装はフロント/バック全体で0件、新規実装が必要。
+### 未検証事項 (次セッションの最優先、実機での確認が必要)
 
-**D. 削除機能の現状**:
-- アーカイブ削除APIは存在しない。`GoogleDriveService.deleteFile(userId, fileId)` (`GoogleDriveService.ts` 139-152行目) は**実装済みだが内部処理専用** (リトライ時の一時ファイル掃除のみ)、ユーザー向け削除には未使用。
-- YouTube動画の削除メソッド (`videos.delete`) はバックエンド全体で0件、新規実装が必要。**現在のOAuthスコープは`youtube.upload`のみで、このスコープで`videos.delete`が許可されるか未検証** (次セッションで最初に確認すべき事項、許可されなければスコープ追加+再認可フローが必要になり手戻りが大きい)。
+1. **push → Gitea Actions build → mi-host デプロイの確認**。まだpushしていない
+2. **YouTube embeddable の実機確認**: `GoogleYoutubeService.uploadVideo()` に `embeddable: true` を追加したが、これは**今後アップロードされる動画にのみ適用**される。既存アーカイブは遡及適用されない (backfillは未実装、必要なら `videos.update` を個別に叩く)。新規配信で実際にembed再生できるか確認要
+3. **視聴制限4モードの実地検証**: 実際にOBS配信→視聴制限をfollowers/password/users等に設定→終了→アーカイブ化→各モードで意図通り遮断/許可されるか。特にpasswordモードの `verify-archive-view-password` → `viewToken` → 再取得のフローをブラウザで
+4. **コメントリプレイの同期精度**: YouTube再生位置とコメント表示タイミングのズレが体感で許容範囲か
+5. **`update-archive-settings.ts` のパスワード必須バリデーション**: e2eテスト実装中に「パスワード未設定のままpasswordモードに切り替えると誰も解錠できなくなる」バグを発見し `live-channels/update.ts` と同じガードを追加済みだが、フロント側 (`archive-settings.vue`) でも同様に空パスワードでの送信を防ぐUI側のバリデーションがあるとより親切 (現状バックエンドのfail-closeのみ)
 
-### 次セッションで最初にやるべきこと (推奨順)
+### この機能群固有の環境の罠 (新規発見、2026-07-22)
 
-1. **YouTube APIのスコープ・embeddable検証を最優先で行う** (上記C/D、これ次第で設計が変わる大きな不確定要素)。`youtube.upload`スコープで`videos.delete`が呼べるか、`privacyStatus: 'unlisted'`の動画がembed可能か、実際にAPIを叩いて確認してから設計を確定させること (Googleの複数プロダクトスコープ絡みで過去2回設計をやり直した教訓を踏まえ、小さなテストを先にすること)
-2. YouTube埋め込みiframe実装 (`live-stream.channel-home.vue`のDriveパターンを踏襲、130行目前後を参考に)
-3. コメントリプレイ機能: `twitch/streams/comments.ts`で該当streamIdの全コメント取得→フロントで動画再生位置(currentTime)と`コメント時刻オフセット`を突き合わせて逐次表示するロジックを新規実装。YouTube IFrame Player APIの`getCurrentTime()`が使えるはず (Drive埋め込み`/preview`形式は再生位置取得APIが乏しい可能性があり、Drive視聴時は同期リプレイを諦める/劣化させる判断もありうる、要検討)
-4. アーカイブ視聴モードでの新規コメント投稿無効化 (既存のコメント入力コンポーネントをreadonly化 or 非表示)
-5. 削除機能: Drive側は`deleteFile`を新規endpoint経由でユーザーに公開するだけで比較的軽い。YouTube側は新規削除メソュード実装+DB側のレコード扱い(アーカイブ一覧から除外する方式か、レコード自体削除か)を設計すること
+- **re2ネイティブモジュールのABI不一致**: `pnpm --filter backend check-migrations` や `test:e2e` が `NODE_MODULE_VERSION 137/147 mismatch` (`ERR_DLOPEN_FAILED`) で落ちることがある。原因は `node_modules/.pnpm/re2@*/node_modules/re2/build/Release/re2.node` が実行中のnodeと異なるABIでビルドされている状態になっているため (何らかの操作でnode24向けに再ビルドされることがある模様)。直し方: node26のPATHが通った状態で `cd node_modules/.pnpm/re2@1.25.0/node_modules/re2 && npm run install` (プリビルドバイナリをGitHubから再取得する、ビルド不要で数秒で終わる)
+- **`test:e2e` を直接vitestで実行する場合は事前に `compile-config` が必須**: `pnpm --filter backend test:e2e` は内部で `compile-config` を実行してから vitest を呼ぶが、`vitest run --config vitest.config.e2e.ts <file>` のように直接呼ぶと `.config/test.yml` が反映されずRedis接続先がデフォルトの `6379` に固定されてしまい `ECONNREFUSED` で全滅する。`NODE_ENV=test pnpm compile-config` を先に実行してから vitest を呼ぶこと
+- ローカルdev DB (`migrations` 履歴テーブル) が空という既存の不整合が本セッション開始時点で存在した (前セッション由来、`pnpm migrate` が `Init` から再実行を試みて失敗する)。今回は各migrationの `up()` SQLを直接psqlで当てて整合性を確保した。根本的な解消は別タスク
+
+### 実装ファイルの要点 (新規)
+
+- `packages/backend/src/core/live/LiveArchiveAccessService.ts` — アーカイブ視聴認可の中核。`canWatchArchive`/`issueArchiveViewToken`/`resolveArchiveViewToken`/`updateArchiveSettings`/`unpublishArchive`
+- `packages/backend/src/server/api/endpoints/twitch/streams/{verify-archive-view-password,update-archive-settings,unpublish-archive}.ts`
+- `packages/backend/test/e2e/twitch-archive-view-restriction.ts` — 20ケース、canWatchArchiveの6分岐+password検証+設定変更+公開取消+コメント制限の回帰テスト
+- `packages/frontend/src/components/{MkArchivePlayer,MkYoutubeArchivePlayer}.vue`
+- `packages/frontend/src/pages/live-stream.{archive-watch,archive-comment-replay,archive-settings}.vue`
+- 改修: `twitch/streams/{show,comments,archive-history}.ts`、`TwitchStreamService.ts`(`snapshotArchiveViewRestriction`)、`GoogleYoutubeService.ts`(embeddable)、`channel-home.vue`、`archive-history.vue`
+- 承認済み設計計画の全文: `/home/vtf/.claude/plans/scalable-snuggling-sky.md` (詳細な設計判断の根拠はここを参照)
 
 ## ✅ 完了スレッド: 配信アーカイブ (Google Drive + YouTube) — OME側インフラ構築+実機検証 (2026-07-21〜22 クローズ)
 
