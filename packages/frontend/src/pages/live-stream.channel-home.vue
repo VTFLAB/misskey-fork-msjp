@@ -69,8 +69,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					専用視聴ページ (archive-watch.vue) への内部リンクに統一し、Misskey 外への離脱を無くす -->
 					<template v-else-if="a.youtubeVideoId != null">
 						<MkA :to="`/live/${acct}/archive/${a.streamId}`" :class="$style.archiveCardHeader">
-							<div :class="$style.archiveThumb" :style="a.recordingGoogleDriveThumbnailLink ? { backgroundImage: `url(${a.recordingGoogleDriveThumbnailLink})` } : {}">
-								<i v-if="!a.recordingGoogleDriveThumbnailLink" class="ti ti-brand-youtube"></i>
+							<div :class="$style.archiveThumb" :style="youtubeThumbnailFor(a) ? { backgroundImage: `url(${youtubeThumbnailFor(a)})` } : {}">
+								<i v-if="!youtubeThumbnailFor(a)" class="ti ti-brand-youtube"></i>
 								<i class="ti ti-player-play" :class="$style.archivePlayIcon"></i>
 							</div>
 							<div :class="$style.archiveInfo">
@@ -282,6 +282,7 @@ const statusOverrides = ref<Record<string, {
 	recordingGoogleDriveFileId?: string | null;
 	youtubeUploadStatus?: string;
 	youtubeVideoId?: string | null;
+	youtubeThumbnailUrl?: string | null;
 	youtubeUploadError?: string | null;
 }>>({});
 const pollTimers = new Map<string, number>();
@@ -307,6 +308,7 @@ const archives = computed(() => {
 				recordingGoogleDriveFileId: override?.recordingGoogleDriveFileId !== undefined ? override.recordingGoogleDriveFileId : s.recordingGoogleDriveFileId,
 				youtubeUploadStatus: override?.youtubeUploadStatus ?? s.youtubeUploadStatus,
 				youtubeVideoId: override?.youtubeVideoId !== undefined ? override.youtubeVideoId : s.youtubeVideoId,
+				youtubeThumbnailUrl: override?.youtubeThumbnailUrl !== undefined ? override.youtubeThumbnailUrl : s.youtubeThumbnailUrl,
 				youtubeUploadError: override?.youtubeUploadError !== undefined ? override.youtubeUploadError : s.youtubeUploadError,
 			};
 		});
@@ -337,6 +339,13 @@ function archiveDuration(a: { startedAt?: string | null; endedAt: string }): str
 	const s = totalSec % 60;
 	const pad = (n: number) => String(n).padStart(2, '0');
 	return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+}
+
+// YouTube サムネイル URL 解決 (bsky-fork 独自)。DB 保存値優先、無ければ動画 ID から機械的に組み立てられる
+// 静的サムネイル URL パターンにフォールバックする (アップロード直後で YouTube 側がまだ thumbnails を返していない場合など)。
+function youtubeThumbnailFor(a: { youtubeVideoId?: string | null; youtubeThumbnailUrl?: string | null }): string | null {
+	if (a.youtubeVideoId == null) return null;
+	return a.youtubeThumbnailUrl ?? `https://i.ytimg.com/vi/${a.youtubeVideoId}/hqdefault.jpg`;
 }
 
 function clearArchivePoll(streamId: string) {
@@ -391,6 +400,7 @@ function scheduleYoutubePoll(streamId: string) {
 						...statusOverrides.value[streamId],
 						youtubeUploadStatus: match.youtubeUploadStatus,
 						youtubeVideoId: match.youtubeVideoId,
+						youtubeThumbnailUrl: match.youtubeThumbnailUrl,
 						youtubeUploadError: match.youtubeUploadError,
 					},
 				};

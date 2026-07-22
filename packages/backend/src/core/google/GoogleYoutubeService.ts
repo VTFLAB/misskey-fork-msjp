@@ -22,6 +22,7 @@ export type UploadVideoParams = {
 
 export type UploadVideoResult = {
 	videoId: string;
+	thumbnailUrl: string | null;
 };
 
 export class GoogleYoutubeNotAuthorizedError extends Error {
@@ -124,9 +125,12 @@ export class GoogleYoutubeService {
 				throw new Error('YouTube did not return a video id after upload.');
 			}
 
+			const thumbnails = created.data.snippet?.thumbnails;
+			const thumbnailUrl = thumbnails?.high?.url ?? thumbnails?.medium?.url ?? thumbnails?.default?.url ?? null;
+
 			this.logger.info(`uploaded video: user=${userId} videoId=${videoId}`);
 
-			return { videoId };
+			return { videoId, thumbnailUrl };
 		} catch (err) {
 			if (isQuotaExceededError(err)) {
 				this.logger.warn(`quota exceeded: user=${userId}`);

@@ -296,6 +296,7 @@ export class LiveRecordingService {
 			await this.twitchStreamsRepository.update(streamId, {
 				youtubeUploadStatus: 'ready',
 				youtubeVideoId: result.videoId,
+				youtubeThumbnailUrl: result.thumbnailUrl,
 				recordingStatus: 'ready',
 			});
 			this.logger.info(`youtube upload complete: streamId=${streamId} videoId=${result.videoId}`);
