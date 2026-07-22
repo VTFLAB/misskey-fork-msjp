@@ -1,8 +1,8 @@
 # misskey-bsky-fork — 次セッションへの引き継ぎ
 
-## ⚠️ 次アクション: アーカイブ視聴制限・MSJP内完結視聴・コメントリプレイ・削除機能 — 実装完了、push/デプロイ/実機検証が未了 (2026-07-22 実装)
+## ⚠️ 次アクション: アーカイブ視聴制限・MSJP内完結視聴・コメントリプレイ・削除機能 — 実装・デプロイ済み、Drive埋め込みが最優先の未検証事項 (2026-07-22 実装、同日実機検証で1件修正済み)
 
-**現在地**: 前スレッドの要望 (MSJP内完結視聴・コメントリプレイ・削除機能) に加え、ユーザーから追加で「アーカイブにも配信時の視聴制限を引き継ぐ」要望が来たため、4機能セットとして設計・実装した。**実装は全19コミット完了、`bsky-integration` ブランチにローカルコミット済みだが未push**。次セッションはまず push → CI ビルド確認 → 本番デプロイ → 実機検証 (下記「未検証事項」) から始めること。
+**現在地**: 前スレッドの要望 (MSJP内完結視聴・コメントリプレイ・削除機能) に加え、ユーザーから追加で「アーカイブにも配信時の視聴制限を引き継ぐ」要望が来たため、4機能セットとして設計・実装した。**push・本番デプロイ済み** (`88f3db7a49` まで反映確認済み)。実機検証はYouTube側のみ着手・1件のバグを発見修正しユーザー確認済み。**Drive埋め込みプレイヤーは今回一度も実機検証していない、次セッションの最優先事項**。
 
 ### 実装した機能
 
@@ -20,26 +20,38 @@
 - 視聴トークンはライブ用 (`ome:viewtoken:`, TTL12h, OME AdmissionWebhooksが消費) とは別のRedisキー空間 (`archive:viewtoken:`, TTL30日, API層のみが消費) を使う
 - `settings/streaming.vue`・`live-stream.watch.vue`・`live-stream.chat.vue` は**一切変更していない** (ユーザー方針: 既存の安定コードに触れずアーカイブ側は独立実装、3箇所目の重複が生じたら将来 rule of three で共通化を検討)
 
+### 実機検証で発見・修正したバグ (2026-07-22、YouTube側のみ)
+
+デプロイ後ユーザーが実際に既存アーカイブ (`aoyo84e6hjmp000g`) を開いたところ、プレイヤー領域が真っ黒で何も表示されないと報告があった。調査の経緯 (次に類似の埋め込みバグを踏んだ時の参考に残す):
+
+1. **最初に誤って「embeddable=falseが原因」と結論しかけた**。iframe内DOMを`page.frames()`経由で覗いたところ「見る」ボタン付きのプレビューカードが表示されており、これはembeddable=false動画の典型的挙動に見えた。ユーザーがYouTube Studioで確認したところ実際には埋め込み許可は有効で、この仮説は誤りだった (**disclose the correction**: 一度「これが原因」と報告したが、ユーザーの実機確認で覆り撤回した)
+2. **oEmbed API (認証不要、200 OK) → YouTube本家では正常再生 (`readyState:4`) → 埋め込みiframeでは`<video>`に`src`すら付かず`readyState:0`のまま**、という切り分けで「embeddable以外の何かが埋め込み内でのみ阻害している」ところまで絞り込んだ
+3. **ユーザーが実際のiframe HTMLソースを転記してくれたことで確定**: `style="visibility: hidden;"`が固定されたまま。**根本原因**: `MkYoutubeArchivePlayer.vue`で`new YT.Player(playerEl.value, {...})`に渡した`<div ref="playerEl" :style="{visibility:...}">`要素は、YouTube IFrame Player APIの仕様により**DOM上で直接`<iframe>`に置換される**。置換後のiframeはVueの仮想DOM管理から外れるため、置換前のインラインstyleがそのまま焼き付き、以後Vue側で`initializing`を更新しても反映されなくなっていた
+4. **修正** (commit `88f3db7a49`、push・デプロイ・**ユーザー実機確認済み**): `playerEl`要素自体へのスタイルバインディングを撤去し、`MkLoading`側のz-indexオーバーレイ (v-ifで消える) のみで隠蔽する方式に変更。あわせて`initializing`解除のタイミングも`new YT.Player()`呼び出し直後 (誤り、生成完了≠準備完了) から`onReady`イベント内に修正した
+
+**教訓**: YouTube IFrame Player API (および恐らく類似の「渡したDOM要素を丸ごと差し替える」系の外部ウィジェットAPI全般) を素のVue `ref` 要素に対して呼ぶ場合、その要素自体にリアクティブなバインディング (`:style`/`:class`等) を持たせてはならない。差し替え後の要素はフレームワーク管理外になるため、以後の更新が届かない。
+
 ### 未検証事項 (次セッションの最優先、実機での確認が必要)
 
-1. **push → Gitea Actions build → mi-host デプロイの確認**。まだpushしていない
-2. **YouTube embeddable の実機確認**: `GoogleYoutubeService.uploadVideo()` に `embeddable: true` を追加したが、これは**今後アップロードされる動画にのみ適用**される。既存アーカイブは遡及適用されない (backfillは未実装、必要なら `videos.update` を個別に叩く)。新規配信で実際にembed再生できるか確認要
-3. **視聴制限4モードの実地検証**: 実際にOBS配信→視聴制限をfollowers/password/users等に設定→終了→アーカイブ化→各モードで意図通り遮断/許可されるか。特にpasswordモードの `verify-archive-view-password` → `viewToken` → 再取得のフローをブラウザで
-4. **コメントリプレイの同期精度**: YouTube再生位置とコメント表示タイミングのズレが体感で許容範囲か
-5. **`update-archive-settings.ts` のパスワード必須バリデーション**: e2eテスト実装中に「パスワード未設定のままpasswordモードに切り替えると誰も解錠できなくなる」バグを発見し `live-channels/update.ts` と同じガードを追加済みだが、フロント側 (`archive-settings.vue`) でも同様に空パスワードでの送信を防ぐUI側のバリデーションがあるとより親切 (現状バックエンドのfail-closeのみ)
+1. **【最優先】Drive埋め込みプレイヤーの動作確認**: 今回のセッションでは一度も実機検証していない。`MkArchivePlayer.vue`のDrive分岐 (YouTube視聴と違い`MkYoutubeArchivePlayer`を介さず素の`<iframe :src="drive.google.com/.../preview">`をインライン実装) 自体はYouTube側のような「DOM要素置換」問題は起きない設計のはずだが、未確認。Drive連携済みかつYouTube未連携 (またはYouTube優先ロジックでDriveが選ばれるケース) のアーカイブで実際に埋め込み再生できるか、`XArchiveCommentReplay`の`mode:'static'`(時系列一覧表示) が正しく出るかを確認すること
+2. **視聴制限4モードの実地検証**: 実際にOBS配信→視聴制限をfollowers/password/users等に設定→終了→アーカイブ化→各モードで意図通り遮断/許可されるか。特にpasswordモードの `verify-archive-view-password` → `viewToken` → 再取得のフローをブラウザで
+3. **コメントリプレイの同期精度**: YouTube再生位置とコメント表示タイミングのズレが体感で許容範囲か (プレイヤー自体の表示バグは修正済みなので、次はこの精度確認に進める)
+4. **`update-archive-settings.ts` のパスワード必須バリデーション**: e2eテスト実装中に「パスワード未設定のままpasswordモードに切り替えると誰も解錠できなくなる」バグを発見し `live-channels/update.ts` と同じガードを追加済みだが、フロント側 (`archive-settings.vue`) でも同様に空パスワードでの送信を防ぐUI側のバリデーションがあるとより親切 (現状バックエンドのfail-closeのみ)
+5. **既存アーカイブへの`embeddable`遡及バックフィル**: 今回のテスト動画1件については embeddable 自体は元々有効だった (YouTube Studio確認済み) ため今回は不要だったが、もし将来的に「embeddable=falseの既存動画」に遭遇したら、`GoogleYoutubeService`から呼べる`videos.update`は現行スコープ (`youtube.upload`のみ) では`insufficient authentication scopes`エラーになることを確認済み。読み書きには`youtube`または`youtube.force-ssl`スコープの追加+ユーザー再認可が必要になる (今回はスコープ追加を避けYouTube Studioでの手動確認に倒した経緯がある)
 
 ### この機能群固有の環境の罠 (新規発見、2026-07-22)
 
 - **re2ネイティブモジュールのABI不一致**: `pnpm --filter backend check-migrations` や `test:e2e` が `NODE_MODULE_VERSION 137/147 mismatch` (`ERR_DLOPEN_FAILED`) で落ちることがある。原因は `node_modules/.pnpm/re2@*/node_modules/re2/build/Release/re2.node` が実行中のnodeと異なるABIでビルドされている状態になっているため (何らかの操作でnode24向けに再ビルドされることがある模様)。直し方: node26のPATHが通った状態で `cd node_modules/.pnpm/re2@1.25.0/node_modules/re2 && npm run install` (プリビルドバイナリをGitHubから再取得する、ビルド不要で数秒で終わる)
 - **`test:e2e` を直接vitestで実行する場合は事前に `compile-config` が必須**: `pnpm --filter backend test:e2e` は内部で `compile-config` を実行してから vitest を呼ぶが、`vitest run --config vitest.config.e2e.ts <file>` のように直接呼ぶと `.config/test.yml` が反映されずRedis接続先がデフォルトの `6379` に固定されてしまい `ECONNREFUSED` で全滅する。`NODE_ENV=test pnpm compile-config` を先に実行してから vitest を呼ぶこと
 - ローカルdev DB (`migrations` 履歴テーブル) が空という既存の不整合が本セッション開始時点で存在した (前セッション由来、`pnpm migrate` が `Init` から再実行を試みて失敗する)。今回は各migrationの `up()` SQLを直接psqlで当てて整合性を確保した。根本的な解消は別タスク
+- **mi-host上でGoogle API系の一時デバッグスクリプトを動かす場合**: `packages/backend`は`"type":"module"`なので拡張子は`.cjs`にする。`google-auth-library`はbackendの直接依存ではなくrequireできない (pnpm strict node_modules)。`@googleapis/youtube`が`auth.OAuth2()`を再エクスポートしているのでそちらを使う (`GoogleYoutubeService.buildClient`と同じパターン)。トークンrefreshは生fetchで`https://oauth2.googleapis.com/token`に`grant_type=refresh_token`をPOSTするだけで良い (`GoogleOAuthService.refreshToken`と同じ、google-auth-library不要)。DB接続情報は`built/.config.json`の`db`ブロックに`user`/`pass`が無い (Quadlet側で別注入されている模様、深追いせず`podman exec misskey-postgres psql`経由でトークンだけ一時ファイル抽出する方が早い)
 
 ### 実装ファイルの要点 (新規)
 
 - `packages/backend/src/core/live/LiveArchiveAccessService.ts` — アーカイブ視聴認可の中核。`canWatchArchive`/`issueArchiveViewToken`/`resolveArchiveViewToken`/`updateArchiveSettings`/`unpublishArchive`
 - `packages/backend/src/server/api/endpoints/twitch/streams/{verify-archive-view-password,update-archive-settings,unpublish-archive}.ts`
 - `packages/backend/test/e2e/twitch-archive-view-restriction.ts` — 20ケース、canWatchArchiveの6分岐+password検証+設定変更+公開取消+コメント制限の回帰テスト
-- `packages/frontend/src/components/{MkArchivePlayer,MkYoutubeArchivePlayer}.vue`
+- `packages/frontend/src/components/{MkArchivePlayer,MkYoutubeArchivePlayer}.vue` — `MkYoutubeArchivePlayer`は上記バグ修正済み (commit `88f3db7a49`)
 - `packages/frontend/src/pages/live-stream.{archive-watch,archive-comment-replay,archive-settings}.vue`
 - 改修: `twitch/streams/{show,comments,archive-history}.ts`、`TwitchStreamService.ts`(`snapshotArchiveViewRestriction`)、`GoogleYoutubeService.ts`(embeddable)、`channel-home.vue`、`archive-history.vue`
 - 承認済み設計計画の全文: `/home/vtf/.claude/plans/scalable-snuggling-sky.md` (詳細な設計判断の根拠はここを参照)
