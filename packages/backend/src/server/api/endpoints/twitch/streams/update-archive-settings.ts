@@ -30,6 +30,11 @@ export const meta = {
 			code: 'NO_SUCH_ARCHIVE',
 			id: 'b7ed11a3-6e9f-4a01-84b6-379d642931fd',
 		},
+		viewPasswordRequired: {
+			message: 'viewPassword is required when visibility is password.',
+			code: 'VIEW_PASSWORD_REQUIRED',
+			id: '1a3f7c9e-5b2d-4e8a-9c6f-8d2b4a7e0f1c',
+		},
 	},
 
 	res: {
@@ -73,6 +78,17 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const stream = await this.twitchStreamsRepository.findOneBy({ id: ps.streamId });
 			if (stream == null || stream.userId !== me.id || stream.source !== 'ome' || stream.isLive) {
 				throw new ApiError(meta.errors.noSuchArchive);
+			}
+
+			// viewPassword が空にならないことを確認する (live-channels/update.ts と同じ防御。
+			// 未設定のまま password モードへ切り替えると、誰も verify-archive-view-password で
+			// トークンを取得できず永久にロックされるアーカイブができてしまうため)。
+			const nextVisibility = ps.visibility ?? stream.archiveViewVisibility;
+			if (nextVisibility === 'password') {
+				const nextViewPassword = ps.viewPassword !== undefined ? ps.viewPassword : stream.archiveViewPassword;
+				if (nextViewPassword == null || nextViewPassword.length === 0) {
+					throw new ApiError(meta.errors.viewPasswordRequired);
+				}
 			}
 
 			const updated = await this.liveArchiveAccessService.updateArchiveSettings(stream, {
