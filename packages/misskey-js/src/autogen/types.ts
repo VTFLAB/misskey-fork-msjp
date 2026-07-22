@@ -37408,6 +37408,7 @@ export interface operations {
                         /** @enum {string} */
                         youtubeUploadStatus: 'none' | 'pending' | 'uploading' | 'ready' | 'failed' | 'queued' | 'cancelled';
                         youtubeVideoId: string | null;
+                        youtubeThumbnailUrl: string | null;
                         youtubeUploadError: string | null;
                         /** @enum {string} */
                         archiveViewVisibility: 'public' | 'followers' | 'password' | 'users';
@@ -38084,6 +38085,7 @@ export interface operations {
                             /** @enum {string} */
                             youtubeUploadStatus?: 'none' | 'pending' | 'uploading' | 'ready' | 'failed' | 'queued' | 'cancelled';
                             youtubeVideoId?: string | null;
+                            youtubeThumbnailUrl?: string | null;
                             youtubeUploadError?: string | null;
                             archiveUnpublished?: boolean;
                         }[];
