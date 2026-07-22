@@ -320,6 +320,29 @@ onBeforeUnmount(async () => {
 .playerContainer {
 	width: 100%;
 	height: 100%;
+
+	// ovenplayer (node_modules/ovenplayer、サードパーティ) が自身のルート要素として生成する
+	// .op-wrapper は height を指定せず、代わりに内部の空 div .op-ratio が
+	// padding-bottom:56.25% (幅に対する16:9、古典的な padding-bottom trick) で
+	// .op-wrapper の実質的な高さを「幅×9/16」に固定している。実映像/UI を持つ .op-player は
+	// .op-wrapper を基準に position:absolute; height:100% で重なるだけなので、結局その高さに
+	// 縛られる。呼び出し元 (live-stream.watch.vue) の .playerContainer は aspect-ratio 固定を
+	// 使わず画面の残り高さいっぱいに広げる設計のため、このままだと 16:9 分しか使われず
+	// 下に大きな黒帯が残る (実機の DOM 計測で確認済み)。
+	// !important が必要な理由: .op-ratio 側の実セレクタは .op-wrapper.ovenplayer .op-ratio
+	// という 3 クラス複合セレクタ (padding-bottom に !important 無し) で、ここでの記述
+	// (実質 2 クラス相当) より詳細度が高いため、!important を付けないと確実には勝てない。
+	// .op-wrapper / .op-ratio は ovenplayer が配布する CSS 由来のクラス名なので、
+	// ovenplayer をバージョンアップした際はこれらのクラス名が変わっていないか要確認
+	// (変わっていた場合、この上書きが無効化されて本バグが再発する)。
+	// なお .op-wrapper.ovenplayer.op-fullscreen{height:100vh !important} は 3 クラス複合で
+	// 詳細度がさらに高いため、フルスクリーン時の挙動とは衝突しない。
+	:global(.op-wrapper) {
+		height: 100% !important;
+	}
+	:global(.op-ratio) {
+		padding-bottom: 0 !important;
+	}
 }
 
 .unmuteOverlay {
