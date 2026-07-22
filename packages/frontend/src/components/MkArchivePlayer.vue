@@ -10,18 +10,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 		ref="youtubePlayerEl"
 		:youtubeVideoId="youtubeVideoId"
 	/>
-	<iframe
+	<div
 		v-else-if="recordingGoogleDriveFileId != null"
-		:src="`https://drive.google.com/file/d/${recordingGoogleDriveFileId}/preview`"
-		:class="$style.driveIframe"
-		allow="autoplay; fullscreen"
-		allowfullscreen
-	></iframe>
+		ref="driveIframeWrapperEl"
+		:class="$style.driveIframeWrapper"
+	>
+		<iframe
+			:src="`https://drive.google.com/file/d/${recordingGoogleDriveFileId}/preview`"
+			:class="$style.driveIframe"
+			:style="{ transform: `scale(${driveIframeScale})` }"
+			allow="autoplay; fullscreen"
+			allowfullscreen
+		></iframe>
+	</div>
 </div>
 </template>
 
 <script lang="ts" setup>
-import { useTemplateRef } from 'vue';
+import { onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue';
 import MkYoutubeArchivePlayer from '@/components/MkYoutubeArchivePlayer.vue';
 
 // dispatcher (bsky-fork 独自): youtubeVideoId があれば YouTube IFrame Player API 経由、
@@ -48,6 +54,31 @@ defineExpose({
 	getCurrentTime,
 	seekTo,
 });
+
+// Google Drive の /preview 埋め込みは iframe の実効幅が約420pxを下回ると内部レンダリングが
+// 崩れる (動画が拡大されクロップされる) ため、常に基準幅で描画してから scale で縮小表示する
+// (下記 .driveIframe の width/height と一致させること)
+const DRIVE_IFRAME_BASE_WIDTH = 600;
+
+const driveIframeWrapperEl = useTemplateRef('driveIframeWrapperEl');
+// ResizeObserver 発火前 (幅0) に scale が 0/NaN/Infinity にならないよう初期値は等倍にしておく
+const driveIframeScale = ref(1);
+let driveIframeResizeObserver: ResizeObserver | undefined;
+
+onMounted(() => {
+	if (driveIframeWrapperEl.value == null) return;
+	driveIframeResizeObserver = new ResizeObserver((entries) => {
+		const width = entries[0]?.contentRect.width;
+		if (width != null && width > 0) {
+			driveIframeScale.value = width / DRIVE_IFRAME_BASE_WIDTH;
+		}
+	});
+	driveIframeResizeObserver.observe(driveIframeWrapperEl.value);
+});
+
+onBeforeUnmount(() => {
+	driveIframeResizeObserver?.disconnect();
+});
 </script>
 
 <style lang="scss" module>
@@ -55,11 +86,24 @@ defineExpose({
 	width: 100%;
 }
 
-// live-stream.channel-home.vue の .archiveIframe と同じパターン (bsky-fork 独自)
-.driveIframe {
-	display: block;
+// live-stream.channel-home.vue の .archiveIframe と同じパターン (bsky-fork 独自)。
+// Google Drive埋め込みは狭い実効幅でレンダリングが崩れるため、iframeは常に基準幅で描画し
+// (下記 .driveIframe)、このラッパーで実際のコンテナ幅にscale表示する
+.driveIframeWrapper {
+	position: relative;
 	width: 100%;
 	aspect-ratio: 16 / 9;
+	overflow: hidden;
+}
+
+// 基準サイズ (600x337.5 = 16:9)。script側の DRIVE_IFRAME_BASE_WIDTH と一致させること
+.driveIframe {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 600px;
+	height: 337.5px;
 	border: none;
+	transform-origin: top left;
 }
 </style>
