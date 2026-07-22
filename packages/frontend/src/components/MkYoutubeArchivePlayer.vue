@@ -27,6 +27,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 interface YTPlayer {
 	getCurrentTime(): number;
 	seekTo(seconds: number, allowSeekAhead: boolean): void;
+	setVolume(volume: number): void;
 	destroy(): void;
 }
 
@@ -88,6 +89,11 @@ const props = defineProps<{
 const playerEl = useTemplateRef('playerEl');
 const initializing = ref(true);
 
+// YouTube IFrame Player API の初期音量は既定で100% (爆音) になるため、
+// 視聴開始時の初期値を控えめにしておく (bsky-fork 独自)。プレイヤー内蔵の
+// 音量スライダーで視聴者は自由に変更できる (Misskey側で永続化はしない)
+const DEFAULT_VOLUME = 50;
+
 let player: YTPlayer | null = null;
 let playerReady = false;
 
@@ -104,6 +110,7 @@ onMounted(async () => {
 			// new YT.Player() の呼び出し完了はプレイヤーの準備完了を意味しない
 			onReady: () => {
 				playerReady = true;
+				player?.setVolume(DEFAULT_VOLUME);
 				initializing.value = false;
 			},
 		},
