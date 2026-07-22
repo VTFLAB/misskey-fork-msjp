@@ -5,8 +5,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div :class="$style.root">
-	<MkLoading v-if="initializing"/>
-	<div ref="playerEl" :class="$style.player" :style="{ visibility: initializing ? 'hidden' : 'visible' }"></div>
+	<!-- new YT.Player() に渡した playerEl は YouTube IFrame Player API により DOM 上で
+	直接 <iframe> に置換される (公式仕様)。置換後の要素は Vue の仮想DOM管理から外れるため、
+	playerEl 自体に :style 等のリアクティブなバインディングを持たせてはならない
+	(バインディングした場合、置換前の初期値が iframe にそのまま焼き付いて以後更新されなくなる、
+	という実装バグを踏んだ経緯がある)。ローディング中の隠蔽は重ねた MkLoading 側の
+	z-index (v-if で消える) のみで行う -->
+	<MkLoading v-if="initializing" :class="$style.loadingOverlay"/>
+	<div ref="playerEl" :class="$style.player"></div>
 </div>
 </template>
 
@@ -94,10 +100,14 @@ onMounted(async () => {
 		width: '100%',
 		height: '100%',
 		events: {
-			onReady: () => { playerReady = true; },
+			// initializing の解除は onReady (実際にプレイヤーが操作可能になった時点) で行う。
+			// new YT.Player() の呼び出し完了はプレイヤーの準備完了を意味しない
+			onReady: () => {
+				playerReady = true;
+				initializing.value = false;
+			},
 		},
 	});
-	initializing.value = false;
 });
 
 onBeforeUnmount(() => {
@@ -132,12 +142,19 @@ defineExpose({
 	background: var(--MI_THEME-bg);
 	display: grid;
 
-	// MkLoading (v-if) と player 用 div (visibility 切り替えのため常駐) を同じセルに重ねて表示する。
-	// grid でなければ player 用 div が visibility: hidden でもレイアウト上の高さを占有し続け、
+	// MkLoading (v-if) と player 用 div (常駐、YT.Player初期化後は内部でiframeに置換される) を
+	// 同じセルに重ねて表示する。grid でなければ player 用 div がレイアウト上の高さを占有し続け、
 	// MkLoading が中央からずれてしまう
 	> * {
 		grid-area: 1 / 1;
 	}
+}
+
+// MkLoading を player より前面に重ねて隠す (player 側の div/置換後iframeには
+// 一切スタイルバインディングを持たせない、理由は template 側コメント参照)
+.loadingOverlay {
+	z-index: 1;
+	background: var(--MI_THEME-bg);
 }
 
 .player {
