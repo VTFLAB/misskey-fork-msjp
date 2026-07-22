@@ -179,6 +179,8 @@ definePage(() => ({
 	title: i18n.ts._twitch.liveStreams,
 	icon: 'ti ti-broadcast',
 	hideDeckNav: true,
+	// OBSブラウザソース用の透過オーバーレイなので、universal/visitor UIでもグローバルUIを一切出さない
+	immersive: true,
 }));
 </script>
 
