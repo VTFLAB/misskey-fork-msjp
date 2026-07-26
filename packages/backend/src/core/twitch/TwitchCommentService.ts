@@ -133,6 +133,24 @@ export class TwitchCommentService {
 	}
 
 	/**
+	 * サーバー生成のシステム警告コメントを投稿する (bsky-fork 独自、YouTube 12時間アーカイブ上限警告等)。
+	 * user=null で永続化し、リアルタイム配信する。翻訳キュー・Twitch 中継・レートリミットは対象外。
+	 */
+	@bindThis
+	public async createSystemComment(stream: MiTwitchStream, text: string): Promise<MiTwitchStreamComment> {
+		const comment = await this.twitchStreamCommentsRepository.insertOne(new MiTwitchStreamComment({
+			id: this.idService.gen(),
+			streamId: stream.id,
+			source: 'system',
+			userId: null,
+			text: text.slice(0, 1024),
+		}));
+
+		await this.publishComment(stream.id, comment, null);
+		return comment;
+	}
+
+	/**
 	 * 配信者が翻訳機能を有効にしている場合のみ、非日本語コメントを日本語への非同期翻訳キューに投入する。
 	 * source=misskey も、同期翻訳 (`translate` パラメータ) が付かなかった場合はここを通る。
 	 */
