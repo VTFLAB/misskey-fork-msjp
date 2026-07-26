@@ -37,7 +37,7 @@ export const meta = {
 		properties: {
 			youtubeUploadStatus: {
 				type: 'string', optional: false, nullable: false,
-				enum: ['none', 'pending', 'uploading', 'ready', 'failed', 'queued', 'cancelled'],
+				enum: ['none', 'pending', 'uploading', 'ready', 'failed', 'queued', 'cancelled', 'skipped', 'unavailable'],
 			},
 		},
 	},

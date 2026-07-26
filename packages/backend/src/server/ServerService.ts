@@ -37,6 +37,7 @@ import { TwitchServerService } from './twitch/TwitchServerService.js';
 import { RemoteGuestServerService } from './remote-guest/RemoteGuestServerService.js';
 import { OmeServerService } from './ome/OmeServerService.js';
 import { GoogleDriveServerService } from './google/GoogleDriveServerService.js';
+import { RecordingDownloadServerService } from './live/RecordingDownloadServerService.js';
 
 const _dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -78,6 +79,7 @@ export class ServerService implements OnApplicationShutdown {
 		private remoteGuestServerService: RemoteGuestServerService,
 		private omeServerService: OmeServerService,
 		private googleDriveServerService: GoogleDriveServerService,
+		private recordingDownloadServerService: RecordingDownloadServerService,
 	) {
 		this.logger = this.loggerService.getLogger('server', 'gray');
 	}
@@ -170,6 +172,7 @@ export class ServerService implements OnApplicationShutdown {
 		fastify.register(this.oauth2ProviderService.createTokenServer, { prefix: '/oauth/token' });
 		fastify.register(this.twitchServerService.createServer, { prefix: '/twitch' });
 		fastify.register(this.googleDriveServerService.createServer, { prefix: '/google-drive' });
+		fastify.register(this.recordingDownloadServerService.createServer, { prefix: '/recording-download' });
 		fastify.register(this.remoteGuestServerService.createServer, { prefix: '/remote-guest' });
 		fastify.register(this.omeServerService.createServer, { prefix: '/ome' });
 		fastify.register(this.healthServerService.createServer, { prefix: '/healthz' });

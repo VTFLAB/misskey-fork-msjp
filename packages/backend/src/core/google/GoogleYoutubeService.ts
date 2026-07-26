@@ -140,6 +140,31 @@ export class GoogleYoutubeService {
 		}
 	}
 
+	/**
+	 * 指定 videoIds のうち YouTube 側にまだ存在する (videos.list で items に返る) ものを返す
+	 * (bsky-fork 独自、YouTube 12時間アーカイブ上限対策の health check 用)。
+	 * 'id' は videos.list の有効な part ではないため、軽量な 'status' を part に指定し、
+	 * existence は id が items に現れたかどうかで判定する。videos.list は ~1 unit/call で
+	 * 50 id までバッチ処理できるため、ユーザーのアーカイブ本数分のクォータ消費は最小限。
+	 * buildClient が GoogleYoutubeNotAuthorizedError を throw しうる (トークン失効等) ので、
+	 * 呼び出し元はそれを catch してユーザー単位でスキップすること。
+	 */
+	@bindThis
+	public async listExistingVideoIds(userId: MiUser['id'], videoIds: string[]): Promise<Set<string>> {
+		const existing = new Set<string>();
+		if (videoIds.length === 0) return existing;
+
+		const youtubeClient = await this.buildClient(userId);
+		for (let i = 0; i < videoIds.length; i += 50) {
+			const chunk = videoIds.slice(i, i + 50);
+			const res = await youtubeClient.videos.list({ part: ['status'], id: chunk });
+			for (const item of res.data.items ?? []) {
+				if (item.id != null) existing.add(item.id);
+			}
+		}
+		return existing;
+	}
+
 	@bindThis
 	private async buildClient(userId: MiUser['id']): Promise<youtube_v3.Youtube> {
 		const accessToken = await this.googleOAuthService.getValidAccessToken(userId, 'youtube');

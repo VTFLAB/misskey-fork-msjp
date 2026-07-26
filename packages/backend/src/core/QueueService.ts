@@ -90,6 +90,15 @@ const REPEATABLE_SYSTEM_JOB_DEF = [{
 	name: 'youtubeUploadRetry',
 	// YouTubeアップロードのクォータ超過リトライキュー (bsky-fork 独自)。1時間ごとに最古の1件を再試行する。
 	pattern: '0 * * * *',
+}, {
+	name: 'youtubeHealthCheck',
+	// YouTubeアーカイブの事後削除検知 (bsky-fork 独自、12時間上限対策)。6時間ごとに ready 状態の動画を確認し、
+	// YouTube 側で削除されていれば unavailable に落とす。
+	pattern: '0 */6 * * *',
+}, {
+	name: 'recordingRetentionCleanup',
+	// 保持期限切れローカル mp4 の掃除 (bsky-fork 独自)。毎日03:30に recordingRetentionExpiresAt 超過分を削除する。
+	pattern: '30 3 * * *',
 }];
 
 function parseRedisInfo(infoText: string): Record<string, string> {
