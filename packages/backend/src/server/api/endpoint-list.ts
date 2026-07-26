@@ -479,6 +479,7 @@ export * as 'twitch/streams/verify-archive-view-password' from './endpoints/twit
 export * as 'twitch/streams/update-archive-settings' from './endpoints/twitch/streams/update-archive-settings.js';
 export * as 'twitch/streams/unpublish-archive' from './endpoints/twitch/streams/unpublish-archive.js';
 export * as 'twitch/streams/cancel-youtube-upload' from './endpoints/twitch/streams/cancel-youtube-upload.js';
+export * as 'twitch/streams/retry-drive-upload' from './endpoints/twitch/streams/retry-drive-upload.js';
 export * as 'twitch/subtitle/publish' from './endpoints/twitch/subtitle/publish.js';
 export * as 'twitch/unlink' from './endpoints/twitch/unlink.js';
 
