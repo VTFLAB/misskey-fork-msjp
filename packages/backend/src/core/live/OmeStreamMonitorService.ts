@@ -13,7 +13,9 @@ import type { Config } from '@/config.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { MiTwitchStream } from '@/models/TwitchStream.js';
+import type { MiLiveChannel } from '@/models/LiveChannel.js';
 import { TwitchStreamService } from '@/core/twitch/TwitchStreamService.js';
+import { TwitchCommentService } from '@/core/twitch/TwitchCommentService.js';
 import { OmeApiService } from './OmeApiService.js';
 import { LiveLoggerService } from './LiveLoggerService.js';
 
@@ -22,6 +24,10 @@ const RECONCILE_INTERVAL_MS = 2 * 60 * 1000; // OME ダウン時の自己修復 
 const OVERAGE_MARGIN = 1.1; // 10% マージン
 const CONSECUTIVE_OVERAGE_THRESHOLD = 3; // 3回連続 (≒30秒継続)
 const BLACKLIST_TTL_SEC = 10 * 60;
+// YouTube アーカイブの 12 時間上限 (LiveRecordingService の YOUTUBE_MAX_DURATION_SEC と同値) に対し、
+// 1 時間前からライブチャットへ警告を送る閾値・間隔 (bsky-fork 独自)。
+const LONG_STREAM_WARN_THRESHOLD_MS = 11 * 60 * 60 * 1000; // 11h: start warning 1h before YouTube's 12h limit
+const LONG_STREAM_WARN_INTERVAL_MS = 5 * 60 * 1000; // re-warn at most every 5 minutes
 
 @Injectable()
 export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutdown {
@@ -32,6 +38,9 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 	private overageCounts = new Map<string, { video: number; audio: number }>();
 	// OME 到達不能の連続回数 (縮退判定用)
 	private consecutiveApiFailures = 0;
+	// streamId ごとの最終 12h 警告投稿時刻 (epoch ms)。長時間配信向けの YouTube アーカイブ上限警告
+	// (bsky-fork 独自) のスロットリング用。プロセスローカル (監視自体が cluster.isPrimary 限定のため)
+	private longStreamWarnedAt = new Map<string, number>();
 
 	constructor(
 		@Inject(DI.config)
@@ -48,6 +57,7 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 
 		private omeApiService: OmeApiService,
 		private twitchStreamService: TwitchStreamService,
+		private twitchCommentService: TwitchCommentService,
 		private liveLoggerService: LiveLoggerService,
 	) {
 		this.logger = this.liveLoggerService.child('monitor');
@@ -143,6 +153,14 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 			const channel = channelsByUserId.get(session.userId);
 			if (channel == null) continue;
 
+			// YouTube 12時間アーカイブ上限の事前警告 (bsky-fork 独自)。OME API に依存しないため
+			// getStream 失敗時にも配信者へ届く。失敗が監視ループを壊さないよう try/catch で包む
+			try {
+				await this.warnLongStreamIfDue(session, channel);
+			} catch (err) {
+				this.logger.warn(`warnLongStreamIfDue failed (streamId=${session.id}): ${err instanceof Error ? err.message : err}`);
+			}
+
 			let stats: Awaited<ReturnType<OmeApiService['getStream']>>;
 			try {
 				stats = await this.omeApiService.getStream(channel.streamKey);
@@ -182,6 +200,12 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 		for (const key of this.overageCounts.keys()) {
 			if (!activeKeys.has(key)) this.overageCounts.delete(key);
 		}
+
+		// 終了済みセッションの 12h 警告タイムスタンプを掃除 (メモリリーク防止)
+		const liveStreamIds = new Set(activeSessions.map(s => s.id));
+		for (const id of this.longStreamWarnedAt.keys()) {
+			if (!liveStreamIds.has(id)) this.longStreamWarnedAt.delete(id);
+		}
 	}
 
 	/**
@@ -212,6 +236,31 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 
 		// 4. markOffline 相当 + streamEnded 配信 (+ 録画パイプライン起動)
 		await this.twitchStreamService.markOmeStreamEnded(session.id);
+	}
+
+	/**
+	 * YouTube アーカイブの 12 時間上限を超えそうな長時間配信に対し、ライブチャットへ
+	 * システム警告コメントを投稿する (bsky-fork 独自、Phase 3)。配信者は配信中チャットしか
+	 * 見ないため Misskey 通知ではなくチャットメッセージで届ける。YouTube アップロードが
+	 * 無効 (Drive-only) のチャンネルは 12h 上限が無関係のため対象外。
+	 */
+	@bindThis
+	private async warnLongStreamIfDue(stream: MiTwitchStream, channel: MiLiveChannel | null): Promise<void> {
+		// 12h 上限は YouTube 固有。YouTube アップロード無効 (Drive-only) は対象外
+		if (channel?.youtubeUploadEnabled !== true) return;
+
+		const elapsedMs = Date.now() - stream.startedAt.getTime();
+		if (elapsedMs < LONG_STREAM_WARN_THRESHOLD_MS) return;
+
+		const now = Date.now();
+		const last = this.longStreamWarnedAt.get(stream.id);
+		if (last != null && now - last < LONG_STREAM_WARN_INTERVAL_MS) return;
+
+		this.longStreamWarnedAt.set(stream.id, now);
+		const hours = Math.floor(elapsedMs / (60 * 60 * 1000));
+		const text = `【システム警告】配信開始から${hours}時間を超えました。YouTubeアーカイブは12時間を超えると保存できません（12時間超の録画はDrive保存のみ、Drive容量が足りなければ録画は失われます）。必要なら配信を終了してアーカイブを確定してください。`;
+		await this.twitchCommentService.createSystemComment(stream, text);
+		this.logger.warn(`posted 12h-limit warning to chat: streamId=${stream.id} elapsedHours=${hours}`);
 	}
 
 	/**
