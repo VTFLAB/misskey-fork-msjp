@@ -44,9 +44,9 @@ export class MiTwitchStreamComment {
 
 	@Column('varchar', {
 		length: 16,
-		comment: 'Comment origin: misskey | twitch | remote-guest.',
+		comment: 'Comment origin: misskey | twitch | remote-guest | system (server-generated warning).',
 	})
-	public source: 'misskey' | 'twitch' | 'remote-guest';
+	public source: 'misskey' | 'twitch' | 'remote-guest' | 'system';
 
 	// source=misskey の投稿者。退会時は null になりコメントは「削除されたユーザー」として残る
 	@Column({
