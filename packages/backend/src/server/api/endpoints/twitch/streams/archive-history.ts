@@ -36,7 +36,7 @@ export const meta = {
 				recordingError: { type: 'string', optional: false, nullable: true },
 				youtubeUploadStatus: {
 					type: 'string', optional: false, nullable: false,
-					enum: ['none', 'pending', 'uploading', 'ready', 'failed', 'queued', 'cancelled'],
+					enum: ['none', 'pending', 'uploading', 'ready', 'failed', 'queued', 'cancelled', 'skipped', 'unavailable'],
 				},
 				youtubeVideoId: { type: 'string', optional: false, nullable: true },
 				youtubeThumbnailUrl: { type: 'string', optional: false, nullable: true },
@@ -47,6 +47,8 @@ export const meta = {
 				archiveViewPassword: { type: 'string', optional: false, nullable: true },
 				archiveVisibleUserIds: { type: 'array', optional: false, nullable: false, items: { type: 'string', format: 'misskey:id' } },
 				archiveUnpublished: { type: 'boolean', optional: false, nullable: false },
+			// ローカル保持期限 (bsky-fork 独自)。オーナー専用一覧のため常に値を返す (null 許容)。
+			recordingRetentionExpiresAt: { type: 'string', format: 'date-time', optional: false, nullable: true },
 			},
 		},
 	},
@@ -79,13 +81,16 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				recordingGoogleDriveThumbnailLink: s.recordingGoogleDriveThumbnailLink,
 				recordingError: s.recordingError,
 				youtubeUploadStatus: s.youtubeUploadStatus,
-				youtubeVideoId: s.youtubeVideoId,
-				youtubeThumbnailUrl: s.youtubeThumbnailUrl,
+				// youtubeUploadStatus='unavailable' (YouTube 側で削除済み) の場合は動画/サムネを
+				// null にして、フロントエンドが Drive または unavailable 表示へフォールバックするようにする。
+				youtubeVideoId: s.youtubeUploadStatus !== 'unavailable' ? s.youtubeVideoId : null,
+				youtubeThumbnailUrl: s.youtubeUploadStatus !== 'unavailable' ? s.youtubeThumbnailUrl : null,
 				youtubeUploadError: s.youtubeUploadError,
 				archiveViewVisibility: s.archiveViewVisibility,
 				archiveViewPassword: s.archiveViewPassword,
 				archiveVisibleUserIds: s.archiveVisibleUserIds,
 				archiveUnpublished: s.archiveUnpublishedAt != null,
+				recordingRetentionExpiresAt: s.recordingRetentionExpiresAt?.toISOString() ?? null,
 			}));
 		});
 	}
