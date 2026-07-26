@@ -48,6 +48,8 @@ import { AggregateRetentionProcessorService } from './processors/AggregateRetent
 import { CleanRemoteNotesProcessorService } from './processors/CleanRemoteNotesProcessorService.js';
 import { TwitchCommentTranslateProcessorService } from './processors/TwitchCommentTranslateProcessorService.js';
 import { YoutubeUploadRetryProcessorService } from './processors/YoutubeUploadRetryProcessorService.js';
+import { YoutubeHealthCheckProcessorService } from './processors/YoutubeHealthCheckProcessorService.js';
+import { RecordingRetentionCleanupProcessorService } from './processors/RecordingRetentionCleanupProcessorService.js';
 import { QueueLoggerService } from './QueueLoggerService.js';
 import { QUEUE, baseWorkerOptions } from './const.js';
 
@@ -135,6 +137,8 @@ export class QueueProcessorService implements OnApplicationShutdown {
 		private cleanRemoteNotesProcessorService: CleanRemoteNotesProcessorService,
 		private twitchCommentTranslateProcessorService: TwitchCommentTranslateProcessorService,
 		private youtubeUploadRetryProcessorService: YoutubeUploadRetryProcessorService,
+		private youtubeHealthCheckProcessorService: YoutubeHealthCheckProcessorService,
+		private recordingRetentionCleanupProcessorService: RecordingRetentionCleanupProcessorService,
 	) {
 		this.logger = this.queueLoggerService.logger;
 
@@ -179,6 +183,8 @@ export class QueueProcessorService implements OnApplicationShutdown {
 					case 'clean': return this.cleanProcessorService.process();
 					case 'cleanRemoteNotes': return this.cleanRemoteNotesProcessorService.process(job);
 					case 'youtubeUploadRetry': return this.youtubeUploadRetryProcessorService.process();
+				case 'youtubeHealthCheck': return this.youtubeHealthCheckProcessorService.process();
+				case 'recordingRetentionCleanup': return this.recordingRetentionCleanupProcessorService.process();
 					default: throw new Error(`unrecognized job type ${job.name} for system`);
 				}
 			};
