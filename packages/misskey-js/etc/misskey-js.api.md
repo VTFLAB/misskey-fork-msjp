@@ -2312,6 +2312,8 @@ declare namespace entities {
         TwitchStreamsCommentsCreateRequest,
         TwitchStreamsCommentsCreateResponse,
         TwitchStreamsPreviewResponse,
+        TwitchStreamsRetryDriveUploadRequest,
+        TwitchStreamsRetryDriveUploadResponse,
         TwitchStreamsShowRequest,
         TwitchStreamsShowResponse,
         TwitchStreamsUnpublishArchiveRequest,
@@ -3922,6 +3924,12 @@ type TwitchStreamsCommentsResponse = operations['twitch___streams___comments']['
 
 // @public (undocumented)
 type TwitchStreamsPreviewResponse = operations['twitch___streams___preview']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsRetryDriveUploadRequest = operations['twitch___streams___retry-drive-upload']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type TwitchStreamsRetryDriveUploadResponse = operations['twitch___streams___retry-drive-upload']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type TwitchStreamsShowRequest = operations['twitch___streams___show']['requestBody']['content']['application/json'];

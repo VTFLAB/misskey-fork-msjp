@@ -4880,6 +4880,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * retention 期間中の録画 mp4 を Google Drive へ再アップロードする (配信者本人のみ、bsky-fork 独自、YouTube 12時間アーカイブ上限対策)。永続保存先 (Drive/YouTube) が無くローカルに保持されている録画に対して、配信者本人が手動で保存を再試行する。
+     * 
+     * **Credential required**: *Yes* / **Permission**: *write:account*
+     */
+    request<E extends 'twitch/streams/retry-drive-upload', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * 指定ユーザーの Twitch 配信状態を返す。連携済みなら twitchLogin は常に返り、配信中なら stream が非 null。視聴ページ (/live/:acct) が未ログイン・リモートゲストからも到達可能なため認証不要 (副作用のない読み取り専用エンドポイント)。
      * 
      * **Credential required**: *No*
