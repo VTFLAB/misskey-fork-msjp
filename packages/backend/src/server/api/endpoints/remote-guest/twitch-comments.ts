@@ -37,7 +37,7 @@ export const meta = {
 			properties: {
 				id: { type: 'string', format: 'misskey:id', optional: false, nullable: false },
 				createdAt: { type: 'string', format: 'date-time', optional: false, nullable: false },
-				source: { type: 'string', enum: ['misskey', 'twitch', 'remote-guest'], optional: false, nullable: false },
+				source: { type: 'string', enum: ['misskey', 'twitch', 'remote-guest', 'system'], optional: false, nullable: false },
 				text: { type: 'string', optional: false, nullable: false },
 				user: { type: 'object', ref: 'UserLite', optional: false, nullable: true },
 				files: {
