@@ -663,6 +663,8 @@ import type {
 	TwitchStreamsCommentsCreateRequest,
 	TwitchStreamsCommentsCreateResponse,
 	TwitchStreamsPreviewResponse,
+	TwitchStreamsRetryDriveUploadRequest,
+	TwitchStreamsRetryDriveUploadResponse,
 	TwitchStreamsShowRequest,
 	TwitchStreamsShowResponse,
 	TwitchStreamsUnpublishArchiveRequest,
@@ -1181,6 +1183,7 @@ export type Endpoints = {
 	'twitch/streams/comments': { req: TwitchStreamsCommentsRequest; res: TwitchStreamsCommentsResponse };
 	'twitch/streams/comments/create': { req: TwitchStreamsCommentsCreateRequest; res: TwitchStreamsCommentsCreateResponse };
 	'twitch/streams/preview': { req: EmptyRequest; res: TwitchStreamsPreviewResponse };
+	'twitch/streams/retry-drive-upload': { req: TwitchStreamsRetryDriveUploadRequest; res: TwitchStreamsRetryDriveUploadResponse };
 	'twitch/streams/show': { req: TwitchStreamsShowRequest; res: TwitchStreamsShowResponse };
 	'twitch/streams/unpublish-archive': { req: TwitchStreamsUnpublishArchiveRequest; res: TwitchStreamsUnpublishArchiveResponse };
 	'twitch/streams/update-archive-settings': { req: TwitchStreamsUpdateArchiveSettingsRequest; res: TwitchStreamsUpdateArchiveSettingsResponse };

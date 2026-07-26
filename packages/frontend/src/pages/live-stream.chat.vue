@@ -61,6 +61,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 					</div>
 				</template>
+				<template v-else-if="comment.source === 'system'">
+					<div :class="$style.systemComment">
+						<i class="ti ti-alert-triangle" :class="$style.systemIcon"></i>
+						<span :class="$style.systemLabel">{{ i18n.ts._liveChannel.chatSystem }}</span>
+						<span :class="$style.systemText">{{ comment.text }}</span>
+					</div>
+				</template>
 				<template v-else>
 					<i class="ti ti-brand-twitch" :class="$style.twitchIcon"></i>
 					<div :class="$style.commentBody">
@@ -730,6 +737,35 @@ onUnmounted(() => {
 	height: 1.6em;
 	vertical-align: middle;
 	margin: -2px 3px;
+}
+
+// サーバー生成のシステム警告コメント (YouTube 12h アーカイブ上限警告等、bsky-fork 独自)。
+// 通常コメントと異なり中央寄せの全幅警告行として表示する
+.systemComment {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 12px;
+	border-radius: var(--MI-radius);
+	background: var(--MI_THEME-infoWarnBg);
+	color: var(--MI_THEME-infoWarnFg);
+	font-size: 0.85em;
+	overflow-wrap: anywhere;
+}
+
+.systemIcon {
+	flex-shrink: 0;
+}
+
+.systemLabel {
+	flex-shrink: 0;
+	font-weight: bold;
+	opacity: 0.9;
+}
+
+.systemText {
+	white-space: pre-wrap;
 }
 
 .commentFiles {

@@ -15631,6 +15631,66 @@ export interface Locale extends ILocale {
          * このアーカイブの公開を取り消しますか？ 取り消すと、視聴者は動画とコメントリプレイのどちらも閲覧できなくなります。YouTube / Google Drive上の実ファイルは削除されません。この操作は元に戻せません。
          */
         "archiveUnpublishConfirm": string;
+        /**
+         * アーカイブ保存に失敗しました
+         */
+        "retentionBannerTitle": string;
+        /**
+         * Google Drive / YouTube への保存に失敗したため、録画ファイルをサーバーに一時保持しています。保持期限を過ぎると録画は削除されます。必要なら期限内にダウンロードするか、Drive への再アップロードを試してください。
+         */
+        "retentionBannerText": string;
+        /**
+         * 保持期限まで残り {n} 日
+         */
+        "retentionExpiresIn": ParameterizedString<"n">;
+        /**
+         * 保持期限切れ
+         */
+        "retentionExpired": string;
+        /**
+         * 録画をダウンロード
+         */
+        "retentionDownload": string;
+        /**
+         * Driveに再アップロード
+         */
+        "retentionRetryDrive": string;
+        /**
+         * Driveに再アップロードしますか？
+         */
+        "retentionRetryConfirmTitle": string;
+        /**
+         * サーバーに保持中の録画を Google Drive へ再アップロードします。
+         */
+        "retentionRetryConfirmText": string;
+        /**
+         * Driveへの再アップロードを開始しました
+         */
+        "retentionRetrySuccess": string;
+        /**
+         * 再アップロードに失敗しました: {reason}
+         */
+        "retentionRetryFailed": ParameterizedString<"reason">;
+        /**
+         * YouTube: 12時間超過のため保存対象外
+         */
+        "youtubeSkipped": string;
+        /**
+         * このアーカイブは利用できません
+         */
+        "archiveUnavailable": string;
+        /**
+         * YouTube側で削除されました
+         */
+        "archiveUnavailableReason": string;
+        /**
+         * アーカイブはありません
+         */
+        "archiveEmpty": string;
+        /**
+         * システム
+         */
+        "chatSystem": string;
     };
     "_remoteGuestLogin": {
         /**
