@@ -45,6 +45,8 @@ import { ExportFavoritesProcessorService } from './processors/ExportFavoritesPro
 import { RelationshipProcessorService } from './processors/RelationshipProcessorService.js';
 import { TwitchCommentTranslateProcessorService } from './processors/TwitchCommentTranslateProcessorService.js';
 import { YoutubeUploadRetryProcessorService } from './processors/YoutubeUploadRetryProcessorService.js';
+import { YoutubeHealthCheckProcessorService } from './processors/YoutubeHealthCheckProcessorService.js';
+import { RecordingRetentionCleanupProcessorService } from './processors/RecordingRetentionCleanupProcessorService.js';
 
 @Module({
 	imports: [
@@ -81,6 +83,8 @@ import { YoutubeUploadRetryProcessorService } from './processors/YoutubeUploadRe
 		RelationshipProcessorService,
 		TwitchCommentTranslateProcessorService,
 		YoutubeUploadRetryProcessorService,
+		YoutubeHealthCheckProcessorService,
+		RecordingRetentionCleanupProcessorService,
 		UserWebhookDeliverProcessorService,
 		SystemWebhookDeliverProcessorService,
 		EndedPollNotificationProcessorService,
