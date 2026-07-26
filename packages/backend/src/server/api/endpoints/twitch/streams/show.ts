@@ -77,12 +77,14 @@ export const meta = {
 						// YouTube アップロード (bsky-fork 独自)。過去 (isLive=false) の ome セッションのみ設定される
 						youtubeUploadStatus: {
 							type: 'string', optional: true, nullable: false,
-							enum: ['none', 'pending', 'uploading', 'ready', 'failed', 'queued', 'cancelled'],
+							enum: ['none', 'pending', 'uploading', 'ready', 'failed', 'queued', 'cancelled', 'skipped', 'unavailable'],
 						},
-						youtubeVideoId: { type: 'string', optional: true, nullable: true },
-						youtubeThumbnailUrl: { type: 'string', optional: true, nullable: true },
-						// オーナー本人のリクエストのみ値が入る (他人には常に省略/undefined)
-						youtubeUploadError: { type: 'string', optional: true, nullable: true },
+					youtubeVideoId: { type: 'string', optional: true, nullable: true },
+					youtubeThumbnailUrl: { type: 'string', optional: true, nullable: true },
+					// オーナー本人のリクエストのみ値が入る (他人には常に省略/undefined)
+					youtubeUploadError: { type: 'string', optional: true, nullable: true },
+					// ローカル保持期限 (bsky-fork 独自)。オーナー本人のみ値が入る (他人は undefined)。
+					recordingRetentionExpiresAt: { type: 'string', format: 'date-time', optional: true, nullable: true },
 						// アーカイブ公開取り消し (bsky-fork 独自)。recordingError 等と同じくオーナー本人のみ値が入る
 						archiveUnpublished: { type: 'boolean', optional: true, nullable: false },
 					},
@@ -208,11 +210,15 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					recordingGoogleDriveThumbnailLink: authorized ? s.recordingGoogleDriveThumbnailLink : undefined,
 					recordingError: isOwner ? s.recordingError : undefined,
 					youtubeUploadStatus: s.youtubeUploadStatus,
-					youtubeVideoId: authorized ? s.youtubeVideoId : undefined,
-					youtubeThumbnailUrl: authorized ? s.youtubeThumbnailUrl : undefined,
+					// authorized であっても youtubeUploadStatus='unavailable' (YouTube 側で削除済み) の場合は
+					// 動画/サムネを省略し、プレイヤーを Drive または unavailable 表示へフォールバックさせる。
+					youtubeVideoId: (authorized && s.youtubeUploadStatus !== 'unavailable') ? s.youtubeVideoId : undefined,
+					youtubeThumbnailUrl: (authorized && s.youtubeUploadStatus !== 'unavailable') ? s.youtubeThumbnailUrl : undefined,
 					youtubeUploadError: isOwner ? s.youtubeUploadError : undefined,
 					// アーカイブ公開取り消しフラグ。オーナー本人のみ値が入る (recordingError と同じ owner-only 扱い)。
 					archiveUnpublished: isOwner ? s.archiveUnpublishedAt != null : undefined,
+					// ローカル保持期限 (bsky-fork 独自)。オーナー本人のみ値が入る。
+					recordingRetentionExpiresAt: isOwner ? (s.recordingRetentionExpiresAt?.toISOString() ?? null) : undefined,
 				};
 			}));
 
