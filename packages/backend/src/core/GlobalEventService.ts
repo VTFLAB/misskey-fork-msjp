@@ -343,7 +343,7 @@ export interface TwitchLiveStreamEventTypes {
 	comment: {
 		id: string;
 		createdAt: string;
-		source: 'misskey' | 'twitch' | 'remote-guest';
+		source: 'misskey' | 'twitch' | 'remote-guest' | 'system';
 		text: string;
 		user: Packed<'UserLite'> | null;
 		files: Packed<'DriveFile'>[];
