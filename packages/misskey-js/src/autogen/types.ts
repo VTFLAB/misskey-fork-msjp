@@ -4003,6 +4003,15 @@ export type paths = {
          */
         post: operations['twitch___streams___preview'];
     };
+    '/twitch/streams/retry-drive-upload': {
+        /**
+         * twitch/streams/retry-drive-upload
+         * @description retention 期間中の録画 mp4 を Google Drive へ再アップロードする (配信者本人のみ、bsky-fork 独自、YouTube 12時間アーカイブ上限対策)。永続保存先 (Drive/YouTube) が無くローカルに保持されている録画に対して、配信者本人が手動で保存を再試行する。
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:account*
+         */
+        post: operations['twitch___streams___retry-drive-upload'];
+    };
     '/twitch/streams/show': {
         /**
          * twitch/streams/show
@@ -35373,7 +35382,7 @@ export interface operations {
                         /** Format: date-time */
                         createdAt: string;
                         /** @enum {string} */
-                        source: 'misskey' | 'twitch' | 'remote-guest';
+                        source: 'misskey' | 'twitch' | 'remote-guest' | 'system';
                         text: string;
                         user: components['schemas']['UserLite'] | null;
                         files: components['schemas']['DriveFile'][];
@@ -37407,7 +37416,7 @@ export interface operations {
                         recordingGoogleDriveThumbnailLink: string | null;
                         recordingError: string | null;
                         /** @enum {string} */
-                        youtubeUploadStatus: 'none' | 'pending' | 'uploading' | 'ready' | 'failed' | 'queued' | 'cancelled';
+                        youtubeUploadStatus: 'none' | 'pending' | 'uploading' | 'ready' | 'failed' | 'queued' | 'cancelled' | 'skipped' | 'unavailable';
                         youtubeVideoId: string | null;
                         youtubeThumbnailUrl: string | null;
                         youtubeUploadError: string | null;
@@ -37416,6 +37425,8 @@ export interface operations {
                         archiveViewPassword: string | null;
                         archiveVisibleUserIds: string[];
                         archiveUnpublished: boolean;
+                        /** Format: date-time */
+                        recordingRetentionExpiresAt: string | null;
                     }[];
                 };
             };
@@ -37720,7 +37731,7 @@ export interface operations {
                 content: {
                     'application/json': {
                         /** @enum {string} */
-                        youtubeUploadStatus: 'none' | 'pending' | 'uploading' | 'ready' | 'failed' | 'queued' | 'cancelled';
+                        youtubeUploadStatus: 'none' | 'pending' | 'uploading' | 'ready' | 'failed' | 'queued' | 'cancelled' | 'skipped' | 'unavailable';
                     };
                 };
             };
@@ -37800,7 +37811,7 @@ export interface operations {
                         /** Format: date-time */
                         createdAt: string;
                         /** @enum {string} */
-                        source: 'misskey' | 'twitch' | 'remote-guest';
+                        source: 'misskey' | 'twitch' | 'remote-guest' | 'system';
                         text: string;
                         user: components['schemas']['UserLite'] | null;
                         files: components['schemas']['DriveFile'][];
@@ -38031,6 +38042,87 @@ export interface operations {
             };
         };
     };
+    'twitch___streams___retry-drive-upload': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    /** Format: misskey:id */
+                    streamId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        /** @enum {string} */
+                        recordingStatus: 'none' | 'pending' | 'remuxing' | 'uploading' | 'processing' | 'ready' | 'failed';
+                        recordingGoogleDriveFileId: string | null;
+                        recordingGoogleDriveThumbnailLink: string | null;
+                        recordingError: string | null;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     twitch___streams___show: {
         requestBody: {
             content: {
@@ -38084,10 +38176,12 @@ export interface operations {
                             recordingGoogleDriveThumbnailLink?: string | null;
                             recordingError?: string | null;
                             /** @enum {string} */
-                            youtubeUploadStatus?: 'none' | 'pending' | 'uploading' | 'ready' | 'failed' | 'queued' | 'cancelled';
+                            youtubeUploadStatus?: 'none' | 'pending' | 'uploading' | 'ready' | 'failed' | 'queued' | 'cancelled' | 'skipped' | 'unavailable';
                             youtubeVideoId?: string | null;
                             youtubeThumbnailUrl?: string | null;
                             youtubeUploadError?: string | null;
+                            /** Format: date-time */
+                            recordingRetentionExpiresAt?: string | null;
                             archiveUnpublished?: boolean;
                         }[];
                     };
