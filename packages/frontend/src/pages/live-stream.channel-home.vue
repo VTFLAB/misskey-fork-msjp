@@ -124,7 +124,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 					</template>
 
-					<!-- 未再生可能かつ進行中でもない: 失敗/未使用/キャンセル済み -->
+					<!-- 未再生可能かつ進行中でもない: 失敗/未使用/キャンセル済み/利用不可 -->
 					<template v-else>
 						<div :class="[$style.archiveCardHeader, $style.archiveCardHeaderStatic]">
 							<div :class="$style.archiveThumb">
@@ -144,6 +144,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<div v-if="a.youtubeUploadStatus === 'failed' && isOwner && a.youtubeUploadError" :class="$style.caption">{{ a.youtubeUploadError }}</div>
 								<div v-if="a.youtubeUploadStatus === 'cancelled'" :class="$style.archiveBadge">
 									{{ i18n.ts._liveChannel.archiveYoutubeCancelled }}
+								</div>
+								<!-- YouTube 側で削除済みで Drive コピーも無い場合の利用不可表示 (bsky-fork 独自)。
+								youtubeUploadStatus='unavailable' では backend が youtubeVideoId を null にするため
+								ここ(未再生可能)に来る。小さく控えめに表示する -->
+								<div v-if="a.youtubeUploadStatus === 'unavailable'" :class="$style.archiveBadge">
+									<i class="ti ti-alert-circle"></i> {{ i18n.ts._liveChannel.archiveUnavailable }}
 								</div>
 								<div v-if="isOwner && a.archiveUnpublished" :class="$style.archiveUnpublishedBadge">
 									<i class="ti ti-eye-off"></i> {{ i18n.ts._liveChannel.archiveUnpublishedBadge }}
