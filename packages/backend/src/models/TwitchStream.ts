@@ -109,7 +109,7 @@ export class MiTwitchStream {
 
 	@Column('varchar', {
 		length: 1024, nullable: true,
-		comment: 'Local (remuxed) recording file path, cleared once uploaded or on failure.',
+		comment: 'Local (remuxed) recording file path; cleared once a durable remote copy exists, or purged after the 7-day retention on failure.',
 	})
 	public recordingFilePath: string | null;
 
@@ -138,10 +138,14 @@ export class MiTwitchStream {
 	// uploading: YouTube アップロード中 → ready: 公開済み / failed: 失敗。
 	// queued: クォータ超過により Drive へ一時退避済み、1時間ごとの自動リトライキュー待ち →
 	// cancelled: ユーザーがキュー (queued 状態) を明示的にキャンセルした。
+	// skipped: 録画時間が YouTube の12時間上限以上のため YouTube へのアップロードを行わず Drive-only とした
+	// (bsky-fork 独自、YouTube 12時間アーカイブ上限対策)。
+	// unavailable: アップロード成功後に YouTube 側で動画が削除されたことを health check で検知した
+	// (bsky-fork 独自、同上)。
 	@Column('varchar', {
 		length: 16, default: 'none',
 	})
-	public youtubeUploadStatus: 'none' | 'pending' | 'uploading' | 'ready' | 'failed' | 'queued' | 'cancelled';
+	public youtubeUploadStatus: 'none' | 'pending' | 'uploading' | 'ready' | 'failed' | 'queued' | 'cancelled' | 'skipped' | 'unavailable';
 
 	@Column('varchar', {
 		length: 32, nullable: true,
@@ -185,6 +189,15 @@ export class MiTwitchStream {
 		comment: 'Non-null once the owner has unpublished this archive from the MSJP listing. The underlying Google Drive/YouTube file is not deleted.',
 	})
 	public archiveUnpublishedAt: Date | null;
+
+	// 永続保存先 (Drive/YouTube) が無いまま処理が終わった録画の、ローカル mp4 保持期限 (bsky-fork 独自、
+	// YouTube 12時間アーカイブ上限対策)。null なら保持期限管理の対象外。期限超過は
+	// RecordingRetentionCleanupProcessorService が拾ってローカルファイルを削除する。
+	@Column('timestamp with time zone', {
+		nullable: true,
+		comment: 'When the locally-retained mp4 is purged after a failed archive; null when not under retention.',
+	})
+	public recordingRetentionExpiresAt: Date | null;
 
 	constructor(data: Partial<MiTwitchStream>) {
 		if (data == null) return;
