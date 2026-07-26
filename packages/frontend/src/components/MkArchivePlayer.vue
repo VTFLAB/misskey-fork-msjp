@@ -23,12 +23,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 			allowfullscreen
 		></iframe>
 	</div>
+	<!-- どちらの実体も無い場合の空表示メッセージ (bsky-fork 独自)。
+	YouTube が unavailable (削除済み) で Drive コピーも無い場合等にここへ来る。
+	呼び出し元で弾いている前提だが、念のためアーカイブ無し/利用不可のメッセージを出す -->
+	<div v-else :class="$style.empty">
+		<i class="ti ti-movie-off"></i>
+		<span>{{ i18n.ts._liveChannel.archiveUnavailable }}</span>
+	</div>
 </div>
 </template>
 
 <script lang="ts" setup>
 import { onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue';
 import MkYoutubeArchivePlayer from '@/components/MkYoutubeArchivePlayer.vue';
+import { i18n } from '@/i18n.js';
 
 // dispatcher (bsky-fork 独自): youtubeVideoId があれば YouTube IFrame Player API 経由、
 // 無く recordingGoogleDriveFileId があれば Drive の /preview iframe、どちらも無ければ何も表示しない
@@ -105,5 +113,25 @@ onBeforeUnmount(() => {
 	height: 337.5px;
 	border: none;
 	transform-origin: top left;
+}
+
+// 再生対象が無い場合の空表示メッセージ (bsky-fork 独自)
+.empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	aspect-ratio: 16 / 9;
+	color: var(--MI_THEME-fg);
+	opacity: 0.6;
+	font-size: 0.9em;
+	background: var(--MI_THEME-bg);
+	border-radius: var(--MI-radius);
+
+	> i {
+		font-size: 2em;
+		opacity: 0.6;
+	}
 }
 </style>
