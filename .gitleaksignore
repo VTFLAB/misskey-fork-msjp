@@ -299,3 +299,7 @@ f9ad25011258b1f3263e3a3e6dbd4230ba09f2da:README.md:generic-api-key:168
 f9f2787dfc7f4946b2d85396b1997cfed2fcf486:README.md:generic-api-key:165
 fa8f9c286d3a01deb4df2c08487a267bfe4bd294:README.md:generic-api-key:169
 fc0e1955d763f0730da60e21346c9789980707d3:README.md:generic-api-key:113
+# 追補 (twitch-api-token 規則が TS 型 import 名に誤反応 等)
+382b88e480cdb8189871981f87061e7667deb374:packages/backend/src/server/api/endpoints/twitch/streams/blocks/create.ts:twitch-api-token:10
+997eeaef5f40f07cce30384f911c76296840ba62:HANDOFF.md:generic-api-key:16
+997eeaef5f40f07cce30384f911c76296840ba62:HANDOFF.md:generic-api-key:6
