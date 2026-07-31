@@ -278,9 +278,11 @@ async function submitViewPassword() {
 	}
 }
 
-function onStreamEnded() {
-	os.alert({ type: 'info', text: i18n.ts._twitch.streamEnded });
-	reload();
+async function onStreamEnded() {
+	// 視聴ページ (/live/:acct/stream) はライブセッションが無いと notFound になるため、
+	// リロードではなくチャンネルページへ戻す (視聴ページ分離以前の挙動の復元)
+	await os.alert({ type: 'info', text: i18n.ts._twitch.streamEnded });
+	router.push('/live/:acct', { params: { acct: props.acct } });
 }
 
 function openSourceMenu(ev: MouseEvent) {
