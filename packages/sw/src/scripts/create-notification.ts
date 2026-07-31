@@ -283,6 +283,15 @@ async function composeNotification(data: PushNotificationDataMap[keyof PushNotif
 						renotify: true,
 					}];
 
+				case 'googleAuthExpired':
+					return [i18n.ts._notification.googleAuthExpired, {
+						body: i18n.tsx._notification.googleAuthExpiredDescription({ target: data.body.target === 'youtube' ? 'YouTube' : 'Google Drive' }),
+						badge: iconUrl('bell'),
+						tag: `googleAuthExpired:${data.body.target}`,
+						data,
+						renotify: true,
+					}];
+
 				default:
 					return null;
 			}

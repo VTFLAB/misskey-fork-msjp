@@ -12,6 +12,7 @@ import type { GoogleAccountsRepository } from '@/models/_.js';
 import { MiGoogleAccount } from '@/models/GoogleAccount.js';
 import type { MiUser } from '@/models/User.js';
 import { IdService } from '@/core/IdService.js';
+import { NotificationService } from '@/core/NotificationService.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { GoogleLoggerService } from './GoogleLoggerService.js';
@@ -107,6 +108,7 @@ export class GoogleOAuthService {
 		private googleAccountsRepository: GoogleAccountsRepository,
 
 		private idService: IdService,
+		private notificationService: NotificationService,
 		private googleLoggerService: GoogleLoggerService,
 	) {
 		this.logger = this.googleLoggerService.child('oauth');
@@ -369,6 +371,9 @@ export class GoogleOAuthService {
 					await this.googleAccountsRepository.delete(account.id);
 					this.logger.info(`account fully unlinked (both sides empty): user=${userId}`);
 				}
+				// 再連携しない限りアーカイブ保存が失敗し続けるため、失効に気付けるよう本人へ通知する。
+				// (invalid_grant はここでしか検知できない: 定期 refresh を挟んでも Google 側の失効自体は防げない)
+				this.notificationService.createNotification(userId, 'googleAuthExpired', { target });
 			} else {
 				this.logger.warn(`${target} token refresh failed (transient, keeping account) user=${userId}: ${err instanceof Error ? err.message : err}`);
 			}

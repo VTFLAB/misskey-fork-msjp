@@ -537,5 +537,20 @@ export const packedNotificationSchema = {
 				optional: false, nullable: false,
 			},
 		},
+	}, {
+		type: 'object',
+		properties: {
+			...baseSchema.properties,
+			type: {
+				type: 'string',
+				optional: false, nullable: false,
+				enum: ['googleAuthExpired'],
+			},
+			target: {
+				type: 'string',
+				optional: false, nullable: false,
+				enum: ['drive', 'youtube'],
+			},
+		},
 	}],
 } as const;
