@@ -11222,6 +11222,14 @@ export interface Locale extends ILocale {
          * {name}が配信を開始しました
          */
         "twitchLiveStreamStarted": ParameterizedString<"name">;
+        /**
+         * Google連携の再認証が必要です
+         */
+        "googleAuthExpired": string;
+        /**
+         * {target}との連携がGoogleに拒否されたため解除されました。配信アーカイブを保存するには、配信設定から再連携してください。
+         */
+        "googleAuthExpiredDescription": ParameterizedString<"target">;
         "_types": {
             /**
              * すべて
@@ -11319,6 +11327,10 @@ export interface Locale extends ILocale {
              * フォロー中ユーザーの配信開始
              */
             "twitchLiveStreamStarted": string;
+            /**
+             * Google連携の再認証が必要
+             */
+            "googleAuthExpired": string;
         };
         "_actions": {
             /**
