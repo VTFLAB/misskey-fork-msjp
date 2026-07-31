@@ -164,10 +164,46 @@ export class OmeApiService {
 	public async startRecord(streamKey: string, transactionId: string): Promise<void> {
 		const ome = this.getConfig();
 		// app レベルのエンドポイントに対し stream.name で対象を指定する (streams/{streamKey}:startRecord は
-		// 404 Controller not found になることを実機検証で確認済み、OME実機検証 2026-07-21)
+		// 404 Controller not found になることを実機検証で確認済み、OME実機検証 2026-07-21)。
+		// variantNames: Server.xml の OutputProfile に Twitch 転送用 AAC レンディション (aac_audio) を
+		// 追加したため (2026-07-31)、録画には従来どおりの bypass トラックのみを明示指定する
+		// (指定しないと音声 2 トラック入りの .ts になり remux パイプラインへ影響する)。
 		await this.fetchJson<unknown>(
 			`${ome.apiUrl}/v1/vhosts/${ome.vhost}/apps/${ome.app}:startRecord`,
-			{ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: transactionId, stream: { name: streamKey } }) },
+			{ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: transactionId, stream: { name: streamKey, variantNames: ['bypass_video', 'bypass_audio'] } }) },
+		);
+	}
+
+	/**
+	 * Twitch への RTMP push (同時転送) を開始する (bsky-fork 独自)。Server.xml の Push publisher を
+	 * 使う API 駆動の push で、映像は bypass (H.264)、音声は Twitch RTMP 要件に合わせた AAC
+	 * レンディション (aac_audio) を選択する。エラーは呼び出し側で catch すること。
+	 */
+	@bindThis
+	public async startPush(streamKey: string, pushId: string, rtmpUrl: string, rtmpStreamKey: string): Promise<void> {
+		const ome = this.getConfig();
+		await this.fetchJson<unknown>(
+			`${ome.apiUrl}/v1/vhosts/${ome.vhost}/apps/${ome.app}:startPush`,
+			{ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+				id: pushId,
+				stream: { name: streamKey, variantNames: ['bypass_video', 'aac_audio'] },
+				protocol: 'rtmp',
+				url: rtmpUrl,
+				streamKey: rtmpStreamKey,
+			}) },
+		);
+	}
+
+	/**
+	 * RTMP push (同時転送) を停止する (bsky-fork 独自)。入力ストリーム終了時に OME 側で push が
+	 * 既に終了していると 404 相当が返るため、呼び出し側で「既に停止済み」を許容して catch すること。
+	 */
+	@bindThis
+	public async stopPush(pushId: string): Promise<void> {
+		const ome = this.getConfig();
+		await this.fetchJson<unknown>(
+			`${ome.apiUrl}/v1/vhosts/${ome.vhost}/apps/${ome.app}:stopPush`,
+			{ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: pushId }) },
 		);
 	}
 
