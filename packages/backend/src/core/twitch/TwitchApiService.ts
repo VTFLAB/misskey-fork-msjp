@@ -50,6 +50,17 @@ export type TwitchHelixUser = {
 	created_at: string;
 };
 
+export type TwitchEventSubSubscription = {
+	id: string;
+	status: string;
+	type: string;
+	version: string;
+	condition: Record<string, string>;
+	transport: { method: string; callback?: string; session_id?: string };
+	created_at: string;
+	cost: number;
+};
+
 export type TwitchHelixStream = {
 	id: string;
 	user_id: string;
@@ -201,6 +212,51 @@ export class TwitchApiService {
 			},
 			body: JSON.stringify(body),
 		});
+	}
+
+	@bindThis
+	public async helixDelete(path: string, params: Record<string, string | number | string[] | undefined>, token?: string): Promise<void> {
+		const { clientId } = this.getCredentials();
+		const accessToken = token ?? await this.getAppAccessToken();
+
+		const url = new URL(path, HELIX_BASE);
+		for (const [k, v] of Object.entries(params)) {
+			if (v == null) continue;
+			if (Array.isArray(v)) {
+				for (const item of v) url.searchParams.append(k, String(item));
+			} else {
+				url.searchParams.set(k, String(v));
+			}
+		}
+
+		await this.fetchJson(url.toString(), {
+			method: 'DELETE',
+			headers: {
+				'Authorization': `Bearer ${accessToken}`,
+				'Client-Id': clientId,
+				'Accept': 'application/json',
+			},
+		});
+	}
+
+	/**
+	 * この client ID の全 EventSub subscription をページネーションを畳んで取得する (app access token)。
+	 * webhook transport の subscription は Twitch 側に永続化されるため、定期突合 (reconcile) の
+	 * 現状把握に使う。
+	 */
+	@bindThis
+	public async listEventSubSubscriptions(): Promise<TwitchEventSubSubscription[]> {
+		const all: TwitchEventSubSubscription[] = [];
+		let cursor: string | undefined;
+		do {
+			const res = await this.helixGet<{
+				data: TwitchEventSubSubscription[];
+				pagination?: { cursor?: string };
+			}>('/helix/eventsub/subscriptions', { after: cursor });
+			all.push(...res.data);
+			cursor = res.pagination?.cursor;
+		} while (cursor != null);
+		return all;
 	}
 
 	/**
