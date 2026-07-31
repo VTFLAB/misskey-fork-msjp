@@ -6,7 +6,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import * as mfm from 'mfm-js';
 import { DI } from '@/di-symbols.js';
-import type { TwitchStreamsRepository } from '@/models/_.js';
+import type { LiveChannelsRepository, TwitchAccountsRepository, TwitchStreamsRepository } from '@/models/_.js';
 import type { MiTwitchStream } from '@/models/TwitchStream.js';
 import type { TwitchChatFragment } from '@/models/TwitchStreamComment.js';
 import { bindThis } from '@/decorators.js';
@@ -46,6 +46,12 @@ export class TwitchChatRelayService {
 		@Inject(DI.twitchStreamsRepository)
 		private twitchStreamsRepository: TwitchStreamsRepository,
 
+		@Inject(DI.twitchAccountsRepository)
+		private twitchAccountsRepository: TwitchAccountsRepository,
+
+		@Inject(DI.liveChannelsRepository)
+		private liveChannelsRepository: LiveChannelsRepository,
+
 		private twitchApiService: TwitchApiService,
 		private twitchOAuthService: TwitchOAuthService,
 		private twitchCommentService: TwitchCommentService,
@@ -68,9 +74,21 @@ export class TwitchChatRelayService {
 		user: { username: string },
 		text: string,
 	): void {
-		if (stream.source !== 'twitch') return;
+		// Twitch 中継セッション、または Twitch 同時転送中の MSJP 配信 (OME) セッションのみ対象。
+		// OME セッションは twitchUserId を持たないため、送信先は本人の連携アカウントから解決する
+		if (stream.source !== 'twitch' && stream.source !== 'ome') return;
 
 		(async () => {
+			let broadcasterId = stream.twitchUserId;
+			if (stream.source === 'ome') {
+				const channel = await this.liveChannelsRepository.findOneBy({ userId: stream.userId });
+				if (channel?.twitchRestreamEnabled !== true) return;
+				const account = await this.twitchAccountsRepository.findOneBy({ userId: stream.userId });
+				if (account == null) return;
+				broadcasterId = account.twitchUserId;
+			}
+			if (broadcasterId == null) return;
+
 			const bot = await this.twitchOAuthService.getBotAccount();
 			if (bot == null) return;
 			const token = await this.twitchOAuthService.getValidAccessToken(bot);
@@ -100,7 +118,7 @@ export class TwitchChatRelayService {
 			}>(
 				'/helix/chat/messages',
 				{
-					broadcaster_id: stream.twitchUserId,
+					broadcaster_id: broadcasterId,
 					sender_id: bot.twitchUserId,
 					message,
 				},
@@ -186,10 +204,27 @@ export class TwitchChatRelayService {
 		const bot = await this.twitchOAuthService.getBotAccount();
 		if (bot != null && event.chatter_user_id === bot.twitchUserId) return;
 
-		let stream = await this.twitchStreamsRepository.findOneBy({
-			twitchUserId: event.broadcaster_user_id,
-			isLive: true,
-		});
+		// Twitch 同時転送中は MSJP 配信 (OME) セッションが配信の本体なので、Twitch 側の
+		// チャットもそちらへ取り込む (視聴者が見ている OME 配信のチャット欄・コメントリプレイに
+		// 合流させる)。転送していない場合は従来どおり Twitch 中継セッションへ
+		let stream: MiTwitchStream | null = null;
+		const account = await this.twitchAccountsRepository.findOneBy({ twitchUserId: event.broadcaster_user_id });
+		if (account?.userId != null) {
+			const channel = await this.liveChannelsRepository.findOneBy({ userId: account.userId });
+			if (channel?.twitchRestreamEnabled === true) {
+				stream = await this.twitchStreamsRepository.findOneBy({
+					userId: account.userId,
+					source: 'ome',
+					isLive: true,
+				});
+			}
+		}
+		if (stream == null) {
+			stream = await this.twitchStreamsRepository.findOneBy({
+				twitchUserId: event.broadcaster_user_id,
+				isLive: true,
+			});
+		}
 		if (stream == null) {
 			// 配信していない間はプレビュー行があればそこへ取り込む。
 			// EventSub の chat 購読は配信状態と無関係に常設のため、オフライン中の
@@ -200,7 +235,7 @@ export class TwitchChatRelayService {
 			});
 		}
 		if (stream == null) return;
-		if (stream.source !== 'twitch') return;
+		if (stream.source !== 'twitch' && stream.source !== 'ome') return;
 
 		// 配信者にブロックされたチャッターの発言は取り込まない (永続化も配信もしない)。
 		// Twitch 側のチャット欄には残るが、Misskey 側の視聴ページ・OBS オーバーレイには出ない
