@@ -51,6 +51,7 @@ export const meta = {
 			lastCutReason: { type: 'string', optional: true, nullable: true },
 			autoPostNoteTemplate: { type: 'string', optional: true, nullable: true },
 			youtubeUploadEnabled: { type: 'boolean', optional: false, nullable: false },
+			twitchRestreamEnabled: { type: 'boolean', optional: false, nullable: false },
 			youtubeTitleTemplate: { type: 'string', optional: true, nullable: true },
 			youtubeDescriptionTemplate: { type: 'string', optional: true, nullable: true },
 			youtubePrivacyStatus: { type: 'string', optional: true, nullable: false, enum: ['public', 'unlisted', 'private'] },

@@ -30447,6 +30447,7 @@ export interface operations {
                         lastCutReason?: string | null;
                         autoPostNoteTemplate?: string | null;
                         youtubeUploadEnabled: boolean;
+                        twitchRestreamEnabled: boolean;
                         youtubeTitleTemplate?: string | null;
                         youtubeDescriptionTemplate?: string | null;
                         /** @enum {string} */
@@ -30629,6 +30630,7 @@ export interface operations {
                             lastCutReason?: string | null;
                             autoPostNoteTemplate?: string | null;
                             youtubeUploadEnabled: boolean;
+                            twitchRestreamEnabled: boolean;
                             youtubeTitleTemplate?: string | null;
                             youtubeDescriptionTemplate?: string | null;
                             /** @enum {string} */
@@ -30826,6 +30828,7 @@ export interface operations {
                         lastCutReason?: string | null;
                         autoPostNoteTemplate?: string | null;
                         youtubeUploadEnabled: boolean;
+                        twitchRestreamEnabled: boolean;
                         youtubeTitleTemplate?: string | null;
                         youtubeDescriptionTemplate?: string | null;
                         /** @enum {string} */
@@ -30896,6 +30899,7 @@ export interface operations {
                     autoPostNoteEnabled?: boolean;
                     autoPostNoteTemplate?: string | null;
                     youtubeUploadEnabled?: boolean;
+                    twitchRestreamEnabled?: boolean;
                     youtubeTitleTemplate?: string | null;
                     youtubeDescriptionTemplate?: string | null;
                     /** @enum {string} */
@@ -30939,6 +30943,7 @@ export interface operations {
                         lastCutReason?: string | null;
                         autoPostNoteTemplate?: string | null;
                         youtubeUploadEnabled: boolean;
+                        twitchRestreamEnabled: boolean;
                         youtubeTitleTemplate?: string | null;
                         youtubeDescriptionTemplate?: string | null;
                         /** @enum {string} */

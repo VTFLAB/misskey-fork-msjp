@@ -13788,6 +13788,30 @@ export interface Locale extends ILocale {
          */
         "linkError": string;
         /**
+         * Twitch同時転送
+         */
+        "restreamTitle": string;
+        /**
+         * MSJP配信をTwitchへ同時転送
+         */
+        "restreamLabel": string;
+        /**
+         * MSJP配信 (OME) の映像・音声を、連携中のTwitchチャンネルへサーバー側から同時転送します。映像は再エンコードなし (音声のみTwitch要件に合わせてAACへ変換)。有効な間、MSJP配信の視聴制限は「公開」に固定されます。
+         */
+        "restreamDescription": string;
+        /**
+         * Twitch同時転送を有効にしますか？
+         */
+        "restreamConfirmTitle": string;
+        /**
+         * Twitch側では視聴制限をかけられないため、有効化と同時にMSJP配信の視聴制限は「公開」に変更され、有効な間は変更できません。また、この機能の追加前にTwitch連携した場合は、ストリームキー取得の権限がないため一度Twitchを再連携する必要があります。
+         */
+        "restreamConfirmText": string;
+        /**
+         * Twitch同時転送が有効なため、視聴制限は「公開」に固定されています。変更するには同時転送を無効にしてください。
+         */
+        "restreamVisibilityLocked": string;
+        /**
          * 中継bot (管理者)
          */
         "relayBot": string;
