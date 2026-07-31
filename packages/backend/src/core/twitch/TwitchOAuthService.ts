@@ -23,8 +23,10 @@ const AUTHORIZE_URL = 'https://id.twitch.tv/oauth2/authorize';
 const STATE_REDIS_PREFIX = 'twitchOAuthState:';
 const STATE_TTL_SEC = 60 * 10;
 
-// 一般ユーザー (配信者): channel:bot で中継 bot の入室/発言を事前許可する
-const USER_SCOPES = ['channel:bot'];
+// 一般ユーザー (配信者): channel:bot で中継 bot の入室/発言を事前許可する。
+// channel:read:stream_key は Twitch 同時転送 (OME Push) でストリームキーを都度取得するために使う
+// (2026-07-31 追加。追加以前に連携したユーザーは再連携するまでこの scope を持たない)。
+const USER_SCOPES = ['channel:bot', 'channel:read:stream_key'];
 // インスタンス共通 bot: チャット読み書き
 const BOT_SCOPES = ['user:read:chat', 'user:write:chat', 'user:bot'];
 

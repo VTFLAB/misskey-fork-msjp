@@ -9,6 +9,7 @@ import { ApiError } from '@/server/api/error.js';
 import { DI } from '@/di-symbols.js';
 import type { DriveFilesRepository } from '@/models/_.js';
 import { LiveChannelService } from '@/core/live/LiveChannelService.js';
+import { TwitchOAuthService } from '@/core/twitch/TwitchOAuthService.js';
 
 export const meta = {
 	tags: ['live-channel', 'account'],
@@ -45,6 +46,16 @@ export const meta = {
 			code: 'VIEW_PASSWORD_REQUIRED',
 			id: 'b3f6a2b0-6c3b-4d3c-8f1a-2e6f7c0a9b4d',
 		},
+		twitchNotLinked: {
+			message: 'Twitch account must be linked to enable Twitch restream.',
+			code: 'TWITCH_NOT_LINKED',
+			id: '0a4f9e5c-2d61-4f0b-9c3e-7f8a1b6d2e90',
+		},
+		restreamRequiresPublicVisibility: {
+			message: 'Visibility must be public while Twitch restream is enabled.',
+			code: 'RESTREAM_REQUIRES_PUBLIC_VISIBILITY',
+			id: '5d2c8f71-93ab-4e06-b8d4-1c9e0a7f3b62',
+		},
 	},
 
 	res: {
@@ -68,6 +79,7 @@ export const meta = {
 			lastCutReason: { type: 'string', optional: true, nullable: true },
 			autoPostNoteTemplate: { type: 'string', optional: true, nullable: true },
 			youtubeUploadEnabled: { type: 'boolean', optional: false, nullable: false },
+			twitchRestreamEnabled: { type: 'boolean', optional: false, nullable: false },
 			youtubeTitleTemplate: { type: 'string', optional: true, nullable: true },
 			youtubeDescriptionTemplate: { type: 'string', optional: true, nullable: true },
 			youtubePrivacyStatus: { type: 'string', optional: true, nullable: false, enum: ['public', 'unlisted', 'private'] },
@@ -92,6 +104,7 @@ export const paramDef = {
 		autoPostNoteEnabled: { type: 'boolean' },
 		autoPostNoteTemplate: { type: 'string', nullable: true, maxLength: 512 },
 		youtubeUploadEnabled: { type: 'boolean' },
+		twitchRestreamEnabled: { type: 'boolean' },
 		youtubeTitleTemplate: { type: 'string', nullable: true, maxLength: 256 },
 		youtubeDescriptionTemplate: { type: 'string', nullable: true, maxLength: 2048 },
 		youtubePrivacyStatus: { type: 'string', enum: ['public', 'unlisted', 'private'] },
@@ -114,10 +127,25 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private driveFilesRepository: DriveFilesRepository,
 
 		private liveChannelService: LiveChannelService,
+		private twitchOAuthService: TwitchOAuthService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const channel = await this.liveChannelService.show(me.id);
 			if (channel == null) throw new ApiError(meta.errors.noSuchChannel);
+
+			// Twitch 同時転送 (bsky-fork 独自)。Twitch 側は視聴制限をかけられないため、
+			// 有効化時は視聴制限を「公開」へ強制し、有効な間は公開以外への変更を拒否する。
+			const nextRestreamEnabled = ps.twitchRestreamEnabled ?? channel.twitchRestreamEnabled;
+			if (ps.twitchRestreamEnabled === true) {
+				if (await this.twitchOAuthService.getLinkedAccount(me.id) == null) {
+					throw new ApiError(meta.errors.twitchNotLinked);
+				}
+			}
+			if (nextRestreamEnabled) {
+				if (ps.visibility !== undefined && ps.visibility !== 'public') {
+					throw new ApiError(meta.errors.restreamRequiresPublicVisibility);
+				}
+			}
 
 			if (ps.bannerId != null) {
 				const banner = await this.driveFilesRepository.findOneBy({ id: ps.bannerId });
@@ -148,10 +176,12 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				autoPostNoteEnabled: ps.autoPostNoteEnabled,
 				autoPostNoteTemplate: ps.autoPostNoteTemplate,
 				youtubeUploadEnabled: ps.youtubeUploadEnabled,
+				twitchRestreamEnabled: ps.twitchRestreamEnabled,
 				youtubeTitleTemplate: ps.youtubeTitleTemplate,
 				youtubeDescriptionTemplate: ps.youtubeDescriptionTemplate,
 				youtubePrivacyStatus: ps.youtubePrivacyStatus,
-				visibility: ps.visibility,
+				// 転送有効化時は視聴制限を公開へ強制する (要求仕様。Twitch 側で秘匿できないため)
+				visibility: (ps.twitchRestreamEnabled === true && channel.visibility !== 'public') ? 'public' : ps.visibility,
 				viewPassword: ps.viewPassword,
 				visibleUserIds: ps.visibleUserIds,
 			});
