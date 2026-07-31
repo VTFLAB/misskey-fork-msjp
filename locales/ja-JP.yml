@@ -2963,6 +2963,8 @@ _notification:
   createToken: "アクセストークンが作成されました"
   createTokenDescription: "心当たりがない場合は「{text}」を通じてアクセストークンを削除してください。"
   twitchLiveStreamStarted: "{name}が配信を開始しました"
+  googleAuthExpired: "Google連携の再認証が必要です"
+  googleAuthExpiredDescription: "{target}との連携がGoogleに拒否されたため解除されました。配信アーカイブを保存するには、配信設定から再連携してください。"
 
   _types:
     all: "すべて"
@@ -2989,6 +2991,7 @@ _notification:
     updateInfo: "アップデート情報"
     earthquakeAlert: "緊急地震速報"
     twitchLiveStreamStarted: "フォロー中ユーザーの配信開始"
+    googleAuthExpired: "Google連携の再認証が必要"
 
   _actions:
     followBack: "フォローバック"

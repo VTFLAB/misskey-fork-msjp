@@ -192,6 +192,9 @@ globalThis.addEventListener('notificationclick', (ev: ServiceWorkerGlobalScopeEv
 							case 'twitchLiveStreamStarted':
 								client = await swos.openClient('push', `/live/@${data.body.user.username}`, loginId);
 								break;
+							case 'googleAuthExpired':
+								client = await swos.openClient('push', '/settings/streaming', loginId);
+								break;
 							default:
 								if ('note' in data.body) {
 									client = await swos.openNote(data.body.note.id, loginId);

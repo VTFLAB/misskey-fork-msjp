@@ -12,6 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-else-if="notification.type === 'reaction:grouped'" :class="[$style.icon, $style.icon_reactionGroup]"><i class="ti ti-plus" style="line-height: 1;"></i></div>
 		<div v-else-if="notification.type === 'renote:grouped'" :class="[$style.icon, $style.icon_renoteGroup]"><i class="ti ti-repeat" style="line-height: 1;"></i></div>
 		<div v-else-if="notification.type === 'earthquakeAlert'" :class="[$style.icon, $style.icon_earthquakeAlert]"><i class="ti ti-alert-triangle" style="line-height: 1;"></i></div>
+		<div v-else-if="notification.type === 'googleAuthExpired'" :class="[$style.icon, $style.icon_googleAuthExpired]"><i class="ti ti-plug-connected-x" style="line-height: 1;"></i></div>
 		<MkAvatar v-else-if="'user' in notification" :class="$style.icon" :user="notification.user" link preview/>
 		<img v-else-if="'icon' in notification && notification.icon != null" :class="[$style.icon, $style.icon_app]" :src="notification.icon" alt=""/>
 		<img v-else-if="notification.type === 'updateInfo'" :class="[$style.icon, $style.icon_app]" :src="instance.iconUrl ?? '/favicon.ico'" alt=""/>
@@ -80,6 +81,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span v-else-if="notification.type === 'createToken'">{{ i18n.ts._notification.createToken }}</span>
 			<span v-else-if="notification.type === 'test'">{{ i18n.ts._notification.testNotification }}</span>
 			<span v-else-if="notification.type === 'earthquakeAlert'">{{ i18n.ts.earthquakeEarlyWarning }}</span>
+			<span v-else-if="notification.type === 'googleAuthExpired'">{{ i18n.ts._notification.googleAuthExpired }}</span>
 			<span v-else-if="notification.type === 'exportCompleted'">{{ i18n.tsx._notification.exportOfXCompleted({ x: exportEntityName[notification.exportedEntity] }) }}</span>
 			<MkA v-else-if="notification.type === 'follow' || notification.type === 'mention' || notification.type === 'reply' || notification.type === 'renote' || notification.type === 'quote' || notification.type === 'reaction' || notification.type === 'receiveFollowRequest' || notification.type === 'followRequestAccepted' || notification.type === 'twitchLiveStreamStarted'" v-user-preview="notification.user.id" :class="$style.headerName" :to="userPage(notification.user)"><MkUserName :user="notification.user"/></MkA>
 			<span v-else-if="notification.type === 'reaction:grouped' && notification.note.reactionAcceptance === 'likeOnly'">{{ i18n.tsx._notification.likedBySomeUsers({ n: getActualReactedUsersCount(notification) }) }}</span>
@@ -173,6 +175,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span v-else-if="notification.type === 'earthquakeAlert'" :class="$style.text">
 				{{ notification.hypocenter }} M{{ notification.magnitude }} {{ i18n.ts._widgetOptions._earthquakeHistory.maxIntensity }}{{ notification.maxIntensity }}
 			</span>
+			<MkA v-else-if="notification.type === 'googleAuthExpired'" :class="$style.text" to="/settings/streaming">
+				{{ i18n.tsx._notification.googleAuthExpiredDescription({ target: notification.target === 'youtube' ? 'YouTube' : 'Google Drive' }) }}
+			</MkA>
 
 			<div v-if="notification.type === 'reaction:grouped'">
 				<div v-for="reaction of notification.reactions" :key="reaction.user.id + reaction.reaction" :class="$style.reactionsItem">
@@ -295,7 +300,8 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 .icon_reactionGroup,
 .icon_reactionGroupHeart,
 .icon_renoteGroup,
-.icon_earthquakeAlert {
+.icon_earthquakeAlert,
+.icon_googleAuthExpired {
 	display: grid;
 	align-items: center;
 	justify-items: center;
@@ -315,6 +321,10 @@ function getActualReactedUsersCount(notification: Misskey.entities.Notification)
 }
 
 .icon_earthquakeAlert {
+	background: var(--eventOther);
+}
+
+.icon_googleAuthExpired {
 	background: var(--eventOther);
 }
 
