@@ -222,6 +222,9 @@ export class NotificationEntityService implements OnModuleInit {
 				streamId: notification.streamId,
 				title: notification.title,
 			} : {}),
+			...(notification.type === 'googleAuthExpired' ? {
+				target: notification.target,
+			} : {}),
 		});
 	}
 

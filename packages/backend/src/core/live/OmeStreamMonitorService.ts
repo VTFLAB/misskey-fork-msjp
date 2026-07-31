@@ -16,6 +16,7 @@ import { MiTwitchStream } from '@/models/TwitchStream.js';
 import type { MiLiveChannel } from '@/models/LiveChannel.js';
 import { TwitchStreamService } from '@/core/twitch/TwitchStreamService.js';
 import { TwitchCommentService } from '@/core/twitch/TwitchCommentService.js';
+import { GoogleOAuthService } from '@/core/google/GoogleOAuthService.js';
 import { OmeApiService } from './OmeApiService.js';
 import { LiveLoggerService } from './LiveLoggerService.js';
 
@@ -41,6 +42,9 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 	// streamId ごとの最終 12h 警告投稿時刻 (epoch ms)。長時間配信向けの YouTube アーカイブ上限警告
 	// (bsky-fork 独自) のスロットリング用。プロセスローカル (監視自体が cluster.isPrimary 限定のため)
 	private longStreamWarnedAt = new Map<string, number>();
+	// Google 連携 (アーカイブ保存) の事前検証を済ませた streamId 集合。配信ごとに 1 回だけ
+	// トークンを検証・refresh し、失効していれば配信中のうちにチャットへ警告する (bsky-fork 独自)
+	private googleAuthCheckedStreams = new Set<string>();
 
 	constructor(
 		@Inject(DI.config)
@@ -58,6 +62,7 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 		private omeApiService: OmeApiService,
 		private twitchStreamService: TwitchStreamService,
 		private twitchCommentService: TwitchCommentService,
+		private googleOAuthService: GoogleOAuthService,
 		private liveLoggerService: LiveLoggerService,
 	) {
 		this.logger = this.liveLoggerService.child('monitor');
@@ -161,6 +166,15 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 				this.logger.warn(`warnLongStreamIfDue failed (streamId=${session.id}): ${err instanceof Error ? err.message : err}`);
 			}
 
+			// アーカイブ保存に使う Google 連携の事前検証 (bsky-fork 独自)。配信終了後のアーカイブ処理で
+			// 初めてトークン失効に気付くと録画の保存に失敗するため、配信開始直後に検証・refresh し、
+			// 失効していれば配信者がまだ対処できるうちにチャットへ警告する
+			try {
+				await this.warnBrokenGoogleAuthIfDue(session, channel);
+			} catch (err) {
+				this.logger.warn(`warnBrokenGoogleAuthIfDue failed (streamId=${session.id}): ${err instanceof Error ? err.message : err}`);
+			}
+
 			let stats: Awaited<ReturnType<OmeApiService['getStream']>>;
 			try {
 				stats = await this.omeApiService.getStream(channel.streamKey);
@@ -205,6 +219,11 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 		const liveStreamIds = new Set(activeSessions.map(s => s.id));
 		for (const id of this.longStreamWarnedAt.keys()) {
 			if (!liveStreamIds.has(id)) this.longStreamWarnedAt.delete(id);
+		}
+
+		// 終了済みセッションの Google 連携検証済みフラグを掃除 (メモリリーク防止)
+		for (const id of this.googleAuthCheckedStreams) {
+			if (!liveStreamIds.has(id)) this.googleAuthCheckedStreams.delete(id);
 		}
 	}
 
@@ -261,6 +280,42 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 		const text = `【システム警告】配信開始から${hours}時間を超えました。YouTubeアーカイブは12時間を超えると保存できません（12時間超の録画はDrive保存のみ、Drive容量が足りなければ録画は失われます）。必要なら配信を終了してアーカイブを確定してください。`;
 		await this.twitchCommentService.createSystemComment(stream, text);
 		this.logger.warn(`posted 12h-limit warning to chat: streamId=${stream.id} elapsedHours=${hours}`);
+	}
+
+	/**
+	 * アーカイブ保存に使う Google 連携 (Drive / YouTube) のトークンを配信ごとに 1 回だけ検証する
+	 * (bsky-fork 独自)。getValidAccessToken が失効間際の refresh も担うため、正常系では配信開始
+	 * 時点でトークンが最新化される。検証に失敗した (refresh 拒否・連携解除済みなど) 場合は、
+	 * 配信終了後にアーカイブが失われる前に対処できるよう、ライブチャットへシステム警告を投稿する。
+	 * 連携が Google に拒否された瞬間の Misskey 通知 (googleAuthExpired) は GoogleOAuthService 側が送る。
+	 */
+	@bindThis
+	private async warnBrokenGoogleAuthIfDue(stream: MiTwitchStream, channel: MiLiveChannel): Promise<void> {
+		if (this.googleAuthCheckedStreams.has(stream.id)) return;
+		if (!this.googleOAuthService.isEnabled) return;
+		this.googleAuthCheckedStreams.add(stream.id);
+
+		const broken: string[] = [];
+		const account = await this.googleOAuthService.getLinkedAccount(stream.userId);
+		if (account == null) {
+			// Drive 未連携ならアーカイブ自体が対象外なので警告しない。ただし YouTube アップロードを
+			// 有効にしたまま連携が消えている (invalid_grant による自動解除など) 場合は保存されない
+			if (channel.youtubeUploadEnabled) {
+				broken.push('Google Drive', 'YouTube');
+			}
+		} else {
+			if (await this.googleOAuthService.getValidAccessToken(stream.userId, 'drive') == null) {
+				broken.push('Google Drive');
+			}
+			if (channel.youtubeUploadEnabled && await this.googleOAuthService.getValidAccessToken(stream.userId, 'youtube') == null) {
+				broken.push('YouTube');
+			}
+		}
+		if (broken.length === 0) return;
+
+		const text = `【システム警告】${broken.join(' / ')}の連携が無効になっているため、この配信のアーカイブ保存は失敗します。配信設定 (設定 → 配信) から再連携してください。`;
+		await this.twitchCommentService.createSystemComment(stream, text);
+		this.logger.warn(`posted broken-google-auth warning to chat: streamId=${stream.id} broken=${broken.join(',')}`);
 	}
 
 	/**
