@@ -40,6 +40,7 @@ export const notificationTypes = [
 	'updateInfo',
 	'earthquakeAlert',
 	'twitchLiveStreamStarted',
+	'googleAuthExpired',
 ] as const;
 
 export const noteVisibilities = ['public', 'home', 'followers', 'specified'] as const;

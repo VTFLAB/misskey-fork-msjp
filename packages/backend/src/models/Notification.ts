@@ -172,6 +172,12 @@ export type MiNotification = {
 	notifierId: MiUser['id'];
 	streamId: MiTwitchStream['id'];
 	title: string;
+} | {
+	// Google 連携 (Drive/YouTube) の refresh token が Google に拒否され、再連携が必要になった (bsky-fork 独自)
+	type: 'googleAuthExpired';
+	id: string;
+	createdAt: string;
+	target: 'drive' | 'youtube';
 };
 
 export type MiGroupedNotification = MiNotification | {
