@@ -213,6 +213,17 @@ export class TwitchApiService {
 	}
 
 	/**
+	 * 配信者本人のストリームキーを取得する (bsky-fork 独自、Twitch 同時転送用)。
+	 * scope: channel:read:stream_key を持つユーザートークンが必要。キーは DB へ保存せず、
+	 * 転送開始時に都度取得して OME へ渡すだけに留める (漏洩面の最小化)。
+	 */
+	@bindThis
+	public async getStreamKey(broadcasterId: string, userAccessToken: string): Promise<string | null> {
+		const res = await this.helixGet<{ data: { stream_key: string }[] }>('/helix/streams/key', { broadcaster_id: broadcasterId }, userAccessToken);
+		return res.data[0]?.stream_key ?? null;
+	}
+
+	/**
 	 * Twitch user id (最大 100 件) でユーザー情報を取得する。
 	 */
 	@bindThis
