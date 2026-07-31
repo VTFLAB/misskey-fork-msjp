@@ -108,6 +108,7 @@ export class LiveChannelService {
 		autoPostNoteEnabled?: boolean;
 		autoPostNoteTemplate?: string | null;
 		youtubeUploadEnabled?: boolean;
+		twitchRestreamEnabled?: boolean;
 		youtubeTitleTemplate?: string | null;
 		youtubeDescriptionTemplate?: string | null;
 		youtubePrivacyStatus?: 'public' | 'unlisted' | 'private';
@@ -126,6 +127,7 @@ export class LiveChannelService {
 		if (params.autoPostNoteEnabled !== undefined) update.autoPostNoteEnabled = params.autoPostNoteEnabled;
 		if (params.autoPostNoteTemplate !== undefined) update.autoPostNoteTemplate = params.autoPostNoteTemplate;
 		if (params.youtubeUploadEnabled !== undefined) update.youtubeUploadEnabled = params.youtubeUploadEnabled;
+		if (params.twitchRestreamEnabled !== undefined) update.twitchRestreamEnabled = params.twitchRestreamEnabled;
 		if (params.youtubeTitleTemplate !== undefined) update.youtubeTitleTemplate = params.youtubeTitleTemplate;
 		if (params.youtubeDescriptionTemplate !== undefined) update.youtubeDescriptionTemplate = params.youtubeDescriptionTemplate;
 		if (params.youtubePrivacyStatus !== undefined) update.youtubePrivacyStatus = params.youtubePrivacyStatus;
@@ -328,6 +330,8 @@ export class LiveChannelService {
 			// YouTube アップロード設定 (bsky-fork 独自)。有効/無効自体は autoPostNoteEnabled と同様に公開する一方、
 			// テンプレートと公開範囲設定は所有者のみに返す (autoPostNoteTemplate と同じ扱い)。
 			youtubeUploadEnabled: channel.youtubeUploadEnabled,
+			// Twitch 同時転送設定 (bsky-fork 独自)。転送先の Twitch は誰でも視聴できるため有効/無効自体は公開する
+			twitchRestreamEnabled: channel.twitchRestreamEnabled,
 			youtubeTitleTemplate: isOwner ? channel.youtubeTitleTemplate : undefined,
 			youtubeDescriptionTemplate: isOwner ? channel.youtubeDescriptionTemplate : undefined,
 			youtubePrivacyStatus: isOwner ? channel.youtubePrivacyStatus : undefined,

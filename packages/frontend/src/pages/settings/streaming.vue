@@ -63,7 +63,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<template #label><i class="ti ti-lock"></i> {{ i18n.ts._liveChannel.viewRestriction }}</template>
 
 							<div class="_gaps_m">
-								<MkSelect :modelValue="viewRestriction" :items="viewRestrictionItems" @update:modelValue="onVisibilitySave">
+								<MkInfo v-if="twitchRestreamEnabled" warn>{{ i18n.ts._twitch.restreamVisibilityLocked }}</MkInfo>
+
+								<MkSelect :modelValue="viewRestriction" :items="viewRestrictionItems" :disabled="twitchRestreamEnabled" @update:modelValue="onVisibilitySave">
 									<template #label>{{ i18n.ts._liveChannel.viewRestriction }}</template>
 									<template #caption>{{ i18n.ts._liveChannel.viewRestrictionDescription }}</template>
 								</MkSelect>
@@ -391,6 +393,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 						</div>
 					</FormSection>
 
+					<FormSection v-if="twitchLinked && enabled">
+						<template #label><i class="ti ti-cast"></i> {{ i18n.ts._twitch.restreamTitle }}</template>
+
+						<div class="_gaps_m">
+							<MkSwitch :modelValue="twitchRestreamEnabled" @update:modelValue="onToggleTwitchRestream">
+								<template #label>{{ i18n.ts._twitch.restreamLabel }}</template>
+								<template #caption>{{ i18n.ts._twitch.restreamDescription }}</template>
+							</MkSwitch>
+						</div>
+					</FormSection>
+
 					<FormSection v-if="iAmAdmin">
 						<template #label><i class="ti ti-robot"></i> {{ i18n.ts._twitch.relayBot }}</template>
 
@@ -483,6 +496,7 @@ const viewRestriction = ref<'public' | 'followers' | 'password' | 'users'>('publ
 const viewPassword = ref('');
 const visibleUsers = ref<Misskey.entities.UserDetailed[]>([]);
 const youtubeUploadEnabled = ref(false);
+const twitchRestreamEnabled = ref(false);
 const youtubeTitleTemplate = ref('');
 const youtubeDescriptionTemplate = ref('');
 const youtubePrivacyStatus = ref<'public' | 'unlisted' | 'private'>('unlisted');
@@ -535,6 +549,7 @@ async function fetchMy() {
 	viewRestriction.value = res.channel?.visibility ?? 'public';
 	viewPassword.value = res.channel?.viewPassword ?? '';
 	youtubeUploadEnabled.value = res.channel?.youtubeUploadEnabled ?? false;
+	twitchRestreamEnabled.value = res.channel?.twitchRestreamEnabled ?? false;
 	youtubeTitleTemplate.value = res.channel?.youtubeTitleTemplate ?? '';
 	youtubeDescriptionTemplate.value = res.channel?.youtubeDescriptionTemplate ?? '';
 	youtubePrivacyStatus.value = res.channel?.youtubePrivacyStatus ?? 'unlisted';
@@ -636,6 +651,24 @@ async function onToggleYoutubeUploadEnabled(v: boolean) {
 	youtubeUploadEnabled.value = v;
 	const updated = await os.apiWithDialog('live-channels/update', { youtubeUploadEnabled: v });
 	channel.value = updated;
+}
+
+async function onToggleTwitchRestream(v: boolean) {
+	if (channel.value == null) return;
+	if (v) {
+		// 有効化は視聴制限の公開への強制変更を伴うため、明示的な確認を挟む
+		const { canceled } = await os.confirm({
+			type: 'warning',
+			title: i18n.ts._twitch.restreamConfirmTitle,
+			text: i18n.ts._twitch.restreamConfirmText,
+		});
+		if (canceled) return;
+	}
+	twitchRestreamEnabled.value = v;
+	const updated = await os.apiWithDialog('live-channels/update', { twitchRestreamEnabled: v });
+	channel.value = updated;
+	twitchRestreamEnabled.value = updated.twitchRestreamEnabled ?? false;
+	viewRestriction.value = updated.visibility ?? 'public';
 }
 
 async function onYoutubeTitleTemplateSave(v: string) {

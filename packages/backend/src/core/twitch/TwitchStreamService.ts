@@ -23,6 +23,8 @@ import type Logger from '@/logger.js';
 import { TwitchApiService } from './TwitchApiService.js';
 import type { TwitchHelixStream } from './TwitchApiService.js';
 import { TwitchLoggerService } from './TwitchLoggerService.js';
+import { TwitchOAuthService } from './TwitchOAuthService.js';
+import { TwitchCommentService } from './TwitchCommentService.js';
 
 const DEFAULT_AUTO_POST_TEMPLATE_WITH_TITLE = '「{title}」の配信を開始しました 📡 {url}';
 const DEFAULT_AUTO_POST_TEMPLATE_WITHOUT_TITLE = '配信を開始しました 📡 {url}';
@@ -31,6 +33,10 @@ const DEFAULT_AUTO_POST_TEMPLATE_WITHOUT_TITLE = '配信を開始しました �
 // 連携ユーザーが 100 人以下なら Get Streams 1 リクエストで済む。
 // EventSub 切断中の取り逃しを早めるため 5 分 → 2 分に短縮 (bsky-fork 独自)。
 const POLL_INTERVAL_MS = 2 * 60_000;
+
+// Twitch RTMP ingest (グローバルエンドポイント)。OME Push はここへ映像 bypass + AAC 音声を送る。
+// ストリームキーは Helix /streams/key から配信開始時に都度取得する (DB 保存しない)。
+const TWITCH_RTMP_INGEST_URL = 'rtmp://live.twitch.tv/app';
 
 @Injectable()
 export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown {
@@ -65,6 +71,8 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 		private noteCreateService: NoteCreateService,
 		private twitchApiService: TwitchApiService,
 		private twitchLoggerService: TwitchLoggerService,
+		private twitchOAuthService: TwitchOAuthService,
+		private twitchCommentService: TwitchCommentService,
 		private liveRecordingService: LiveRecordingService,
 		private omeApiService: OmeApiService,
 	) {
@@ -179,6 +187,9 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 		this.startRecordingIfEnabled(userId, newStream.id).catch(err => {
 			this.logger.error(`startRecordingIfEnabled failed: ${err instanceof Error ? err.message : err}`);
 		});
+		this.startTwitchRestreamIfEnabled(userId, newStream).catch(err => {
+			this.logger.error(`startTwitchRestreamIfEnabled failed: ${err instanceof Error ? err.message : err}`);
+		});
 		this.notifyFollowers(userId, newStream).catch(err => {
 			this.logger.error(`notifyFollowers failed: ${err instanceof Error ? err.message : err}`);
 		});
@@ -202,6 +213,82 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 
 		await this.omeApiService.startRecord(liveChannel.streamKey, streamId);
 		this.logger.info(`recording started: user=${userId} streamKey=${liveChannel.streamKey}`);
+	}
+
+	/**
+	 * Twitch 同時転送 (bsky-fork 独自)。twitchRestreamEnabled のチャンネルの配信開始時に、
+	 * Twitch のストリームキーを Helix から都度取得して OME の RTMP push を開始する。
+	 * 失敗しても MSJP 配信本体は継続し (縮退方針)、原因をライブチャットのシステムコメントで
+	 * 配信者へ知らせる。markOmeStreamLive から fire-and-forget で呼ばれる (呼び出し側 .catch 済み)。
+	 */
+	@bindThis
+	private async startTwitchRestreamIfEnabled(userId: MiUser['id'], stream: MiTwitchStream): Promise<void> {
+		const liveChannel = await this.liveChannelsRepository.findOneBy({ userId });
+		if (liveChannel?.twitchRestreamEnabled !== true) return;
+
+		// 視聴制限が公開以外の状態で転送を始めない (API 側で公開へ強制しているため通常は起こらないが、
+		// 整合性が崩れていた場合に「限定配信のつもりが Twitch へ公開される」事故を防ぐ安全側の縮退)
+		if (liveChannel.visibility !== 'public') {
+			await this.warnRestreamFailure(stream, 'MSJP配信の視聴制限が「公開」以外のためTwitch同時転送を開始しませんでした。転送するには視聴制限を公開にしてください。');
+			return;
+		}
+
+		const account = await this.twitchOAuthService.getLinkedAccount(userId);
+		if (account == null) {
+			await this.warnRestreamFailure(stream, 'Twitch連携が見つからないため同時転送を開始できませんでした。配信設定からTwitch連携を確認してください。');
+			return;
+		}
+		if (!account.scopes.includes('channel:read:stream_key')) {
+			await this.warnRestreamFailure(stream, 'Twitch連携にストリームキー取得の権限がありません。配信設定からTwitchを再連携すると同時転送が有効になります。');
+			return;
+		}
+
+		const token = await this.twitchOAuthService.getValidAccessToken(account);
+		if (token == null) {
+			await this.warnRestreamFailure(stream, 'Twitch連携の認証が失効しています。配信設定からTwitchを再連携してください。');
+			return;
+		}
+
+		const twitchStreamKey = await this.twitchApiService.getStreamKey(account.twitchUserId, token);
+		if (twitchStreamKey == null) {
+			await this.warnRestreamFailure(stream, 'Twitchのストリームキーを取得できなかったため同時転送を開始できませんでした。');
+			return;
+		}
+
+		try {
+			await this.omeApiService.startPush(liveChannel.streamKey, `restream-${stream.id}`, TWITCH_RTMP_INGEST_URL, twitchStreamKey);
+		} catch (err) {
+			this.logger.error(`twitch restream startPush failed: user=${userId} ${err instanceof Error ? err.message : err}`);
+			await this.warnRestreamFailure(stream, 'Twitchへの同時転送の開始に失敗しました (サーバー内部エラー)。MSJP配信自体は継続しています。');
+			return;
+		}
+		this.logger.info(`twitch restream started: user=${userId} twitch=@${account.twitchLogin} pushId=restream-${stream.id}`);
+		await this.twitchCommentService.createSystemComment(stream, `【システム】Twitch (@${account.twitchLogin}) への同時転送を開始しました。`).catch(() => {});
+	}
+
+	/**
+	 * Twitch 同時転送の停止 (bsky-fork 独自)。入力ストリーム終了で OME 側の push は自動終了する
+	 * ことがあるため、「既に存在しない」エラーは正常系として無視する。
+	 */
+	@bindThis
+	private async stopTwitchRestreamIfNeeded(stream: MiTwitchStream): Promise<void> {
+		if (stream.source !== 'ome') return;
+		const liveChannel = await this.liveChannelsRepository.findOneBy({ userId: stream.userId });
+		if (liveChannel?.twitchRestreamEnabled !== true) return;
+
+		try {
+			await this.omeApiService.stopPush(`restream-${stream.id}`);
+			this.logger.info(`twitch restream stopped: pushId=restream-${stream.id}`);
+		} catch (err) {
+			// push が入力終了に伴い既に消えているケースは正常 (404 相当)。それ以外はログに残す
+			this.logger.warn(`twitch restream stopPush skipped (already stopped?): pushId=restream-${stream.id} ${err instanceof Error ? err.message : err}`);
+		}
+	}
+
+	@bindThis
+	private async warnRestreamFailure(stream: MiTwitchStream, text: string): Promise<void> {
+		this.logger.warn(`twitch restream not started: streamId=${stream.id} reason=${text}`);
+		await this.twitchCommentService.createSystemComment(stream, `【システム警告】${text}`).catch(() => {});
 	}
 
 	/**
@@ -291,6 +378,9 @@ export class TwitchStreamService implements OnModuleInit, OnApplicationShutdown 
 
 			this.stopRecordingIfNeeded(stream).catch(err => {
 				this.logger.error(`stopRecordingIfNeeded failed: ${err instanceof Error ? err.message : err}`);
+			});
+			this.stopTwitchRestreamIfNeeded(stream).catch(err => {
+				this.logger.error(`stopTwitchRestreamIfNeeded failed: ${err instanceof Error ? err.message : err}`);
 			});
 			this.liveRecordingService.triggerRecording(stream);
 		}

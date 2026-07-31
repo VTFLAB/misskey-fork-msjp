@@ -128,6 +128,12 @@ export class MiLiveChannel {
 	})
 	public youtubeUploadEnabled: boolean;
 
+	@Column('boolean', {
+		default: false,
+		comment: 'Whether to relay (simulcast) the OME live stream to the linked Twitch channel. Requires visibility=public.',
+	})
+	public twitchRestreamEnabled: boolean;
+
 	@Column('varchar', {
 		length: 256, nullable: true,
 		comment: 'Template for the YouTube video title. Supports {title}/{date}/{channelName} placeholders. Falls back to a default template when null.',
