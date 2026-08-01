@@ -69,4 +69,16 @@ describe('detectJaEn', () => {
 	test('英語 + 空白区切りの末尾 w 連続 → en (英語部分は判定に残る)', () => {
 		expect(detectJaEn('nice www')).toBe('en');
 	});
+
+	test('URL のみ → null (英語と誤判定して翻訳キューに載せない)', () => {
+		expect(detectJaEn('https://example.com/watch?v=abc')).toBeNull();
+	});
+
+	test('日本語 + URL → ja', () => {
+		expect(detectJaEn('これ見て https://example.com')).toBe('ja');
+	});
+
+	test('英語 + URL → en (英語部分は判定に残る)', () => {
+		expect(detectJaEn('check this https://example.com')).toBe('en');
+	});
 });

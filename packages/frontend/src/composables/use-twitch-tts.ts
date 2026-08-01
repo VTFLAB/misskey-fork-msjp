@@ -38,8 +38,11 @@ const DEFAULT_SETTINGS: TwitchTtsSettings = {
 	volumeScale: 1.0,
 };
 
-const MAX_READ_LENGTH = 150;
+// これを超える長文は打ち切って「以下略」を付けて読む (ライブ用途では1件が長いとキューが詰まるため)
+const MAX_READ_LENGTH = 100;
 const MAX_QUEUE_LENGTH = 10;
+// 読み上げ済みコメント ID の記憶数 (同一コメントの二度読み防止用)
+const SPOKEN_KEYS_MAX = 200;
 
 function load(): TwitchTtsSettings {
 	try {
@@ -100,7 +103,7 @@ export function toReadableText(text: string): string {
 				case 'emojiCode': return '';
 				case 'mention': return node.props.username;
 				case 'hashtag': return node.props.hashtag;
-				case 'url': return '';
+				case 'url': return ' ユーアールエル省略 ';
 				case 'link': return node.children.map(walk).join('');
 				case 'inlineCode': return node.props.code;
 				case 'blockCode': return '';
@@ -112,27 +115,52 @@ export function toReadableText(text: string): string {
 	} catch {
 		plain = text;
 	}
-	// MFM を通らない生テキスト (Twitch 由来) にも URL が混ざるため重ねて除去する
-	const readable = plain
-		.replace(/https?:\/\/\S+/g, '')
+	// MFM を通らない生テキスト (Twitch 由来) にも URL が混ざるため重ねて処理する。
+	// URL は文字列をそのまま読むと非常に長く不快なため「ユーアールエル省略」に読み替える
+	// (棒読みちゃんの標準辞書「URL省略」に倣う)
+	const trimmed = plain
+		.replace(/https?:\/\/\S+/g, ' ユーアールエル省略 ')
 		.replace(/\s+/g, ' ')
-		.trim()
-		.slice(0, MAX_READ_LENGTH);
-	return normalizeReadableExpressions(readable);
+		.trim();
+	// 極端な長文は途中で打ち切り、省略したことが分かるように「以下略」を付けて読む
+	const truncated = trimmed.length > MAX_READ_LENGTH;
+	const readable = normalizeReadableExpressions(trimmed.slice(0, MAX_READ_LENGTH));
+	return truncated ? `${readable}、以下略` : readable;
 }
+
+// ネットスラングの読み替え辞書 (配信向け読み上げソフトの定番辞書に倣った読み)。
+// 英単語の一部 (workshop の gj 部分など) を巻き込まないよう、単語単位で一致した場合のみ置換する
+const SLANG_DICTIONARY: [pattern: RegExp, reading: string][] = [
+	[/(?<![A-Za-z])kwsk(?![A-Za-z])/gi, 'くわしく'],
+	[/(?<![A-Za-z])wktk(?![A-Za-z])/gi, 'わくてか'],
+	[/(?<![A-Za-z])ktkr(?![A-Za-z])/gi, 'きたこれ'],
+	[/(?<![A-Za-z])gj(?![A-Za-z])/gi, 'ぐっじょぶ'],
+	[/(?<![A-Za-z])thx(?![A-Za-z])/gi, 'さんくす'],
+	[/(?<![A-Za-z])orz(?![A-Za-z])/gi, 'がっくり'],
+	[/うp(?![A-Za-z])/gi, 'あっぷ'],
+	[/おk(?![A-Za-z])/gi, 'おっけー'],
+	[/^乙$/, 'おつ'],
+];
 
 /**
  * ネットスラング的な表現を読み上げ向けの日本語に置換する。
- * - w の連続 (笑い): 全体または末尾にある場合「わらわら」(全角・半角・大小文字不問、文字数不問)。
+ * 先頭で NFKC 正規化を行い全角英数字を半角へ畳んでから判定する (ｗｗｗ/８８８/ｋｗｓｋ 等の全角表記を吸収)。
+ * - w の連続 (笑い): 全体または末尾にある場合「わらわら」(大小文字不問、文字数不問)。
  *   英単語の一部 (wow 等) を巻き込まないよう、直前が英字の場合は置換しない
- * - 8 の連続 (拍手): 全体・先頭・末尾にある場合「ぱちぱちぱち」(全角・半角、2文字以上)。
+ * - 8 の連続 (拍手): 全体・先頭・末尾にある場合「ぱちぱちぱち」(2文字以上)。
  *   数値 (1888 / 8880円 / 88.8 等) を巻き込まないよう、隣接して数字や小数点がある場合は置換しない
+ * - SLANG_DICTIONARY の定番スラング (kwsk / wktk / gj 等) を単語単位で読み替える
  */
 function normalizeReadableExpressions(text: string): string {
-	return text
-		.replace(/(?<![A-Za-zＡ-Ｚａ-ｚ])[wWｗＷ]+$/u, 'わらわら')
-		.replace(/^[8８]{2,}(?![0-9０-９.．,，])/u, 'ぱちぱちぱち')
-		.replace(/(?<![0-9０-９.．,，])[8８]{2,}$/u, 'ぱちぱちぱち');
+	let s = text.normalize('NFKC');
+	s = s
+		.replace(/(?<![A-Za-z])[wW]+$/, 'わらわら')
+		.replace(/^8{2,}(?![0-9.,])/, 'ぱちぱちぱち')
+		.replace(/(?<![0-9.,])8{2,}$/, 'ぱちぱちぱち');
+	for (const [pattern, reading] of SLANG_DICTIONARY) {
+		s = s.replace(pattern, reading);
+	}
+	return s;
 }
 
 /**
@@ -162,22 +190,65 @@ const queue: string[] = [];
 // 再生されるレースがあった (ループ終了時のみ null に戻すことで構造的に排除)
 let processing: Promise<void> | null = null;
 let currentAudio: HTMLAudioElement | null = null;
+// 読み上げ済みコメント ID (二度読み防止)。視聴ページが複数コンポーネントから
+// 同じコメントイベントを受けた場合でも 1 回だけ読む
+const spokenKeys = new Set<string>();
+const spokenKeyOrder: string[] = [];
+// タブ間排他 (Web Locks)。視聴ページを複数タブ・ウィンドウで開いた場合、それぞれの
+// ページが独立に合成・再生して音声が重なるため、「読み上げオーナー」ロックを
+// 最初に取得した 1 ページだけが発話する。オーナーのページを閉じるとロックは自動解放され、
+// 次に読み上げようとしたページが新しいオーナーになる
+let ownerLockHeld = false;
+
+async function ensureTtsOwnership(): Promise<boolean> {
+	if (!('locks' in navigator)) return true; // 非対応環境はページ内直列化のみで動かす
+	if (ownerLockHeld) return true;
+	return await new Promise<boolean>(resolve => {
+		void navigator.locks.request('twitchTtsOwner', { ifAvailable: true }, lock => {
+			if (lock == null) {
+				resolve(false); // 他のタブがオーナー
+				return;
+			}
+			ownerLockHeld = true;
+			resolve(true);
+			// ページが閉じられるまでロックを保持し続ける (自動解放に任せる)
+			return new Promise<never>(() => {});
+		});
+	});
+}
+
 // 進行中の合成リクエストを中断するための AbortController。
 // stopTtsSpeech() で abort することで、AivisSpeech Engine 側の
 // ONNX Runtime 推論プロセスの蓄積を防ぐ (ページ離脱後もリクエストが
 // 残り続けてエンジン側のリソースが解放されない問題の対策)
 let currentAbortController: AbortController | null = null;
 
-export function enqueueTtsSpeech(text: string) {
+/**
+ * @param dedupeKey 指定した場合、同じキーでの読み上げは1回に抑止する (コメント ID を渡す)。
+ * テスト再生など重複排除が不要な呼び出しでは省略する
+ */
+export function enqueueTtsSpeech(text: string, dedupeKey?: string) {
+	if (dedupeKey != null) {
+		if (spokenKeys.has(dedupeKey)) return;
+		spokenKeys.add(dedupeKey);
+		spokenKeyOrder.push(dedupeKey);
+		if (spokenKeyOrder.length > SPOKEN_KEYS_MAX) spokenKeys.delete(spokenKeyOrder.shift()!);
+	}
 	const readable = toReadableText(text);
 	if (readable.length === 0) return;
 	queue.push(readable);
 	if (queue.length > MAX_QUEUE_LENGTH) queue.splice(0, queue.length - MAX_QUEUE_LENGTH);
-	if (processing == null) {
-		processing = processQueue().finally(() => {
-			processing = null;
-		});
-	}
+	startProcessing();
+}
+
+function startProcessing() {
+	if (processing != null) return;
+	processing = processQueue().finally(() => {
+		processing = null;
+		// ループ終了と同時に新規エントリが積まれた微小レースの自己回復
+		// (積んだ側は processing != null を見て起動をスキップしている可能性がある)
+		if (queue.length > 0) startProcessing();
+	});
 }
 
 export function stopTtsSpeech() {
@@ -199,7 +270,15 @@ export function stopTtsSpeech() {
 
 async function processQueue() {
 	while (queue.length > 0) {
-		const text = queue.shift()!;
+		// 他のタブが読み上げオーナーの間はこのページでは発話しない (音声の重複防止)。
+		// 同じコメントはオーナー側のページにも届いてそちらで読まれる
+		if (!await ensureTtsOwnership()) {
+			queue.length = 0;
+			return;
+		}
+		// ownership 待ちの await 中に stopTtsSpeech() でキューが空にされている場合がある
+		const text = queue.shift();
+		if (text == null) return;
 		try {
 			await synthesizeAndPlay(text);
 		} catch (err) {
