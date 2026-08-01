@@ -113,17 +113,44 @@ export function toReadableText(text: string): string {
 		plain = text;
 	}
 	// MFM を通らない生テキスト (Twitch 由来) にも URL が混ざるため重ねて除去する
-	return plain
+	const readable = plain
 		.replace(/https?:\/\/\S+/g, '')
 		.replace(/\s+/g, ' ')
 		.trim()
 		.slice(0, MAX_READ_LENGTH);
+	// w だけが続くコメントは日本語の笑い表現なので、文字数に関わらず「わらわら」と
+	// 読み上げる (全角・半角・大文字小文字の混在も対象)。そのまま読ませると
+	// エンジンが英字の羅列として読もうとして不自然になるため
+	if (/^[wWｗＷ]+$/.test(readable)) return 'わらわら';
+	return readable;
+}
+
+/**
+ * 読み上げ前に翻訳結果 (commentTranslated) を待つべきコメントかの判定。
+ * backend は detectJaEn(text) === 'en' の場合のみ和訳をキューするため、その判定を
+ * ミラーする: 日本語を含めば即読み、絵文字ショートコード・Unicode絵文字を除いて
+ * ASCII 英字が残らないテキスト (「8888」「www→わらわら」等) は翻訳が来ることが
+ * 無いので待たずに即読みする (従来は一律20秒待ってから原文を読んでいた)
+ */
+export function shouldAwaitTranslationForTts(text: string): boolean {
+	const readable = toReadableText(text);
+	if (readable.length === 0) return false;
+	if (containsJapanese(readable)) return false;
+	const stripped = readable
+		.replace(/:[a-zA-Z0-9_+-]+:/g, '')
+		.replace(/\p{Extended_Pictographic}|[\uFE0F\u200D]/gu, '');
+	return /[A-Za-z]/.test(stripped);
 }
 
 // 読み上げキュー: 順次 1 件ずつ合成・再生する。詰まり防止のため上限を超えたら
 // 古いものから捨てる (ライブ用途なので取りこぼしより遅延の方が害が大きい)
 const queue: string[] = [];
-let playing = false;
+// 実行中の処理ループ。boolean フラグではなく Promise 自体を持つことで、ループの
+// 生存と1対1で対応させる。旧実装は stopTtsSpeech() がフラグ (playing) を即座に
+// false へ戻していたため、走行中のループが await から復帰する前に新しいコメントが
+// 2本目のループを起動し、複数コメントがほぼ同時に届いた際に読み上げが二重に
+// 再生されるレースがあった (ループ終了時のみ null に戻すことで構造的に排除)
+let processing: Promise<void> | null = null;
 let currentAudio: HTMLAudioElement | null = null;
 // 進行中の合成リクエストを中断するための AbortController。
 // stopTtsSpeech() で abort することで、AivisSpeech Engine 側の
@@ -136,10 +163,17 @@ export function enqueueTtsSpeech(text: string) {
 	if (readable.length === 0) return;
 	queue.push(readable);
 	if (queue.length > MAX_QUEUE_LENGTH) queue.splice(0, queue.length - MAX_QUEUE_LENGTH);
-	if (!playing) void processQueue();
+	if (processing == null) {
+		processing = processQueue().finally(() => {
+			processing = null;
+		});
+	}
 }
 
 export function stopTtsSpeech() {
+	// キューを空にして現在の合成・再生を中断する。processing はここでは触らない:
+	// 走行中のループはキューが空になったのを確認して自然終了する (それまで新しい
+	// ループは起動しないため、読み上げの二重再生は起こらない)
 	queue.length = 0;
 	if (currentAudio != null) {
 		currentAudio.pause();
@@ -151,23 +185,17 @@ export function stopTtsSpeech() {
 		currentAbortController.abort();
 		currentAbortController = null;
 	}
-	playing = false;
 }
 
 async function processQueue() {
-	playing = true;
-	try {
-		while (queue.length > 0) {
-			const text = queue.shift()!;
-			try {
-				await synthesizeAndPlay(text);
-			} catch (err) {
-				// エンジン停止中などの失敗は読み上げをスキップして続行する (配信の妨げにしない)
-				console.warn('TTS synthesis failed:', err);
-			}
+	while (queue.length > 0) {
+		const text = queue.shift()!;
+		try {
+			await synthesizeAndPlay(text);
+		} catch (err) {
+			// エンジン停止中などの失敗は読み上げをスキップして続行する (配信の妨げにしない)
+			console.warn('TTS synthesis failed:', err);
 		}
-	} finally {
-		playing = false;
 	}
 }
 
@@ -203,6 +231,8 @@ async function synthesizeAndPlay(text: string): Promise<void> {
 		const url = URL.createObjectURL(wav);
 		try {
 			await new Promise<void>((resolve, reject) => {
+				// 万一前の音声が残っていても重ねない (キュー直列化に対する最後の防波堤)
+				if (currentAudio != null) currentAudio.pause();
 				const audio = new window.Audio(url);
 				currentAudio = audio;
 				audio.onended = () => resolve();
