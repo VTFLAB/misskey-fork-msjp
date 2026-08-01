@@ -199,6 +199,7 @@ const spokenKeyOrder: string[] = [];
 // 最初に取得した 1 ページだけが発話する。オーナーのページを閉じるとロックは自動解放され、
 // 次に読み上げようとしたページが新しいオーナーになる
 let ownerLockHeld = false;
+let pipelineVersionLogged = false;
 
 async function ensureTtsOwnership(): Promise<boolean> {
 	if (!('locks' in navigator)) return true; // 非対応環境はページ内直列化のみで動かす
@@ -228,6 +229,12 @@ let currentAbortController: AbortController | null = null;
  * テスト再生など重複排除が不要な呼び出しでは省略する
  */
 export function enqueueTtsSpeech(text: string, dedupeKey?: string) {
+	if (!pipelineVersionLogged) {
+		pipelineVersionLogged = true;
+		// 実行中のコード世代の確認用 (SPA はリロードまで旧チャンクを使い続けるため、
+		// 読み上げ不具合の切り分けでどの版が動いているかをコンソールで確認できるようにする)
+		console.info('[TTS] pipeline v4: single-voice enforced (queue + owner lock + playback lock + duration watchdog)');
+	}
 	if (dedupeKey != null) {
 		if (spokenKeys.has(dedupeKey)) return;
 		spokenKeys.add(dedupeKey);
@@ -322,7 +329,10 @@ async function synthesizeAndPlay(text: string): Promise<void> {
 
 		const url = URL.createObjectURL(wav);
 		try {
-			await new Promise<void>((resolve, reject) => {
+			// 再生そのものを Web Lock で排他する (同一ブラウザ内での同時再生を、経路を問わず
+			// 物理的に不可能にする最終保証。ページ内キュー・タブ間オーナー排他をすり抜ける
+			// 未知の経路があってもここで直列化される)
+			const playOnce = () => new Promise<void>((resolve, reject) => {
 				// 万一前の音声が残っていても重ねない (キュー直列化に対する最後の防波堤)。
 				// currentAudio を外してから pause する (stopTtsSpeech と同じ明示停止の作法)
 				if (currentAudio != null) {
@@ -363,6 +373,14 @@ async function synthesizeAndPlay(text: string): Promise<void> {
 				};
 				audio.play().catch(err => settle(err instanceof Error ? err : new Error(String(err))));
 			});
+
+			console.debug(`[TTS] play start: "${text.slice(0, 24)}" (queue=${queue.length})`);
+			if ('locks' in navigator) {
+				await navigator.locks.request('twitchTtsPlaybackAudio', playOnce);
+			} else {
+				await playOnce();
+			}
+			console.debug(`[TTS] play end: "${text.slice(0, 24)}"`);
 		} finally {
 			currentAudio = null;
 			URL.revokeObjectURL(url);
