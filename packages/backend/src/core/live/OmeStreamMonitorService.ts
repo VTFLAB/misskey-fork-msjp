@@ -23,7 +23,14 @@ import { LiveLoggerService } from './LiveLoggerService.js';
 const POLL_INTERVAL_MS = 10 * 1000; // 決定書 §2「10秒間隔でポーリング」
 const RECONCILE_INTERVAL_MS = 2 * 60 * 1000; // OME ダウン時の自己修復 (webhook 取り逃し対策、TwitchStreamService と同思想)
 const OVERAGE_MARGIN = 1.1; // 10% マージン
-const CONSECUTIVE_OVERAGE_THRESHOLD = 3; // 3回連続 (≒30秒継続)
+// 判定に使う直近サンプル数 (10秒間隔 × 3 ≒ 30秒間の平均、決定書 §2 の「30秒継続」意図を維持)。
+// bitrateLatest はサブ秒のバースト (WebRTC のキーフレーム一括送出) に敏感で、規定内の
+// CBR 配信 (7500kbps + nal-hrd=cbr) でも実測サンプルが 5888〜8869kbps と ±20% 振れる
+// (2026-08-01 実測)。旧実装の「瞬間値が3回連続で閾値超過」は、この計測ノイズだけで
+// 長時間配信中に誤切断が起こりうる (超過確率 ~12% で約90分に1回) ため、
+// 「直近3サンプルの平均 > 閾値」の判定に変更した。真に上限超過している配信は
+// 平均も超えるので従来どおり ~30秒で遮断される
+const OVERAGE_WINDOW_SIZE = 3;
 const BLACKLIST_TTL_SEC = 10 * 60;
 // YouTube アーカイブの 12 時間上限 (LiveRecordingService の YOUTUBE_MAX_DURATION_SEC と同値) に対し、
 // 1 時間前からライブチャットへ警告を送る閾値・間隔 (bsky-fork 独自)。
@@ -35,8 +42,9 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 	private logger: Logger;
 	private pollTimer: NodeJS.Timeout | null = null;
 	private reconcileTimer: NodeJS.Timeout | null = null;
-	// streamKey ごとの連続超過カウント (プロセスローカル、Redis化はしない: 監視自体が cluster.isPrimary 限定のため単一プロセス)
-	private overageCounts = new Map<string, { video: number; audio: number }>();
+	// streamKey ごとの直近ビットレートサンプル (kbps)。プロセスローカル、Redis化はしない
+	// (監視自体が cluster.isPrimary 限定のため単一プロセス)
+	private overageSamples = new Map<string, { video: number[]; audio: number[] }>();
 	// OME 到達不能の連続回数 (縮退判定用)
 	private consecutiveApiFailures = 0;
 	// streamId ごとの最終 12h 警告投稿時刻 (epoch ms)。長時間配信向けの YouTube アーカイブ上限警告
@@ -195,24 +203,29 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 			const videoBitrateKbps = videoTrack?.video != null ? Number(videoTrack.video.bitrateLatest) / 1000 : 0;
 			const audioBitrateKbps = audioTrack?.audio != null ? Number(audioTrack.audio.bitrateLatest) / 1000 : 0;
 
-			const videoOver = videoBitrateKbps > ome.maxVideoBitrate * OVERAGE_MARGIN;
-			const audioOver = audioBitrateKbps > ome.maxAudioBitrate * OVERAGE_MARGIN;
+			const samples = this.overageSamples.get(channel.streamKey) ?? { video: [], audio: [] };
+			samples.video.push(videoBitrateKbps);
+			samples.audio.push(audioBitrateKbps);
+			if (samples.video.length > OVERAGE_WINDOW_SIZE) samples.video.shift();
+			if (samples.audio.length > OVERAGE_WINDOW_SIZE) samples.audio.shift();
+			this.overageSamples.set(channel.streamKey, samples);
 
-			const counts = this.overageCounts.get(channel.streamKey) ?? { video: 0, audio: 0 };
-			counts.video = videoOver ? counts.video + 1 : 0;
-			counts.audio = audioOver ? counts.audio + 1 : 0;
-			this.overageCounts.set(channel.streamKey, counts);
+			// 平坦なCBR配信でも瞬間値サンプルは大きく振れるため、窓が埋まってから平均で判定する
+			const videoAvgKbps = samples.video.reduce((a, b) => a + b, 0) / samples.video.length;
+			const audioAvgKbps = samples.audio.reduce((a, b) => a + b, 0) / samples.audio.length;
+			const videoOver = samples.video.length >= OVERAGE_WINDOW_SIZE && videoAvgKbps > ome.maxVideoBitrate * OVERAGE_MARGIN;
+			const audioOver = samples.audio.length >= OVERAGE_WINDOW_SIZE && audioAvgKbps > ome.maxAudioBitrate * OVERAGE_MARGIN;
 
-			if (counts.video >= CONSECUTIVE_OVERAGE_THRESHOLD || counts.audio >= CONSECUTIVE_OVERAGE_THRESHOLD) {
-				await this.cutStream(session, channel.streamKey, videoOver ? 'video' : 'audio', videoBitrateKbps, audioBitrateKbps);
-				this.overageCounts.delete(channel.streamKey);
+			if (videoOver || audioOver) {
+				await this.cutStream(session, channel.streamKey, videoOver ? 'video' : 'audio', videoAvgKbps, audioAvgKbps);
+				this.overageSamples.delete(channel.streamKey);
 			}
 		}
 
-		// 監視対象から外れたキーのカウントを掃除 (メモリリーク防止)
+		// 監視対象から外れたキーのサンプルを掃除 (メモリリーク防止)
 		const activeKeys = new Set(activeSessions.map(s => channelsByUserId.get(s.userId)?.streamKey).filter((k): k is string => k != null));
-		for (const key of this.overageCounts.keys()) {
-			if (!activeKeys.has(key)) this.overageCounts.delete(key);
+		for (const key of this.overageSamples.keys()) {
+			if (!activeKeys.has(key)) this.overageSamples.delete(key);
 		}
 
 		// 終了済みセッションの 12h 警告タイムスタンプを掃除 (メモリリーク防止)
@@ -229,12 +242,13 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 
 	/**
 	 * 遮断シーケンス: DELETE → blacklist → 通知 → markOffline (決定書 §2)。
+	 * videoKbps / audioKbps は直近 OVERAGE_WINDOW_SIZE サンプルの平均値。
 	 */
 	@bindThis
 	private async cutStream(session: MiTwitchStream, streamKey: string, cause: 'video' | 'audio', videoKbps: number, audioKbps: number): Promise<void> {
 		const reason = cause === 'video'
-			? `映像ビットレートが上限を超過しました (${Math.round(videoKbps)}kbps)`
-			: `音声ビットレートが上限を超過しました (${Math.round(audioKbps)}kbps)`;
+			? `映像ビットレートが上限を超過しました (直近30秒平均 ${Math.round(videoKbps)}kbps)`
+			: `音声ビットレートが上限を超過しました (直近30秒平均 ${Math.round(audioKbps)}kbps)`;
 
 		this.logger.warn(`cutting stream due to bitrate overage: streamKey=${streamKey} cause=${cause} video=${videoKbps}kbps audio=${audioKbps}kbps`);
 
