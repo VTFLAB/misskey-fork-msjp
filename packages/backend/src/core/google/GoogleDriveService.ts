@@ -8,6 +8,7 @@ import { pipeline } from 'node:stream/promises';
 import { Injectable } from '@nestjs/common';
 import { auth as googleAuth, drive, drive_v3 } from '@googleapis/drive';
 import type { MiUser } from '@/models/User.js';
+import { retryOnTransientGoogleApiError } from '@/misc/google-api-error.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { GoogleOAuthService } from './GoogleOAuthService.js';
@@ -63,7 +64,9 @@ export class GoogleDriveService {
 		const driveClient = await this.buildClient(userId);
 		const account = await this.googleOAuthService.getLinkedAccount(userId);
 
-		const created = await driveClient.files.create({
+		// Google 側の一時エラー (408/429/5xx 等) はリトライする。消費済み ReadStream は再利用
+		// できないため、試行ごとにストリームを作り直す (クロージャ内で createReadStream する理由)
+		const created = await retryOnTransientGoogleApiError(() => driveClient.files.create({
 			requestBody: {
 				name: fileName,
 				mimeType: 'video/mp4',
@@ -74,14 +77,16 @@ export class GoogleDriveService {
 				body: fs.createReadStream(filePath),
 			},
 			fields: 'id, thumbnailLink, webViewLink',
-		});
+		}), { label: `drive upload (user=${userId})`, logger: this.logger });
 
 		const fileId = created.data.id;
 		if (fileId == null) {
 			throw new Error('Google Drive did not return a file id after upload.');
 		}
 
-		await driveClient.permissions.create({
+		// 権限付与はアップロード成功後の小さな POST だが、ここで一時エラーに当たると
+		// アップロード済みファイルごと失敗扱いになるため同様にリトライする (二重付与は無害)
+		await retryOnTransientGoogleApiError(() => driveClient.permissions.create({
 			fileId,
 			requestBody: {
 				type: 'anyone',
@@ -89,7 +94,7 @@ export class GoogleDriveService {
 				allowFileDiscovery: false,
 			},
 			fields: 'id',
-		});
+		}), { label: `drive permission (user=${userId})`, logger: this.logger });
 
 		this.logger.info(`uploaded recording: user=${userId} fileId=${fileId}`);
 
