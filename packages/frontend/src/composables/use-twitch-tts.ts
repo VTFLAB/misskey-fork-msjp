@@ -257,8 +257,11 @@ export function stopTtsSpeech() {
 	// ループは起動しないため、読み上げの二重再生は起こらない)
 	queue.length = 0;
 	if (currentAudio != null) {
-		currentAudio.pause();
+		// 再生完了判定 (onpause ハンドラ) が「明示停止」と識別できるよう、
+		// currentAudio を外してから pause する (順序が逆だと停止時に完了待ちがハングする)
+		const audio = currentAudio;
 		currentAudio = null;
+		audio.pause();
 	}
 	// 進行中の AivisSpeech Engine への fetch を中断し、
 	// エンジン側の推論プロセスが残続しないようにする
@@ -320,15 +323,45 @@ async function synthesizeAndPlay(text: string): Promise<void> {
 		const url = URL.createObjectURL(wav);
 		try {
 			await new Promise<void>((resolve, reject) => {
-				// 万一前の音声が残っていても重ねない (キュー直列化に対する最後の防波堤)
-				if (currentAudio != null) currentAudio.pause();
+				// 万一前の音声が残っていても重ねない (キュー直列化に対する最後の防波堤)。
+				// currentAudio を外してから pause する (stopTtsSpeech と同じ明示停止の作法)
+				if (currentAudio != null) {
+					const prev = currentAudio;
+					currentAudio = null;
+					prev.pause();
+				}
 				const audio = new window.Audio(url);
 				currentAudio = audio;
-				audio.onended = () => resolve();
-				audio.onerror = () => reject(new Error('audio playback failed'));
-				// stopTtsSpeech() で pause された場合も次へ進む
-				audio.onpause = () => resolve();
-				audio.play().catch(reject);
+
+				// 完了判定は一度きり (settled) に束ね、イベントの重複・順序ゆれの影響を受けないようにする
+				let settled = false;
+				let watchdogTimer: number | null = null;
+				const settle = (err?: Error) => {
+					if (settled) return;
+					settled = true;
+					if (watchdogTimer != null) window.clearTimeout(watchdogTimer);
+					if (err != null) reject(err);
+					else resolve();
+				};
+
+				audio.onended = () => settle();
+				audio.onerror = () => settle(new Error('audio playback failed'));
+				// 'pause' は再生完了の証拠にならない (完了前に発火するケースがあり、これを完了扱いに
+				// すると音声が鳴っている最中に次の読み上げが始まり二重再生になる)。
+				// 「再生し終わった (ended)」または「明示停止 (stopTtsSpeech が currentAudio を
+				// 外してから pause する)」の場合のみ先へ進む
+				audio.onpause = () => {
+					if (audio.ended || currentAudio !== audio) settle();
+				};
+				// 最終保証のウォッチドッグ: メタデータから実際の音声長を取り、
+				// 「音声長 + 3秒」まで ended が来なければ完了扱いにして先へ進む
+				// (イベント取り逃しでキューが永久に止まるのを防ぐ。音声長より先に
+				// 次へ進むことは無いため、二重再生はこの経路からは起こらない)
+				audio.onloadedmetadata = () => {
+					if (settled || !Number.isFinite(audio.duration)) return;
+					watchdogTimer = window.setTimeout(() => settle(), audio.duration * 1000 + 3000);
+				};
+				audio.play().catch(err => settle(err instanceof Error ? err : new Error(String(err))));
 			});
 		} finally {
 			currentAudio = null;
