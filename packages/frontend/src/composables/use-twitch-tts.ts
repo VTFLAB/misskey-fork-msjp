@@ -5,6 +5,7 @@
 
 import { ref, watch } from 'vue';
 import * as mfm from 'mfm-js';
+import type { Ref } from 'vue';
 import { miLocalStorage } from '@/local-storage.js';
 
 // 配信視聴ページのコメント読み上げ (bsky-fork 独自)。
@@ -15,6 +16,16 @@ import { miLocalStorage } from '@/local-storage.js';
 // 前提: エンジン側で CORS を許可しておく必要がある (`--cors_policy_mode all`)。
 // https ページから http://127.0.0.1 への fetch は mixed content の例外
 // (potentially trustworthy origin) として主要ブラウザで許可されている
+//
+// ## 状態は globalThis 上のシングルトンに置く (v5)
+//
+// 当初はモジュールスコープの変数 (キュー・再生中フラグ等) をシングルトンとして
+// 使っていたが、ビルドのチャンク分割によって本モジュールの複製が同一ページ内に
+// 複数ロードされうることが実地で確認された (診断マーカーが1ページで4回出力された)。
+// 複製ごとに独立したキュー・再生器が並走すると、どれだけキュー内を直列化しても
+// 読み上げ音声は重複する。このため実行時状態はモジュール変数ではなく
+// globalThis 上の単一オブジェクトに置き、モジュールの複製がいくつロードされても
+// 全複製が同一のキュー・再生器・設定を共有する構造にしている。
 
 export type TwitchTtsSettings = {
 	enabled: boolean;
@@ -44,6 +55,25 @@ const MAX_QUEUE_LENGTH = 10;
 // 読み上げ済みコメント ID の記憶数 (同一コメントの二度読み防止用)
 const SPOKEN_KEYS_MAX = 200;
 
+type TtsEngineState = {
+	queue: string[];
+	processing: Promise<void> | null;
+	currentAudio: HTMLAudioElement | null;
+	currentAbortController: AbortController | null;
+	spokenKeys: Set<string>;
+	spokenKeyOrder: string[];
+	ownerLockHeld: boolean;
+	versionLogged: boolean;
+};
+
+type TtsGlobal = typeof globalThis & {
+	__msjpTwitchTtsState?: TtsEngineState;
+	__msjpTwitchTtsSettings?: Ref<TwitchTtsSettings>;
+	__msjpTwitchTtsWatched?: boolean;
+};
+
+const g = globalThis as TtsGlobal;
+
 function load(): TwitchTtsSettings {
 	try {
 		const raw = miLocalStorage.getItem('twitchTts');
@@ -54,18 +84,37 @@ function load(): TwitchTtsSettings {
 	}
 }
 
-// モジュールシングルトン: 設定ダイアログとチャットコンポーネントで同じ状態を共有する
-export const twitchTtsSettings = ref<TwitchTtsSettings>(load());
+// ページ全体のシングルトン: モジュールが複製ロードされても状態は常に1つ
+const state: TtsEngineState = g.__msjpTwitchTtsState ??= {
+	queue: [],
+	processing: null,
+	currentAudio: null,
+	currentAbortController: null,
+	spokenKeys: new Set(),
+	spokenKeyOrder: [],
+	ownerLockHeld: false,
+	versionLogged: false,
+};
 
-watch(twitchTtsSettings, () => {
-	miLocalStorage.setItem('twitchTts', JSON.stringify(twitchTtsSettings.value));
-}, { deep: true });
+// 設定 ref も globalThis 経由で共有する (設定ダイアログとチャットが別複製の
+// モジュールを掴んでいても、同じ ref を見るようにする)
+export const twitchTtsSettings: Ref<TwitchTtsSettings> = g.__msjpTwitchTtsSettings ??= ref<TwitchTtsSettings>(load());
 
-// 読み上げを無効化したら再生中の音声とキューを即座に破棄する
-// (テスト再生は有効化状態に関わらず動かしたいので、キュー処理側では判定しない)
-watch(() => twitchTtsSettings.value.enabled, (enabled) => {
-	if (!enabled) stopTtsSpeech();
-});
+// watcher の登録は複製をまたいで1回だけ (複数登録すると localStorage 書き込みや
+// stop が複製の数だけ多重に走る)
+if (!g.__msjpTwitchTtsWatched) {
+	g.__msjpTwitchTtsWatched = true;
+
+	watch(twitchTtsSettings, () => {
+		miLocalStorage.setItem('twitchTts', JSON.stringify(twitchTtsSettings.value));
+	}, { deep: true });
+
+	// 読み上げを無効化したら再生中の音声とキューを即座に破棄する
+	// (テスト再生は有効化状態に関わらず動かしたいので、キュー処理側では判定しない)
+	watch(() => twitchTtsSettings.value.enabled, (enabled) => {
+		if (!enabled) stopTtsSpeech();
+	});
+}
 
 /**
  * エンジンから話者一覧を取得してスタイル単位に平坦化する (設定 UI の選択肢用)
@@ -91,7 +140,8 @@ export function containsJapanese(text: string): boolean {
 }
 
 /**
- * MFM や URL を読み上げ用の平文に落とす。読めない装飾・URL・絵文字は除去する
+ * MFM や URL を読み上げ用の平文に落とす。読めない装飾・絵文字は除去し、
+ * URL は「ユーアールエル省略」に読み替える
  */
 export function toReadableText(text: string): string {
 	let plain: string;
@@ -180,37 +230,20 @@ export function shouldAwaitTranslationForTts(text: string): boolean {
 	return /[A-Za-z]/.test(stripped);
 }
 
-// 読み上げキュー: 順次 1 件ずつ合成・再生する。詰まり防止のため上限を超えたら
-// 古いものから捨てる (ライブ用途なので取りこぼしより遅延の方が害が大きい)
-const queue: string[] = [];
-// 実行中の処理ループ。boolean フラグではなく Promise 自体を持つことで、ループの
-// 生存と1対1で対応させる。旧実装は stopTtsSpeech() がフラグ (playing) を即座に
-// false へ戻していたため、走行中のループが await から復帰する前に新しいコメントが
-// 2本目のループを起動し、複数コメントがほぼ同時に届いた際に読み上げが二重に
-// 再生されるレースがあった (ループ終了時のみ null に戻すことで構造的に排除)
-let processing: Promise<void> | null = null;
-let currentAudio: HTMLAudioElement | null = null;
-// 読み上げ済みコメント ID (二度読み防止)。視聴ページが複数コンポーネントから
-// 同じコメントイベントを受けた場合でも 1 回だけ読む
-const spokenKeys = new Set<string>();
-const spokenKeyOrder: string[] = [];
 // タブ間排他 (Web Locks)。視聴ページを複数タブ・ウィンドウで開いた場合、それぞれの
 // ページが独立に合成・再生して音声が重なるため、「読み上げオーナー」ロックを
 // 最初に取得した 1 ページだけが発話する。オーナーのページを閉じるとロックは自動解放され、
 // 次に読み上げようとしたページが新しいオーナーになる
-let ownerLockHeld = false;
-let pipelineVersionLogged = false;
-
 async function ensureTtsOwnership(): Promise<boolean> {
 	if (!('locks' in navigator)) return true; // 非対応環境はページ内直列化のみで動かす
-	if (ownerLockHeld) return true;
+	if (state.ownerLockHeld) return true;
 	return await new Promise<boolean>(resolve => {
 		void navigator.locks.request('twitchTtsOwner', { ifAvailable: true }, lock => {
 			if (lock == null) {
 				resolve(false); // 他のタブがオーナー
 				return;
 			}
-			ownerLockHeld = true;
+			state.ownerLockHeld = true;
 			resolve(true);
 			// ページが閉じられるまでロックを保持し続ける (自動解放に任せる)
 			return new Promise<never>(() => {});
@@ -218,43 +251,37 @@ async function ensureTtsOwnership(): Promise<boolean> {
 	});
 }
 
-// 進行中の合成リクエストを中断するための AbortController。
-// stopTtsSpeech() で abort することで、AivisSpeech Engine 側の
-// ONNX Runtime 推論プロセスの蓄積を防ぐ (ページ離脱後もリクエストが
-// 残り続けてエンジン側のリソースが解放されない問題の対策)
-let currentAbortController: AbortController | null = null;
-
 /**
  * @param dedupeKey 指定した場合、同じキーでの読み上げは1回に抑止する (コメント ID を渡す)。
  * テスト再生など重複排除が不要な呼び出しでは省略する
  */
 export function enqueueTtsSpeech(text: string, dedupeKey?: string) {
-	if (!pipelineVersionLogged) {
-		pipelineVersionLogged = true;
+	if (!state.versionLogged) {
+		state.versionLogged = true;
 		// 実行中のコード世代の確認用 (SPA はリロードまで旧チャンクを使い続けるため、
 		// 読み上げ不具合の切り分けでどの版が動いているかをコンソールで確認できるようにする)
-		console.info('[TTS] pipeline v4: single-voice enforced (queue + owner lock + playback lock + duration watchdog)');
+		console.info('[TTS] pipeline v5: globalThis singleton (shared queue/player across module copies)');
 	}
 	if (dedupeKey != null) {
-		if (spokenKeys.has(dedupeKey)) return;
-		spokenKeys.add(dedupeKey);
-		spokenKeyOrder.push(dedupeKey);
-		if (spokenKeyOrder.length > SPOKEN_KEYS_MAX) spokenKeys.delete(spokenKeyOrder.shift()!);
+		if (state.spokenKeys.has(dedupeKey)) return;
+		state.spokenKeys.add(dedupeKey);
+		state.spokenKeyOrder.push(dedupeKey);
+		if (state.spokenKeyOrder.length > SPOKEN_KEYS_MAX) state.spokenKeys.delete(state.spokenKeyOrder.shift()!);
 	}
 	const readable = toReadableText(text);
 	if (readable.length === 0) return;
-	queue.push(readable);
-	if (queue.length > MAX_QUEUE_LENGTH) queue.splice(0, queue.length - MAX_QUEUE_LENGTH);
+	state.queue.push(readable);
+	if (state.queue.length > MAX_QUEUE_LENGTH) state.queue.splice(0, state.queue.length - MAX_QUEUE_LENGTH);
 	startProcessing();
 }
 
 function startProcessing() {
-	if (processing != null) return;
-	processing = processQueue().finally(() => {
-		processing = null;
+	if (state.processing != null) return;
+	state.processing = processQueue().finally(() => {
+		state.processing = null;
 		// ループ終了と同時に新規エントリが積まれた微小レースの自己回復
 		// (積んだ側は processing != null を見て起動をスキップしている可能性がある)
-		if (queue.length > 0) startProcessing();
+		if (state.queue.length > 0) startProcessing();
 	});
 }
 
@@ -262,32 +289,32 @@ export function stopTtsSpeech() {
 	// キューを空にして現在の合成・再生を中断する。processing はここでは触らない:
 	// 走行中のループはキューが空になったのを確認して自然終了する (それまで新しい
 	// ループは起動しないため、読み上げの二重再生は起こらない)
-	queue.length = 0;
-	if (currentAudio != null) {
+	state.queue.length = 0;
+	if (state.currentAudio != null) {
 		// 再生完了判定 (onpause ハンドラ) が「明示停止」と識別できるよう、
 		// currentAudio を外してから pause する (順序が逆だと停止時に完了待ちがハングする)
-		const audio = currentAudio;
-		currentAudio = null;
+		const audio = state.currentAudio;
+		state.currentAudio = null;
 		audio.pause();
 	}
 	// 進行中の AivisSpeech Engine への fetch を中断し、
 	// エンジン側の推論プロセスが残続しないようにする
-	if (currentAbortController != null) {
-		currentAbortController.abort();
-		currentAbortController = null;
+	if (state.currentAbortController != null) {
+		state.currentAbortController.abort();
+		state.currentAbortController = null;
 	}
 }
 
 async function processQueue() {
-	while (queue.length > 0) {
+	while (state.queue.length > 0) {
 		// 他のタブが読み上げオーナーの間はこのページでは発話しない (音声の重複防止)。
 		// 同じコメントはオーナー側のページにも届いてそちらで読まれる
 		if (!await ensureTtsOwnership()) {
-			queue.length = 0;
+			state.queue.length = 0;
 			return;
 		}
 		// ownership 待ちの await 中に stopTtsSpeech() でキューが空にされている場合がある
-		const text = queue.shift();
+		const text = state.queue.shift();
 		if (text == null) return;
 		try {
 			await synthesizeAndPlay(text);
@@ -305,9 +332,9 @@ async function synthesizeAndPlay(text: string): Promise<void> {
 	const speaker = encodeURIComponent(String(settings.styleId));
 
 	// この1件の合成〜再生サイクルで共有する AbortController。
-	// stopTtsSpeech() や次の stopTtsSpeech() 呼出で中断される
+	// stopTtsSpeech() で中断される
 	const ac = new AbortController();
-	currentAbortController = ac;
+	state.currentAbortController = ac;
 	try {
 		const queryRes = await window.fetch(`${base}/audio_query?speaker=${speaker}&text=${encodeURIComponent(text)}`, {
 			method: 'POST',
@@ -335,13 +362,13 @@ async function synthesizeAndPlay(text: string): Promise<void> {
 			const playOnce = () => new Promise<void>((resolve, reject) => {
 				// 万一前の音声が残っていても重ねない (キュー直列化に対する最後の防波堤)。
 				// currentAudio を外してから pause する (stopTtsSpeech と同じ明示停止の作法)
-				if (currentAudio != null) {
-					const prev = currentAudio;
-					currentAudio = null;
+				if (state.currentAudio != null) {
+					const prev = state.currentAudio;
+					state.currentAudio = null;
 					prev.pause();
 				}
 				const audio = new window.Audio(url);
-				currentAudio = audio;
+				state.currentAudio = audio;
 
 				// 完了判定は一度きり (settled) に束ね、イベントの重複・順序ゆれの影響を受けないようにする
 				let settled = false;
@@ -361,7 +388,7 @@ async function synthesizeAndPlay(text: string): Promise<void> {
 				// 「再生し終わった (ended)」または「明示停止 (stopTtsSpeech が currentAudio を
 				// 外してから pause する)」の場合のみ先へ進む
 				audio.onpause = () => {
-					if (audio.ended || currentAudio !== audio) settle();
+					if (audio.ended || state.currentAudio !== audio) settle();
 				};
 				// 最終保証のウォッチドッグ: メタデータから実際の音声長を取り、
 				// 「音声長 + 3秒」まで ended が来なければ完了扱いにして先へ進む
@@ -374,7 +401,7 @@ async function synthesizeAndPlay(text: string): Promise<void> {
 				audio.play().catch(err => settle(err instanceof Error ? err : new Error(String(err))));
 			});
 
-			console.debug(`[TTS] play start: "${text.slice(0, 24)}" (queue=${queue.length})`);
+			console.debug(`[TTS] play start: "${text.slice(0, 24)}" (queue=${state.queue.length})`);
 			if ('locks' in navigator) {
 				await navigator.locks.request('twitchTtsPlaybackAudio', playOnce);
 			} else {
@@ -382,10 +409,10 @@ async function synthesizeAndPlay(text: string): Promise<void> {
 			}
 			console.debug(`[TTS] play end: "${text.slice(0, 24)}"`);
 		} finally {
-			currentAudio = null;
+			state.currentAudio = null;
 			URL.revokeObjectURL(url);
 		}
 	} finally {
-		if (currentAbortController === ac) currentAbortController = null;
+		if (state.currentAbortController === ac) state.currentAbortController = null;
 	}
 }
