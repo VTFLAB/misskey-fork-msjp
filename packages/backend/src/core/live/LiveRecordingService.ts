@@ -604,6 +604,10 @@ export class LiveRecordingService {
 				recordingFileSize: null,
 				recordingError: null,
 			});
+			// 永続コピーを確保できたのでローカル mp4 を削除する (DB のパスだけクリアして実ファイルを
+			// 残すと、retention cleanup の追跡からも外れて NAS 上に孤児ファイルとして蓄積し続ける —
+			// 2026-08-01 の復旧成功後に実際に残留を確認)
+			await this.cleanupFiles(filePath);
 			this.logger.info(`recording retry-uploaded from retention: streamId=${streamId} fileId=${uploaded.fileId}`);
 		} catch (err) {
 			const message = summarizeGoogleApiError(err, ERROR_MESSAGE_MAX_LENGTH);
