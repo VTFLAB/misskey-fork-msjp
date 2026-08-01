@@ -118,11 +118,21 @@ export function toReadableText(text: string): string {
 		.replace(/\s+/g, ' ')
 		.trim()
 		.slice(0, MAX_READ_LENGTH);
-	// w だけが続くコメントは日本語の笑い表現なので、文字数に関わらず「わらわら」と
-	// 読み上げる (全角・半角・大文字小文字の混在も対象)。そのまま読ませると
-	// エンジンが英字の羅列として読もうとして不自然になるため
-	if (/^[wWｗＷ]+$/.test(readable)) return 'わらわら';
-	return readable;
+	return normalizeReadableExpressions(readable);
+}
+
+/**
+ * ネットスラング的な表現を読み上げ向けの日本語に置換する。
+ * - w の連続 (笑い): 全体または末尾にある場合「わらわら」(全角・半角・大小文字不問、文字数不問)。
+ *   英単語の一部 (wow 等) を巻き込まないよう、直前が英字の場合は置換しない
+ * - 8 の連続 (拍手): 全体・先頭・末尾にある場合「ぱちぱちぱち」(全角・半角、2文字以上)。
+ *   数値 (1888 / 8880円 / 88.8 等) を巻き込まないよう、隣接して数字や小数点がある場合は置換しない
+ */
+function normalizeReadableExpressions(text: string): string {
+	return text
+		.replace(/(?<![A-Za-zＡ-Ｚａ-ｚ])[wWｗＷ]+$/u, 'わらわら')
+		.replace(/^[8８]{2,}(?![0-9０-９.．,，])/u, 'ぱちぱちぱち')
+		.replace(/(?<![0-9０-９.．,，])[8８]{2,}$/u, 'ぱちぱちぱち');
 }
 
 /**
