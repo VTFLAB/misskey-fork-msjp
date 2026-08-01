@@ -17,15 +17,30 @@ import { miLocalStorage } from '@/local-storage.js';
 // https ページから http://127.0.0.1 への fetch は mixed content の例外
 // (potentially trustworthy origin) として主要ブラウザで許可されている
 //
-// ## 状態は globalThis 上のシングルトンに置く (v5)
+// ## 再生パイプラインの設計 (v6)
 //
-// 当初はモジュールスコープの変数 (キュー・再生中フラグ等) をシングルトンとして
-// 使っていたが、ビルドのチャンク分割によって本モジュールの複製が同一ページ内に
-// 複数ロードされうることが実地で確認された (診断マーカーが1ページで4回出力された)。
-// 複製ごとに独立したキュー・再生器が並走すると、どれだけキュー内を直列化しても
-// 読み上げ音声は重複する。このため実行時状態はモジュール変数ではなく
-// globalThis 上の単一オブジェクトに置き、モジュールの複製がいくつロードされても
-// 全複製が同一のキュー・再生器・設定を共有する構造にしている。
+// 要求仕様「読み上げ音声は常に1つ。前の読み上げが完了してから次を読む」を
+// 多層の防御ではなく構造そのもので保証する。
+//
+// 1. 実行時状態は globalThis 上の単一オブジェクト (state) に置く。ビルドの
+//    チャンク分割で本モジュールの複製が同一ページに複数ロードされても (v4 で
+//    実際に4複製を確認)、全複製が同じキュー・再生器・設定を共有する。
+// 2. キューを消費するのは単一の processQueue ループだけ (state.processing で排他)。
+//    1件ずつ 合成 → 再生完了 を await するため、ループ構造自体が直列性を保証する。
+//    再生だけを別ロックで囲む多重の排他層 (v4-v5) は撤去した。
+// 3. 再生は Web Audio API (AudioContext + AudioBufferSourceNode)。v5 までの
+//    HTMLAudioElement は、環境要因 (メディア要素へ介入する拡張機能等) により
+//    play() が AbortError ("media was removed from the document") となり1件も
+//    再生できない事象が実地で発生した。Web Audio は DOM にメディア要素を作らない
+//    ためこの失敗クラスが構造的に存在せず、blob URL の寿命管理も不要で、
+//    再生時間はデコード済み PCM (audioBuffer.duration) から確定できる。
+// 4. 完了判定は source.onended + 「音声長 + 1秒」タイマーの二重化 (settle は
+//    一度きり)。どちらが先でも1回だけ次へ進み、イベント取り逃しでも止まらない。
+// 5. タブ間は Web Locks の「読み上げオーナー」ロックで排他する。これは同一
+//    ブラウザプロファイル内にしか効かない: OBS の CEF (カスタムブラウザドック /
+//    ブラウザソース) や別ブラウザ・別端末で視聴ページを開いて TTS を有効化すると
+//    コード側では検知も抑止もできず多重再生になる。読み上げを有効にするのは
+//    1箇所だけ、という運用が前提
 
 export type TwitchTtsSettings = {
 	enabled: boolean;
@@ -54,12 +69,22 @@ const MAX_READ_LENGTH = 100;
 const MAX_QUEUE_LENGTH = 10;
 // 読み上げ済みコメント ID の記憶数 (同一コメントの二度読み防止用)
 const SPOKEN_KEYS_MAX = 200;
+// エンジンへの合成リクエストの上限時間。エンジンのハング等でキューが永久に
+// 停止しないようにする (正常時の合成は数秒、初回のモデルロードでも収まる余裕を持たせる)
+const SYNTHESIS_TIMEOUT_MS = 30000;
+// AudioContext.resume() の待ち時間上限。自動再生ポリシーでブロックされている間、
+// resume() は解決しないまま保留され続けるため、race で切り上げて判定する
+const RESUME_TIMEOUT_MS = 1000;
+// onended を取り逃した場合に完了扱いにするまでの猶予 (音声長に加算)
+const PLAYBACK_END_GRACE_MS = 1000;
 
 type TtsEngineState = {
 	queue: string[];
 	processing: Promise<void> | null;
-	currentAudio: HTMLAudioElement | null;
+	audioContext: AudioContext | null;
+	currentSource: AudioBufferSourceNode | null;
 	currentAbortController: AbortController | null;
+	resumeRecoveryArmed: boolean;
 	spokenKeys: Set<string>;
 	spokenKeyOrder: string[];
 	ownerLockHeld: boolean;
@@ -88,8 +113,10 @@ function load(): TwitchTtsSettings {
 const state: TtsEngineState = g.__msjpTwitchTtsState ??= {
 	queue: [],
 	processing: null,
-	currentAudio: null,
+	audioContext: null,
+	currentSource: null,
 	currentAbortController: null,
+	resumeRecoveryArmed: false,
 	spokenKeys: new Set(),
 	spokenKeyOrder: [],
 	ownerLockHeld: false,
@@ -260,7 +287,7 @@ export function enqueueTtsSpeech(text: string, dedupeKey?: string) {
 		state.versionLogged = true;
 		// 実行中のコード世代の確認用 (SPA はリロードまで旧チャンクを使い続けるため、
 		// 読み上げ不具合の切り分けでどの版が動いているかをコンソールで確認できるようにする)
-		console.info('[TTS] pipeline v5: globalThis singleton (shared queue/player across module copies)');
+		console.info('[TTS] pipeline v6: Web Audio API playback (single global queue)');
 	}
 	if (dedupeKey != null) {
 		if (state.spokenKeys.has(dedupeKey)) return;
@@ -290,18 +317,22 @@ export function stopTtsSpeech() {
 	// 走行中のループはキューが空になったのを確認して自然終了する (それまで新しい
 	// ループは起動しないため、読み上げの二重再生は起こらない)
 	state.queue.length = 0;
-	if (state.currentAudio != null) {
-		// 再生完了判定 (onpause ハンドラ) が「明示停止」と識別できるよう、
-		// currentAudio を外してから pause する (順序が逆だと停止時に完了待ちがハングする)
-		const audio = state.currentAudio;
-		state.currentAudio = null;
-		audio.pause();
-	}
 	// 進行中の AivisSpeech Engine への fetch を中断し、
 	// エンジン側の推論プロセスが残続しないようにする
 	if (state.currentAbortController != null) {
 		state.currentAbortController.abort();
 		state.currentAbortController = null;
+	}
+	// 再生中の音声を止める。stop() で source.onended が発火し、再生待ちの
+	// Promise (playBuffer 内の settle) が解決してループが先へ進む
+	if (state.currentSource != null) {
+		const source = state.currentSource;
+		state.currentSource = null;
+		try {
+			source.stop();
+		} catch {
+			// 未 start / 停止済みの InvalidStateError は無視してよい
+		}
 	}
 }
 
@@ -317,28 +348,86 @@ async function processQueue() {
 		const text = state.queue.shift();
 		if (text == null) return;
 		try {
-			await synthesizeAndPlay(text);
+			const played = await synthesizeAndPlay(text);
+			if (!played) {
+				// AudioContext が自動再生ポリシーでブロックされている。アイテムを
+				// キュー先頭へ戻してループを終了し、ユーザー操作 (下の gesture リスナー)
+				// または次のコメント到着を契機に再開する
+				state.queue.unshift(text);
+				return;
+			}
 		} catch (err) {
-			// エンジン停止中などの失敗は読み上げをスキップして続行する (配信の妨げにしない)
-			console.warn('TTS synthesis failed:', err);
+			// stopTtsSpeech による中断 (AbortError) は正常系なのでログしない。
+			// エンジン停止・合成失敗などはスキップして次のコメントへ進む (配信の妨げにしない)
+			if (!(err instanceof Error && err.name === 'AbortError')) {
+				console.warn('[TTS] synthesis/playback failed:', err);
+			}
 		}
 	}
 }
 
-async function synthesizeAndPlay(text: string): Promise<void> {
+/**
+ * AudioContext を必要になった時点で生成し、running 状態を保証する。
+ * 自動再生ポリシーでブロックされている場合は null を返し、次のユーザー操作での
+ * 自動復旧を仕掛ける (resume() はブロック中は解決しないため race で切り上げる)
+ */
+async function ensureAudioContextRunning(): Promise<AudioContext | null> {
+	const ctx = state.audioContext ??= new window.AudioContext();
+	if (ctx.state !== 'running') {
+		await Promise.race([
+			ctx.resume().catch(() => undefined),
+			new Promise(resolve => window.setTimeout(resolve, RESUME_TIMEOUT_MS)),
+		]);
+	}
+	if (ctx.state !== 'running') {
+		armResumeOnUserGesture();
+		return null;
+	}
+	return ctx;
+}
+
+// 自動再生ポリシーで AudioContext がブロックされている場合の復旧経路。
+// 次のクリック / キー入力 (= user activation) で resume() し、キューに残っている
+// 読み上げを再開する。リスナーの多重登録は state のフラグで防ぐ
+function armResumeOnUserGesture() {
+	if (state.resumeRecoveryArmed) return;
+	state.resumeRecoveryArmed = true;
+	console.warn('[TTS] 自動再生ポリシーにより音声出力がブロックされています。ページ内を一度クリックすると読み上げを再開します');
+	const onGesture = () => {
+		window.removeEventListener('pointerdown', onGesture, { capture: true });
+		window.removeEventListener('keydown', onGesture, { capture: true });
+		state.resumeRecoveryArmed = false;
+		const ctx = state.audioContext;
+		if (ctx == null) return;
+		void ctx.resume().then(() => {
+			if (state.queue.length > 0) startProcessing();
+		}).catch(() => undefined);
+	};
+	window.addEventListener('pointerdown', onGesture, { capture: true });
+	window.addEventListener('keydown', onGesture, { capture: true });
+}
+
+/**
+ * 1件を合成して再生し、再生が完了するまで待つ。
+ * @returns false = AudioContext がブロックされていて再生に入れなかった (呼び出し側で再試行)
+ */
+async function synthesizeAndPlay(text: string): Promise<boolean> {
 	const settings = twitchTtsSettings.value;
-	if (settings.styleId == null) return;
+	if (settings.styleId == null) return true; // 話者未設定: 読み捨てる
+	const ctx = await ensureAudioContextRunning();
+	if (ctx == null) return false;
+
 	const base = settings.engineUrl.replace(/\/$/, '');
 	const speaker = encodeURIComponent(String(settings.styleId));
 
-	// この1件の合成〜再生サイクルで共有する AbortController。
-	// stopTtsSpeech() で中断される
+	// stopTtsSpeech() からの中断用。エンジンのハング対策のタイムアウトと併用する
 	const ac = new AbortController();
 	state.currentAbortController = ac;
 	try {
+		const signal = AbortSignal.any([ac.signal, AbortSignal.timeout(SYNTHESIS_TIMEOUT_MS)]);
 		const queryRes = await window.fetch(`${base}/audio_query?speaker=${speaker}&text=${encodeURIComponent(text)}`, {
 			method: 'POST',
-			signal: ac.signal,
+			signal,
 		});
 		if (!queryRes.ok) throw new Error(`/audio_query returned ${queryRes.status}`);
 		const audioQuery = await queryRes.json();
@@ -349,70 +438,77 @@ async function synthesizeAndPlay(text: string): Promise<void> {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(audioQuery),
-			signal: ac.signal,
+			signal,
 		});
 		if (!synthRes.ok) throw new Error(`/synthesis returned ${synthRes.status}`);
-		const wav = await synthRes.blob();
+		const wavBytes = await synthRes.arrayBuffer();
 
-		const url = URL.createObjectURL(wav);
-		try {
-			// 再生そのものを Web Lock で排他する (同一ブラウザ内での同時再生を、経路を問わず
-			// 物理的に不可能にする最終保証。ページ内キュー・タブ間オーナー排他をすり抜ける
-			// 未知の経路があってもここで直列化される)
-			const playOnce = () => new Promise<void>((resolve, reject) => {
-				// 万一前の音声が残っていても重ねない (キュー直列化に対する最後の防波堤)。
-				// currentAudio を外してから pause する (stopTtsSpeech と同じ明示停止の作法)
-				if (state.currentAudio != null) {
-					const prev = state.currentAudio;
-					state.currentAudio = null;
-					prev.pause();
-				}
-				const audio = new window.Audio(url);
-				state.currentAudio = audio;
+		// 合成完了と stop の間の隙間: 中断済みなら再生せず完了扱いで抜ける
+		if (ac.signal.aborted) return true;
+		// resume 判定後にサスペンドへ戻る事は通常無いが、万一の場合は再試行に回す
+		if (ctx.state !== 'running') return false;
 
-				// 完了判定は一度きり (settled) に束ね、イベントの重複・順序ゆれの影響を受けないようにする
-				let settled = false;
-				let watchdogTimer: number | null = null;
-				const settle = (err?: Error) => {
-					if (settled) return;
-					settled = true;
-					if (watchdogTimer != null) window.clearTimeout(watchdogTimer);
-					if (err != null) reject(err);
-					else resolve();
-				};
+		// WAV は速度 (speedScale) 適用済みで合成されるため、デコード結果の duration が
+		// そのまま実再生時間になる (playbackRate は常に 1)
+		const buffer = await ctx.decodeAudioData(wavBytes);
+		if (ac.signal.aborted) return true;
 
-				audio.onended = () => settle();
-				audio.onerror = () => settle(new Error('audio playback failed'));
-				// 'pause' は再生完了の証拠にならない (完了前に発火するケースがあり、これを完了扱いに
-				// すると音声が鳴っている最中に次の読み上げが始まり二重再生になる)。
-				// 「再生し終わった (ended)」または「明示停止 (stopTtsSpeech が currentAudio を
-				// 外してから pause する)」の場合のみ先へ進む
-				audio.onpause = () => {
-					if (audio.ended || state.currentAudio !== audio) settle();
-				};
-				// 最終保証のウォッチドッグ: メタデータから実際の音声長を取り、
-				// 「音声長 + 3秒」まで ended が来なければ完了扱いにして先へ進む
-				// (イベント取り逃しでキューが永久に止まるのを防ぐ。音声長より先に
-				// 次へ進むことは無いため、二重再生はこの経路からは起こらない)
-				audio.onloadedmetadata = () => {
-					if (settled || !Number.isFinite(audio.duration)) return;
-					watchdogTimer = window.setTimeout(() => settle(), audio.duration * 1000 + 3000);
-				};
-				audio.play().catch(err => settle(err instanceof Error ? err : new Error(String(err))));
-			});
-
-			console.debug(`[TTS] play start: "${text.slice(0, 24)}" (queue=${state.queue.length})`);
-			if ('locks' in navigator) {
-				await navigator.locks.request('twitchTtsPlaybackAudio', playOnce);
-			} else {
-				await playOnce();
-			}
-			console.debug(`[TTS] play end: "${text.slice(0, 24)}"`);
-		} finally {
-			state.currentAudio = null;
-			URL.revokeObjectURL(url);
-		}
+		// 検証用ログは既定のコンソールフィルタで見えるよう info で出す
+		// (debug はブラウザ既定で非表示のため実地検証時に確認できない)
+		console.info(`[TTS] play start (${buffer.duration.toFixed(1)}s, queue=${state.queue.length}): "${text.slice(0, 24)}"`);
+		await playBuffer(ctx, buffer);
+		console.info(`[TTS] play end: "${text.slice(0, 24)}"`);
+		return true;
 	} finally {
 		if (state.currentAbortController === ac) state.currentAbortController = null;
 	}
+}
+
+/**
+ * デコード済みバッファを1件再生し、再生完了 (onended または音声長+猶予の
+ * タイマーの早い方、1回だけ) まで待つ。この Promise は reject しない:
+ * どんな経路でも必ず解決してキューを先へ進める
+ */
+function playBuffer(ctx: AudioContext, buffer: AudioBuffer): Promise<void> {
+	return new Promise<void>(resolve => {
+		// 単一ループ構造上ここで前の音声が残っていることは無いはず。もし残っていたら
+		// 直列化の前提が破れている証拠なので、ログを残した上で止めてから鳴らす
+		if (state.currentSource != null) {
+			console.warn('[TTS] BUG: previous source still active at play start; force-stopping');
+			const prev = state.currentSource;
+			state.currentSource = null;
+			try {
+				prev.stop();
+			} catch {
+				// 停止済みなら無視
+			}
+		}
+
+		const source = ctx.createBufferSource();
+		source.buffer = buffer;
+		source.connect(ctx.destination);
+		state.currentSource = source;
+
+		let settled = false;
+		let watchdogTimer: number | null = null;
+		const settle = () => {
+			if (settled) return;
+			settled = true;
+			if (watchdogTimer != null) window.clearTimeout(watchdogTimer);
+			if (state.currentSource === source) state.currentSource = null;
+			try {
+				source.disconnect();
+			} catch {
+				// 切断済みなら無視
+			}
+			resolve();
+		};
+
+		// AudioBufferSourceNode の onended は自然終了・stop() のどちらでも発火する。
+		// 万一イベントを取り逃してもタイマーが「音声長 + 猶予」で完了扱いにする
+		// (音声長より前に次へ進む経路は無いので、この二重化から二重再生は生じない)
+		source.onended = () => settle();
+		watchdogTimer = window.setTimeout(settle, buffer.duration * 1000 + PLAYBACK_END_GRACE_MS);
+		source.start();
+	});
 }
