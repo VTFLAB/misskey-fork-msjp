@@ -7,6 +7,7 @@ import * as fs from 'node:fs';
 import { Injectable } from '@nestjs/common';
 import { auth as googleAuth, youtube, youtube_v3 } from '@googleapis/youtube';
 import type { MiUser } from '@/models/User.js';
+import { retryOnTransientGoogleApiError } from '@/misc/google-api-error.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { GoogleOAuthService } from './GoogleOAuthService.js';
@@ -101,7 +102,12 @@ export class GoogleYoutubeService {
 		const youtubeClient = await this.buildClient(userId);
 
 		try {
-			const created = await youtubeClient.videos.insert({
+			// Google 側の一時エラー (408/429/5xx 等) はリトライする。消費済み ReadStream は再利用
+			// できないため、試行ごとにストリームを作り直す (クロージャ内で createReadStream する理由)。
+			// クォータ超過 (403) は transient 判定されず即座に throw され、下の catch で変換される。
+			// 理論上は「Google 側では insert 完了済みなのに一時エラー応答を受けた」場合に動画が
+			// 重複しうるが、アーカイブ喪失より許容できるトレードオフとする
+			const created = await retryOnTransientGoogleApiError(() => youtubeClient.videos.insert({
 				part: ['snippet', 'status'],
 				requestBody: {
 					snippet: {
@@ -118,7 +124,7 @@ export class GoogleYoutubeService {
 				media: {
 					body: fs.createReadStream(filePath),
 				},
-			});
+			}), { label: `youtube upload (user=${userId})`, logger: this.logger });
 
 			const videoId = created.data.id;
 			if (videoId == null) {
