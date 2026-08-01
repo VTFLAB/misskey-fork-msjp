@@ -12,6 +12,7 @@ import { DI } from '@/di-symbols.js';
 import type { LiveChannelsRepository, TwitchStreamsRepository } from '@/models/_.js';
 import { GoogleDriveService } from '@/core/google/GoogleDriveService.js';
 import { GoogleYoutubeService, GoogleYoutubeQuotaExceededError } from '@/core/google/GoogleYoutubeService.js';
+import { isTransientGoogleApiError, summarizeGoogleApiError } from '@/misc/google-api-error.js';
 import { LiveRecordingService } from '@/core/live/LiveRecordingService.js';
 import { GoogleLoggerService } from '@/core/google/GoogleLoggerService.js';
 import { bindThis } from '@/decorators.js';
@@ -104,7 +105,13 @@ export class YoutubeUploadRetryProcessorService {
 				this.logger.info(`quota still exceeded, will retry next hour: streamId=${stream.id}`);
 				return;
 			}
-			const message = (err instanceof Error ? err.message : String(err)).slice(0, ERROR_MESSAGE_MAX_LENGTH);
+			// 一時的なエラー (Google 側の 408/5xx やネットワーク断) では恒久 failed にせず
+			// 'queued' を維持し、1時間後の次回実行に再試行を委ねる (Drive に退避コピーは残っている)
+			if (isTransientGoogleApiError(err)) {
+				this.logger.warn(`transient error, will retry next hour: streamId=${stream.id}: ${summarizeGoogleApiError(err)}`);
+				return;
+			}
+			const message = summarizeGoogleApiError(err, ERROR_MESSAGE_MAX_LENGTH);
 			this.logger.error(`retry upload failed: streamId=${stream.id}: ${message}`);
 			await this.twitchStreamsRepository.update(stream.id, {
 				youtubeUploadStatus: 'failed',

@@ -16,6 +16,7 @@ import type { MiUser } from '@/models/User.js';
 import { GoogleOAuthService } from '@/core/google/GoogleOAuthService.js';
 import { GoogleDriveService } from '@/core/google/GoogleDriveService.js';
 import { GoogleYoutubeService, GoogleYoutubeQuotaExceededError } from '@/core/google/GoogleYoutubeService.js';
+import { summarizeGoogleApiError } from '@/misc/google-api-error.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { LiveLoggerService } from './LiveLoggerService.js';
@@ -45,6 +46,8 @@ const RETENTION_DEFAULT_ERROR = 'アーカイブの保存先(Drive/YouTube)を�
  * (tryYoutubeThenFallback 参照): none → uploading → ready / failed / queued
  * (queued はクォータ超過で Drive へ一時退避済み、YoutubeUploadRetryProcessorService の
  * 1時間ごとの自動リトライ対象。ユーザーが明示キャンセルすると cancelled)。
+ * クォータ超過以外の失敗 (権限なし・一時エラー等) でも Drive 連携があれば必ず Drive への
+ * フォールバック保存を試みる (youtubeUploadStatus='failed' のまま、アーカイブ自体は Drive で存続)。
  * skipped は録画時間が YouTube の12時間上限以上のため YouTube へ送らず Drive-only とした
  * (bsky-fork 独自、YouTube 12時間アーカイブ上限対策)。
  */
@@ -185,7 +188,7 @@ export class LiveRecordingService {
 				await this.retainForRecovery(streamId, mp4Path);
 			}
 		} catch (err) {
-			const message = (err instanceof Error ? err.message : String(err)).slice(0, ERROR_MESSAGE_MAX_LENGTH);
+			const message = summarizeGoogleApiError(err, ERROR_MESSAGE_MAX_LENGTH);
 			this.logger.error(`recording failed: streamId=${streamId}: ${message}`);
 			// 例外発生時も recordingError を先に設定し、その後 retention で上書きしないよう guard する。
 			// .ts は常に削除 (容量保護)。.mp4 は retainForRecovery で7日間保持する。
@@ -347,7 +350,7 @@ export class LiveRecordingService {
 			});
 			this.logger.info(`recording archived: streamId=${streamId} fileId=${uploaded.fileId}`);
 		} catch (err) {
-			const message = (err instanceof Error ? err.message : String(err)).slice(0, ERROR_MESSAGE_MAX_LENGTH);
+			const message = summarizeGoogleApiError(err, ERROR_MESSAGE_MAX_LENGTH);
 			this.logger.error(`drive upload failed: streamId=${streamId}: ${message}`);
 			await this.twitchStreamsRepository.update(streamId, {
 				recordingStatus: 'failed',
@@ -357,24 +360,21 @@ export class LiveRecordingService {
 	}
 
 	/**
-	 * YouTube 優先アップロード + クォータ超過時の Drive フォールバック (bsky-fork 独自)。
+	 * YouTube 優先アップロード + Drive フォールバック (bsky-fork 独自)。
 	 * liveChannel.youtubeUploadEnabled が有効なケースの唯一の入口 (processRecording から呼ばれる)。
 	 *
-	 * 1. youtube.upload スコープの許可を確認 (未許可なら failed、Drive未使用のままスピナー固着を防ぐため
-	 *    recordingStatus は 'ready' に進める)
-	 * 2. YouTube へのアップロードを試行
-	 *    - 成功: youtubeUploadStatus='ready' + recordingStatus='ready'
-	 *    - クォータ超過 (GoogleYoutubeQuotaExceededError): Drive へのフォールバックを試みる
-	 *      - Drive 未連携 / フォールバック自体が失敗: youtubeUploadStatus='failed' + recordingStatus='failed'
-	 *      - フォールバック成功: youtubeUploadStatus='queued' (1時間ごとの YoutubeUploadRetryProcessorService
-	 *        がこの状態を拾って再試行する) + recordingStatus='ready' (Drive側で一時視聴可能なため)
-	 *    - その他のエラー: youtubeUploadStatus='failed' + recordingStatus='ready'
+	 * YouTube 側がどの種別で失敗しても (権限なし・クォータ超過・一時エラーのリトライ枯渇等)、
+	 * Drive 連携があれば必ず Drive へのフォールバック保存を試みる。
+	 * 従来はクォータ超過のみフォールバックし、それ以外の失敗では Drive 連携済みでも永続コピー
+	 * ゼロのまま retention 行きになっていた (2026-08-01 に Google の一時 408 で実際に発生)。
 	 *
-	 * 注意: processRecording 末尾の retention-aware cleanup は、永続保存先 (Drive/YouTube) が
-	 * 1つも無い場合、上記で歴史的に recordingStatus='ready' としてきた経路 (権限エラーやその他の
-	 * YouTube 失敗で Drive も無いケース等) を含めて recordingStatus='failed' で上書きし、mp4 を7日間
-	 * 保持する (retainForRecovery 参照)。つまりこのメソッドが 'ready' を設定しても、後段で
-	 * durable copy が無ければ最終的には 'failed' になる。
+	 * - YouTube 成功: youtubeUploadStatus='ready' + recordingStatus='ready'
+	 * - クォータ超過: Drive 退避成功なら youtubeUploadStatus='queued' (1時間ごとの
+	 *   YoutubeUploadRetryProcessorService が再試行)、Drive も失敗なら 'failed'
+	 * - その他の失敗: youtubeUploadStatus='failed' (自動再試行なし)。Drive 保存が成功すれば
+	 *   アーカイブ自体は recordingStatus='ready' で存続する
+	 * - Drive 未連携 / Drive も失敗: recordingStatus='failed' → processRecording 末尾の
+	 *   retention-aware cleanup が mp4 を7日間保持する (retainForRecovery 参照)
 	 */
 	@bindThis
 	private async tryYoutubeThenFallback(
@@ -386,76 +386,89 @@ export class LiveRecordingService {
 	): Promise<void> {
 		await this.twitchStreamsRepository.update(streamId, { youtubeUploadStatus: 'uploading' });
 
+		// クォータ超過だけは Drive 退避成功時に 'queued' (1時間ごとの自動リトライ対象) へ進める。
+		// それ以外の失敗は 'failed' のまま Drive フォールバックのみ行う
+		let quotaExceeded = false;
+
 		if (!await this.googleYoutubeService.isAuthorizedForUpload(stream.userId)) {
 			await this.twitchStreamsRepository.update(streamId, {
 				youtubeUploadStatus: 'failed',
 				youtubeUploadError: 'YouTubeアップロード権限がありません。設定画面から再連携してください。',
-				recordingStatus: 'ready',
 			});
-			return;
-		}
+			this.logger.warn(`youtube not authorized, falling back to Drive: streamId=${streamId}`);
+		} else {
+			const title = this.buildYoutubeTitle(stream, liveChannel);
+			const description = this.buildYoutubeDescription(stream, liveChannel);
 
-		const title = this.buildYoutubeTitle(stream, liveChannel);
-		const description = this.buildYoutubeDescription(stream, liveChannel);
+			try {
+				const result = await this.googleYoutubeService.uploadVideo(stream.userId, mp4Path, {
+					title,
+					description,
+					privacyStatus: liveChannel.youtubePrivacyStatus,
+				});
 
-		try {
-			const result = await this.googleYoutubeService.uploadVideo(stream.userId, mp4Path, {
-				title,
-				description,
-				privacyStatus: liveChannel.youtubePrivacyStatus,
-			});
-
-			await this.twitchStreamsRepository.update(streamId, {
-				youtubeUploadStatus: 'ready',
-				youtubeVideoId: result.videoId,
-				youtubeThumbnailUrl: result.thumbnailUrl,
-				recordingStatus: 'ready',
-			});
-			this.logger.info(`youtube upload complete: streamId=${streamId} videoId=${result.videoId}`);
-			return;
-		} catch (err) {
-			if (!(err instanceof GoogleYoutubeQuotaExceededError)) {
-				const message = (err instanceof Error ? err.message : String(err)).slice(0, ERROR_MESSAGE_MAX_LENGTH);
-				this.logger.error(`youtube upload failed: streamId=${streamId}: ${message}`);
 				await this.twitchStreamsRepository.update(streamId, {
-					youtubeUploadStatus: 'failed',
-					youtubeUploadError: message,
+					youtubeUploadStatus: 'ready',
+					youtubeVideoId: result.videoId,
+					youtubeThumbnailUrl: result.thumbnailUrl,
 					recordingStatus: 'ready',
 				});
+				this.logger.info(`youtube upload complete: streamId=${streamId} videoId=${result.videoId}`);
 				return;
+			} catch (err) {
+				if (err instanceof GoogleYoutubeQuotaExceededError) {
+					quotaExceeded = true;
+					this.logger.warn(`youtube quota exceeded, falling back to Drive: streamId=${streamId}`);
+				} else {
+					const message = summarizeGoogleApiError(err, ERROR_MESSAGE_MAX_LENGTH);
+					this.logger.error(`youtube upload failed, falling back to Drive: streamId=${streamId}: ${message}`);
+					await this.twitchStreamsRepository.update(streamId, {
+						youtubeUploadStatus: 'failed',
+						youtubeUploadError: message,
+					});
+				}
 			}
-			this.logger.warn(`youtube quota exceeded, falling back to Drive: streamId=${streamId}`);
 		}
 
+		// Drive フォールバック (YouTube 側の失敗種別を問わず必ず試みる)
 		const account = await this.googleOAuthService.getLinkedAccount(stream.userId);
 		if (account == null) {
-			await this.twitchStreamsRepository.update(streamId, {
-				youtubeUploadStatus: 'failed',
-				youtubeUploadError: 'YouTubeのアップロード上限に達し、Driveへの一時保存にも失敗しました。',
+			const patch: Partial<MiTwitchStream> = {
 				recordingStatus: 'failed',
 				recordingError: 'Google Drive未連携のためフォールバック保存できませんでした。',
-			});
+			};
+			if (quotaExceeded) {
+				patch.youtubeUploadStatus = 'failed';
+				patch.youtubeUploadError = 'YouTubeのアップロード上限に達し、Driveへの一時保存にも失敗しました。';
+			}
+			await this.twitchStreamsRepository.update(streamId, patch);
 			return;
 		}
 
 		try {
 			const uploaded = await this.googleDriveService.uploadRecording(stream.userId, mp4Path, fileName);
-			await this.twitchStreamsRepository.update(streamId, {
-				youtubeUploadStatus: 'queued',
+			const patch: Partial<MiTwitchStream> = {
 				recordingStatus: 'ready',
 				recordingGoogleDriveFileId: uploaded.fileId,
 				recordingGoogleDriveThumbnailLink: uploaded.thumbnailLink,
-			});
-			this.logger.info(`youtube upload queued (drive fallback): streamId=${streamId} fileId=${uploaded.fileId}`);
+			};
+			if (quotaExceeded) {
+				patch.youtubeUploadStatus = 'queued';
+			}
+			await this.twitchStreamsRepository.update(streamId, patch);
+			this.logger.info(`drive fallback upload complete: streamId=${streamId} fileId=${uploaded.fileId}${quotaExceeded ? ' (youtube queued)' : ''}`);
 		} catch (err) {
-			const message = (err instanceof Error ? err.message : String(err)).slice(0, ERROR_MESSAGE_MAX_LENGTH);
+			const message = summarizeGoogleApiError(err, ERROR_MESSAGE_MAX_LENGTH);
 			this.logger.error(`drive fallback upload failed: streamId=${streamId}: ${message}`);
-			await this.twitchStreamsRepository.update(streamId, {
-				youtubeUploadStatus: 'failed',
-				youtubeUploadError: 'YouTubeのアップロード上限に達し、Driveへの一時保存にも失敗しました。',
+			const patch: Partial<MiTwitchStream> = {
 				recordingStatus: 'failed',
 				recordingError: message,
-			});
+			};
+			if (quotaExceeded) {
+				patch.youtubeUploadStatus = 'failed';
+				patch.youtubeUploadError = 'YouTubeのアップロード上限に達し、Driveへの一時保存にも失敗しました。';
+			}
+			await this.twitchStreamsRepository.update(streamId, patch);
 		}
 	}
 
@@ -563,7 +576,7 @@ export class LiveRecordingService {
 			this.logger.info(`recording retry-uploaded from retention: streamId=${streamId} fileId=${uploaded.fileId}`);
 			return uploaded;
 		} catch (err) {
-			const message = (err instanceof Error ? err.message : String(err)).slice(0, ERROR_MESSAGE_MAX_LENGTH);
+			const message = summarizeGoogleApiError(err, ERROR_MESSAGE_MAX_LENGTH);
 			this.logger.error(`retry drive upload from retention failed: streamId=${streamId}: ${message}`);
 			// retention を延長して再度の再試行を許す。ローカル mp4 はそのまま残す。
 			await this.twitchStreamsRepository.update(streamId, {
