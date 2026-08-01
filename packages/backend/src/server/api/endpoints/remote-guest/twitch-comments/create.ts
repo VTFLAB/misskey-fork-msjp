@@ -90,9 +90,13 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const guest = await this.remoteGuestSessionService.validate(ps.guestToken);
 			if (guest == null) throw new ApiError(meta.errors.guestSessionInvalid);
 
-			const stream = await this.twitchStreamsRepository.findOneBy({ id: ps.streamId });
+			let stream = await this.twitchStreamsRepository.findOneBy({ id: ps.streamId });
 			if (stream == null) throw new ApiError(meta.errors.noSuchStream);
 			if (!stream.isLive) throw new ApiError(meta.errors.streamEnded);
+
+			// Twitch 同時転送中に Twitch 中継セッション宛てで投稿された場合は本体 (OME) セッションへ
+			// 付け替える (twitch/streams/comments/create と同じ扱い)
+			stream = await this.twitchChatRelayService.resolveCanonicalChatStream(stream);
 
 			if (await this.twitchStreamBlockService.isBlockedRemoteGuest(stream.userId, guest.username, guest.host)) {
 				throw new ApiError(meta.errors.blocked);

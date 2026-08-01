@@ -107,12 +107,16 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private queueService: QueueService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
-			const stream = await this.twitchStreamsRepository.findOneBy({ id: ps.streamId });
+			let stream = await this.twitchStreamsRepository.findOneBy({ id: ps.streamId });
 			if (stream == null) throw new ApiError(meta.errors.noSuchStream);
 			// プレビュー行 (bsky-fork 独自) は配信者本人のみ、isLive でなくても投稿できる
 			// (配信開始前のチャット動作確認が目的)。本人以外は従来どおり streamEnded
 			const isOwnerPreview = stream.isPreview && stream.userId === me.id;
 			if (!stream.isLive && !isOwnerPreview) throw new ApiError(meta.errors.streamEnded);
+
+			// Twitch 同時転送中に Twitch 中継セッション宛てで投稿された場合は本体 (OME) セッションへ
+			// 付け替える (どのプレイヤーを見ていてもチャットは同じ部屋に届く)
+			stream = await this.twitchChatRelayService.resolveCanonicalChatStream(stream);
 
 			if (await this.twitchStreamBlockService.isBlockedMisskeyUser(stream.userId, me.id)) {
 				throw new ApiError(meta.errors.blocked);
