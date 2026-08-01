@@ -38157,6 +38157,8 @@ export interface operations {
                     'application/json': {
                         twitchLogin: string;
                         twitchDisplayName: string;
+                        /** Format: misskey:id */
+                        chatStreamId: string | null;
                         stream: {
                             /** Format: misskey:id */
                             id: string;

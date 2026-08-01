@@ -96,7 +96,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 			</div>
 			<div :class="$style.chat">
-				<XChat v-if="activeSession != null" :key="activeSession.streamId" :streamId="activeSession.streamId" :returnTo="`/live/${props.acct}`" :canModerate="isOwner" @streamEnded="onStreamEnded"/>
+				<XChat v-if="chatSession != null" :key="chatSession.streamId" :streamId="chatSession.streamId" :returnTo="`/live/${props.acct}`" :canModerate="isOwner" @streamEnded="onStreamEnded"/>
 				<XChat v-else-if="isPreview && streamInfo != null" :key="`preview-${streamInfo.id}`" :streamId="streamInfo.id" :returnTo="`/live/${props.acct}`" :canModerate="isOwner" @streamEnded="onStreamEnded"/>
 			</div>
 		</div>
@@ -209,6 +209,18 @@ watch(liveSessions, (sessions) => {
 }, { immediate: true });
 
 const activeSession = computed(() => liveSessions.value.find(s => s.source === activeSource.value) ?? liveSessions.value[0] ?? null);
+
+// チャットを紐づけるセッション。Twitch 同時転送中はチャットが OME セッションへ合流する
+// (サーバーが chatStreamId で正規セッションを指す) ため、プレイヤーの表示切替で XChat を
+// 張り替えず常に同じ部屋へ接続する (切替のたびに履歴が消え、コメントが「別部屋」に落ちる
+// 不具合の修正)。同時転送でない場合 (chatStreamId=null) は従来どおり表示中セッションに紐づける
+const chatSession = computed(() => {
+	const chatStreamId = twitchInfo.value?.chatStreamId;
+	if (chatStreamId != null) {
+		return liveSessions.value.find(s => s.streamId === chatStreamId) ?? activeSession.value;
+	}
+	return activeSession.value;
+});
 
 const showSourceToggle = computed(() => {
 	const sources = new Set(liveSessions.value.map(s => s.source));
