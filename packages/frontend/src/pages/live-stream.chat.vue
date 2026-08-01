@@ -322,18 +322,18 @@ function enqueueCommentTts(comment: Comment) {
 	// 日本語コメント、および翻訳が来ることの無いコメント (英字を含まない「8888」や
 	// w連発 = わらわら等) は訳文を待たずに即読み上げる
 	if (!shouldAwaitTranslationForTts(original)) {
-		enqueueTtsSpeech(original);
+		enqueueTtsSpeech(original, comment.id);
 		return;
 	}
 	// 履歴・翻訳キャッシュヒットで到着時点から訳文を持っている場合は即読み上げ
 	if (comment.translatedText != null) {
-		enqueueTtsSpeech(comment.translatedText);
+		enqueueTtsSpeech(comment.translatedText, comment.id);
 		return;
 	}
 	const timer = window.setTimeout(() => {
 		ttsPendingTranslation.delete(comment.id);
 		// 待機中に読み上げが無効化された場合は発話しない (遅延発火対策)
-		if (twitchTtsSettings.value.enabled) enqueueTtsSpeech(original);
+		if (twitchTtsSettings.value.enabled) enqueueTtsSpeech(original, comment.id);
 	}, TTS_TRANSLATION_WAIT_MS);
 	ttsPendingTranslation.set(comment.id, timer);
 }
@@ -370,7 +370,7 @@ function onCommentTranslated(payload: { id: string; translatedText: string; tran
 	if (timer != null) {
 		window.clearTimeout(timer);
 		ttsPendingTranslation.delete(payload.id);
-		if (twitchTtsSettings.value.enabled) enqueueTtsSpeech(payload.translatedText);
+		if (twitchTtsSettings.value.enabled) enqueueTtsSpeech(payload.translatedText, payload.id);
 	}
 	const comment = comments.value.find(c => c.id === payload.id);
 	if (comment == null) return;
