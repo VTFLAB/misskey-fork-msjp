@@ -150,7 +150,7 @@ import MkMfmToolbar from '@/components/MkMfmToolbar.vue';
 import XRemoteGuestLogin from '@/pages/live-stream.remote-guest-login.vue';
 import { prefer } from '@/preferences.js';
 import { remoteGuestSession } from '@/composables/use-remote-guest-session.js';
-import { twitchTtsSettings, enqueueTtsSpeech, stopTtsSpeech, containsJapanese } from '@/composables/use-twitch-tts.js';
+import { twitchTtsSettings, enqueueTtsSpeech, stopTtsSpeech, shouldAwaitTranslationForTts } from '@/composables/use-twitch-tts.js';
 import { twitchTranslationDisplaySettings } from '@/composables/use-twitch-translation-display.js';
 
 type Comment = Misskey.Endpoints['twitch/streams/comments']['res'][number];
@@ -319,7 +319,9 @@ const ttsPendingTranslation = new Map<string, number>();
 
 function enqueueCommentTts(comment: Comment) {
 	const original = readableCommentText(comment);
-	if (containsJapanese(original)) {
+	// 日本語コメント、および翻訳が来ることの無いコメント (英字を含まない「8888」や
+	// w連発 = わらわら等) は訳文を待たずに即読み上げる
+	if (!shouldAwaitTranslationForTts(original)) {
 		enqueueTtsSpeech(original);
 		return;
 	}
