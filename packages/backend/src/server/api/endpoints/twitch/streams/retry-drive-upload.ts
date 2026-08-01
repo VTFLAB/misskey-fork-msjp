@@ -16,8 +16,10 @@ export const meta = {
 	requireCredential: true,
 	kind: 'write:account',
 
-	description: 'retention 期間中の録画 mp4 を Google Drive へ再アップロードする (配信者本人のみ、bsky-fork 独自、YouTube 12時間アーカイブ上限対策)。' +
-		'永続保存先 (Drive/YouTube) が無くローカルに保持されている録画に対して、配信者本人が手動で保存を再試行する。',
+	description: 'retention 期間中の録画 mp4 の Google Drive 再アップロードを開始する (配信者本人のみ、bsky-fork 独自、YouTube 12時間アーカイブ上限対策)。' +
+		'前提チェックの完了後すぐ応答し、アップロード本体はサーバー側でバックグラウンド継続する ' +
+		'(大容量ファイルの転送完了を同期で待つとリバースプロキシのタイムアウトにかかるため)。' +
+		'進捗と結果は recordingStatus (uploading → processing/ready | failed) で追跡する。',
 
 	limit: {
 		duration: 60 * 1000,
@@ -90,14 +92,16 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				throw new ApiError(meta.errors.notRetained);
 			}
 
+			// 前提チェック (ファイル実在・Drive 連携・二重実行) までを同期で行い、
+			// アップロード本体はバックグラウンドで継続される (メソッドの doc comment 参照)
 			try {
-				await this.liveRecordingService.retryDriveUploadFromRetention(stream.id, me.id);
+				await this.liveRecordingService.startRetryDriveUploadFromRetention(stream.id, me.id);
 			} catch (err) {
 				const message = err instanceof Error ? err.message : String(err);
 				throw new ApiError(meta.errors.driveFailed, { reason: message });
 			}
 
-			// 再読込して最新状態を返す (retryDriveUploadFromRetention が update した後)。
+			// 再読込して開始直後の状態 (recordingStatus='uploading') を返す
 			const refreshed = await this.twitchStreamsRepository.findOneBy({ id: ps.streamId });
 			if (refreshed == null) {
 				// 更新直後の再読込で null になることは実質起きないが、型ガードのため。

@@ -6,6 +6,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { Inject, Injectable } from '@nestjs/common';
+import { Not } from 'typeorm';
 import FFmpeg from 'fluent-ffmpeg';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
@@ -522,20 +523,26 @@ export class LiveRecordingService {
 	}
 
 	/**
-	 * retention 期間中の録画 mp4 を Google Drive へ再アップロードする (bsky-fork 独自、YouTube 12時間
+	 * retention 期間中の録画 mp4 の Google Drive 再アップロードを開始する (bsky-fork 独自、YouTube 12時間
 	 * アーカイブ上限対策の owner action)。「永続保存先が無いまま failed になったがローカル mp4 はまだ
 	 * 残っている」状態 (recordingRetentionExpiresAt != null && recordingFilePath != null) から、
-	 * 配信者本人が手動で Drive への保存を再試行するために呼ぶ。成功時は通常の uploadToDrive と同様に
-	 * retention を解除 (recordingRetentionExpiresAt/Path/Size/Error をクリア) し、失敗時は retention を
-	 * 7日延長して再度の再試行を許す。uploadToDrive と異なり Google Drive 未連携の場合は呼び出し元で
-	 * 事前チェックするのではなく、ここで Error を throw する (このメソッドは endpoint からのみ呼ばれ、
-	 * endpoint が ApiError に変換するため)。
+	 * 配信者本人が手動で Drive への保存を再試行するために呼ぶ。
+	 *
+	 * 前提チェック (retention 対象・ファイル実在・Drive 連携) だけを同期で行い、アップロード本体は
+	 * バックグラウンドで継続する。大容量ファイルの転送は数分かかり、API 応答を完了まで同期で待つと
+	 * リバースプロキシが先にタイムアウトして HTML エラーページを返し、サーバー側では成功しているのに
+	 * クライアントには失敗と誤表示される (2026-08-01 実障害)。進捗と結果は recordingStatus
+	 * (uploading → processing/ready | failed) をポーリングして追跡する。
+	 *
+	 * 成功時は通常の uploadToDrive と同様に retention を解除 (recordingRetentionExpiresAt/Path/Size/Error
+	 * をクリア) し、失敗時は retention を7日延長して再度の再試行を許す。前提チェックの失敗は Error を
+	 * throw する (このメソッドは endpoint からのみ呼ばれ、endpoint が ApiError に変換するため)。
 	 */
 	@bindThis
-	public async retryDriveUploadFromRetention(
+	public async startRetryDriveUploadFromRetention(
 		streamId: MiTwitchStream['id'],
 		userId: MiUser['id'],
-	): Promise<{ fileId: string; thumbnailLink: string | null }> {
+	): Promise<void> {
 		const stream = await this.twitchStreamsRepository.findOneBy({ id: streamId });
 		if (stream == null) throw new Error('stream not found');
 		if (stream.recordingFilePath == null || stream.recordingRetentionExpiresAt == null) {
@@ -560,10 +567,34 @@ export class LiveRecordingService {
 
 		const fileName = this.buildFileName(stream);
 
-		await this.twitchStreamsRepository.update(streamId, { recordingStatus: 'uploading' });
+		// 'uploading' への遷移をアトミックな条件付き UPDATE で行い、二重実行 (連打・多重タブ) を防ぐ
+		const claimed = await this.twitchStreamsRepository.update(
+			{ id: streamId, recordingStatus: Not('uploading') },
+			{ recordingStatus: 'uploading' },
+		);
+		if (claimed.affected === 0) {
+			throw new Error('re-upload already in progress');
+		}
 
+		this.runRetryDriveUpload(streamId, userId, stream.recordingFilePath, fileName).catch(err => {
+			// runRetryDriveUpload 内で処理しきれなかった想定外エラーの二重防御
+			this.logger.error(`retry drive upload failed unexpectedly (streamId=${streamId}): ${err instanceof Error ? err.message : err}`);
+		});
+	}
+
+	/**
+	 * startRetryDriveUploadFromRetention のバックグラウンド継続部。結果は DB へのみ反映する
+	 * (呼び出し元の HTTP 応答は既に返っている)。
+	 */
+	@bindThis
+	private async runRetryDriveUpload(
+		streamId: MiTwitchStream['id'],
+		userId: MiUser['id'],
+		filePath: string,
+		fileName: string,
+	): Promise<void> {
 		try {
-			const uploaded = await this.googleDriveService.uploadRecording(userId, stream.recordingFilePath, fileName);
+			const uploaded = await this.googleDriveService.uploadRecording(userId, filePath, fileName);
 			await this.twitchStreamsRepository.update(streamId, {
 				recordingStatus: uploaded.thumbnailLink != null ? 'ready' : 'processing',
 				recordingGoogleDriveFileId: uploaded.fileId,
@@ -574,7 +605,6 @@ export class LiveRecordingService {
 				recordingError: null,
 			});
 			this.logger.info(`recording retry-uploaded from retention: streamId=${streamId} fileId=${uploaded.fileId}`);
-			return uploaded;
 		} catch (err) {
 			const message = summarizeGoogleApiError(err, ERROR_MESSAGE_MAX_LENGTH);
 			this.logger.error(`retry drive upload from retention failed: streamId=${streamId}: ${message}`);
@@ -584,7 +614,6 @@ export class LiveRecordingService {
 				recordingError: message,
 				recordingRetentionExpiresAt: new Date(Date.now() + RETENTION_DAYS * 24 * 60 * 60 * 1000),
 			});
-			throw err;
 		}
 	}
 
