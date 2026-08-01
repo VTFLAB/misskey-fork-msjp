@@ -1,5 +1,46 @@
 # misskey-bsky-fork — 次セッションへの引き継ぎ
 
+## 🔥 最優先・未解決: コメント読み上げ (TTS) の多重再生 (2026-08-01)
+
+**課題 (ユーザー定義)**: 音声読み上げが**前の再生終了を待たずに次のコメントの読み上げを開始してしまう**。数秒〜1秒以内に複数コメントが投稿されると読み上げ音声が2重以上で同時再生される。要求仕様は「常に再生される読み上げ音声は1つ。前の読み上げが完了してから次を読む」。丸1日かけて5回修正デプロイしたが**未解決**。
+
+### 確定している事実 (証拠ベース、時系列)
+
+1. 実装は `packages/frontend/src/composables/use-twitch-tts.ts`。AivisSpeech Engine (VOICEVOX互換, `http://127.0.0.1:10101`) に `/audio_query` → `/synthesis` して WAV blob を `new Audio(URL.createObjectURL(wav))` で再生する構成 (配信者ブラウザ内で完結、サーバー非関与)
+2. **v4 診断マーカーがユーザーのコンソールに4回出力された** → チャンク分割により**モジュール複製が同一ページに4つロード**され、複製ごとに独立キュー・再生器が並走していたことが確定 (モジュールスコープのシングルトン前提が崩壊していた)
+3. v5 で全状態を `globalThis.__msjpTwitchTtsState` の単一オブジェクトへ移動 → **マーカー1回 = キュー一本化は成功**
+4. しかし v5 で **全コメントの `audio.play()` が `AbortError: The play() request was interrupted because the media was removed from the document.` で失敗** (ユーザーのコンソールで5連発を確認)。つまり**このタブからは1件も音が出ていない**にも関わらずユーザーには多重再生が聞こえている
+5. → **最有力仮説: 発話している実体が複数ある**。Web Locks は同一ブラウザプロファイル内しか効かない。OBS のシーンには「コメジェネ」browser_source が存在し (OBSログで確認済み)、OBS の CEF は別ブラウザ。視聴ページを OBS カスタムブラウザドック/別ブラウザ/別端末で開いて TTS を有効化していれば、そちらが (おそらく旧コードで) 喋っている。**ユーザーにまだ確認できていない**
+
+### 次セッションの手順 (この順で)
+
+1. **【必須・最初に】ユーザーへ確認**: 視聴ページ (/live/:acct/stream) を開いている場所を全列挙してもらう — メインブラウザのタブ数 / OBS カスタムブラウザドック / OBS ブラウザソース / 別PC・スマホ。各所で F12 コンソールに `[TTS] pipeline vN` マーカーが出るか (= そこが喋っているか)。**2箇所以上で TTS 有効なら、それが多重再生の正体** (コード側では防御不能、TTS を1箇所に限定してもらう)
+2. **AbortError の根治: HTMLAudioElement を廃止して Web Audio API へ置換** (設計済み、着手したが v5 デプロイ状態へ巻き戻し済み):
+   - `state` に `audioContext: AudioContext | null` / `currentSource: AudioBufferSourceNode | null` を追加 (currentAudio を置換)
+   - `synthesizeAndPlay`: `synthRes.arrayBuffer()` → `audioContext.decodeAudioData()` → `AudioBufferSourceNode` + `connect(destination)` + `start()`。blob URL / Audio 要素を一切使わない
+   - **再生時間は `audioBuffer.duration` でデコード時点に確定** (PCMから算出、メタデータイベント不要)
+   - **完了は `source.onended`** (バッファソースでは stop()時も自然終了時も確実に発火) **+ `duration + 1s` のタイマー**の二重化。settle は一度きり
+   - `stopTtsSpeech` は `currentSource.stop()` (InvalidStateError は握り潰し)
+   - AudioContext は suspended なら `resume()` (autoplay policy)。音量は audioQuery.volumeScale で適用済みなので GainNode 不要
+   - 診断マーカーを v6 に更新
+3. デプロイ後、ユーザーに **Ctrl+F5 → `[TTS] pipeline v6` を確認してから** 連投テストしてもらう。AbortError が消えて再生開始/終了の debug ログ (`[TTS] play start/end`) が交互に並ぶことを確認
+
+### これまでのコミット (すべてデプロイ済み、v5 = 7e52cd5e6d が現行)
+
+- `d42c81357c` キュー単一実行 (playing フラグ → processing Promise)
+- `da24a2885e` タブ間オーナーロック (Web Locks) + コメントID二度読み防止 + 以下略 + URL読み替え + スラング辞書
+- `5fdcaeeb00` 完了判定から pause 排除 + 音声長ウォッチドッグ
+- `512fbd8b75` 再生自体の Web Lock 排他 + 診断ログ (v4)
+- `7e52cd5e6d` globalThis シングルトン化 (v5) ← 現行。キュー一本化は達成、AbortError が残存
+- 関連 (解決済み): 読み上げの翻訳スキップ (`b7e57290da` detectJaEn の w連続除外、URL除外は `da24a2885e` と同時期)、翻訳表示スキップも対応済み
+
+### 環境情報
+
+- 配信者PC: Ryzen 9 7945HX / Radeon RX 6700 XT (NVENC無し) / Windows 11 / OBS 32.2.1 / ブラウザは Edge 系 (コンソールに拡張機能 content-script.js のノイズあり)
+- AivisSpeech Engine: `http://127.0.0.1:10101` (CORS 許可済み前提)。過去メモに vox-aivis CORS 403 の残課題あり (下記 残タスク6)
+- テスト協力者: tamu2501。テスト用チャンネル: @VTF (/live/@VTF/stream)
+- 本番デプロイ: push → Gitea Actions (~5分) → mi-host podman-auto-update (5分間隔)。**即時反映は `ssh pve-2 -- "qm guest exec 200 -- bash -c 'sudo -iu misskey podman auto-update'"`**。フロント変更はさらに**ブラウザの Ctrl+F5 が必須** (これを忘れて旧コードをテストする事故が本日複数回発生、診断マーカーで必ず世代確認すること)
+
 ## ⚠️ 次アクション: 視聴制限4モードの実地検証・コメントリプレイ精度確認 (2026-07-22時点)
 
 **現在地**: アーカイブ視聴制限・MSJP内完結視聴・コメントリプレイ・削除機能は実装・push・本番デプロイ済み (`88f3db7a49` まで反映確認済み)。**Drive埋め込みプレイヤーの実機検証は完了・クローズ済み** (下記参照)。残る未検証は主に視聴制限4モードの実地検証とコメントリプレイの同期精度確認 (詳細は下の「未検証事項」)。
