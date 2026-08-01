@@ -1,37 +1,47 @@
 # misskey-bsky-fork — 次セッションへの引き継ぎ
 
-## 🔥 最優先・未解決: コメント読み上げ (TTS) の多重再生 (2026-08-01)
+## 🔥 最優先・実機検証待ち: コメント読み上げ (TTS) の多重再生 — v6 (Web Audio API) 実装済み (2026-08-01)
 
-**課題 (ユーザー定義)**: 音声読み上げが**前の再生終了を待たずに次のコメントの読み上げを開始してしまう**。数秒〜1秒以内に複数コメントが投稿されると読み上げ音声が2重以上で同時再生される。要求仕様は「常に再生される読み上げ音声は1つ。前の読み上げが完了してから次を読む」。丸1日かけて5回修正デプロイしたが**未解決**。
+**課題 (ユーザー定義)**: 音声読み上げが**前の再生終了を待たずに次のコメントの読み上げを開始してしまう**。数秒〜1秒以内に複数コメントが投稿されると読み上げ音声が2重以上で同時再生される。要求仕様は「常に再生される読み上げ音声は1つ。前の読み上げが完了してから次を読む」。
 
-### 確定している事実 (証拠ベース、時系列)
+### 現在地: v6 で再生基盤を全面刷新 (実機検証はまだ)
 
-1. 実装は `packages/frontend/src/composables/use-twitch-tts.ts`。AivisSpeech Engine (VOICEVOX互換, `http://127.0.0.1:10101`) に `/audio_query` → `/synthesis` して WAV blob を `new Audio(URL.createObjectURL(wav))` で再生する構成 (配信者ブラウザ内で完結、サーバー非関与)
+前版 HANDOFF の設計どおり、`packages/frontend/src/composables/use-twitch-tts.ts` の再生基盤を HTMLAudioElement から **Web Audio API (AudioContext + decodeAudioData + AudioBufferSourceNode)** へ全面書き換えた。診断マーカーは **`[TTS] pipeline v6`**。
+
+- v5 の全件 AbortError ("media was removed from the document") は、DOM のメディア要素・blob URL を一切作らなくなったため**構造的に発生しなくなる**
+- 再生完了判定は `source.onended` + 「デコード済み音声長 (`audioBuffer.duration`) + 1秒」タイマーの二重化 (settle は一度きり)。onended は自然終了・stop() の両方で確実に発火する。pause イベント判定・loadedmetadata 待ち・再生専用 Web Lock (`twitchTtsPlaybackAudio`) は**全廃** (単一 processQueue ループの直列性が再生の排他そのもの)
+- 合成 fetch に **30秒タイムアウト** を追加 (エンジンのハングでキューが永久停止しない)
+- AudioContext が自動再生ポリシーでブロックされた場合は console.warn を出し、**次のクリック/キー入力で自動復旧**してキューを再開する (リロード直後に無操作でコメントが来るケースの対策)
+- 再生開始/終了ログを **console.info へ変更**。v5 までは console.debug で、**Edge/Chrome の既定コンソールフィルタ (Verbose 非表示) では見えなかった** — 「play start/end ログが確認できない」の一因だった可能性が高い
+- キュー・globalThis シングルトン (v5)・タブ間オーナーロック (`twitchTtsOwner`)・コメントID二度読み防止・翻訳待ち分岐は変更なし
+
+### 検証手順 (ユーザーと一緒に、この順で)
+
+1. デプロイ反映後、視聴ページ (/live/:acct/stream) で **Ctrl+F5 → F12 コンソールに `[TTS] pipeline v6`** が出ることを確認 (旧チャンクでのテストは無効。世代マーカー確認は毎回必須 — 過去に stale チャンク誤検証が複数回発生)
+2. コメント連投テスト → `[TTS] play start (N.Ns, queue=N)` と `[TTS] play end` が**交互に**並び、音声が重ならないこと、AbortError が出ないことを確認
+3. **交互ログが正常なのに多重再生が聞こえる場合、発話している実体がこのタブ以外に複数ある** (Web Locks は同一ブラウザプロファイル内のみ有効、コード側では防御不能)。視聴ページを開いている場所を全列挙し、各所の F12 コンソールに `[TTS]` ログが出るか (= そこが喋っているか) を確認:
+   - メインブラウザの全タブ・全ウィンドウ (同一プロファイル内はオーナーロックで排他済みのはず)
+   - **OBS カスタムブラウザドック / OBS ブラウザソース** — OBS の CEF は別ブラウザ扱い。シーンに「コメジェネ」browser_source があることは OBS ログで確認済み。コメジェネの `/live/:acct/overlay` 自体に TTS 経路が無いことは今回コード確認済みだが、**視聴ページ URL (/live/:acct/stream) を直接ドック/ソースにして配信者ログイン + TTS 有効化していると喋る**
+   - 別ブラウザ・別PC・スマホ
+   - → TTS 有効化はメインブラウザの視聴タブ **1箇所に限定**してもらう
+4. v6 検証で解消を確認したら、この HANDOFF セクションと `~/.claude/projects/.../memory/tts-overlap-unresolved.md` をクローズ状態へ更新すること
+
+### これまでの経緯 (証拠ベース、時系列)
+
+1. 実装は `packages/frontend/src/composables/use-twitch-tts.ts`。AivisSpeech Engine (VOICEVOX互換, `http://127.0.0.1:10101`) に `/audio_query` → `/synthesis` して合成する構成 (配信者ブラウザ内で完結、サーバー非関与)
 2. **v4 診断マーカーがユーザーのコンソールに4回出力された** → チャンク分割により**モジュール複製が同一ページに4つロード**され、複製ごとに独立キュー・再生器が並走していたことが確定 (モジュールスコープのシングルトン前提が崩壊していた)
 3. v5 で全状態を `globalThis.__msjpTwitchTtsState` の単一オブジェクトへ移動 → **マーカー1回 = キュー一本化は成功**
-4. しかし v5 で **全コメントの `audio.play()` が `AbortError: The play() request was interrupted because the media was removed from the document.` で失敗** (ユーザーのコンソールで5連発を確認)。つまり**このタブからは1件も音が出ていない**にも関わらずユーザーには多重再生が聞こえている
-5. → **最有力仮説: 発話している実体が複数ある**。Web Locks は同一ブラウザプロファイル内しか効かない。OBS のシーンには「コメジェネ」browser_source が存在し (OBSログで確認済み)、OBS の CEF は別ブラウザ。視聴ページを OBS カスタムブラウザドック/別ブラウザ/別端末で開いて TTS を有効化していれば、そちらが (おそらく旧コードで) 喋っている。**ユーザーにまだ確認できていない**
+4. しかし v5 で **全コメントの `audio.play()` が `AbortError: The play() request was interrupted because the media was removed from the document.` で失敗** (ユーザーのコンソールで5連発を確認)。つまり**このタブからは1件も音が出ていない**にも関わらずユーザーには多重再生が聞こえていた。detached な `new Audio()` がこのエラーになる正確なトリガは未特定 (コンソールに拡張機能 content-script.js のノイズあり — メディア要素へ介入する拡張の疑いが残る) だが、v6 はメディア要素自体を廃したため原因特定に依存せず解消する
+5. **未解決の仮説: 発話している実体が複数ある** (上記 検証手順3)。v6 の交互ログにより、このタブが正常かどうかを決定的に判別できるようになった
 
-### 次セッションの手順 (この順で)
-
-1. **【必須・最初に】ユーザーへ確認**: 視聴ページ (/live/:acct/stream) を開いている場所を全列挙してもらう — メインブラウザのタブ数 / OBS カスタムブラウザドック / OBS ブラウザソース / 別PC・スマホ。各所で F12 コンソールに `[TTS] pipeline vN` マーカーが出るか (= そこが喋っているか)。**2箇所以上で TTS 有効なら、それが多重再生の正体** (コード側では防御不能、TTS を1箇所に限定してもらう)
-2. **AbortError の根治: HTMLAudioElement を廃止して Web Audio API へ置換** (設計済み、着手したが v5 デプロイ状態へ巻き戻し済み):
-   - `state` に `audioContext: AudioContext | null` / `currentSource: AudioBufferSourceNode | null` を追加 (currentAudio を置換)
-   - `synthesizeAndPlay`: `synthRes.arrayBuffer()` → `audioContext.decodeAudioData()` → `AudioBufferSourceNode` + `connect(destination)` + `start()`。blob URL / Audio 要素を一切使わない
-   - **再生時間は `audioBuffer.duration` でデコード時点に確定** (PCMから算出、メタデータイベント不要)
-   - **完了は `source.onended`** (バッファソースでは stop()時も自然終了時も確実に発火) **+ `duration + 1s` のタイマー**の二重化。settle は一度きり
-   - `stopTtsSpeech` は `currentSource.stop()` (InvalidStateError は握り潰し)
-   - AudioContext は suspended なら `resume()` (autoplay policy)。音量は audioQuery.volumeScale で適用済みなので GainNode 不要
-   - 診断マーカーを v6 に更新
-3. デプロイ後、ユーザーに **Ctrl+F5 → `[TTS] pipeline v6` を確認してから** 連投テストしてもらう。AbortError が消えて再生開始/終了の debug ログ (`[TTS] play start/end`) が交互に並ぶことを確認
-
-### これまでのコミット (すべてデプロイ済み、v5 = 7e52cd5e6d が現行)
+### これまでのコミット (すべてデプロイ済み)
 
 - `d42c81357c` キュー単一実行 (playing フラグ → processing Promise)
 - `da24a2885e` タブ間オーナーロック (Web Locks) + コメントID二度読み防止 + 以下略 + URL読み替え + スラング辞書
 - `5fdcaeeb00` 完了判定から pause 排除 + 音声長ウォッチドッグ
 - `512fbd8b75` 再生自体の Web Lock 排他 + 診断ログ (v4)
-- `7e52cd5e6d` globalThis シングルトン化 (v5) ← 現行。キュー一本化は達成、AbortError が残存
+- `7e52cd5e6d` globalThis シングルトン化 (v5)。キュー一本化は達成、AbortError が残存
+- v6 (このコミット) Web Audio API へ全面置換。AbortError の失敗クラスを構造的に排除、完了判定は onended + 音声長タイマー、合成30秒タイムアウト、autoplay 自動復旧、ログ info 化
 - 関連 (解決済み): 読み上げの翻訳スキップ (`b7e57290da` detectJaEn の w連続除外、URL除外は `da24a2885e` と同時期)、翻訳表示スキップも対応済み
 
 ### 環境情報
