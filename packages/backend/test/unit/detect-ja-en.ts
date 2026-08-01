@@ -51,4 +51,22 @@ describe('detectJaEn', () => {
 	test('URLのコロンをショートコードとして誤除去しない → en', () => {
 		expect(detectJaEn('see http://example.com for details')).toBe('en');
 	});
+
+	test('w の連続のみ (笑い) → null (英語と誤判定して翻訳キューに載せない)', () => {
+		expect(detectJaEn('www')).toBeNull();
+		expect(detectJaEn('W')).toBeNull();
+		expect(detectJaEn('ｗｗｗ')).toBeNull();
+	});
+
+	test('日本語 + 末尾の w 連続 → ja', () => {
+		expect(detectJaEn('すごいwww')).toBe('ja');
+	});
+
+	test('英単語末尾の w は笑いとして除去しない → en', () => {
+		expect(detectJaEn('wow')).toBe('en');
+	});
+
+	test('英語 + 空白区切りの末尾 w 連続 → en (英語部分は判定に残る)', () => {
+		expect(detectJaEn('nice www')).toBe('en');
+	});
 });
