@@ -36,6 +36,10 @@ export const meta = {
 		properties: {
 			twitchLogin: { type: 'string', optional: false, nullable: false },
 			twitchDisplayName: { type: 'string', optional: false, nullable: false },
+			// チャットの正規セッション (bsky-fork 独自)。Twitch 同時転送中はチャットが OME セッションへ
+			// 合流するため、クライアントはプレイヤーの表示切替に関わらずこの streamId のチャットに接続する。
+			// 同時転送でない場合は null (従来どおり表示中セッションのチャットを使う)
+			chatStreamId: { type: 'string', format: 'misskey:id', optional: false, nullable: true },
 			stream: {
 				type: 'object',
 				optional: false, nullable: true,
@@ -222,9 +226,17 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				};
 			}));
 
+			// Twitch 同時転送中のチャット正規セッション (bsky-fork 独自)。合流条件は
+			// TwitchChatRelayService.resolveCanonicalChatStream / handleChatMessageEvent と同一
+			const liveOmeSession = allSessions.find(s => s.source === 'ome' && s.isLive);
+			const chatStreamId = (liveOmeSession != null && liveChannel?.twitchRestreamEnabled === true)
+				? liveOmeSession.id
+				: null;
+
 			return {
 				twitchLogin: account?.twitchLogin ?? '',
 				twitchDisplayName: account?.twitchDisplayName ?? '',
+				chatStreamId,
 				stream: stream == null ? null : {
 					id: stream.id,
 					title: stream.title,

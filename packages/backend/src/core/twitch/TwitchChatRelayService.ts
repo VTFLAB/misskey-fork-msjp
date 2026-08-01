@@ -62,6 +62,31 @@ export class TwitchChatRelayService {
 	}
 
 	/**
+	 * コメントの投稿先として正となるライブセッションを解決する (bsky-fork 独自)。
+	 *
+	 * Twitch 同時転送中は「OME セッション + Twitch 中継セッション」の 2 行が並存するが、
+	 * チャットの本体は OME セッション側 (Twitch 側チャットも handleChatMessageEvent が
+	 * OME セッションへ合流させる)。この状態で Twitch 中継セッション宛てにコメントが
+	 * 投稿されると、視聴者にも配信者にも見えない「別部屋」に落ちてしまうため、
+	 * 投稿系エンドポイントはここで OME セッションへ付け替えてから永続化する。
+	 * 同時転送でない場合 (Twitch 単独中継 / OME 単独) は渡されたセッションをそのまま返す。
+	 */
+	@bindThis
+	public async resolveCanonicalChatStream(stream: MiTwitchStream): Promise<MiTwitchStream> {
+		if (stream.source !== 'twitch' || !stream.isLive) return stream;
+
+		const channel = await this.liveChannelsRepository.findOneBy({ userId: stream.userId });
+		if (channel?.twitchRestreamEnabled !== true) return stream;
+
+		const omeStream = await this.twitchStreamsRepository.findOneBy({
+			userId: stream.userId,
+			source: 'ome',
+			isLive: true,
+		});
+		return omeStream ?? stream;
+	}
+
+	/**
 	 * Misskey 側コメントを bot 経由で Twitch チャットへ送信する (fire-and-forget)。
 	 * Twitch 未連携ユーザーのコメントも bot が代理発言することで全コメントが中継される。
 	 * bot 未設定・失効時は静かにスキップ (Misskey 側の投稿は既に成立している)。
