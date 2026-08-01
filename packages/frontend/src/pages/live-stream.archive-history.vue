@@ -44,7 +44,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<button
 							class="_button"
 							:class="[$style.retentionAction, $style.retentionActionPrimary]"
-							:disabled="retryingStreamIds.has(item.streamId)"
+							:disabled="retryingStreamIds.has(item.streamId) || item.recordingStatus === 'uploading'"
 							@click="retryDriveUpload(item)"
 						>
 							<i class="ti ti-refresh"></i> {{ i18n.ts._liveChannel.retentionRetryDrive }}
@@ -188,7 +188,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, useTemplateRef, onMounted } from 'vue';
+import { ref, useTemplateRef, onMounted, onUnmounted } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkButton from '@/components/MkButton.vue';
@@ -287,8 +287,10 @@ function downloadUrlFor(item: ArchiveItem): string {
 }
 
 // Drive 再アップロード (bsky-fork 独自): サーバー保持中の録画を Google Drive へ再保存する。
-// 成功時は対象 item をその場で書き換え (再取得を省く)、retention バナーが消えるように
-// recordingRetentionExpiresAt を null にする。失敗時は err.info?.reason を含めたエラーダイアログを出す
+// API は前提チェック後すぐ応答し、アップロード本体はサーバー側でバックグラウンド継続される
+// (大容量ファイルの転送完了を同期で待つとリバースプロキシのタイムアウトで、実際は成功して
+// いるのに HTML エラーページが返り失敗と誤表示されるため)。完了はポーリングで反映する。
+// retention バナーは成功確定までそのまま残す (ダウンロード手段を成否不明のまま奪わない)
 const retryingStreamIds = ref<Set<string>>(new Set());
 
 async function retryDriveUpload(item: ArchiveItem) {
@@ -303,13 +305,12 @@ async function retryDriveUpload(item: ArchiveItem) {
 	retryingStreamIds.value.add(item.streamId);
 	try {
 		const res = await misskeyApi('twitch/streams/retry-drive-upload', { streamId: item.streamId });
+		// 開始直後の状態 (recordingStatus='uploading') を反映。ステータスバッジが処理中表示になり、
+		// 再アップロードボタンは :disabled で押せなくなる
 		item.recordingStatus = res.recordingStatus;
-		item.recordingGoogleDriveFileId = res.recordingGoogleDriveFileId;
-		item.recordingGoogleDriveThumbnailLink = res.recordingGoogleDriveThumbnailLink;
 		item.recordingError = res.recordingError;
-		// retention バナーを消すため保持期限をクリア (保存再試行が受理された = 保持対象外になった)
-		item.recordingRetentionExpiresAt = null;
-		os.success();
+		os.alert({ type: 'info', text: i18n.ts._liveChannel.retentionRetrySuccess });
+		startRetryPolling(item.streamId);
 	} catch (err: any) {
 		const reason = err?.info?.reason ?? (err instanceof Error ? err.message : String(err));
 		os.alert({
@@ -320,6 +321,65 @@ async function retryDriveUpload(item: ArchiveItem) {
 		retryingStreamIds.value.delete(item.streamId);
 	}
 }
+
+// 再アップロードの完了監視 (bsky-fork 独自)。一覧 API の先頭ページを定期再取得し、
+// uploading → processing/ready | failed への遷移を検出して item を書き換え、結果を通知する。
+// モーダルを閉じると監視は止まるが、サーバー側のアップロードは継続する (開き直せば最新状態が見える)
+const RETRY_POLL_INTERVAL_MS = 15 * 1000;
+// 長時間配信の大容量ファイルに合わせた監視上限。超過時は静かに止める (結果は次回オープン時に反映)
+const RETRY_POLL_MAX_MS = 60 * 60 * 1000;
+const pollingStreamIds = new Set<string>();
+let retryPollTimer: number | null = null;
+let retryPollStartedAt = 0;
+
+function stopRetryPolling() {
+	if (retryPollTimer != null) {
+		window.clearInterval(retryPollTimer);
+		retryPollTimer = null;
+	}
+	pollingStreamIds.clear();
+}
+
+function startRetryPolling(streamId: string) {
+	pollingStreamIds.add(streamId);
+	retryPollStartedAt = Date.now();
+	if (retryPollTimer == null) {
+		retryPollTimer = window.setInterval(pollRetryStatus, RETRY_POLL_INTERVAL_MS);
+	}
+}
+
+async function pollRetryStatus() {
+	if (Date.now() - retryPollStartedAt > RETRY_POLL_MAX_MS) {
+		stopRetryPolling();
+		return;
+	}
+	let res: ArchiveItem[];
+	try {
+		res = await misskeyApi('twitch/streams/archive-history', { limit: LIMIT });
+	} catch {
+		return; // 一時的な取得失敗は次回のポーリングに任せる
+	}
+	for (const fresh of res) {
+		if (!pollingStreamIds.has(fresh.streamId)) continue;
+		if (fresh.recordingStatus === 'uploading') continue; // まだ転送中
+		pollingStreamIds.delete(fresh.streamId);
+		const item = items.value.find(i => i.streamId === fresh.streamId);
+		if (item != null) Object.assign(item, fresh);
+		if (fresh.recordingGoogleDriveFileId != null) {
+			os.success();
+		} else {
+			os.alert({
+				type: 'error',
+				text: i18n.tsx._liveChannel.retentionRetryFailed({ reason: fresh.recordingError ?? '' }),
+			});
+		}
+	}
+	if (pollingStreamIds.size === 0) stopRetryPolling();
+}
+
+onUnmounted(() => {
+	stopRetryPolling();
+});
 
 function isExpanded(item: ArchiveItem): boolean {
 	return expandedStreamIds.value.has(item.streamId);

@@ -4006,7 +4006,7 @@ export type paths = {
     '/twitch/streams/retry-drive-upload': {
         /**
          * twitch/streams/retry-drive-upload
-         * @description retention 期間中の録画 mp4 を Google Drive へ再アップロードする (配信者本人のみ、bsky-fork 独自、YouTube 12時間アーカイブ上限対策)。永続保存先 (Drive/YouTube) が無くローカルに保持されている録画に対して、配信者本人が手動で保存を再試行する。
+         * @description retention 期間中の録画 mp4 の Google Drive 再アップロードを開始する (配信者本人のみ、bsky-fork 独自、YouTube 12時間アーカイブ上限対策)。前提チェックの完了後すぐ応答し、アップロード本体はサーバー側でバックグラウンド継続する (大容量ファイルの転送完了を同期で待つとリバースプロキシのタイムアウトにかかるため)。進捗と結果は recordingStatus (uploading → processing/ready | failed) で追跡する。
          *
          *     **Credential required**: *Yes* / **Permission**: *write:account*
          */
