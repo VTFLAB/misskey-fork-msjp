@@ -287,7 +287,7 @@ export function enqueueTtsSpeech(text: string, dedupeKey?: string) {
 		state.versionLogged = true;
 		// 実行中のコード世代の確認用 (SPA はリロードまで旧チャンクを使い続けるため、
 		// 読み上げ不具合の切り分けでどの版が動いているかをコンソールで確認できるようにする)
-		console.info('[TTS] pipeline v6: Web Audio API playback (single global queue)');
+		console.info('[TTS] pipeline v6.1: Web Audio API playback (single global queue, timestamped logs)');
 	}
 	if (dedupeKey != null) {
 		if (state.spokenKeys.has(dedupeKey)) return;
@@ -407,6 +407,14 @@ function armResumeOnUserGesture() {
 	window.addEventListener('keydown', onGesture, { capture: true });
 }
 
+// 診断ログ用のローカル時刻 (HH:MM:SS.mmm)。配信画面や OBS 側の時計と突き合わせて
+// 「終了 → 次の開始」の間隔を目視検証できるよう、UTC ではなくローカル時刻で出す
+function nowTimeString(): string {
+	const d = new Date();
+	const pad = (n: number, len = 2) => String(n).padStart(len, '0');
+	return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;
+}
+
 /**
  * 1件を合成して再生し、再生が完了するまで待つ。
  * @returns false = AudioContext がブロックされていて再生に入れなかった (呼び出し側で再試行)
@@ -455,9 +463,9 @@ async function synthesizeAndPlay(text: string): Promise<boolean> {
 
 		// 検証用ログは既定のコンソールフィルタで見えるよう info で出す
 		// (debug はブラウザ既定で非表示のため実地検証時に確認できない)
-		console.info(`[TTS] play start (${buffer.duration.toFixed(1)}s, queue=${state.queue.length}): "${text.slice(0, 24)}"`);
+		console.info(`[TTS] ${nowTimeString()} play start (${buffer.duration.toFixed(1)}s, queue=${state.queue.length}): "${text.slice(0, 24)}"`);
 		await playBuffer(ctx, buffer);
-		console.info(`[TTS] play end: "${text.slice(0, 24)}"`);
+		console.info(`[TTS] ${nowTimeString()} play end: "${text.slice(0, 24)}"`);
 		return true;
 	} finally {
 		if (state.currentAbortController === ac) state.currentAbortController = null;
