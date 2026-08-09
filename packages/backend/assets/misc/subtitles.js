@@ -213,6 +213,9 @@
 
 	const translationQueue = [];
 	let translationBusy = false;
+	// 表示時間経過後に次の翻訳が無い場合、翻訳行をフェードアウトさせて消すための timer。
+	// 新しい翻訳の描画開始時・clear 受信時に必ず cancel する (race safety)。
+	let translationFadeClearTimer = null;
 
 	function clampSeconds(sec, min, max) {
 		return Math.min(max, Math.max(min, sec));
@@ -237,13 +240,36 @@
 			return;
 		}
 
+		// 新しい翻訳を描画するため、フェードアウト中であっても確実にキャンセルする。
+		// (translationFadeClearTimer が発火済みで textContent が空になっていても、
+		//  ここで改めて text をセットし直すので問題ない)
+		if (translationFadeClearTimer != null) {
+			clearTimeout(translationFadeClearTimer);
+			translationFadeClearTimer = null;
+		}
+
 		translationEl.classList.add('st-fade-out');
 		setTimeout(() => {
 			translationEl.textContent = text;
 			translationEl.classList.remove('st-fade-out');
 			setTimeout(() => {
 				translationBusy = false;
-				pumpTranslationQueue();
+				if (translationQueue.length > 0) {
+					// 次の翻訳が待機中なら従来どおり即時切り替え
+					pumpTranslationQueue();
+				} else {
+					// 次の翻訳が無い: フェードアウトさせて消す。
+					// translationBusy は false に戻してあるので、この fade-out 中に
+					// 新しい翻訳が到着した場合は handleTranslation -> pump が即座に
+					// 上段の cancel 処理に流れ、この timer は無害化される。
+					translationEl.classList.add('st-fade-out');
+					translationFadeClearTimer = setTimeout(() => {
+						translationFadeClearTimer = null;
+						// fade-out の最中に新しい翻訳が入り busy=true になったら消さない
+						if (translationBusy) return;
+						translationEl.textContent = '';
+					}, FADE_MS);
+				}
 			}, durSec * 1000);
 		}, FADE_MS);
 	}
@@ -266,6 +292,10 @@
 
 		translationQueue.length = 0;
 		translationBusy = false;
+		if (translationFadeClearTimer != null) {
+			clearTimeout(translationFadeClearTimer);
+			translationFadeClearTimer = null;
+		}
 		translationEl.textContent = '';
 		translationEl.classList.remove('st-fade-out');
 	}
