@@ -23,15 +23,21 @@ import { LiveLoggerService } from './LiveLoggerService.js';
 const POLL_INTERVAL_MS = 10 * 1000; // 決定書 §2「10秒間隔でポーリング」
 const RECONCILE_INTERVAL_MS = 2 * 60 * 1000; // OME ダウン時の自己修復 (webhook 取り逃し対策、TwitchStreamService と同思想)
 const OVERAGE_MARGIN = 1.1; // 10% マージン
-// 判定に使う直近サンプル数 (10秒間隔 × 3 ≒ 30秒間の平均、決定書 §2 の「30秒継続」意図を維持)。
-// bitrateLatest はサブ秒のバースト (WebRTC のキーフレーム一括送出) に敏感で、規定内の
-// CBR 配信 (7500kbps + nal-hrd=cbr) でも実測サンプルが 5888〜8869kbps と ±20% 振れる
+// 判定に使う直近サンプル数 (10秒間隔 × 6 ≒ 60秒間の平均)。bitrateLatest はサブ秒の
+// バースト (WebRTC のキーフレーム一括送出) に敏感で、規定内の CBR 配信
+// (7500kbps + nal-hrd=cbr) でも実測サンプルが 5888〜8869kbps と ±20% 振れる
 // (2026-08-01 実測)。旧実装の「瞬間値が3回連続で閾値超過」は、この計測ノイズだけで
 // 長時間配信中に誤切断が起こりうる (超過確率 ~12% で約90分に1回) ため、
-// 「直近3サンプルの平均 > 閾値」の判定に変更した。真に上限超過している配信は
-// 平均も超えるので従来どおり ~30秒で遮断される
-const OVERAGE_WINDOW_SIZE = 3;
+// 「直近Nサンプルの平均 > 閾値」の判定に変更した。2026-08-09 事象: 5500kbps CBR 配信が
+// 30秒のバースト (受信側 8832kbps、録画バイト数から算出したセッション平均は 5504kbps
+// で設定準拠) で誤切断されたため、窓を 6 サンプル (60秒) に拡大。真の継続超過は
+// 従来どおり ~60-70秒で遮断される
+const OVERAGE_WINDOW_SIZE = 6;
 const BLACKLIST_TTL_SEC = 10 * 60;
+// ビットレート上限の「接近」を事前警告する閾値 (maxBitrate に対する比率) と、
+// 同一ストリームでの警告の最低間隔 (cut 前の診断ログ、5分に1回以内)
+const APPROACH_WARN_RATIO = 0.8;
+const APPROACH_WARN_INTERVAL_MS = 5 * 60 * 1000;
 // YouTube アーカイブの 12 時間上限 (LiveRecordingService の YOUTUBE_MAX_DURATION_SEC と同値) に対し、
 // 1 時間前からライブチャットへ警告を送る閾値・間隔 (bsky-fork 独自)。
 const LONG_STREAM_WARN_THRESHOLD_MS = 11 * 60 * 60 * 1000; // 11h: start warning 1h before YouTube's 12h limit
@@ -45,6 +51,9 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 	// streamKey ごとの直近ビットレートサンプル (kbps)。プロセスローカル、Redis化はしない
 	// (監視自体が cluster.isPrimary 限定のため単一プロセス)
 	private overageSamples = new Map<string, { video: number[]; audio: number[] }>();
+	// streamKey ごとの最終ビットレート接近警告時刻 (epoch ms)。プロセスローカル、Redis化はしない
+	// (監視自体が cluster.isPrimary 限定のため単一プロセス)
+	private bitrateApproachWarnedAt = new Map<string, number>();
 	// OME 到達不能の連続回数 (縮退判定用)
 	private consecutiveApiFailures = 0;
 	// streamId ごとの最終 12h 警告投稿時刻 (epoch ms)。長時間配信向けの YouTube アーカイブ上限警告
@@ -220,12 +229,34 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 				await this.cutStream(session, channel.streamKey, videoOver ? 'video' : 'audio', videoAvgKbps, audioAvgKbps);
 				this.overageSamples.delete(channel.streamKey);
 			}
+
+			// ビットレート上限の接近を事前警告 (cut 前の診断ログ)。新しい単一サンプルが
+			// maxBitrate の APPROACH_WARN_RATIO (0.8) を超えた場合、APPROACH_WARN_INTERVAL_MS (5分)
+			// に1回以内で警告する。過負荷配信が cut に至る前に原因観察できるように
+			const videoApproachThreshold = ome.maxVideoBitrate * APPROACH_WARN_RATIO;
+			const audioApproachThreshold = ome.maxAudioBitrate * APPROACH_WARN_RATIO;
+			if (videoBitrateKbps > videoApproachThreshold || audioBitrateKbps > audioApproachThreshold) {
+				const now = Date.now();
+				const last = this.bitrateApproachWarnedAt.get(channel.streamKey);
+				if (last == null || now - last >= APPROACH_WARN_INTERVAL_MS) {
+					this.bitrateApproachWarnedAt.set(channel.streamKey, now);
+					const approachTrack = videoBitrateKbps > videoApproachThreshold ? 'video' : 'audio';
+					const approachKbps = approachTrack === 'video' ? videoBitrateKbps : audioBitrateKbps;
+					const approachThreshold = approachTrack === 'video' ? videoApproachThreshold : audioApproachThreshold;
+					this.logger.warn(`bitrate approaching limit: streamKey=${channel.streamKey} track=${approachTrack} sample=${Math.round(approachKbps)}kbps threshold=${Math.round(approachThreshold)}kbps`);
+				}
+			}
 		}
 
 		// 監視対象から外れたキーのサンプルを掃除 (メモリリーク防止)
 		const activeKeys = new Set(activeSessions.map(s => channelsByUserId.get(s.userId)?.streamKey).filter((k): k is string => k != null));
 		for (const key of this.overageSamples.keys()) {
 			if (!activeKeys.has(key)) this.overageSamples.delete(key);
+		}
+
+		// 監視対象から外れたキーの接近警告タイムスタンプを掃除 (メモリリーク防止)
+		for (const key of this.bitrateApproachWarnedAt.keys()) {
+			if (!activeKeys.has(key)) this.bitrateApproachWarnedAt.delete(key);
 		}
 
 		// 終了済みセッションの 12h 警告タイムスタンプを掃除 (メモリリーク防止)
@@ -246,9 +277,10 @@ export class OmeStreamMonitorService implements OnModuleInit, OnApplicationShutd
 	 */
 	@bindThis
 	private async cutStream(session: MiTwitchStream, streamKey: string, cause: 'video' | 'audio', videoKbps: number, audioKbps: number): Promise<void> {
+		const overageSeconds = OVERAGE_WINDOW_SIZE * (POLL_INTERVAL_MS / 1000);
 		const reason = cause === 'video'
-			? `映像ビットレートが上限を超過しました (直近30秒平均 ${Math.round(videoKbps)}kbps)`
-			: `音声ビットレートが上限を超過しました (直近30秒平均 ${Math.round(audioKbps)}kbps)`;
+			? `映像ビットレートが上限を超過しました (直近${overageSeconds}秒平均 ${Math.round(videoKbps)}kbps)`
+			: `音声ビットレートが上限を超過しました (直近${overageSeconds}秒平均 ${Math.round(audioKbps)}kbps)`;
 
 		this.logger.warn(`cutting stream due to bitrate overage: streamKey=${streamKey} cause=${cause} video=${videoKbps}kbps audio=${audioKbps}kbps`);
 
