@@ -4,6 +4,8 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import * as Redis from 'ioredis';
+import { createHash } from 'node:crypto';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { ApiError } from '@/server/api/error.js';
 import { DI } from '@/di-symbols.js';
@@ -54,6 +56,12 @@ export const meta = {
 			id: 'c4aa92f3-ecd8-473b-84fd-239a3f7005be',
 			httpStatusCode: 403,
 		},
+		duplicate: {
+			message: 'Duplicate submission.',
+			code: 'DUPLICATE_SUBMISSION',
+			id: '0c7e7389-4c18-48c8-9162-eb3bbf326bc4',
+			httpStatusCode: 409,
+		},
 	},
 
 	res: {
@@ -81,6 +89,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		@Inject(DI.twitchStreamsRepository)
 		private twitchStreamsRepository: TwitchStreamsRepository,
 
+		@Inject(DI.redis)
+		private redisClient: Redis.Redis,
+
 		private twitchCommentService: TwitchCommentService,
 		private twitchChatRelayService: TwitchChatRelayService,
 		private remoteGuestSessionService: RemoteGuestSessionService,
@@ -105,7 +116,59 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			const text = ps.text.trim().slice(0, MAX_COMMENT_LENGTH);
 			if (text.length === 0) throw new ApiError(meta.errors.invalidText);
 
+			// Idempotent dedup via Redis: catches double-Enter / key auto-repeat (sub-second)
+			// and fast error-retries, while rarely blocking intentional same-text chat
+			// spam (e.g. "ww" bursts). Intentional reposts after 3s still work.
+			// Content hash = sha256(trimmed text). Remote-guest has no fileIds.
+			// Redis failure is non-fatal: availability of posting takes priority over dedup.
+			const authorId = `${guest.username}@${guest.host}`;
+			const contentHash = createHash('sha256').update(text).digest('hex');
+			const dedupKey = `twitch-comment-dedupe:${stream.id}:${authorId}:${contentHash}`;
+
+			let skipCreate = false;
+			let existingCommentId: string | null = null;
+			try {
+				const acquired = await this.redisClient.set(dedupKey, 'pending', 'PX', 3000, 'NX');
+				if (acquired === null) {
+					// A same-content request is in flight or recently completed.
+					// Poll for up to 2s waiting for it to resolve to a comment id.
+					const deadline = Date.now() + 2000;
+					let value = await this.redisClient.get(dedupKey);
+					while (value === 'pending' && Date.now() < deadline) {
+						await new Promise(resolve => setTimeout(resolve, 100));
+						value = await this.redisClient.get(dedupKey);
+					}
+					if (typeof value === 'string' && value !== 'pending' && value !== '') {
+						// Duplicate submission of an already-created comment → idempotent success.
+						skipCreate = true;
+						existingCommentId = value;
+					} else {
+						// Original request still in flight (concurrent race) and never resolved.
+						throw new ApiError(meta.errors.duplicate);
+					}
+				}
+			} catch (e: unknown) {
+				if (e instanceof ApiError) throw e;
+				// Redis failure: proceed without dedup (availability priority).
+				// eslint-disable-next-line no-console
+				console.warn(`[remote-guest/twitch-comments/create] Redis dedup failed: ${e}`);
+			}
+
+			if (skipCreate && existingCommentId != null) {
+				// Idempotent response: same shape as the normal success path.
+				// Skip Twitch relay (the original request handles it).
+				return { id: existingCommentId };
+			}
+
 			const comment = await this.twitchCommentService.createRemoteGuestComment(stream, guest, text);
+
+			// Extend the dedup window so a slow original request is still covered.
+			try {
+				await this.redisClient.set(dedupKey, comment.id, 'PX', 3000);
+			} catch (e: unknown) {
+				// eslint-disable-next-line no-console
+				console.warn(`[remote-guest/twitch-comments/create] Redis dedup extend failed: ${e}`);
+			}
 
 			// Twitch への中継は fire-and-forget。username@host で表示し、ローカルユーザーとの混同を避ける
 			this.twitchChatRelayService.relayToTwitch(stream, { username: `${guest.username}@${guest.host}` }, text);
