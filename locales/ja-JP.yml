@@ -3995,6 +3995,8 @@ _liveChannel:
   alreadyStreamingChannel: "既にライブチャンネルを開設しています。"
   noSuchLiveChannel: "このユーザーはライブチャンネルを開設していません。"
   channelHome: "チャンネルホーム"
+  backToChannelHome: "チャンネルホームへ戻る"
+  backToMisskeyHome: "Misskeyホームへ戻る"
   followChannel: "チャンネルをフォロー"
   lastCutReason: "直近の強制切断理由"
   streamBlockedTitle: "配信が一時的に遮断されています"
