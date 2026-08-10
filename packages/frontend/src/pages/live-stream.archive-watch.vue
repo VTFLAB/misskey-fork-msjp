@@ -43,9 +43,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 							<div :class="$style.restrictedTitle">{{ i18n.ts._liveChannel.archiveRestrictedUsersTitle }}</div>
 							<div :class="$style.restrictedDescription">{{ i18n.ts._liveChannel.archiveRestrictedUsersDescription }}</div>
 						</template>
-					</div>
+				</div>
 				</div>
 				<div :class="$style.info" class="_panel">
+					<!-- immersive モードでグローバルナビが隠れるため、チャンネルホームへ戻る明示的な
+					手段を左端に置く (bsky-fork 独自)。live-stream.watch.vue と同じパターン -->
+					<button v-tooltip.noDelay="i18n.ts._liveChannel.backToChannelHome" class="_button" :class="$style.headerIconButton" :aria-label="i18n.ts._liveChannel.backToChannelHome" @click="goToChannelHome">
+						<i class="ti ti-chevron-left"></i>
+					</button>
 					<MkAvatar :user="user" :class="$style.infoAvatar" link preview/>
 					<div :class="$style.infoText">
 						<div :class="$style.streamTitle">{{ session.title ?? i18n.ts.archive }}</div>
@@ -59,10 +64,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<span v-if="isOwner && session.archiveUnpublished" :class="$style.unpublishedBadge">
 						<i class="ti ti-eye-off"></i> {{ i18n.ts._liveChannel.archiveUnpublishedBadge }}
 					</span>
-					<!-- 視聴者含む全ユーザーが任意にページを再取得できるようにする (live-stream.watch.vue と
-					同じ考え方)。フォロー制限で「フォロー後に視聴を再確認する」手段が他に無いため必須 -->
-					<button class="_button" :class="$style.reloadButton" :title="i18n.ts.reload" :aria-label="i18n.ts.reload" @click="fetchArchive">
-						<i class="ti ti-refresh"></i>
+					<!-- これまで独立していた再読み込みボタンをオーバーフローメニューに統合
+					(bsky-fork 独自)。Misskey ホームへ戻る項目も兼ねる -->
+					<button v-tooltip.noDelay="i18n.ts.menu" class="_button" :class="$style.headerIconButton" :aria-label="i18n.ts.menu" @click="openHeaderMenu">
+						<i class="ti ti-dots"></i>
 					</button>
 				</div>
 			</div>
@@ -94,11 +99,16 @@ import { definePage } from '@/page.js';
 import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { useRouter } from '@/router.js';
+import * as os from '@/os.js';
+import type { MenuItem } from '@/types/menu.js';
 
 const props = defineProps<{
 	acct: string;
 	streamId: string;
 }>();
+
+const router = useRouter();
 
 type StreamsShowRes = Misskey.Endpoints['twitch/streams/show']['res'];
 type SessionEntry = StreamsShowRes['sessions'][number];
@@ -231,6 +241,28 @@ const playerRef = useTemplateRef('playerRef');
 
 function onSeek(seconds: number) {
 	playerRef.value?.seekTo(seconds);
+}
+
+// チャンネルホームへ戻る (左端の戻るボタンと共通)
+function goToChannelHome() {
+	router.push('/live/:acct', { params: { acct: props.acct } });
+}
+
+// ヘッダ右端のオーバーフローメニュー。再読み込み・Misskeyホームへ戻る を集約
+// (bsky-fork 独自)。live-stream.watch.vue と同じパターンの簡易版
+function openHeaderMenu(ev: MouseEvent) {
+	const items: (MenuItem | null)[] = [{
+		text: i18n.ts.reload,
+		icon: 'ti ti-refresh',
+		action: () => fetchArchive(),
+	}, {
+		type: 'divider',
+	}, {
+		text: i18n.ts._liveChannel.backToMisskeyHome,
+		icon: 'ti ti-home',
+		action: () => router.push('/'),
+	}];
+	os.popupMenu(items, ev.currentTarget ?? ev.target);
 }
 
 // ルートコンポーネントインスタンスが使い回される (別アーカイブへの遷移で再マウントされない)
@@ -388,10 +420,15 @@ definePage(() => ({
 	white-space: nowrap;
 }
 
-.reloadButton {
+// ヘッダの戻る / オーバーフローメニューなど、タイトル行のアイコンボタン共通スタイル
+// (bsky-fork 独自)。live-stream.watch.vue の .headerIconButton と同じ定義
+.headerIconButton {
 	flex-shrink: 0;
 	width: 36px;
 	height: 36px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	border: solid 1px var(--MI_THEME-divider);
 	border-radius: 999px;
 
