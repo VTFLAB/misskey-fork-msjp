@@ -59,6 +59,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 				<div :class="$style.info" class="_panel">
 					<div :class="$style.infoHeader">
+						<!-- immersive モードでグローバルナビが隠れるため、チャンネルホームへ戻る明示的な
+						手段を左端に置く (bsky-fork 独自)。配信者/視聴者双方にとって唯一の出口 -->
+						<button v-tooltip.noDelay="i18n.ts._liveChannel.backToChannelHome" class="_button" :class="$style.headerIconButton" :aria-label="i18n.ts._liveChannel.backToChannelHome" @click="goToChannelHome">
+							<i class="ti ti-chevron-left"></i>
+						</button>
 						<MkAvatar :user="user" :class="$style.infoAvatar" link preview/>
 						<div :class="$style.infoText">
 							<!-- プレビュー中は配信タイトルの代わりにプレビュー中であることを明示する -->
@@ -69,28 +74,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 								<span> · <MkTime :time="streamInfo.startedAt" mode="relative"/></span>
 							</div>
 						</div>
-						<!-- MSJP配信/Twitch同時配信時のみ表示する配信元切替。専用の常時表示行だと
-						モバイルで縦スペースを圧迫するため、タイトル行のアイコンボタン+メニューに
-						統合する (bsky-fork 独自) -->
-						<button v-if="showSourceToggle" class="_button" :class="$style.streamerSettingsButton" :title="i18n.ts._liveChannel.switchSource" :aria-label="i18n.ts._liveChannel.switchSource" @click="openSourceMenu">
-							<i class="ti ti-arrows-right-left"></i>
-						</button>
-						<!-- 視聴者含む全ユーザーが任意にページを再取得できるようにする。プレビュー中は
-						実配信が始まったことを検知する手段が無いため、これで拾えるようにする (bsky-fork 独自) -->
-						<button class="_button" :class="$style.streamerSettingsButton" :title="i18n.ts.reload" :aria-label="i18n.ts.reload" @click="reload">
-							<i class="ti ti-refresh"></i>
-						</button>
+						<!-- 字幕配信中インジケーター (bsky-fork 独自)。配信者にのみ表示、非インタラクティブ -->
 						<span v-if="isOwner && liveSubtitleRunning" :class="$style.subtitleIndicator" :title="i18n.ts._twitch.subtitleRunningIndicator">
 							<i class="ti ti-closed-captioning"></i>
 						</span>
-						<button v-if="isOwner" class="_button" :class="$style.streamerSettingsButton" :title="i18n.ts._twitch.streamerSettings" :aria-label="i18n.ts._twitch.streamerSettings" @click="openStreamerSettings">
-							<i class="ti ti-settings"></i>
-						</button>
+						<!-- フォローボタンは配信者自身には出さない -->
 						<MkFollowButton v-else-if="$i != null && $i.id !== user.id" v-model:user="user" :full="true"/>
-						<button v-else-if="remoteGuestSession != null" class="_button" :class="$style.remoteGuestMenu" @click="openRemoteGuestMenu">
-							<i class="ti ti-user-circle"></i>
-							<span :class="$style.remoteGuestAcct">{{ remoteGuestSession.acct }}</span>
-							<i class="ti ti-chevron-down"></i>
+						<!-- これまでタイトル行に並んでいた配信元切替・再読み込み・配信者設定・リモートゲスト
+						メニューを全て単一のオーバーフローメニュー (ti-dots) に統合 (bsky-fork 独自)。
+						immersive でグローバルナビが隠れるため Misskey ホームへ戻る項目も兼ねる -->
+						<button v-tooltip.noDelay="i18n.ts.menu" class="_button" :class="$style.headerIconButton" :aria-label="i18n.ts.menu" @click="openHeaderMenu">
+							<i class="ti ti-dots"></i>
 						</button>
 					</div>
 				</div>
@@ -122,6 +116,7 @@ import { useRouter } from '@/router.js';
 import { remoteGuestSession, saveRemoteGuestSession, clearRemoteGuestSession } from '@/composables/use-remote-guest-session.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
 import { liveSubtitleRunning } from '@/composables/use-live-subtitle.js';
+import type { MenuItem } from '@/types/menu.js';
 
 const props = defineProps<{
 	acct: string;
@@ -297,11 +292,21 @@ async function onStreamEnded() {
 	router.push('/live/:acct', { params: { acct: props.acct } });
 }
 
-function openSourceMenu(ev: MouseEvent) {
-	// active に生の boolean を渡すとメニュー表示時点のスナップショットで固定されてしまい、
-	// 開いたまま切り替えてもチェックマークが追従しない。MkMenu は item.active を unref() で
-	// 評価するため、ComputedRef を渡すことで選択直後にリアクティブに反映させる
-	os.popupMenu([{
+// チャンネルホームへ戻る (左端の戻るボタン / Misskey ホームへ戻る項目と共通)
+function goToChannelHome() {
+	router.push('/live/:acct', { params: { acct: props.acct } });
+}
+
+// オーバーフローメニューに放り込むためのアイテム配列を構築するヘルパー群。
+// これまで個別のアイコンボタン+os.popupMenu で直接開いていた各メニューを、
+// ヘッダ右端の単一 ti-dots メニューに統合する (bsky-fork 独自)。
+
+// 配信元切替 (MSJP/Twitch 同時配信時のみ)。radioOption の active には ComputedRef を
+// 渡すことで開いたまま切り替えてもチェックマークが追従する (旧 openSourceMenu と同様)。
+// radioOption は MenuItem (OuterMenuItem) ではなく InnerMenuItem だが、popupMenu は
+// 実行時に受け付けるため、ヘッダメニュー構築側でキャストして詰める
+function buildSourceSwitchItems(): MenuItem[] {
+	return [{
 		type: 'radioOption',
 		text: i18n.ts._liveChannel.selfStream,
 		active: computed(() => activeSource.value === 'ome'),
@@ -311,11 +316,13 @@ function openSourceMenu(ev: MouseEvent) {
 		text: 'Twitch',
 		active: computed(() => activeSource.value === 'twitch'),
 		action: () => { activeSource.value = 'twitch'; },
-	}], ev.currentTarget ?? ev.target);
+	}] as MenuItem[];
 }
 
-function openStreamerSettings(ev: MouseEvent) {
-	os.popupMenu([{
+// 配信者専用設定 (OBS オーバーレイ URL・TTS・コメント生成・ブロック・翻訳・字幕)。
+// 旧 openStreamerSettings から popupMenu 呼び出しを剥がした純粋なアイテム配列
+function buildStreamerSettingsItems(): MenuItem[] {
+	return [{
 		text: i18n.ts._twitch.copyObsOverlayUrl,
 		icon: 'ti ti-copy',
 		action: () => {
@@ -373,15 +380,13 @@ function openStreamerSettings(ev: MouseEvent) {
 				{ closed: () => dispose() },
 			);
 		},
-	}], ev.currentTarget ?? ev.target);
+	}];
 }
 
-// リモートゲストログイン中のみ表示する簡易メニュー。フル機能のアカウントメニューとは
-// 別体系 (MiUser を持たない第3のアイデンティティのため) で、視聴+コメント専用スコープに
-// 留める設計判断のもと、ログアウトのみを提供する
-function openRemoteGuestMenu(ev: MouseEvent) {
-	if (remoteGuestSession.value == null) return;
-	os.popupMenu([{
+// リモートゲストログイン中の簡易メニュー。ログアウトのみ (フルアカウントメニューとは別体系)
+function buildRemoteGuestItems(): MenuItem[] {
+	if (remoteGuestSession.value == null) return [];
+	return [{
 		type: 'label',
 		text: i18n.tsx._remoteGuestLogin.loggedInAs({ acct: remoteGuestSession.value.acct }),
 	}, {
@@ -391,7 +396,55 @@ function openRemoteGuestMenu(ev: MouseEvent) {
 		action: () => {
 			clearRemoteGuestSession();
 		},
-	}], ev.currentTarget ?? ev.target);
+	}];
+}
+
+// ヘッダ右端のオーバーフローメニュー。再読み込み・配信元切替・Misskeyホーム・
+// 配信者設定・リモートゲスト を単一メニューに集約する。条件付きセクションは
+// divider で区切り、空セクションは divider が連続しないよう除外する
+function openHeaderMenu(ev: MouseEvent) {
+	const items: (MenuItem | null)[] = [];
+
+	// 1. 再読み込み (全ユーザー)
+	items.push({
+		text: i18n.ts.reload,
+		icon: 'ti ti-refresh',
+		action: () => reload(),
+	});
+
+	// 2. 配信元切替 (同時配信時のみ)。radioOption は parent.children には入れられない
+	// (InnerMenuItem で MenuItem[] に合わない) ため、ラベル + フラットな radioOption 列で配置
+	if (showSourceToggle.value) {
+		items.push({ type: 'divider' });
+		items.push({
+			type: 'label',
+			text: i18n.ts._liveChannel.switchSource,
+		});
+		items.push(...buildSourceSwitchItems());
+	}
+
+	// 3. Misskey ホームへ戻る (immersive でナビが隠れているため)
+	items.push({ type: 'divider' });
+	items.push({
+		text: i18n.ts._liveChannel.backToMisskeyHome,
+		icon: 'ti ti-home',
+		action: () => router.push('/'),
+	});
+
+	// 4. 配信者設定 (オーナーのみ)
+	if (isOwner.value) {
+		items.push({ type: 'divider' });
+		items.push(...buildStreamerSettingsItems());
+	}
+
+	// 5. リモートゲスト (ログイン中のみ)
+	const guestItems = buildRemoteGuestItems();
+	if (guestItems.length > 0) {
+		items.push({ type: 'divider' });
+		items.push(...guestItems);
+	}
+
+	os.popupMenu(items, ev.currentTarget ?? ev.target);
 }
 
 // リモートゲストログインのコールバック結果を処理する (settings/twitch.vue の
@@ -634,10 +687,15 @@ definePage(() => ({
 	white-space: nowrap;
 }
 
-.streamerSettingsButton {
+// ヘッダの戻る / オーバーフローメニューなど、タイトル行のアイコンボタン共通スタイル
+// (bsky-fork 独自)。旧 .streamerSettingsButton と同じ定義を役割名で一般化した
+.headerIconButton {
 	flex-shrink: 0;
 	width: 36px;
 	height: 36px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	border: solid 1px var(--MI_THEME-divider);
 	border-radius: 999px;
 
@@ -659,29 +717,6 @@ definePage(() => ({
 	height: 36px;
 	color: var(--MI_THEME-accent);
 	font-size: 1.1em;
-}
-
-.remoteGuestMenu {
-	flex-shrink: 0;
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	padding: 6px 12px;
-	border: solid 1px var(--MI_THEME-divider);
-	border-radius: 999px;
-	font-size: 0.9em;
-
-	&:hover {
-		color: var(--MI_THEME-accent);
-		border-color: var(--MI_THEME-accent);
-	}
-}
-
-.remoteGuestAcct {
-	max-width: 160px;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
 }
 
 .chat {
