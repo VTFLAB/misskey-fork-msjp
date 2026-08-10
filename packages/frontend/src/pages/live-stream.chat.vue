@@ -425,6 +425,8 @@ function openCommentMenu(comment: Comment, ev: MouseEvent) {
 function onKeydown(ev: KeyboardEvent) {
 	// IME 変換確定の Enter で送信しないようにガードする (MkInput.vue と同一パターン)
 	if (ev.isComposing || ev.key === 'Process' || ev.keyCode === 229) return;
+	// Enter 長押しのオートリピートでは送らない (連続投稿防止)
+	if (ev.repeat) return;
 	if (ev.key !== 'Enter') return;
 	// Shift+Enter は改行
 	if (ev.shiftKey) return;
