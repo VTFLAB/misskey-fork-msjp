@@ -3847,7 +3847,7 @@ _twitch:
   subtitleMicDeviceDefault: "デフォルト"
   subtitleMicDeviceWebSpeechNotice: "Web Speech APIはマイクを個別に指定する標準的な手段を持たないため、この選択はOSまたはブラウザ側で設定されているデフォルトの入力デバイスが優先されます。"
   subtitleProcessLocally: "オンデバイス認識を使う"
-  subtitleProcessLocallyDescription: "対応環境 (Chrome 139以降) では、音声データを外部に送信せずブラウザ内で認識できます。"
+  subtitleProcessLocallyDescription: "対応環境 (PC版 Chrome 142以降、または Edge 150以降 Canary/Dev で flag 有効化) では、音声データを外部に送信せずブラウザ内で認識できます。日本語モデルは現在 Chrome のみ対応。"
   subtitleProcessLocallyAvailable: "利用可能です"
   subtitleProcessLocallyDownloadable: "モデルのダウンロードが必要です"
   subtitleProcessLocallyUnavailable: "この環境では利用できません"

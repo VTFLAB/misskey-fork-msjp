@@ -20,7 +20,7 @@ export type LiveSubtitleAsrEngine = 'webspeech' | 'wasm';
 
 export type LiveSubtitleSettings = {
 	engine: LiveSubtitleAsrEngine;
-	// Chrome 139+ の on-device 音声認識強制 (対応環境のみ有効)
+	// Chrome 142+ / Edge 150+ (Canary/Dev, flag要) の on-device 音声認識強制 (対応環境のみ有効)
 	processLocally: boolean;
 	micDeviceId: string | null;
 	translatorEngine: LiveSubtitleTranslatorEngine;
@@ -717,7 +717,7 @@ export async function listMicDevices(): Promise<MediaDeviceInfo[]> {
 export type ProcessLocallyAvailability = 'available' | 'downloadable' | 'downloading' | 'unavailable' | 'unknown';
 
 /**
- * Chrome 139+ の on-device 音声認識 (processLocally) が使えるか確認する
+ * Chrome 142+ / Edge 150+ (Canary/Dev, flag要) の on-device 音声認識 (processLocally) が使えるか確認する
  */
 export async function checkProcessLocallyAvailable(): Promise<ProcessLocallyAvailability> {
 	if (typeof window === 'undefined') return 'unknown';

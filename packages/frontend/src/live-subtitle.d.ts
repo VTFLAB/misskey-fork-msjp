@@ -25,7 +25,7 @@ interface SpeechRecognition extends EventTarget {
 	continuous: boolean;
 	interimResults: boolean;
 	maxAlternatives: number;
-	// Chrome 139+ の on-device 認識強制オプション (非標準)
+	// Chrome 142+ / Edge 150+ (Canary/Dev, flag要) の on-device 認識強制オプション (非標準)
 	processLocally?: boolean;
 	start(): void;
 	stop(): void;
@@ -38,7 +38,7 @@ interface SpeechRecognition extends EventTarget {
 
 interface SpeechRecognitionStatic {
 	new (): SpeechRecognition;
-	// Chrome 139+: on-device 認識モデルの利用可否を確認する静的メソッド (非標準)
+	// Chrome 142+ / Edge 150+ (Canary/Dev, flag要): on-device 認識モデルの利用可否を確認する静的メソッド (非標準)
 	available?: (options: { langs: string[]; processLocally?: boolean }) => Promise<'available' | 'downloadable' | 'downloading' | 'unavailable'>;
 }
 
