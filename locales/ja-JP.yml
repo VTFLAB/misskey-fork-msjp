@@ -3851,7 +3851,7 @@ _twitch:
   subtitleProcessLocallyUnavailable: "この環境では利用できません"
   subtitleTranslatorEngine: "翻訳エンジン"
   subtitleTranslatorEngineLocal: "ブラウザ内蔵翻訳 (Chrome限定、オンデバイス)"
-  subtitleTranslatorEngineLocalWasm: "ローカルWASM翻訳 (完全オフライン、日本語→英語のみ)"
+  subtitleTranslatorEngineLocalWasm: "ローカルWASM翻訳 (完全オフライン、日本語→英語のみ、初回利用時に約300MBのfp32モデルのダウンロードが必要)"
   subtitleTranslatorEngineGoogle: "Google翻訳 (非公式エンドポイント)"
   subtitleTranslatorEngineGas: "自前のGoogle Apps Script WebApp"
   subtitleTranslatorEngineDeepl: "DeepL (APIキーが必要)"
