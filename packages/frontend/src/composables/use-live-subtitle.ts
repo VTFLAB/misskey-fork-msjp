@@ -628,7 +628,11 @@ function scheduleRestart() {
 let watchdogTimer: number | null = null;
 let lastRecognitionEventAt = 0;
 // 結果が全く来ないままこの時間を超えたら停滞と判定して強制再起動する (猶予は大きめ)。
-const WATCHDOG_TIMEOUT_MS = 30_000;
+// processLocally=true (オンデバイスモデル) は初回 result までモデル warmup を要し、
+// 30s では warmup 中にウォッチドッグが誤発火して再起動ループに陥る (結果が一度も出ない)。
+// 60s なら warmup を吸収しつつ、実際に発話があるストリームで 60s 間イベントゼロは
+// 本来の停滞として検出できる。
+const WATCHDOG_TIMEOUT_MS = 60_000;
 // チェック間隔。10s ごとに staleness を確認する (setTimeout の自前再 arms で実装)。
 const WATCHDOG_INTERVAL_MS = 10_000;
 
@@ -705,6 +709,10 @@ function startRecognitionOnly() {
 		},
 		onError: (code) => {
 			liveSubtitleAsrErrorMessage.value = code;
+			// onerror も受信イベントの一種として活動とみなす (no-speech 繰返し中に誤発火しないように)。
+			// ウォッチドッグは「イベントが一切来ない」停滞を検知する目的なので、
+			// no-speech 等のエラーが来ている間はセッションは生きて通信している。
+			lastRecognitionEventAt = Date.now();
 			// 権限拒否・マイク未接続・非対応はリトライしても解決しないため自動再起動を止める
 			if (MIC_PERMISSION_ERROR_CODES.has(code) || TERMINAL_ERROR_CODES.has(code)) {
 				liveSubtitleAsrStatus.value = 'error';
@@ -741,6 +749,11 @@ function startRecognitionOnly() {
 	const stream = pendingInitialStream ?? undefined;
 	pendingInitialStream = null;
 	recognizer.start({ deviceId: settings.micDeviceId, processLocally: settings.processLocally, stream });
+	// セッション開始時に lastRecognitionEventAt を現在時刻で初期化する (必須)。
+	// これをしないとウォッチドッグが「前回セッションの最後の result 時刻 (または初回起動なら 0)」
+	// と比較してしまい、新しいセッションがまだ一度も result を出す前に WATCHDOG_TIMEOUT_MS 超過と
+	// 判定して強制再起動をかけてしまう (result が一度も出ない無限再起動ループになる)。
+	lastRecognitionEventAt = Date.now();
 	// 認識開始と同時にウォッチドッグを arms する (前回の認識インスタンスが残したタイマーがあれば上書き)
 	ensureWatchdog();
 }
