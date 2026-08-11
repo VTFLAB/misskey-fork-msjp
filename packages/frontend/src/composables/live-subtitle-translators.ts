@@ -132,6 +132,12 @@ async function translateLocal(text: string, targetLang: string): Promise<string>
 // 対応言語ペアは ja->en のみ (Xenova/opus-mt-ja-en)。他言語ペアの opus-mt-ja-* は
 // 品質・可用性が不安定なため今回は対象外 (TODO: 需要が出たら追加検討)。
 const LOCAL_WASM_SUPPORTED_TARGET_LANGS = new Set(['en']);
+// モデル選択に関するメモ (2026-08 時点):
+// 他のWASM翻訳モデル (NLLB-200 / m2m100 / TranslateGemma) は transformers.js 4.2 +
+// onnxruntime-web 1.26 の組み合わせでは、QDQ量子化モデルのロードエラー
+// (TransposeDQWeightsForMatMulNBits) またはモデル型未対応でいずれも動作しない。
+// そのため opus-mt-ja-en (fp32) が現時点で唯一動作する選択肢。モデルを差し替える
+// 場合は transformers.js / onnxruntime-web の更新状況を再確認すること。
 const LOCAL_WASM_MODEL_ID = 'Xenova/opus-mt-ja-en';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -145,9 +151,23 @@ async function getLocalWasmPipeline(): Promise<any> {
 		// TODO(拡張点): 依存を CDN ではなく pnpm ワークスペース依存として追加している
 		// (@huggingface/transformers)。将来的に device: 'webgpu' を試す場合は
 		// 契約上 WASM 固定の方針を見直す必要がある (翻訳系はWebGPUで不安定なため)
+		//
+		// dtype を 'fp32' で明示指定する理由 (2026-08 時点の回避策):
+		//   transformers.js 4.x が同梱する onnxruntime-web 1.26-dev には QDQ量子化
+		//   モデル (q8) の session-create 時に "TransposeDQWeightsForMatMulNBits
+		//   Missing required scale: model.shared.weight_merged_0_scale" で失敗する
+		//   回帰バグがある (HuggingFace transformers.js issues #1635/#1707)。
+		//   dtype 省略時の既定値 q8 がこの経路を踏むため、fp32 (量子化なし) を指定して
+		//   QDQパスを回避する。fp32ファイル (decoder_model_merged.onnx) は大きい
+		//   (~300MB) が実動する唯一の選択肢。
+		//   注意: q8 → fp32 のフォールバックリトライは実装しないこと。一度でも q8 で
+		//   session-create が失敗すると transformers.js 内部の webInitChain が
+		//   rejected のまま残り、同一ページセッション内での以降の試行が全て毒される
+		//   (issue #1635 MikkoParkkola comment)。初回から fp32 のみを試すこと。
 		const { pipeline } = await import('@huggingface/transformers');
 		const translator = await pipeline('translation', LOCAL_WASM_MODEL_ID, {
 			device: 'wasm',
+			dtype: 'fp32',
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			progress_callback: (progress: any) => {
 				if (progress?.status === 'progress' && typeof progress.progress === 'number') {
