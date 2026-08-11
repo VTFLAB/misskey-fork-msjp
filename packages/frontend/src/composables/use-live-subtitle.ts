@@ -183,6 +183,12 @@ class WebSpeechRecognizer implements RecognizerBackend {
 		};
 		recognition.onerror = (ev: SpeechRecognitionErrorEvent) => {
 			this.handlers?.onError(ev.error);
+			// onerror 後は onend が必ずしも発火しない (aborted / 一部内部状態)。
+			// ここで null 化しておかないと、後続の start() が stale なインスタンスを
+			// 参照する恐れがあるため、常に null 化する (onend での再 null 化は無害)。
+			// オーケストレータ側 (Change 1) で onerror 自体が再起動をスケジュールするため、
+			// onend が来なくても再起動が保証される。
+			this.recognition = null;
 		};
 		recognition.onend = () => {
 			this.recognition = null;
@@ -613,6 +619,54 @@ function scheduleRestart() {
 	}, delay);
 }
 
+// --- ウォッチドッグ (Change 4) ---
+// Web Speech API は長時間セッション中、onresult/onerror/onend いずれも発火しない
+// 「サイレント停止」を起こすことがある (ブラウザのリソース管理 / バックグラウンドタブ throttling /
+// オンデバイスモデルのハング)。ユーザー報告の「エラー無しに listening のまま停止」はこれ。
+// 定期的に「最後の結果受信時刻」をチェックし、猶予を超えたら強制再起動する。
+// WASM エンジンも同一の onResult 経由で結果を出すため、バックエンド非依存でカバーできる。
+let watchdogTimer: number | null = null;
+let lastRecognitionEventAt = 0;
+// 結果が全く来ないままこの時間を超えたら停滞と判定して強制再起動する (猶予は大きめ)。
+const WATCHDOG_TIMEOUT_MS = 30_000;
+// チェック間隔。10s ごとに staleness を確認する (setTimeout の自前再 arms で実装)。
+const WATCHDOG_INTERVAL_MS = 10_000;
+
+function clearWatchdog() {
+	if (watchdogTimer != null) {
+		window.clearTimeout(watchdogTimer);
+		watchdogTimer = null;
+	}
+}
+
+function ensureWatchdog() {
+	clearWatchdog();
+	if (!liveSubtitleRunning.value) return;
+	// 自前再 arms する setTimeout (setInterval と等価だが、コールバック内で liveSubtitleRunning を
+	// 再評価できる分、停止時の無駄発火を消しやすい)
+	const arm = () => {
+		if (!liveSubtitleRunning.value) {
+			watchdogTimer = null;
+			return;
+		}
+		// listening 中のみ停滞判定 (starting/restarting 中はイベントが来なくても正常)
+		if (liveSubtitleAsrStatus.value === 'listening') {
+			const silentFor = Date.now() - lastRecognitionEventAt;
+			if (silentFor > WATCHDOG_TIMEOUT_MS) {
+				// 強制再起動: 死んでいる可能性がある認識インスタンスを破棄して、即時再起動。
+				// backoff は膨らませない (ウォッチドッグ発火は「実エラー」ではない)。
+				// エラーメッセージは設定しない (UI には 'restarting' 状態のみ出す)。
+				const recognizer = getRecognizer(liveSubtitleSettings.value.engine);
+				recognizer.stop();
+				consecutiveErrorCount = 0;
+				scheduleRestart();
+			}
+		}
+		watchdogTimer = window.setTimeout(arm, WATCHDOG_INTERVAL_MS);
+	};
+	watchdogTimer = window.setTimeout(arm, WATCHDOG_INTERVAL_MS);
+}
+
 // マイク許可拒否系のエラーコード。リトライしても解決しないため自動再起動を止め、
 // 明示的にUIへ「サイト設定でマイクを許可してください」を出させる (契約: タスク1)
 const MIC_PERMISSION_ERROR_CODES = new Set(['not-allowed', 'service-not-allowed']);
@@ -642,6 +696,10 @@ function startRecognitionOnly() {
 		onResult: (result) => {
 			// 結果を受け取れたなら回線は正常に機能している。バックオフをリセットする
 			consecutiveErrorCount = 0;
+			// --- Change 4: ウォッチドッグ用タイムスタンプ更新 ---
+			// onresult/onerror/onend いずれも発火しない「サイレント停止」を検知するため、
+			// 最後に結果を受け取った時刻を記録する (ウォッチドッグが this を参照して比較する)
+			lastRecognitionEventAt = Date.now();
 			liveSubtitleAsrStatus.value = 'listening';
 			handleRecognitionResult(result);
 		},
@@ -653,7 +711,24 @@ function startRecognitionOnly() {
 				liveSubtitleRunning.value = false;
 				return;
 			}
-			consecutiveErrorCount++;
+			// --- Change 1: onerror 自身で再起動をスケジュールする ---
+			// Web Speech API は onerror の後に必ずしも onend を発火しない (aborted や一部内部状態)。
+			// 従来は onerror → consecutiveErrorCount++ のみで、onend 依存で scheduleRestart していたため、
+			// onend が来ないと再起動されず「listening のまま停止」になる (本バグの主因)。
+			// ここで直接 scheduleRestart を呼ぶことで onend 非依存の回復を保証する。
+			// (onend が後続で来ても scheduleRestart 内の clearRestartTimer でタイマー重複は解消される)
+			//
+			// --- Change 2: no-speech はバックオフ対象外 ---
+			// no-speech は continuous=true の長時間セッションで「無音が続いた」だけの正常イベント。
+			// 従来は consecutiveErrorCount++ されていたため、数回の no-speech で再起動遅延が 30s まで
+			// 指数膨張し「停止したように見える」症状を引き起こしていた。ここでは backoff を増やさず、
+			// 即時リセット (consecutiveErrorCount = 0) して short delay で再起動させる。
+			if (code === 'no-speech') {
+				consecutiveErrorCount = 0;
+			} else {
+				consecutiveErrorCount++;
+			}
+			scheduleRestart();
 		},
 		onEnd: () => {
 			// continuous=true でもブラウザ都合で onend が飛ぶことがあるため、
@@ -666,6 +741,8 @@ function startRecognitionOnly() {
 	const stream = pendingInitialStream ?? undefined;
 	pendingInitialStream = null;
 	recognizer.start({ deviceId: settings.micDeviceId, processLocally: settings.processLocally, stream });
+	// 認識開始と同時にウォッチドッグを arms する (前回の認識インスタンスが残したタイマーがあれば上書き)
+	ensureWatchdog();
 }
 
 // --- 公開API ---
@@ -694,6 +771,7 @@ export function stopLiveSubtitle() {
 	if (!liveSubtitleRunning.value && liveSubtitleAsrStatus.value === 'idle') return;
 	liveSubtitleRunning.value = false;
 	clearRestartTimer();
+	clearWatchdog();
 	const recognizer = getRecognizer(liveSubtitleSettings.value.engine);
 	recognizer.stop();
 	liveSubtitleAsrStatus.value = 'idle';
