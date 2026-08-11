@@ -169,6 +169,8 @@ class WebSpeechRecognizer implements RecognizerBackend {
 			}
 		}
 		recognition.onresult = (ev: SpeechRecognitionEvent) => {
+			// [ASR] 診断ログ: ASR 停滞調査用。console.debug でエラー扱いに見えないようにする。grep `[ASR]` で抽出。
+			console.debug(`[ASR] webspeech onresult (results=${ev.results.length}, resultIndex=${ev.resultIndex})`);
 			for (let i = ev.resultIndex; i < ev.results.length; i++) {
 				const result = ev.results[i];
 				let id = this.resultIds.get(i);
@@ -182,6 +184,7 @@ class WebSpeechRecognizer implements RecognizerBackend {
 			}
 		};
 		recognition.onerror = (ev: SpeechRecognitionErrorEvent) => {
+			console.debug(`[ASR] webspeech onerror: ${ev.error}`);
 			this.handlers?.onError(ev.error);
 			// onerror 後は onend が必ずしも発火しない (aborted / 一部内部状態)。
 			// ここで null 化しておかないと、後続の start() が stale なインスタンスを
@@ -191,14 +194,17 @@ class WebSpeechRecognizer implements RecognizerBackend {
 			this.recognition = null;
 		};
 		recognition.onend = () => {
+			console.debug('[ASR] webspeech onend');
 			this.recognition = null;
 			this.handlers?.onEnd();
 		};
 		this.recognition = recognition;
 		try {
 			recognition.start();
+			console.debug(`[ASR] webspeech start() called (processLocally=${opts.processLocally})`);
 		} catch (err) {
 			// start() を短時間に連打すると InvalidStateError が飛ぶことがある (再起動競合)
+			console.debug(`[ASR] webspeech start() failed: ${err}`);
 			this.handlers?.onError(err instanceof Error ? err.message : 'start-failed');
 		}
 	}
@@ -261,7 +267,16 @@ async function getWasmAsrPipeline(modelId: string): Promise<WhisperTranscriber> 
 		const { pipeline } = await import('@huggingface/transformers');
 		const transcriber = await pipeline('automatic-speech-recognition', modelId, {
 			device: 'wasm',
-			dtype: 'q8',
+			// q8 (QDQ) は onnxruntime-web 1.26-dev の QDQ 回帰で Whisper decoder weights に対して
+			// `TransposeDQWeightsForMatMulNBits Missing required scale` で session-create が失敗する。
+			// fp32 は非量子化 decoder_model_merged.onnx を使うため QDQ パスを通らず安定動作する。
+			// 翻訳エンジン (live-subtitle-translators.ts, commit cdef2caad0) と同じ根因・同じ修正パターン。
+			// 参考: HF transformers.js issues #1635/#1707 (webInitChain poison bug 含む)。
+			// ※q8→fp32 の retry/fallback は実装しないこと: webInitChain poison bug により
+			//   一度失敗した q8 session-create は同一ページセッション内で拒否され続け、
+			//   fp32 再試行も巻き込んで毒される。初回から fp32 のみ試す (翻訳エンジンと同じ制約)。
+			//   fp32 の whisper-base decoder は ~290MB (q8 ~80MB) と大きいが動作優先 (ユーザー承諾済み)。
+			dtype: 'fp32',
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			progress_callback: (progress: any) => {
 				if (progress?.status === 'progress' && typeof progress.progress === 'number') {
@@ -615,6 +630,7 @@ function scheduleRestart() {
 	liveSubtitleAsrStatus.value = 'restarting';
 	restartTimer = window.setTimeout(() => {
 		if (!liveSubtitleRunning.value) return;
+		console.debug(`[ASR] scheduleRestart executing (delay was ${delay}ms, consecutiveErrors=${consecutiveErrorCount})`);
 		startRecognitionOnly();
 	}, delay);
 }
@@ -660,6 +676,7 @@ function ensureWatchdog() {
 				// 強制再起動: 死んでいる可能性がある認識インスタンスを破棄して、即時再起動。
 				// backoff は膨らませない (ウォッチドッグ発火は「実エラー」ではない)。
 				// エラーメッセージは設定しない (UI には 'restarting' 状態のみ出す)。
+				console.debug(`[ASR] watchdog force-restart (silentFor=${silentFor}ms)`);
 				const recognizer = getRecognizer(liveSubtitleSettings.value.engine);
 				recognizer.stop();
 				consecutiveErrorCount = 0;
@@ -686,7 +703,9 @@ export function isMicPermissionErrorCode(code: string | null): boolean {
 let pendingInitialStream: MediaStream | null = null;
 
 function startRecognitionOnly() {
+	// [ASR] 診断ログ: ASR 停滞調査用。console.debug でエラー扱いに見えないようにする。grep `[ASR]` で抽出。
 	const settings = liveSubtitleSettings.value;
+	console.debug(`[ASR] startRecognitionOnly() engine=${settings.engine} running=${liveSubtitleRunning.value}`);
 	const recognizer = getRecognizer(settings.engine);
 	if (!recognizer.isSupported()) {
 		liveSubtitleAsrStatus.value = 'unsupported';
@@ -708,6 +727,7 @@ function startRecognitionOnly() {
 			handleRecognitionResult(result);
 		},
 		onError: (code) => {
+			console.debug(`[ASR] orchestrator onError code=${code}`);
 			liveSubtitleAsrErrorMessage.value = code;
 			// onerror も受信イベントの一種として活動とみなす (no-speech 繰返し中に誤発火しないように)。
 			// ウォッチドッグは「イベントが一切来ない」停滞を検知する目的なので、
@@ -739,6 +759,7 @@ function startRecognitionOnly() {
 			scheduleRestart();
 		},
 		onEnd: () => {
+			console.debug(`[ASR] orchestrator onEnd running=${liveSubtitleRunning.value}`);
 			// continuous=true でもブラウザ都合で onend が飛ぶことがあるため、
 			// 明示停止でない限り (running=trueのまま) 自動再起動する
 			if (liveSubtitleRunning.value) scheduleRestart();
