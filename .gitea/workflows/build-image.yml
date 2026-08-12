@@ -6,6 +6,19 @@ name: Build & Push Image
 on:
   push:
     branches: [bsky-integration]
+    # ドキュメント・エージェント設定・CI 定義のみの push では image を再ビルドしない。
+    # image label に revision sha を焼き込んでいるため、内容が同じでも再ビルドすると
+    # digest が変わり podman auto-update が本番を再起動してしまう (= 全クライアントの
+    # WS 切断)。2026-08-12 に docs のみのコミットで無駄な再起動が発生した対策。
+    # 変更ファイル「全て」が下記に一致した場合のみスキップされる (コード混在 push はビルドされる)。
+    # 意図的にビルドしたい場合は Gitea UI から workflow_dispatch で手動実行できる。
+    paths-ignore:
+      - '**.md'
+      - '.claude/**'
+      - '.agents/**'
+      - '.gitea/**'
+      - '.github/**'
+      - '.vscode/**'
   workflow_dispatch:
 
 permissions:
