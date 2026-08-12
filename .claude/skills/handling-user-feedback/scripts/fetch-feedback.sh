@@ -24,7 +24,7 @@ set -euo pipefail
 
 API_BASE="${FEEDBACK_API_BASE:-http://mi-host.msjp-local.org:3000/api}"
 # 添付画像のダウンロードを許可するホスト (カンマ区切り)。API の返す url フィールドのみ対象。
-ALLOWED_IMAGE_HOSTS="${FEEDBACK_ALLOWED_IMAGE_HOSTS:-mi.msjp.pro,mi-host.msjp-local.org}"
+ALLOWED_IMAGE_HOSTS="${FEEDBACK_ALLOWED_IMAGE_HOSTS:-mi.msjp.pro,mi-files.msjp.pro,mi-host.msjp-local.org}"
 OUT_DIR="${FEEDBACK_OUT_DIR:-/tmp/user-feedback}"
 MAX_IMAGE_BYTES=$((10 * 1024 * 1024))
 LIMIT="${FEEDBACK_LIMIT:-30}"
