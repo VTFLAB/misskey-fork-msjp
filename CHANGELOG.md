@@ -110,6 +110,7 @@
 - Fix: MSJP独自配信 (OME) のライブ視聴プレイヤーが、PC表示で画面上部に小さく表示され下に大きな黒帯が偏る不具合を修正 (bsky-fork 独自)。サードパーティ埋め込みプレイヤー (ovenplayer) が内部の `padding-bottom` トリックで自身の高さを幅の16:9に固定してしまい、画面の残り高さいっぱいに表示する想定のレイアウトと競合していた。該当CSSを上書きして高さをコンテナいっぱいに広げ、映像は上下中央に最大表示、余りは上下均等の黒帯になるよう修正
 
 ### Server
+- Enhance: 地震速報の履歴を Redis へ永続化 (bsky-fork 独自)。デプロイ等のサーバー再起動のたびに履歴ウィジェット・履歴 API が空に戻っていたのを、直近30件・最後の地震から7日間の TTL で再起動をまたいで保持するように
 - Feat: フィードバック受付 API を追加 (bsky-fork 独自)。`feedback/create` (ローカルユーザー限定・画像のみ添付可 (SVG 除外)・レートリミット 10件/日)、`feedback/list` (自分の報告一覧) に加え、LAN 内 LLM エージェント向けの `feedback/list-local` / `feedback/update-status-local` (update-info/create-local と同一の到達経路ガード、config `updateInfoLocalPost.allowedIps` を共用) を追加。報告内容はエンドユーザーの自由入力のため、参照側はプロンプトインジェクション対策の規律 (`.claude/skills/handling-user-feedback`) に従う
 
 - Enhance: 地震速報の配信ソースに P2P地震情報 (警報フィード) を並行追加 (bsky-fork 独自)。警報級の地震は Wolfx と P2P地震情報のどちらか先に届いた方で即時に第一報を出し、片方の障害時のフェイルセーフにもなる (2026-07-11 に Wolfx が silent hang で2日間停止した前例への対策)。重複通知は EventID + 発生時刻±3秒の二重ガードで構造的に排除。あわせて警報 (isWarn) は震度が解析不能でも採用対象になるよう修正
