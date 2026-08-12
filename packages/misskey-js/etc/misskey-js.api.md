@@ -1481,7 +1481,7 @@ type DriveStreamResponse = operations['drive___stream']['responses']['200']['con
 
 // @public (undocumented)
 type EarthquakeAlert = {
-    alert: JmaEewAlert;
+    alert: JmaEewHistoryEntry;
 };
 
 // @public (undocumented)
@@ -1627,6 +1627,8 @@ declare namespace entities {
         AnnouncementCreated,
         JmaEewWarnArea,
         JmaEewAlert,
+        JmaEewReportKind,
+        JmaEewHistoryEntry,
         EarthquakeAlert,
         SignupRequest,
         SignupResponse,
@@ -3086,6 +3088,14 @@ type JmaEewAlert = {
     isFinal: boolean;
     isCancel: boolean;
 };
+
+// @public (undocumented)
+type JmaEewHistoryEntry = JmaEewAlert & {
+    reportKind: JmaEewReportKind;
+};
+
+// @public (undocumented)
+type JmaEewReportKind = 'first' | 'final' | 'cancel';
 
 // @public (undocumented)
 type JmaEewWarnArea = {

@@ -22,7 +22,7 @@ import type { MiSystemWebhook } from '@/models/SystemWebhook.js';
 import type { MiMeta } from '@/models/Meta.js';
 import { MiAvatarDecoration, MiChatMessage, MiChatRoom, MiReversiGame, MiRole, MiRoleAssignment } from '@/models/_.js';
 import type { Packed } from '@/misc/json-schema.js';
-import type { JmaEewAlert } from '@/core/earthquake/EarthquakeAlertService.js';
+import type { JmaEewHistoryEntry } from '@/core/earthquake/EarthquakeAlertService.js';
 import type { TwitchChatFragment } from '@/models/TwitchStreamComment.js';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
@@ -46,7 +46,7 @@ export interface BroadcastTypes {
 		announcement: Packed<'Announcement'>;
 	};
 	earthquakeAlert: {
-		alert: JmaEewAlert;
+		alert: JmaEewHistoryEntry;
 	};
 }
 

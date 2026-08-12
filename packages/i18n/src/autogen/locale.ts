@@ -10218,6 +10218,10 @@ export interface Locale extends ILocale {
              */
             "forecast": string;
             /**
+             * 第一報
+             */
+            "first": string;
+            /**
              * 取消
              */
             "cancel": string;
@@ -14404,7 +14408,7 @@ export interface Locale extends ILocale {
          */
         "subtitleProcessLocally": string;
         /**
-         * 対応環境 (Chrome 139以降) では、音声データを外部に送信せずブラウザ内で認識できます。
+         * 対応環境 (PC版 Chrome 142以降、または Edge 150以降 Canary/Dev で flag 有効化) では、音声データを外部に送信せずブラウザ内で認識できます。日本語モデルは現在 Chrome のみ対応。
          */
         "subtitleProcessLocallyDescription": string;
         /**
@@ -14428,7 +14432,7 @@ export interface Locale extends ILocale {
          */
         "subtitleTranslatorEngineLocal": string;
         /**
-         * ローカルWASM翻訳 (完全オフライン、日本語→英語のみ)
+         * ローカルWASM翻訳 (完全オフライン、日本語→英語のみ、初回利用時に約300MBのfp32モデルのダウンロードが必要)
          */
         "subtitleTranslatorEngineLocalWasm": string;
         /**
@@ -14991,6 +14995,14 @@ export interface Locale extends ILocale {
          * チャンネルホーム
          */
         "channelHome": string;
+        /**
+         * チャンネルホームへ戻る
+         */
+        "backToChannelHome": string;
+        /**
+         * Misskeyホームへ戻る
+         */
+        "backToMisskeyHome": string;
         /**
          * チャンネルをフォロー
          */
