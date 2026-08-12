@@ -28,6 +28,7 @@
  * earthquakeAlert - 緊急地震速報 (JMA EEW) を受信した (bsky-fork 独自)
  * twitchLiveStreamStarted - フォロー中ユーザーの Twitch 配信が開始した (bsky-fork 独自)
  * googleAuthExpired - Google 連携 (Drive/YouTube) のトークンが失効し再連携が必要 (bsky-fork 独自)
+ * feedbackReceived - 新着のバグ報告・機能要望 (モデレーター宛、bsky-fork 独自)
  */
 export const notificationTypes = [
 	'note',
@@ -54,6 +55,7 @@ export const notificationTypes = [
 	'earthquakeAlert',
 	'twitchLiveStreamStarted',
 	'googleAuthExpired',
+	'feedbackReceived',
 ] as const;
 
 export const groupedNotificationTypes = [
