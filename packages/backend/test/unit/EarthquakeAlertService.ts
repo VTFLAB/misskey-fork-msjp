@@ -18,6 +18,7 @@ describe('EarthquakeAlertService', () => {
 	let globalEventService: { publishBroadcastStream: ReturnType<typeof vi.fn> };
 	let notificationService: { createNotification: ReturnType<typeof vi.fn> };
 	let usersRepository: { findBy: ReturnType<typeof vi.fn> };
+	let redisClient: { get: ReturnType<typeof vi.fn>; set: ReturnType<typeof vi.fn> };
 	let service: EarthquakeAlertService;
 
 	function baseAlert(overrides: Record<string, unknown>) {
@@ -51,11 +52,13 @@ describe('EarthquakeAlertService', () => {
 		globalEventService = { publishBroadcastStream: vi.fn() };
 		notificationService = { createNotification: vi.fn() };
 		usersRepository = { findBy: vi.fn().mockResolvedValue([{ id: 'user1' }, { id: 'user2' }]) };
+		redisClient = { get: vi.fn().mockResolvedValue(null), set: vi.fn().mockResolvedValue('OK') };
 
 		service = new EarthquakeAlertService(
 			new LoggerService(),
 			globalEventService as any,
 			notificationService as any,
+			redisClient as any,
 			usersRepository as any,
 		);
 	});
