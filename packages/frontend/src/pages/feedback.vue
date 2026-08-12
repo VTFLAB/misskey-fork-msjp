@@ -47,29 +47,33 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 			<MkFoldableSection>
 				<template #header>{{ i18n.ts._feedback.myFeedbacks }}</template>
-				<MkPagination v-slot="{items}" :paginator="paginator" class="_gaps">
-					<section v-for="feedback in items" :key="feedback.id" class="_panel" :class="$style.feedbackItem">
-						<div :class="$style.feedbackHeader">
-							<i v-if="feedback.type === 'bug'" class="ti ti-bug"></i>
-							<i v-else class="ti ti-bulb"></i>
-							<span :class="$style.feedbackTitle">{{ feedback.title }}</span>
-							<span :class="[$style.statusBadge, $style[`status_${feedback.status}`]]">{{ i18n.ts._feedback._status[feedback.status] }}</span>
-						</div>
-						<div :class="$style.feedbackBody">{{ feedback.body }}</div>
-						<div v-if="feedback.files.length > 0" :class="$style.attachments">
-							<a v-for="file in feedback.files" :key="file.id" :href="file.url ?? undefined" target="_blank" rel="noopener" :class="$style.attachment">
-								<img :src="file.thumbnailUrl ?? file.url ?? undefined" :alt="file.name" :class="$style.attachmentImage"/>
-							</a>
-						</div>
-						<div v-if="feedback.response != null" :class="$style.response">
-							<div :class="$style.responseLabel"><i class="ti ti-message-report"></i> {{ i18n.ts._feedback.responseFromStaff }}</div>
-							<div>{{ feedback.response }}</div>
-						</div>
-						<div :class="$style.feedbackDate">
-							{{ i18n.ts.createdAt }}: <MkTime :time="feedback.createdAt" mode="detail"/>
-						</div>
-					</section>
-					<div v-if="items.length === 0" :class="$style.empty">{{ i18n.ts._feedback.noFeedbacks }}</div>
+				<MkPagination :paginator="paginator" class="_gaps">
+					<template #default="{items}">
+						<section v-for="feedback in items" :key="feedback.id" class="_panel" :class="$style.feedbackItem">
+							<div :class="$style.feedbackHeader">
+								<i v-if="feedback.type === 'bug'" class="ti ti-bug"></i>
+								<i v-else class="ti ti-bulb"></i>
+								<span :class="$style.feedbackTitle">{{ feedback.title }}</span>
+								<span :class="[$style.statusBadge, $style[`status_${feedback.status}`]]">{{ i18n.ts._feedback._status[feedback.status] }}</span>
+							</div>
+							<div :class="$style.feedbackBody">{{ feedback.body }}</div>
+							<div v-if="feedback.files.length > 0" :class="$style.attachments">
+								<a v-for="file in feedback.files" :key="file.id" :href="file.url ?? undefined" target="_blank" rel="noopener" :class="$style.attachment">
+									<img :src="file.thumbnailUrl ?? file.url ?? undefined" :alt="file.name" :class="$style.attachmentImage"/>
+								</a>
+							</div>
+							<div v-if="feedback.response != null" :class="$style.response">
+								<div :class="$style.responseLabel"><i class="ti ti-message-report"></i> {{ i18n.ts._feedback.responseFromStaff }}</div>
+								<div>{{ feedback.response }}</div>
+							</div>
+							<div :class="$style.feedbackDate">
+								{{ i18n.ts.createdAt }}: <MkTime :time="feedback.createdAt" mode="detail"/>
+							</div>
+						</section>
+					</template>
+					<template #empty>
+						<div :class="$style.empty">{{ i18n.ts._feedback.noFeedbacks }}</div>
+					</template>
 				</MkPagination>
 			</MkFoldableSection>
 		</div>

@@ -9775,6 +9775,14 @@ export interface Locale extends ILocale {
          */
         "read:admin:update-info": string;
         /**
+         * バグ報告・機能要望を管理する
+         */
+        "write:admin:feedback": string;
+        /**
+         * バグ報告・機能要望を見る
+         */
+        "read:admin:feedback": string;
+        /**
          * アバターデコレーションを操作する
          */
         "write:admin:avatar-decorations": string;
@@ -14998,9 +15006,21 @@ export interface Locale extends ILocale {
          */
         "noFeedbacks": string;
         /**
+         * 報告・要望はまだ届いていません。
+         */
+        "adminNoFeedbacks": string;
+        /**
          * 運営からの返信
          */
         "responseFromStaff": string;
+        /**
+         * ユーザーから届いたバグ報告・機能要望の一覧です。状態の変更と返信は、報告者本人の「送信した報告・要望」にそのまま表示されます。
+         */
+        "adminDescription": string;
+        /**
+         * 報告者への返信 (本人の報告一覧に表示されます)
+         */
+        "replyPlaceholder": string;
         "_status": {
             /**
              * 受付済み

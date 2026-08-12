@@ -118,6 +118,8 @@ export const permissions = [
 	'read:admin:announcements',
 	'write:admin:update-info',
 	'read:admin:update-info',
+	'write:admin:feedback',
+	'read:admin:feedback',
 	'write:admin:avatar-decorations',
 	'read:admin:avatar-decorations',
 	'write:admin:federation',

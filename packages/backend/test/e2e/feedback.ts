@@ -89,6 +89,34 @@ describe('フィードバック受付', () => {
 		assert.strictEqual(resBob.body.length, 0);
 	});
 
+	test('管理 API はモデレーター以外拒否される', async () => {
+		// alice はこのファイルの最初の signup = インスタンス初期管理者、bob は一般ユーザー
+		const res = await api('admin/feedback/list', {}, bob);
+		assert.strictEqual(res.status, 403);
+	});
+
+	test('モデレーターは全件一覧と状態更新・返信ができる', async () => {
+		const list = await api('admin/feedback/list', { limit: 100 }, alice);
+		assert.strictEqual(list.status, 200);
+		assert.ok(list.body.length >= 2);
+		// admin 一覧には報告者 (user) が含まれる
+		assert.ok(list.body.every(f => f.user != null));
+
+		const target = list.body[list.body.length - 1];
+		const updated = await api('admin/feedback/update', {
+			feedbackId: target.id,
+			status: 'resolved',
+			response: '対応しました',
+		}, alice);
+		assert.strictEqual(updated.status, 200);
+
+		// 報告者本人の一覧に状態と返信が反映される
+		const mine = await api('feedback/list', { limit: 100 }, alice);
+		const mineTarget = mine.body.find(f => f.id === target.id)!;
+		assert.strictEqual(mineTarget.status, 'resolved');
+		assert.strictEqual(mineTarget.response, '対応しました');
+	});
+
 	test('LAN 限定 endpoint は経路ガードで拒否される (allowedIps 未設定)', async () => {
 		const res = await api('feedback/list-local', {});
 		assert.strictEqual(res.status, 400);
