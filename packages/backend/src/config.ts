@@ -92,6 +92,13 @@ type Source = {
 
 	allowedPrivateNetworks?: string[];
 
+	// bsky-fork 独自: LAN 内クライアント (ローカル LLM / MCP 等) からの
+	// update-info 認証不要投稿 (update-info/create-local) を許可する送信元 IP/CIDR。
+	// 未設定なら機能オフ (常に拒否)。
+	updateInfoLocalPost?: {
+		allowedIps?: string[];
+	};
+
 	maxFileSize?: number;
 
 	clusterLimit?: number;
@@ -203,6 +210,7 @@ export type Config = {
 	proxySmtp: string | undefined;
 	proxyBypassHosts: string[] | undefined;
 	allowedPrivateNetworks: string[] | undefined;
+	updateInfoLocalPost: { allowedIps: string[] } | undefined;
 	maxFileSize: number;
 	clusterLimit: number | undefined;
 	threadPoolSize: number;
@@ -402,6 +410,9 @@ export function loadConfig(): Config {
 		proxySmtp: config.proxySmtp,
 		proxyBypassHosts: config.proxyBypassHosts,
 		allowedPrivateNetworks: config.allowedPrivateNetworks,
+		updateInfoLocalPost: config.updateInfoLocalPost?.allowedIps != null && config.updateInfoLocalPost.allowedIps.length > 0
+			? { allowedIps: config.updateInfoLocalPost.allowedIps }
+			: undefined,
 		maxFileSize: config.maxFileSize ?? 262144000,
 		clusterLimit: config.clusterLimit,
 		threadPoolSize: config.threadPoolSize ?? 1,

@@ -677,6 +677,8 @@ import type {
 	TwitchSubtitlePublishResponse,
 	TwitchUpdateSettingsRequest,
 	TwitchUpdateSettingsResponse,
+	UpdateInfoCreateLocalRequest,
+	UpdateInfoCreateLocalResponse,
 	UpdateInfoShowRequest,
 	UpdateInfoShowResponse,
 	UpdateInfosRequest,
@@ -1191,6 +1193,7 @@ export type Endpoints = {
 	'twitch/subtitle/publish': { req: TwitchSubtitlePublishRequest; res: TwitchSubtitlePublishResponse };
 	'twitch/unlink': { req: EmptyRequest; res: EmptyResponse };
 	'twitch/update-settings': { req: TwitchUpdateSettingsRequest; res: TwitchUpdateSettingsResponse };
+	'update-info/create-local': { req: UpdateInfoCreateLocalRequest; res: UpdateInfoCreateLocalResponse };
 	'update-info/show': { req: UpdateInfoShowRequest; res: UpdateInfoShowResponse };
 	'update-infos': { req: UpdateInfosRequest; res: UpdateInfosResponse };
 	'username/available': { req: UsernameAvailableRequest; res: UsernameAvailableResponse };
