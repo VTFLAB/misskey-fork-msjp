@@ -47,7 +47,11 @@ jobs:
           username: VTF
           password: ${{ secrets.REGISTRY_TOKEN }}
 
-      - name: Build and push
+      # まず immutable tag だけを push し、成功した場合のみ後段で rolling な bsky-latest を
+      # 付け替える。以前は 2 tag 同時 push で「bsky-latest の push 成功 → immutable tag の
+      # push が registry token 不調で失敗 = job は failure なのに本番へは自動配備される」
+      # 事故が起きた (2026-08-11 障害)。この順序なら失敗した build が bsky-latest に載らない。
+      - name: Build and push (immutable tag)
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -55,9 +59,7 @@ jobs:
           # Misskey 公式 image は linux/amd64 のみ。Misskey-bsky-fork も pve2 上の
           # CT 200 (x86_64) のみで動かすので amd64 単一で OK。
           platforms: linux/amd64
-          tags: |
-            ${{ steps.tags.outputs.image_sha }}
-            ${{ steps.tags.outputs.image_latest }}
+          tags: ${{ steps.tags.outputs.image_sha }}
           build-args: |
             NODE_ENV=production
           # Image label として io.containers.autoupdate=registry を付与すると、
@@ -70,6 +72,25 @@ jobs:
             org.opencontainers.image.version=${{ env.BASE_VERSION }}-bsky-${{ steps.tags.outputs.sha }}
           cache-from: type=registry,ref=${{ steps.tags.outputs.image_buildcache }}
           cache-to: type=registry,ref=${{ steps.tags.outputs.image_buildcache }},mode=max
+
+      # build 成功時のみ registry 上で bsky-latest tag を immutable tag に付け替える。
+      # Gitea の registry token endpoint は一時的に token を返さないことがある
+      # ("authorization server did not include a token in the response"、runs #931-939 の
+      # 失敗原因) ため、リトライで吸収する。
+      - name: Promote to bsky-latest
+        run: |
+          for i in 1 2 3 4 5; do
+            if docker buildx imagetools create \
+              -t "${{ steps.tags.outputs.image_latest }}" \
+              "${{ steps.tags.outputs.image_sha }}"; then
+              echo "bsky-latest now points at ${{ steps.tags.outputs.image_sha }}"
+              exit 0
+            fi
+            echo "imagetools create failed (attempt $i/5); retrying in 10s..."
+            sleep 10
+          done
+          echo "::error::failed to promote bsky-latest after 5 attempts"
+          exit 1
 
       - name: Summary
         run: |
