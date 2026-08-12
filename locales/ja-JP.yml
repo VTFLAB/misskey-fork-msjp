@@ -2691,6 +2691,7 @@ _widgetOptions:
   _earthquakeHistory:
     warn: "警報"
     forecast: "予報"
+    first: "第一報"
     cancel: "取消"
     final: "最終報"
     maxIntensity: "最大震度"
