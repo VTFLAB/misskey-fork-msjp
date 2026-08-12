@@ -10,7 +10,11 @@ import { userFeedbackTypes } from '@/models/UserFeedback.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { ApiError } from '@/server/api/error.js';
 import { DI } from '@/di-symbols.js';
+import type Logger from '@/logger.js';
+import { LoggerService } from '@/core/LoggerService.js';
 import { IdService } from '@/core/IdService.js';
+import { RoleService } from '@/core/RoleService.js';
+import { NotificationService } from '@/core/NotificationService.js';
 import { UserFeedbackEntityService } from '@/core/entities/UserFeedbackEntityService.js';
 
 // bsky-fork 独自: バグ報告・機能要望の受付。ローカルユーザー (要認証) のみ。
@@ -69,6 +73,8 @@ export const paramDef = {
 
 @Injectable()
 export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-disable-line import/no-default-export
+	private logger: Logger;
+
 	constructor(
 		@Inject(DI.userFeedbacksRepository)
 		private userFeedbacksRepository: UserFeedbacksRepository,
@@ -77,7 +83,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private driveFilesRepository: DriveFilesRepository,
 
 		private idService: IdService,
+		private roleService: RoleService,
+		private notificationService: NotificationService,
 		private userFeedbackEntityService: UserFeedbackEntityService,
+		loggerService: LoggerService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const fileIds = ps.fileIds ?? [];
@@ -104,7 +113,26 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				fileIds,
 			});
 
+			// モデレーターへ新着通知 (取りこぼし防止)。通知の失敗で投稿自体は失敗させない。
+			this.roleService.getModeratorIds({ includeAdmins: true, includeRoot: true }).then(moderatorIds => {
+				for (const moderatorId of moderatorIds) {
+					// 自分自身がモデレーターの場合は通知しない
+					if (moderatorId === me.id) continue;
+					this.notificationService.createNotification(moderatorId, 'feedbackReceived', {
+						feedbackId: feedback.id,
+						feedbackType: ps.type,
+						title: ps.title,
+					});
+				}
+			}).catch(err => {
+				// 通知が届かない障害に運用で気づけるよう warn は残す (投稿自体は失敗させない)
+				this.logger.warn(`failed to notify moderators: ${err instanceof Error ? err.message : String(err)}`);
+			});
+
 			return await this.userFeedbackEntityService.pack(feedback);
 		});
+		// super() より後でしか this へ代入できないためここで初期化する
+		// (exec コールバックはリクエスト時評価なので初期化順の問題はない)。
+		this.logger = loggerService.getLogger('feedback');
 	}
 }

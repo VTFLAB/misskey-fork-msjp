@@ -179,6 +179,14 @@ export type MiNotification = {
 	id: string;
 	createdAt: string;
 	target: 'drive' | 'youtube';
+} | {
+	// 新着のバグ報告・機能要望 (モデレーター宛、bsky-fork 独自)
+	type: 'feedbackReceived';
+	id: string;
+	createdAt: string;
+	feedbackId: string;
+	feedbackType: 'bug' | 'feature';
+	title: string;
 };
 
 export type MiGroupedNotification = MiNotification | {

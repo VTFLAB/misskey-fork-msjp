@@ -553,5 +553,29 @@ export const packedNotificationSchema = {
 				enum: ['drive', 'youtube'],
 			},
 		},
+	}, {
+		type: 'object',
+		properties: {
+			...baseSchema.properties,
+			type: {
+				type: 'string',
+				optional: false, nullable: false,
+				enum: ['feedbackReceived'],
+			},
+			feedbackId: {
+				type: 'string',
+				optional: false, nullable: false,
+				format: 'id',
+			},
+			feedbackType: {
+				type: 'string',
+				optional: false, nullable: false,
+				enum: ['bug', 'feature'],
+			},
+			title: {
+				type: 'string',
+				optional: false, nullable: false,
+			},
+		},
 	}],
 } as const;

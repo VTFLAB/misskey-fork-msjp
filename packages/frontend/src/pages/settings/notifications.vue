@@ -132,7 +132,7 @@ const notifyUserPaginator = markRaw(new Paginator('following/list', {
 	},
 }));
 
-const nonConfigurableNotificationTypes = ['note', 'roleAssigned', 'followRequestAccepted', 'test', 'exportCompleted', 'updateInfo', 'earthquakeAlert', 'googleAuthExpired'] as const satisfies (typeof notificationTypes[number])[];
+const nonConfigurableNotificationTypes = ['note', 'roleAssigned', 'followRequestAccepted', 'test', 'exportCompleted', 'updateInfo', 'earthquakeAlert', 'googleAuthExpired', 'feedbackReceived'] as const satisfies (typeof notificationTypes[number])[];
 
 const configurableNotificationTypes = notificationTypes.filter(type => !nonConfigurableNotificationTypes.includes(type as any)) as Exclude<typeof notificationTypes[number], typeof nonConfigurableNotificationTypes[number]>[];
 
