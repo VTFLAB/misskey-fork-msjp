@@ -51,6 +51,7 @@ Misskey のテーマシステムは 2 系統の CSS 変数で構成される。�
 - `transparent` / `currentColor` / `none` などの CSS キーワード
 - alpha だけ動的に変えたい → `color-mix(in srgb, var(--MI_THEME-fg) 50%, transparent)` のように合成する
 - アイコンサイズ等、CSS 変数化されていない数値定数 (`font-size: 14px;` 等は OK)
+- 常時黒背景の映像へ重ねるプレイヤーオーバーレイ (`MkMediaVideo.vue` / `MkOmePlayer.vue` 等) の白/黒直値。テーマに関わらず映像上では固定配色が正しく、変数化はむしろ退行になる。採用時はその旨をコメントで文書化する
 
 ## グローバル utility class
 
