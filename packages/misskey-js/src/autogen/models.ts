@@ -70,3 +70,4 @@ export type ChatRoom = components['schemas']['ChatRoom'];
 export type ChatRoomInvitation = components['schemas']['ChatRoomInvitation'];
 export type ChatRoomMembership = components['schemas']['ChatRoomMembership'];
 export type UpdateInfo = components['schemas']['UpdateInfo'];
+export type UserFeedback = components['schemas']['UserFeedback'];

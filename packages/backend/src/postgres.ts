@@ -67,6 +67,7 @@ import { MiGoogleAccount } from '@/models/GoogleAccount.js';
 import { MiTwitchStreamComment } from '@/models/TwitchStreamComment.js';
 import { MiTwitchStreamBlock } from '@/models/TwitchStreamBlock.js';
 import { MiUpdateInfo } from '@/models/UpdateInfo.js';
+import { MiUserFeedback } from '@/models/UserFeedback.js';
 import { MiUsedUsername } from '@/models/UsedUsername.js';
 import { MiUser } from '@/models/User.js';
 import { MiUserIp } from '@/models/UserIp.js';
@@ -213,6 +214,7 @@ export const entities = [
 	MiRemoteGuestAccount,
 	MiRemoteGuestSession,
 	MiUpdateInfo,
+	MiUserFeedback,
 	MiUsedUsername,
 	MiFollowing,
 	MiFollowRequest,
