@@ -80,7 +80,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span v-else-if="notification.type === 'login'">{{ i18n.ts._notification.login }}</span>
 			<span v-else-if="notification.type === 'createToken'">{{ i18n.ts._notification.createToken }}</span>
 			<span v-else-if="notification.type === 'test'">{{ i18n.ts._notification.testNotification }}</span>
-			<span v-else-if="notification.type === 'earthquakeAlert'">{{ i18n.ts.earthquakeEarlyWarning }}</span>
+			<span v-else-if="notification.type === 'earthquakeAlert'">{{ i18n.ts.earthquakeEarlyWarning }}({{ getEarthquakeKindLabel(notification) }})</span>
 			<span v-else-if="notification.type === 'googleAuthExpired'">{{ i18n.ts._notification.googleAuthExpired }}</span>
 			<span v-else-if="notification.type === 'exportCompleted'">{{ i18n.tsx._notification.exportOfXCompleted({ x: exportEntityName[notification.exportedEntity] }) }}</span>
 			<MkA v-else-if="notification.type === 'follow' || notification.type === 'mention' || notification.type === 'reply' || notification.type === 'renote' || notification.type === 'quote' || notification.type === 'reaction' || notification.type === 'receiveFollowRequest' || notification.type === 'followRequestAccepted' || notification.type === 'twitchLiveStreamStarted'" v-user-preview="notification.user.id" :class="$style.headerName" :to="userPage(notification.user)"><MkUserName :user="notification.user"/></MkA>
@@ -259,6 +259,12 @@ const rejectFollowRequest = () => {
 function getActualReactedUsersCount(notification: Misskey.entities.Notification) {
 	if (notification.type !== 'reaction:grouped') return 0;
 	return new Set(notification.reactions.map((reaction) => reaction.user.id)).size;
+}
+
+// 地震速報通知の報種別ラベル (第一報 / 最終報 / 取消)。bsky-fork 独自。
+function getEarthquakeKindLabel(notification: Misskey.entities.Notification & { type: 'earthquakeAlert' }) {
+	const eq = i18n.ts._widgetOptions._earthquakeHistory;
+	return notification.reportKind === 'cancel' ? eq.cancel : notification.reportKind === 'final' ? eq.final : eq.first;
 }
 </script>
 

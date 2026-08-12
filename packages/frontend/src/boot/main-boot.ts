@@ -329,14 +329,15 @@ export async function mainBoot() {
 
 			// 地震速報 (JMA EEW, bsky-fork 独自): Wolfx (https://wolfx.jp) 経由でサーバーが
 			// 中継した緊急地震速報を全接続中クライアントへトースト通知する。
+			// サーバー側で「1つの地震につき第一報と最終報 (と取消報) のみ・震度3以上」に
+			// 絞られた報だけが届く。
 			stream.on('earthquakeAlert', ev => {
 				const a = ev.alert;
-				const status = a.isCancel
-					? i18n.ts._widgetOptions._earthquakeHistory.cancel
-					: a.isWarn
-						? i18n.ts._widgetOptions._earthquakeHistory.warn
-						: i18n.ts._widgetOptions._earthquakeHistory.forecast;
-				toast(`${i18n.ts.earthquakeEarlyWarning}(${status}): ${a.Hypocenter} M${a.Magunitude} ${i18n.ts._widgetOptions._earthquakeHistory.maxIntensity}${a.MaxIntensity}`);
+				const eq = i18n.ts._widgetOptions._earthquakeHistory;
+				const status = a.reportKind === 'cancel'
+					? eq.cancel
+					: `${a.isWarn ? eq.warn : eq.forecast}・${a.reportKind === 'final' ? eq.final : eq.first}`;
+				toast(`${i18n.ts.earthquakeEarlyWarning}(${status}): ${a.Hypocenter} M${a.Magunitude} ${eq.maxIntensity}${a.MaxIntensity}`);
 			});
 
 			const main = markRaw(stream.useChannel('main', null, 'System'));
