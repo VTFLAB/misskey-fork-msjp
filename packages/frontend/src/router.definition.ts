@@ -473,6 +473,12 @@ export const ROUTE_DEF = [{
 		name: 'updateInfo',
 		component: page(() => import('@/pages/admin/update-info.vue')),
 	}, {
+		// バグ報告・機能要望の管理 (bsky-fork 独自)。トップレベルの name: 'feedback' と
+		// 衝突しないよう admin 側は adminFeedback にする
+		path: '/feedback',
+		name: 'adminFeedback',
+		component: page(() => import('@/pages/admin/feedback.vue')),
+	}, {
 		path: '/ads',
 		name: 'ads',
 		component: page(() => import('@/pages/admin/ads.vue')),
