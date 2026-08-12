@@ -167,6 +167,11 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		to: '/admin/update-info',
 		active: currentPage.value?.route.name === 'updateInfo',
 	}, {
+		icon: 'ti ti-message-report',
+		text: i18n.ts._feedback.feedback,
+		to: '/admin/feedback',
+		active: currentPage.value?.route.name === 'adminFeedback',
+	}, {
 		icon: 'ti ti-ad',
 		text: i18n.ts.ads,
 		to: '/admin/ads',
