@@ -44,6 +44,11 @@ export const packedUserFeedbackSchema = {
 			type: 'string',
 			optional: false, nullable: true,
 		},
+		user: {
+			type: 'object',
+			optional: true, nullable: true,
+			ref: 'UserLite',
+		},
 		files: {
 			type: 'array',
 			optional: false, nullable: false,
