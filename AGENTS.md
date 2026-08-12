@@ -18,10 +18,27 @@
 
 1. **SPDX ヘッダー欠落のまま AGPL 管轄ディレクトリへ新規ファイルを追加しない**
    - 対象: 新規 `.ts` / `.js` / `.cjs` / `.mjs` / `.vue` / `.scss` / `.html` ファイル
-   - 対象と判定は [scripts/check-spdx.mjs](scripts/check-spdx.mjs) が一元管理する
-   - `node scripts/check-spdx.mjs` を 1 回実行し、欠落は `--fix` で補う。
-     `SPDX: OK` なら追加の目視確認はしない
+   - CI の対象判定は [.github/workflows/check-spdx-license-id.yml](.github/workflows/check-spdx-license-id.yml) の `directories` 配列を参照 (`*.config.{ts,js,cjs,mjs}` と `*eslint*` は除外)
+   - 欠落すると CI (`spdx` ジョブ) が失敗する
    - `packages/misskey-js` は MIT ライセンスのサブパッケージなので、この AGPL ヘッダーを一律に付けない (サブパッケージ固有の `package.json` / `LICENSE` / 既存ファイルのヘッダーに従う)
+
+   `.ts` / `.js` / `.cjs` / `.mjs` / `.scss`:
+
+   ```text
+   /*
+    * SPDX-FileCopyrightText: syuilo and misskey-project
+    * SPDX-License-Identifier: AGPL-3.0-only
+    */
+   ```
+
+   `.vue` / `.html` (HTML コメント形式):
+
+   ```text
+   <!--
+   SPDX-FileCopyrightText: syuilo and misskey-project
+   SPDX-License-Identifier: AGPL-3.0-only
+   -->
+   ```
 
 2. **`locales/ja-JP.yml` 以外の locale YAML を手動編集しない**
    - 他言語ファイル (`en-US.yml` など `ja-JP.yml` 以外すべて) は Crowdin の自動配信先。手動編集すると次の同期で上書き喪失する
@@ -36,7 +53,7 @@
 ### Git / リポジトリ操作
 
 4. **`git push --force` / `--force-with-lease` を `main` / `develop` / `master` にしない** (他人の作業を消す可能性)
-5. **`git commit --no-verify` で hook をスキップしない**
+5. **`git commit --no-verify` で hook をスキップしない** (lint / format / SPDX チェックを潰す)
 6. **マージ済 / プッシュ済コミットを `git commit --amend` で書き換えない** (履歴の整合性が壊れる)
 7. **他人のブランチを `git reset --hard` / `git branch -D` で破壊しない**
 8. **`git config` をユーザーに無断で書き換えない** (特に `user.name` / `user.email` / `commit.gpgsign`)
@@ -63,14 +80,13 @@
 
 各エージェントは [shipping-misskey-change スキル](.claude/skills/shipping-misskey-change/SKILL.md) を参照すること。スキルが利用できない環境でも、以下のチェックは必ず実施すること:
 
-1. **lint / test**: ESLint 対象の変更ファイルへ package root から `eslint --quiet` を最後に 1 回実行し、実装変更には最も近い test を選んで実行する。
-   package / repo 全体 lint と広域 test は任意
+1. **lint**: `pnpm lint` が通る (typecheck + eslint, 全パッケージ)
 2. **backend API 変更時**: `pnpm build-misskey-js-with-types` を実行し `packages/misskey-js/src/autogen/` の差分も commit に含めた
 3. **entity / migration 変更時**: `pnpm --filter backend check-migrations` が pending DDL 0 件で通る / 新規 migration は `up()` と `down()` 両方実装済
-4. **SPDX**: `node scripts/check-spdx.mjs` が `SPDX: OK` を返すことを確認する
-5. **locale safety**: commit 済み・未commit・untracked の変更集合に `locales/ja-JP.yml` 以外の locale YAML が無いことを確認する
-6. **[CHANGELOG](.claude/skills/shipping-misskey-change/references/tasks/changelog-update.md)**: ユーザーが明示しない限り編集しない。
-   ユーザー影響がある変更では引き継ぎに候補を 1 行だけ示す
+4. **新規ファイル**: SPDX ヘッダーを付けた (`.vue` / `.html` は HTML コメント形式、それ以外は TS コメント形式)
+5. **ユーザー影響のある変更**: `CHANGELOG.md` の `## Unreleased` 配下の該当サブセクション (`### General` / `### Client` / `### Server`) に `- <Feat|Enhance|Fix>: <概要>` を 1 行追記
+6. **locale safety**: `locales/` を編集した場合、`git diff --name-only develop -- 'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'` が空 (ja-JP.yml 以外に差分が無い) ことを確認
+7. **一般ユーザーが知るべき変更** (新機能 / UI・挙動変更 / 体感される不具合修正): 本番デプロイ完了後にアップデート情報 (`/updates`) へ掲載する。**管理者・開発者のみ知ればよい変更 (admin 機能 / CI / 内部改善) と、まだ一般ユーザーが利用できない機能 (外部審査待ち等) は掲載しない**。判定基準・投稿方法は `shipping-misskey-change` スキルの `references/tasks/post-update-info.md` を参照
 
 ### Validation commands
 
@@ -78,7 +94,7 @@
 
 | 用途 | コマンド |
 | --- | --- |
-| 全体 lint (任意) | `pnpm lint` |
+| 全体 lint (typecheck + eslint) | `pnpm lint` |
 | Backend unit test | `pnpm --filter backend test` |
 | Backend e2e test | `pnpm --filter backend test:e2e` |
 | Backend federation test | `pnpm --filter backend test:fed` |
