@@ -15,14 +15,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<template #label>{{ i18n.ts._feedback.type }}</template>
 					</MkRadios>
 
-					<MkInput v-model="title">
+					<MkInput v-model="title" :placeholder="i18n.ts._feedback.reportTitlePlaceholder">
 						<template #label>{{ i18n.ts._feedback.reportTitle }}</template>
-						<template #caption>{{ i18n.ts._feedback.reportTitlePlaceholder }}</template>
 					</MkInput>
 
 					<MkTextarea v-model="body" tall>
 						<template #label>{{ i18n.ts._feedback.reportBody }}</template>
-						<template #caption>{{ type === 'bug' ? i18n.ts._feedback.bugBodyPlaceholder : i18n.ts._feedback.featureBodyPlaceholder }}</template>
+						<template #caption>{{ i18n.ts._feedback.bodyTemplateNote }}</template>
 					</MkTextarea>
 
 					<div>
@@ -79,7 +78,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, markRaw } from 'vue';
+import { ref, computed, watch, markRaw } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkButton from '@/components/MkButton.vue';
 import MkInput from '@/components/MkInput.vue';
@@ -100,7 +99,20 @@ const typeOptions = [
 	{ value: 'feature' as const, label: i18n.ts._feedback.typeFeature, icon: 'ti ti-bulb' },
 ];
 const title = ref('');
-const body = ref('');
+
+// 本文は空欄だと何を書けばよいか分かりにくいため、種別ごとの記入テンプレートを
+// 初期値として入れておく。ユーザーが編集済みの場合は種別を切り替えても上書きしない。
+const bodyTemplates = {
+	bug: i18n.ts._feedback.bugTemplate,
+	feature: i18n.ts._feedback.featureTemplate,
+} as const;
+const body = ref<string>(bodyTemplates[type.value]);
+
+watch(type, (newType, oldType) => {
+	if (body.value.trim() === '' || body.value === bodyTemplates[oldType]) {
+		body.value = bodyTemplates[newType];
+	}
+});
 const files = ref<Misskey.entities.DriveFile[]>([]);
 const submitting = ref(false);
 
@@ -108,9 +120,11 @@ const submitting = ref(false);
 // paramDef と同値) はここで検証する。超過中は送信ボタンを無効化する。
 const TITLE_MAX = 256;
 const BODY_MAX = 8192;
+// 本文はテンプレートのまま (未記入) では送信不可にする
 const canSubmit = computed(() => !submitting.value
 	&& title.value.trim() !== '' && title.value.length <= TITLE_MAX
-	&& body.value.trim() !== '' && body.value.length <= BODY_MAX);
+	&& body.value.trim() !== '' && body.value.length <= BODY_MAX
+	&& body.value !== bodyTemplates[type.value]);
 
 const paginator = markRaw(new Paginator('feedback/list', {
 	limit: 10,
@@ -152,7 +166,7 @@ async function submit() {
 			fileIds: files.value.map(x => x.id),
 		});
 		title.value = '';
-		body.value = '';
+		body.value = bodyTemplates[type.value];
 		files.value = [];
 		paginator.reload();
 	} finally {
