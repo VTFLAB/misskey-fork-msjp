@@ -34,8 +34,12 @@ jobs:
           echo "image_latest=${REGISTRY}/${IMAGE}:bsky-latest" >> "$GITHUB_OUTPUT"
           echo "image_buildcache=${REGISTRY}/${IMAGE}:buildcache" >> "$GITHUB_OUTPUT"
 
+      # driver: docker = デーモン内蔵 buildkit でビルドし、結果を直接デーモンに残す
+      # (docker-container driver だと push/load に buildkit の containerd 認証が絡む)。
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
 
       - name: Login to Gitea container registry
         uses: docker/login-action@v3
@@ -47,17 +51,20 @@ jobs:
           username: VTF
           password: ${{ secrets.REGISTRY_TOKEN }}
 
-      # まず immutable tag だけを push し、成功した場合のみ後段で rolling な bsky-latest を
-      # 付け替える。以前は 2 tag 同時 push で「bsky-latest の push 成功 → immutable tag の
-      # push が registry token 不調で失敗 = job は failure なのに本番へは自動配備される」
-      # 事故が起きた (2026-08-11 障害)。この順序なら失敗した build が bsky-latest に載らない。
-      - name: Build and push (immutable tag)
+      # push は buildkit (containerd resolver) ではなく docker CLI で行う。
+      # buildkit の token 取得は Gitea 相手に不安定で、runs #931-#942 が
+      # "authorization server did not include a token in the response" で失敗し続けた
+      # (docker login や mi-host 側 podman pull の GET /v2/token 経路は安定)。
+      # そのため build はデーモンへ load し、docker push (docker login と同じ認証経路)
+      # で push する。registry buildcache も buildkit 認証依存で毎回 import に失敗して
+      # 実質無効だったため、いったん撤去 (フルビルドは実測 ~5 分)。
+      # Misskey 公式 image は linux/amd64 のみ。Misskey-bsky-fork も pve2 上の
+      # CT 200 (x86_64) のみで動かすので amd64 単一で OK。
+      - name: Build image
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
-          # Misskey 公式 image は linux/amd64 のみ。Misskey-bsky-fork も pve2 上の
-          # CT 200 (x86_64) のみで動かすので amd64 単一で OK。
+          load: true
           platforms: linux/amd64
           tags: ${{ steps.tags.outputs.image_sha }}
           build-args: |
@@ -70,23 +77,32 @@ jobs:
             org.opencontainers.image.source=${{ gitea.server_url }}/${{ gitea.repository }}
             org.opencontainers.image.revision=${{ gitea.sha }}
             org.opencontainers.image.version=${{ env.BASE_VERSION }}-bsky-${{ steps.tags.outputs.sha }}
-          cache-from: type=registry,ref=${{ steps.tags.outputs.image_buildcache }}
-          cache-to: type=registry,ref=${{ steps.tags.outputs.image_buildcache }},mode=max
 
-      # build 成功時のみ registry 上で bsky-latest tag を immutable tag に付け替える。
-      # Gitea の registry token endpoint は一時的に token を返さないことがある
-      # ("authorization server did not include a token in the response"、runs #931-939 の
-      # 失敗原因) ため、リトライで吸収する。
-      - name: Promote to bsky-latest
+      # まず immutable tag だけを push し、成功した場合のみ後段で rolling な bsky-latest を
+      # push する。以前は 2 tag 同時 push で「bsky-latest の push 成功 → immutable tag の
+      # push が失敗 = job は failure なのに本番へは auto-update で配備される」事故が起きた
+      # (2026-08-11 障害)。この順序なら失敗した build が bsky-latest に載ることはない。
+      - name: Push immutable tag
         run: |
           for i in 1 2 3 4 5; do
-            if docker buildx imagetools create \
-              -t "${{ steps.tags.outputs.image_latest }}" \
-              "${{ steps.tags.outputs.image_sha }}"; then
+            if docker push "${{ steps.tags.outputs.image_sha }}"; then
+              exit 0
+            fi
+            echo "docker push failed (attempt $i/5); retrying in 10s..."
+            sleep 10
+          done
+          echo "::error::failed to push immutable tag after 5 attempts"
+          exit 1
+
+      - name: Promote to bsky-latest
+        run: |
+          docker tag "${{ steps.tags.outputs.image_sha }}" "${{ steps.tags.outputs.image_latest }}"
+          for i in 1 2 3 4 5; do
+            if docker push "${{ steps.tags.outputs.image_latest }}"; then
               echo "bsky-latest now points at ${{ steps.tags.outputs.image_sha }}"
               exit 0
             fi
-            echo "imagetools create failed (attempt $i/5); retrying in 10s..."
+            echo "docker push failed (attempt $i/5); retrying in 10s..."
             sleep 10
           done
           echo "::error::failed to promote bsky-latest after 5 attempts"
