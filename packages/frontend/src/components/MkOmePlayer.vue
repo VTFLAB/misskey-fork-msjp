@@ -32,11 +32,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<!-- 自前コントロールバー: ホバーで表示するオートハイド -->
 	<div :class="[$style.controls, { [$style.controlsVisible]: controlsVisible }]">
-		<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts._liveChannel.mute" @click="toggleMute">
-			<i v-if="muted || volumeNum === 0" class="ti ti-volume-3"></i>
-			<i v-else class="ti ti-volume"></i>
-		</button>
-		<MkMediaRange v-model="volume" :class="$style.volumeSeekbar"/>
+		<div :class="[$style.volumeGroup, { [$style.volumeGroupMuted]: muted || volumeNum === 0 }]">
+			<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts._liveChannel.mute" @click="toggleMute">
+				<i v-if="muted || volumeNum === 0" class="ti ti-volume-3"></i>
+				<i v-else-if="volumeNum < 0.5" class="ti ti-volume-2"></i>
+				<i v-else class="ti ti-volume"></i>
+			</button>
+			<MkMediaRange v-model="volume" :class="$style.volumeSeekbar" :ariaLabel="i18n.ts.volume"/>
+			<!-- SR にはスライダー値と二重に読まれる視覚専用の表示のため aria-hidden -->
+			<span class="_noSelect" :class="$style.volumeValue" aria-hidden="true">{{ volumePercent }}%</span>
+		</div>
 		<div :class="$style.spacer"></div>
 		<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts._liveChannel.fullscreen" @click="onFullscreenClick">
 			<i class="ti ti-maximize"></i>
@@ -123,6 +128,8 @@ const volumeNum = computed(() => {
 	const n = Number(volume.value);
 	return Number.isFinite(n) ? n : DEFAULT_VOLUME;
 });
+// コントロールバーに表示する音量パーセント。v-model 経由でドラッグ中もリアルタイムに追従する。
+const volumePercent = computed(() => Math.round(volumeNum.value * 100));
 // muted は player の実状態 (mute:true 起動) と一致させ true 起動。localStorage 復元はしない
 // (§7 / L198-200)。localStorage 由来で false 起動すると、オーバーレイクリックで muted が
 // 既に false になり watch が発火せず setMute(false) が呼ばれない不具合になる。
@@ -396,6 +403,8 @@ onBeforeUnmount(async () => {
 	object-fit: contain;
 }
 
+// 注: このコンポーネントのオーバーレイ配色は、テーマに関わらず常に黒背景の映像上へ
+// 重ねる前提のため、--MI_THEME-* ではなく白/黒の直値で統一している (既存踏襲)。
 .controls {
 	position: absolute;
 	left: 0;
@@ -406,27 +415,98 @@ onBeforeUnmount(async () => {
 	z-index: 20;
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	padding: 8px 12px;
-	background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
+	gap: 4px;
+	padding: 28px 12px 8px;
+	background: linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.4) 55%, transparent);
 	opacity: 0;
-	transition: opacity 150ms ease;
+	transform: translateY(4px);
+	transition: opacity 200ms ease, transform 200ms ease;
 	pointer-events: none;
 }
 
 .controlsVisible {
 	opacity: 1;
+	transform: translateY(0);
 	pointer-events: auto;
 }
 
 .controlButton {
 	color: #fff;
-	width: 32px;
-	height: 32px;
+	width: 36px;
+	height: 36px;
+	font-size: 15px;
+	border-radius: 6px;
+	transition: background 150ms ease;
+
+	&:hover {
+		background: rgba(255, 255, 255, 0.15);
+	}
 }
 
-.volumeSeekbar {
-	width: 80px;
+.volumeGroup {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+
+	// :focus-within を併置することで、スライダーをドラッグ中にポインタが上下へ
+	// はみ出しても (input が focus を持つ限り) 畳まれない。
+	// ホバー展開はホバーが存在する環境に限定する。メディアクエリ無しで書くと、タッチ環境で
+	// スライダー操作 (focus-within) のたびに常時展開幅 (140px) から 90px へ縮む競合が起きる。
+	@media (hover: hover) {
+		&:hover,
+		&:focus-within {
+			.volumeSeekbar {
+				width: 90px;
+				opacity: 1;
+			}
+		}
+	}
+
+	// .volumeGroup 配下にネストして詳細度を (0,2,0) に上げる。--sliderBg / --thumbSize は
+	// MkMediaRange 側 .controlsSeekbar (同一要素・詳細度 0,1,0) にも定義があり、同詳細度だと
+	// 勝敗が CSS Modules の出力順に依存してしまうため (§8 のソース順序の罠)。
+	.volumeSeekbar {
+		min-width: 0;
+		overflow: hidden;
+		transition: width 200ms ease, opacity 200ms ease;
+		--sliderBg: rgba(255, 255, 255, 0.3);
+		--thumbSize: 13px;
+
+		// MkMediaRange の塗りは currentColor (既定はテーマ accent 色)。映像上のオーバーレイでは
+		// 白塗りが定番なので、内部の <input type="range"> へ要素セレクタで色を上書きする
+		// (子の class 名は CSS Modules でハッシュ化されるため要素セレクタで狙う)。
+		input[type='range'] {
+			color: #fff;
+		}
+
+		// 配信プレイヤー定番の挙動: ホバー環境では普段は畳み、音量まわりのホバー/フォーカスで
+		// 展開する (上の &:hover / &:focus-within)。パーセント表示は常時見えるので、
+		// 畳まれていても現在音量は分かる。
+		@media (hover: hover) {
+			width: 0;
+			opacity: 0;
+		}
+
+		// hover が無い環境ではホバー展開が成立しないため常時展開。--thumbSize はタッチの
+		// 当たり判定を拡大。
+		@media (hover: none) {
+			width: 140px;
+			--thumbSize: 26px;
+		}
+	}
+}
+
+// ミュート中/音量0 はパーセント表示を減光してアイコンと状態を揃える
+.volumeGroupMuted .volumeValue {
+	opacity: 0.5;
+}
+
+.volumeValue {
+	min-width: 4ch;
+	text-align: center;
+	font-size: 0.85em;
+	font-variant-numeric: tabular-nums;
+	color: #fff;
 }
 
 .spacer {
@@ -439,6 +519,7 @@ onBeforeUnmount(async () => {
 @media (hover: none) {
 	.controls {
 		opacity: 1;
+		transform: none;
 		pointer-events: auto;
 	}
 
@@ -447,12 +528,6 @@ onBeforeUnmount(async () => {
 		height: 44px;
 	}
 
-	.volumeSeekbar {
-		width: 140px;
-		// MkMediaRange 側の --thumbSize / --sliderBg は自身の CSS Modules スコープ
-		// (.controlsSeekbar) で定義されるが、同一要素に付与される class なので
-		// カスタムプロパティとして上書きできる (タッチ操作の当たり判定を拡大)。
-		--thumbSize: 26px;
-	}
+	// 音量バーの常時展開・--thumbSize 拡大は .volumeGroup 側の @media (hover: none) で定義済み
 }
 </style>
