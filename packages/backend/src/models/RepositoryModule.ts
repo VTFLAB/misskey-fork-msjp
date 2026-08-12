@@ -74,6 +74,7 @@ import {
 	MiTwitchStreamComment,
 	MiTwitchStreamBlock,
 	MiUpdateInfo,
+	MiUserFeedback,
 	MiUsedUsername,
 	MiUser,
 	MiUserIp,
@@ -565,6 +566,12 @@ const $updateInfosRepository: Provider = {
 	inject: [DI.db],
 };
 
+const $userFeedbacksRepository: Provider = {
+	provide: DI.userFeedbacksRepository,
+	useFactory: (db: DataSource) => db.getRepository(MiUserFeedback).extend(miRepository as MiRepository<MiUserFeedback>),
+	inject: [DI.db],
+};
+
 const $twitchAccountsRepository: Provider = {
 	provide: DI.twitchAccountsRepository,
 	useFactory: (db: DataSource) => db.getRepository(MiTwitchAccount).extend(miRepository as MiRepository<MiTwitchAccount>),
@@ -688,6 +695,7 @@ const $googleAccountsRepository: Provider = {
 		$bubbleGameRecordsRepository,
 		$reversiGamesRepository,
 		$updateInfosRepository,
+		$userFeedbacksRepository,
 		$twitchAccountsRepository,
 		$twitchStreamsRepository,
 		$twitchStreamCommentsRepository,
@@ -775,6 +783,7 @@ const $googleAccountsRepository: Provider = {
 		$bubbleGameRecordsRepository,
 		$reversiGamesRepository,
 		$updateInfosRepository,
+		$userFeedbacksRepository,
 		$twitchAccountsRepository,
 		$twitchStreamsRepository,
 		$twitchStreamCommentsRepository,

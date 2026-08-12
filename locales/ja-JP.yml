@@ -3971,6 +3971,30 @@ _twitch:
 _streaming:
   title: "配信"
   description: "配信機能の設定と連携を行えます。"
+_feedback:
+  feedback: "バグ報告・要望"
+  pageDescription: "不具合の報告や機能の要望を運営へ送信できます。いただいた内容は改善のために AI エージェントが参照・対応することがあります。"
+  type: "種別"
+  typeBug: "バグ報告"
+  typeFeature: "機能要望"
+  reportTitle: "タイトル"
+  reportTitlePlaceholder: "例: 配信ページで音量の設定が保存されない"
+  reportBody: "内容"
+  bugBodyPlaceholder: "再現手順・期待する動作・実際の動作をできるだけ具体的に書いてください"
+  featureBodyPlaceholder: "どんな機能がほしいか、どんな場面で困っているかを書いてください"
+  attachImages: "スクリーンショットを添付"
+  attachImagesDescription: "画像は最大4枚まで添付できます。"
+  submit: "送信"
+  attachmentSkipped: "画像 (SVG を除く) 以外のファイルと5枚目以降は添付できないため除外しました。"
+  myFeedbacks: "送信した報告・要望"
+  noFeedbacks: "送信した報告・要望はまだありません。"
+  responseFromStaff: "運営からの返信"
+  _status:
+    open: "受付済み"
+    inProgress: "対応中"
+    resolved: "対応済み"
+    rejected: "見送り"
+
 _liveChannel:
   liveChannels: "配信チャンネル"
   noLiveChannels: "開設されている配信チャンネルはまだありません。"

@@ -79,6 +79,7 @@ import { MiTwitchStream } from '@/models/TwitchStream.js';
 import { MiTwitchStreamComment } from '@/models/TwitchStreamComment.js';
 import { MiTwitchStreamBlock } from '@/models/TwitchStreamBlock.js';
 import { MiUpdateInfo } from '@/models/UpdateInfo.js';
+import { MiUserFeedback } from '@/models/UserFeedback.js';
 import { MiUsedUsername } from '@/models/UsedUsername.js';
 import { MiUser } from '@/models/User.js';
 import { MiUserIp } from '@/models/UserIp.js';
@@ -163,6 +164,7 @@ export {
 	MiTwitchStreamComment,
 	MiTwitchStreamBlock,
 	MiUpdateInfo,
+	MiUserFeedback,
 	MiUsedUsername,
 	MiUser,
 	MiUserIp,
@@ -252,6 +254,7 @@ export type TwitchStreamsRepository = Repository<MiTwitchStream> & MiRepository<
 export type TwitchStreamCommentsRepository = Repository<MiTwitchStreamComment> & MiRepository<MiTwitchStreamComment>;
 export type TwitchStreamBlocksRepository = Repository<MiTwitchStreamBlock> & MiRepository<MiTwitchStreamBlock>;
 export type UpdateInfosRepository = Repository<MiUpdateInfo> & MiRepository<MiUpdateInfo>;
+export type UserFeedbacksRepository = Repository<MiUserFeedback> & MiRepository<MiUserFeedback>;
 export type UsedUsernamesRepository = Repository<MiUsedUsername> & MiRepository<MiUsedUsername>;
 export type UsersRepository = Repository<MiUser> & MiRepository<MiUser>;
 export type UserIpsRepository = Repository<MiUserIp> & MiRepository<MiUserIp>;

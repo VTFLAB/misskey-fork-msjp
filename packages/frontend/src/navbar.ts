@@ -70,6 +70,11 @@ export const navbarItemDef = reactive<{
 		icon: 'ti ti-speakerphone',
 		to: '/updates',
 	},
+	feedback: {
+		title: i18n.ts._feedback.feedback,
+		icon: 'ti ti-message-report',
+		to: '/feedback',
+	},
 	liveStreams: {
 		title: i18n.ts._liveChannel.liveChannels,
 		icon: 'ti ti-broadcast',

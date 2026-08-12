@@ -1996,6 +1996,14 @@ declare namespace entities {
         FederationUpdateRemoteUserRequest,
         FederationUsersRequest,
         FederationUsersResponse,
+        FeedbackCreateRequest,
+        FeedbackCreateResponse,
+        FeedbackListRequest,
+        FeedbackListResponse,
+        FeedbackListLocalRequest,
+        FeedbackListLocalResponse,
+        FeedbackUpdateStatusLocalRequest,
+        FeedbackUpdateStatusLocalResponse,
         FetchExternalResourcesRequest,
         FetchExternalResourcesResponse,
         FetchRssRequest,
@@ -2455,7 +2463,8 @@ declare namespace entities {
         ChatRoom,
         ChatRoomInvitation,
         ChatRoomMembership,
-        UpdateInfo
+        UpdateInfo,
+        UserFeedback
     }
 }
 export { entities }
@@ -2504,6 +2513,30 @@ type FederationUsersRequest = operations['federation___users']['requestBody']['c
 
 // @public (undocumented)
 type FederationUsersResponse = operations['federation___users']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type FeedbackCreateRequest = operations['feedback___create']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type FeedbackCreateResponse = operations['feedback___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type FeedbackListLocalRequest = operations['feedback___list-local']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type FeedbackListLocalResponse = operations['feedback___list-local']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type FeedbackListRequest = operations['feedback___list']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type FeedbackListResponse = operations['feedback___list']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type FeedbackUpdateStatusLocalRequest = operations['feedback___update-status-local']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type FeedbackUpdateStatusLocalResponse = operations['feedback___update-status-local']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type FetchExternalResourcesRequest = operations['fetch-external-resources']['requestBody']['content']['application/json'];
@@ -4001,6 +4034,9 @@ type UserDetailedNotMe = components['schemas']['UserDetailedNotMe'];
 
 // @public (undocumented)
 type UserDetailedNotMeOnly = components['schemas']['UserDetailedNotMeOnly'];
+
+// @public (undocumented)
+type UserFeedback = components['schemas']['UserFeedback'];
 
 // @public (undocumented)
 type UserList = components['schemas']['UserList'];
