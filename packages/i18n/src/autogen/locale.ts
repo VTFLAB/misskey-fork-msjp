@@ -14914,6 +14914,94 @@ export interface Locale extends ILocale {
          */
         "description": string;
     };
+    "_feedback": {
+        /**
+         * バグ報告・要望
+         */
+        "feedback": string;
+        /**
+         * 不具合の報告や機能の要望を運営へ送信できます。いただいた内容は改善のために AI エージェントが参照・対応することがあります。
+         */
+        "pageDescription": string;
+        /**
+         * 種別
+         */
+        "type": string;
+        /**
+         * バグ報告
+         */
+        "typeBug": string;
+        /**
+         * 機能要望
+         */
+        "typeFeature": string;
+        /**
+         * タイトル
+         */
+        "reportTitle": string;
+        /**
+         * 例: 配信ページで音量の設定が保存されない
+         */
+        "reportTitlePlaceholder": string;
+        /**
+         * 内容
+         */
+        "reportBody": string;
+        /**
+         * 再現手順・期待する動作・実際の動作をできるだけ具体的に書いてください
+         */
+        "bugBodyPlaceholder": string;
+        /**
+         * どんな機能がほしいか、どんな場面で困っているかを書いてください
+         */
+        "featureBodyPlaceholder": string;
+        /**
+         * スクリーンショットを添付
+         */
+        "attachImages": string;
+        /**
+         * 画像は最大4枚まで添付できます。
+         */
+        "attachImagesDescription": string;
+        /**
+         * 送信
+         */
+        "submit": string;
+        /**
+         * 画像 (SVG を除く) 以外のファイルと5枚目以降は添付できないため除外しました。
+         */
+        "attachmentSkipped": string;
+        /**
+         * 送信した報告・要望
+         */
+        "myFeedbacks": string;
+        /**
+         * 送信した報告・要望はまだありません。
+         */
+        "noFeedbacks": string;
+        /**
+         * 運営からの返信
+         */
+        "responseFromStaff": string;
+        "_status": {
+            /**
+             * 受付済み
+             */
+            "open": string;
+            /**
+             * 対応中
+             */
+            "inProgress": string;
+            /**
+             * 対応済み
+             */
+            "resolved": string;
+            /**
+             * 見送り
+             */
+            "rejected": string;
+        };
+    };
     "_liveChannel": {
         /**
          * 配信チャンネル
