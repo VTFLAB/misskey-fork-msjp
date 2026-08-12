@@ -149,8 +149,14 @@ export type JmaEewAlert = {
 	isCancel: boolean;
 };
 
+// 履歴・通知に採用された報の分類 (第一報 / 最終報 / 取消報)。サーバー側で
+// 「1つの地震につき第一報と最終報のみ・震度3以上」に絞った上で配信される。
+export type JmaEewReportKind = 'first' | 'final' | 'cancel';
+
+export type JmaEewHistoryEntry = JmaEewAlert & { reportKind: JmaEewReportKind };
+
 export type EarthquakeAlert = {
-	alert: JmaEewAlert;
+	alert: JmaEewHistoryEntry;
 };
 
 export type SignupRequest = {

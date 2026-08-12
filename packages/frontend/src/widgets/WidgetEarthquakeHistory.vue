@@ -15,8 +15,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<div v-for="alert in alerts" :key="`${alert.EventID}-${alert.Serial}`" :class="$style.item">
 				<div :class="$style.badges">
 					<span :class="[$style.badge, alert.isWarn ? $style.badgeWarn : $style.badgeForecast]">{{ alert.isWarn ? i18n.ts._widgetOptions._earthquakeHistory.warn : i18n.ts._widgetOptions._earthquakeHistory.forecast }}</span>
-					<span v-if="alert.isCancel" :class="[$style.badge, $style.badgeCancel]">{{ i18n.ts._widgetOptions._earthquakeHistory.cancel }}</span>
-					<span v-if="alert.isFinal" :class="[$style.badge, $style.badgeFinal]">{{ i18n.ts._widgetOptions._earthquakeHistory.final }}</span>
+					<span v-if="alert.reportKind === 'first'" :class="[$style.badge, $style.badgeFirst]">{{ i18n.ts._widgetOptions._earthquakeHistory.first }}</span>
+					<span v-if="alert.reportKind === 'cancel'" :class="[$style.badge, $style.badgeCancel]">{{ i18n.ts._widgetOptions._earthquakeHistory.cancel }}</span>
+					<span v-if="alert.reportKind === 'final'" :class="[$style.badge, $style.badgeFinal]">{{ i18n.ts._widgetOptions._earthquakeHistory.final }}</span>
 				</div>
 				<div :class="$style.main">{{ alert.Hypocenter }} M{{ alert.Magunitude }}</div>
 				<div :class="$style.sub">{{ i18n.ts._widgetOptions._earthquakeHistory.maxIntensity }} {{ alert.MaxIntensity }} ・ {{ alert.OriginTime }}</div>
@@ -125,6 +126,11 @@ defineExpose<WidgetComponentExpose>({
 .badgeForecast {
 	background: var(--MI_THEME-buttonBg);
 	color: var(--MI_THEME-fg);
+}
+
+.badgeFirst {
+	background: var(--MI_THEME-accentedBg);
+	color: var(--MI_THEME-accent);
 }
 
 .badgeCancel {

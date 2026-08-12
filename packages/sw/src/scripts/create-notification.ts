@@ -264,14 +264,19 @@ async function composeNotification(data: PushNotificationDataMap[keyof PushNotif
 						data,
 					}];
 
-				case 'earthquakeAlert':
-					return [data.body.title, {
+				case 'earthquakeAlert': {
+					// 報種別 (第一報 / 最終報 / 取消) をタイトルに含めて区別できるようにする。
+					// tag は EventID 単位なので、最終報の通知は同じ地震の第一報を置き換える。
+					const eq = i18n.ts._widgetOptions._earthquakeHistory;
+					const kindLabel = data.body.reportKind === 'cancel' ? eq.cancel : data.body.reportKind === 'final' ? eq.final : eq.first;
+					return [`${data.body.title}(${kindLabel})`, {
 						body: `${data.body.hypocenter} M${data.body.magnitude} 最大震度${data.body.maxIntensity}`,
 						badge: iconUrl('bell'),
 						tag: `earthquake:${data.body.eventId}`,
 						data,
 						renotify: true,
 					}];
+				}
 
 				case 'twitchLiveStreamStarted':
 					return [i18n.tsx._notification.twitchLiveStreamStarted({ name: getUserName(data.body.user) }), {
