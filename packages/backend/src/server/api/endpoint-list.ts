@@ -56,6 +56,8 @@ export * as 'admin/federation/delete-all-files' from './endpoints/admin/federati
 export * as 'admin/federation/refresh-remote-instance-metadata' from './endpoints/admin/federation/refresh-remote-instance-metadata.js';
 export * as 'admin/federation/remove-all-following' from './endpoints/admin/federation/remove-all-following.js';
 export * as 'admin/federation/update-instance' from './endpoints/admin/federation/update-instance.js';
+export * as 'admin/feedback/list' from './endpoints/admin/feedback/list.js';
+export * as 'admin/feedback/update' from './endpoints/admin/feedback/update.js';
 export * as 'admin/forward-abuse-user-report' from './endpoints/admin/forward-abuse-user-report.js';
 export * as 'admin/get-index-stats' from './endpoints/admin/get-index-stats.js';
 export * as 'admin/get-table-stats' from './endpoints/admin/get-table-stats.js';
