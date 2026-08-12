@@ -226,6 +226,11 @@ export class NotificationEntityService implements OnModuleInit {
 			...(notification.type === 'googleAuthExpired' ? {
 				target: notification.target,
 			} : {}),
+			...(notification.type === 'feedbackReceived' ? {
+				feedbackId: notification.feedbackId,
+				feedbackType: notification.feedbackType,
+				title: notification.title,
+			} : {}),
 		});
 	}
 

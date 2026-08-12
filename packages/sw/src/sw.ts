@@ -195,6 +195,9 @@ globalThis.addEventListener('notificationclick', (ev: ServiceWorkerGlobalScopeEv
 							case 'googleAuthExpired':
 								client = await swos.openClient('push', '/settings/streaming', loginId);
 								break;
+							case 'feedbackReceived':
+								client = await swos.openClient('push', '/admin/feedback', loginId);
+								break;
 							default:
 								if ('note' in data.body) {
 									client = await swos.openNote(data.body.note.id, loginId);
