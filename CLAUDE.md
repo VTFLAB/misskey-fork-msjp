@@ -62,7 +62,7 @@ Claude Code 固有の補助 (skills / agents / slash commands / docs) は `.clau
 
 ### Fork base
 
-- upstream: `github.com/misskey-dev/misskey` **v2026.5.3** (現運用 CT 200 mi-host と同 version)
+- upstream: `github.com/misskey-dev/misskey` **v2026.5.3** (現運用 VM 200 mi-host と同 version)
 - branch: `bsky-integration`
 - コードリポジトリは非公開のまま: private repo on Gitea (`git.msjp.pro`)。稼働インスタンス自体は公開運用 (上記プロジェクト目的を参照)
 
@@ -219,8 +219,8 @@ git push --force-with-lease origin bsky-integration  # ※force push は §4 des
 
 ### 構成
 
-- ホスト: CT 200 mi-host (pve2 = 192.168.1.3、`mi-host.msjp-local.org`)
-- 公開: HAProxy 経由 `mi.msjp.pro` (Cloudflare → OPNsense → CT 200)
+- ホスト: VM 200 mi-host (pve2 = 192.168.1.3、`mi-host.msjp-local.org`)
+- 公開: HAProxy 経由 `mi.msjp.pro` (Cloudflare → OPNsense → VM 200)
 - 構成: **Podman Quadlet** (rootless under `misskey` user) + 自前 fork image
 - Quadlet ソース: `/mnt/data/seafile/documents/homelab-ops/misskey/quadlet/`
 - Postgres / Redis / Object storage (Versity S3 on TNAS) は別 service
@@ -234,7 +234,7 @@ git push --force-with-lease origin bsky-integration  # ※force push は §4 des
    - tag 2 種を git.msjp.pro registry に push:
        - git.msjp.pro/vtf/misskey-bsky-fork:2026.5.3-bsky-<short_sha>  (immutable)
        - git.msjp.pro/vtf/misskey-bsky-fork:bsky-latest                 (rolling)
-3. mi-host CT 200 上の misskey user で動く podman-auto-update.timer (5 分間隔) が
+3. mi-host VM 200 上の misskey user で動く podman-auto-update.timer (5 分間隔) が
    bsky-latest の digest 変化を検出 → podman auto-update が pull + restart
 4. container entrypoint `pnpm migrate && pnpm start` が migration を自動適用
 ```
@@ -272,7 +272,7 @@ ssh root@192.168.1.3 'pvesm list tnas-pbs | grep -i 200'
 
 - **homelab-ops/misskey/quadlet/misskey-web.container** は `Image=...:bsky-latest` + `AutoUpdate=registry` に切り替え済 (homelab-ops 側にも commit)
 - fork branch 独自 migration `1779174024562-*` は **upstream には絶対送らない** (private fork)
-- Misskey DB は CT 200 内 Postgres、auto-update での migration 失敗時は restart loop に入る前に systemd の StartLimit (default 5 trials / 10s) で止まる → 手動 rollback の出番
+- Misskey DB は VM 200 内 Postgres、auto-update での migration 失敗時は restart loop に入る前に systemd の StartLimit (default 5 trials / 10s) で止まる → 手動 rollback の出番
 
 ## 動作確認 / 検証コマンド
 
