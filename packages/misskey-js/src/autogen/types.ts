@@ -4077,6 +4077,15 @@ export type paths = {
          */
         post: operations['twitch___update-settings'];
     };
+    '/update-info/create-local': {
+        /**
+         * update-info/create-local
+         * @description No description provided.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['update-info___create-local'];
+    };
     '/update-info/show': {
         /**
          * update-info/show
@@ -38665,6 +38674,82 @@ export interface operations {
                     'application/json': {
                         translationEnabled: boolean;
                     };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'update-info___create-local': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    title: string;
+                    text: string;
+                    imageUrl?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['UpdateInfo'];
                 };
             };
             /** @description Client error */
