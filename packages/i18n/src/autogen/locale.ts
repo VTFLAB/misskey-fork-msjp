@@ -11231,6 +11231,10 @@ export interface Locale extends ILocale {
          */
         "googleAuthExpired": string;
         /**
+         * 新しいバグ報告・要望が届きました
+         */
+        "feedbackReceived": string;
+        /**
          * {target}との連携がGoogleに拒否されたため解除されました。配信アーカイブを保存するには、配信設定から再連携してください。
          */
         "googleAuthExpiredDescription": ParameterizedString<"target">;
@@ -11335,6 +11339,10 @@ export interface Locale extends ILocale {
              * Google連携の再認証が必要
              */
             "googleAuthExpired": string;
+            /**
+             * 新着のバグ報告・要望 (モデレーター向け)
+             */
+            "feedbackReceived": string;
         };
         "_actions": {
             /**

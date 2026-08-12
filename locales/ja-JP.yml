@@ -2967,6 +2967,7 @@ _notification:
   createTokenDescription: "心当たりがない場合は「{text}」を通じてアクセストークンを削除してください。"
   twitchLiveStreamStarted: "{name}が配信を開始しました"
   googleAuthExpired: "Google連携の再認証が必要です"
+  feedbackReceived: "新しいバグ報告・要望が届きました"
   googleAuthExpiredDescription: "{target}との連携がGoogleに拒否されたため解除されました。配信アーカイブを保存するには、配信設定から再連携してください。"
 
   _types:
@@ -2995,6 +2996,7 @@ _notification:
     earthquakeAlert: "緊急地震速報"
     twitchLiveStreamStarted: "フォロー中ユーザーの配信開始"
     googleAuthExpired: "Google連携の再認証が必要"
+    feedbackReceived: "新着のバグ報告・要望 (モデレーター向け)"
 
   _actions:
     followBack: "フォローバック"
