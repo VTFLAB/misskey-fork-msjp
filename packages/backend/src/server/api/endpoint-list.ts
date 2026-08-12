@@ -211,6 +211,10 @@ export * as 'federation/show-instance' from './endpoints/federation/show-instanc
 export * as 'federation/stats' from './endpoints/federation/stats.js';
 export * as 'federation/update-remote-user' from './endpoints/federation/update-remote-user.js';
 export * as 'federation/users' from './endpoints/federation/users.js';
+export * as 'feedback/create' from './endpoints/feedback/create.js';
+export * as 'feedback/list' from './endpoints/feedback/list.js';
+export * as 'feedback/list-local' from './endpoints/feedback/list-local.js';
+export * as 'feedback/update-status-local' from './endpoints/feedback/update-status-local.js';
 export * as 'fetch-external-resources' from './endpoints/fetch-external-resources.js';
 export * as 'fetch-rss' from './endpoints/fetch-rss.js';
 export * as 'flash/create' from './endpoints/flash/create.js';

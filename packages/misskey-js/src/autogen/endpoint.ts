@@ -353,6 +353,14 @@ import type {
 	FederationUpdateRemoteUserRequest,
 	FederationUsersRequest,
 	FederationUsersResponse,
+	FeedbackCreateRequest,
+	FeedbackCreateResponse,
+	FeedbackListRequest,
+	FeedbackListResponse,
+	FeedbackListLocalRequest,
+	FeedbackListLocalResponse,
+	FeedbackUpdateStatusLocalRequest,
+	FeedbackUpdateStatusLocalResponse,
 	FetchExternalResourcesRequest,
 	FetchExternalResourcesResponse,
 	FetchRssRequest,
@@ -977,6 +985,10 @@ export type Endpoints = {
 	'federation/stats': { req: FederationStatsRequest; res: FederationStatsResponse };
 	'federation/update-remote-user': { req: FederationUpdateRemoteUserRequest; res: EmptyResponse };
 	'federation/users': { req: FederationUsersRequest; res: FederationUsersResponse };
+	'feedback/create': { req: FeedbackCreateRequest; res: FeedbackCreateResponse };
+	'feedback/list': { req: FeedbackListRequest; res: FeedbackListResponse };
+	'feedback/list-local': { req: FeedbackListLocalRequest; res: FeedbackListLocalResponse };
+	'feedback/update-status-local': { req: FeedbackUpdateStatusLocalRequest; res: FeedbackUpdateStatusLocalResponse };
 	'fetch-external-resources': { req: FetchExternalResourcesRequest; res: FetchExternalResourcesResponse };
 	'fetch-rss': { req: FetchRssRequest; res: FetchRssResponse };
 	'flash/create': { req: FlashCreateRequest; res: FlashCreateResponse };

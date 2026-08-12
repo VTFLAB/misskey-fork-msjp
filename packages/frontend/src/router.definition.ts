@@ -226,6 +226,12 @@ export const ROUTE_DEF = [{
 	path: '/updates',
 	component: page(() => import('@/pages/update-infos.vue')),
 }, {
+	// バグ報告・機能要望の受付ページ (bsky-fork 独自)
+	path: '/feedback',
+	name: 'feedback',
+	component: page(() => import('@/pages/feedback.vue')),
+	loginRequired: true,
+}, {
 	path: '/updates/:updateInfoId',
 	component: page(() => import('@/pages/update-info.vue')),
 }, {

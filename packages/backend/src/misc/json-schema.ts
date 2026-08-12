@@ -76,6 +76,7 @@ import { packedChatRoomMembershipSchema } from '@/models/json-schema/chat-room-m
 import { packedAchievementNameSchema, packedAchievementSchema } from '@/models/json-schema/achievement.js';
 import { packedNoteDraftSchema } from '@/models/json-schema/note-draft.js';
 import { packedUpdateInfoSchema } from '@/models/json-schema/update-info.js';
+import { packedUserFeedbackSchema } from '@/models/json-schema/user-feedback.js';
 
 export const refs = {
 	UserLite: packedUserLiteSchema,
@@ -149,6 +150,7 @@ export const refs = {
 	ChatRoomInvitation: packedChatRoomInvitationSchema,
 	ChatRoomMembership: packedChatRoomMembershipSchema,
 	UpdateInfo: packedUpdateInfoSchema,
+	UserFeedback: packedUserFeedbackSchema,
 };
 
 export type Packed<x extends keyof typeof refs> = SchemaType<typeof refs[x]>;
