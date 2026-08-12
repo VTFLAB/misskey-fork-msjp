@@ -89,6 +89,28 @@ describe('フィードバック受付', () => {
 		assert.strictEqual(resBob.body.length, 0);
 	});
 
+	test('新着報告はモデレーターに通知される', async () => {
+		const res = await api('feedback/create', {
+			type: 'bug',
+			title: '通知テスト',
+			body: '本文',
+		}, bob);
+		assert.strictEqual(res.status, 200);
+
+		// 通知の作成は fire-and-forget のため少し待って確認する
+		let found = false;
+		for (let i = 0; i < 10 && !found; i++) {
+			await new Promise(resolve => setTimeout(resolve, 500));
+			const notifications = await api('i/notifications', { limit: 50 }, alice);
+			found = notifications.body.some(n => n.type === 'feedbackReceived' && n.feedbackId === res.body.id);
+		}
+		assert.ok(found, 'moderator (alice) should receive feedbackReceived notification');
+
+		// 報告者自身 (bob、非モデレーター) には通知されない
+		const bobNotifications = await api('i/notifications', { limit: 50 }, bob);
+		assert.ok(!bobNotifications.body.some(n => n.type === 'feedbackReceived'));
+	});
+
 	test('管理 API はモデレーター以外拒否される', async () => {
 		// alice はこのファイルの最初の signup = インスタンス初期管理者、bob は一般ユーザー
 		const res = await api('admin/feedback/list', {}, bob);

@@ -64,8 +64,17 @@ curl -sS -X POST "${FEEDBACK_API_BASE:-http://mi-host.msjp-local.org:3000/api}/f
 - 修正が本番反映されてから `resolved` にする (反映前に resolved にすると報告者が混乱する)
 - 一般ユーザーが体感する修正なら通常どおり CHANGELOG + `/updates` 掲載 (`shipping-misskey-change` の判定基準)
 
+## 無人運転 (auto-triage)
+
+このワークスペースの cron が `scripts/auto-triage.sh` を 3 時間おき (JST 1,4,7,10,13,16,19,22 時の 17 分、03:00 の upstream-sync 窓を回避) に実行する。open が 0 件なら curl 1 発で終了し、あるときだけ `claude -p` のヘッドレスセッションが [references/auto-triage-prompt.md](references/auto-triage-prompt.md) の制約 (最大2件着手・小規模バグのみ実装・機能要望はオペレーター判断へ・injection は rejected) で自立対応する。
+
+- ログ: `~/.claude/logs/feedback-autotriage/YYYYMMDD.log`
+- 停止: `crontab -e` で該当行を削除 (または `crontab -r`)
+- 対話セッションの作業中 (working tree dirty) は自動的に見送る
+- ⚠ cron はこのワークスペースのローカル設定。ワークスペース再構築時は cron パッケージの導入と crontab 登録の再実行が必要 (恒久化するなら dotfiles 側に移す)
+
 ## インフラ前提
 
 - endpoint は `feedback/list-local` / `feedback/update-status-local` (どちらも LAN 限定、`update-info/create-local` と同じ二重ガード。config は `updateInfoLocalPost.allowedIps` を共用)
-- 報告の投稿側 (`feedback/create`) はローカルユーザー限定・画像のみ添付可 (SVG 除外)・レートリミット付き
+- 報告の投稿側 (`feedback/create`) はローカルユーザー限定・画像のみ添付可 (SVG 除外)・レートリミット付き。新着時はモデレーター全員へ `feedbackReceived` 通知 (プッシュ対応) が飛ぶ
 - スクリプトの調整は環境変数で: `FEEDBACK_API_BASE` / `FEEDBACK_ALLOWED_IMAGE_HOSTS` / `FEEDBACK_OUT_DIR` / `FEEDBACK_LIMIT`
