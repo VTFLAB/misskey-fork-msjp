@@ -77,6 +77,10 @@ const HEARTBEAT_TIMEOUT_MS = 5 * 60_000;
 const HISTORY_LIMIT = 30;
 // 履歴・通知の対象とする最小震度。これ未満 (震度1-2 や解析不能値) の地震はユーザーに出さない。
 const MIN_REPORT_INTENSITY = 3;
+// 別ソース間で EventID が万一一致しない場合の二次重複ガード。発生時刻 (OriginTime) が
+// この範囲内で既に第一報を出した地震は同一とみなし、二重の第一報を出さない。
+const ORIGIN_DEDUPE_WINDOW_MS = 3_000;
+const ORIGIN_DEDUPE_RETENTION_MS = 30 * 60_000;
 
 @Injectable()
 export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdown {
@@ -97,6 +101,8 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 	// EventIDごとの直近の有効な最大予測震度。深発地震などでJMAが震度予測を打ち切ると
 	// 後続serial (最終報含む) の MaxIntensity が「不明」になるため、表示用に引き継ぐ。
 	private lastKnownIntensity = new Map<string, string>();
+	// 第一報を出した地震の発生時刻 (ms)。複数ソース購読時の二次重複ガードに使う。
+	private reportedOrigins = new Map<number, number>();
 
 	constructor(
 		private loggerService: LoggerService,
@@ -280,7 +286,13 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 		}
 
 		if (typeof parsed !== 'object' || parsed == null || (parsed as { type?: unknown }).type !== 'jma_eew') return;
-		const evt = parsed as JmaEewAlert;
+		this.ingest(parsed as JmaEewAlert, 'wolfx');
+	}
+
+	// 受信した報を履歴・broadcast・通知へ流す共通経路。Wolfx 以外の並行ソース
+	// (EarthquakeP2pquakeSource) もここへ合流し、重複排除は classifyReport が一元的に行う。
+	@bindThis
+	public ingest(evt: JmaEewAlert, source: string): void {
 		// 訓練報は実際の地震ではないため、ユーザー向け通知・履歴には含めない。
 		if (evt.isTraining) return;
 
@@ -299,11 +311,11 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 		}
 
 		const reportKind = this.classifyReport(evt);
-		// Wolfx の発表時刻 (JST) と受信時刻の差 = 上流経路の配信遅延。恒常的に大きい場合は
-		// 配信ソースの追加 (P2P地震情報 / dmdata 等の並行購読) を検討する判断材料にする。
+		// 発表時刻 (JST) と受信時刻の差 = 上流経路の配信遅延。ソース間の速さ比較と、
+		// さらなる配信ソース追加 (dmdata 等) を検討する判断材料にする。
 		const announcedMs = Date.parse(`${evt.AnnouncedTime.replace(/\//g, '-').replace(' ', 'T')}+09:00`);
 		const lagMs = Number.isNaN(announcedMs) ? null : Date.now() - announcedMs;
-		this.logger.info(`EEW: ${evt.Hypocenter} M${evt.Magunitude} 最大震度${evt.MaxIntensity} (Serial=${evt.Serial}, isFinal=${evt.isFinal}, isCancel=${evt.isCancel}, reportKind=${reportKind ?? 'skip'}, lag=${lagMs != null ? `${lagMs}ms` : 'n/a'})`);
+		this.logger.info(`EEW[${source}]: ${evt.Hypocenter} M${evt.Magunitude} 最大震度${evt.MaxIntensity} (EventID=${evt.EventID}, Serial=${evt.Serial}, isFinal=${evt.isFinal}, isCancel=${evt.isCancel}, reportKind=${reportKind ?? 'skip'}, lag=${lagMs != null ? `${lagMs}ms` : 'n/a'})`);
 		if (reportKind == null) return;
 
 		const entry: JmaEewHistoryEntry = { ...evt, reportKind };
@@ -320,7 +332,8 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 
 	// 1つの地震 (EventID) につき履歴・通知・トーストに出すのは第一報と最終報 (と取消報) のみ。
 	// 全serialを出すと1つの地震で通知欄・履歴が埋まるため。さらに最大予測震度が
-	// MIN_REPORT_INTENSITY 未満の地震はそもそも採用しない。null = 採用しない。
+	// MIN_REPORT_INTENSITY 未満の地震はそもそも採用しない (警報は震度が解析不能でも採用する)。
+	// null = 採用しない。
 	@bindThis
 	private classifyReport(evt: JmaEewAlert): JmaEewReportKind | null {
 		if (evt.isCancel) {
@@ -329,7 +342,9 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 		}
 
 		const rank = intensityRank(evt.MaxIntensity);
-		const qualifies = rank != null && rank >= MIN_REPORT_INTENSITY;
+		// 警報 (isWarn) は定義上強い揺れが予測されている。震度文字列が「不明」等で
+		// 解析できなくても採用対象から外さない。
+		const qualifies = evt.isWarn || (rank != null && rank >= MIN_REPORT_INTENSITY);
 
 		if (evt.isFinal) {
 			if (this.reportedEvents.delete(evt.EventID)) return 'final';
@@ -337,10 +352,42 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 			return qualifies ? 'final' : null;
 		}
 		if (qualifies && !this.reportedEvents.has(evt.EventID)) {
+			// 複数ソース購読時の二次重複ガード: EventID が (万一) ソース間で一致しなくても、
+			// 発生時刻がほぼ同一の地震で第一報を二重に出さない。
+			if (this.isOriginAlreadyReported(evt.OriginTime)) return null;
 			this.reportedEvents.add(evt.EventID);
+			this.recordReportedOrigin(evt.OriginTime);
 			return 'first';
 		}
 		return null;
+	}
+
+	@bindThis
+	private parseJstTime(time: string): number | null {
+		const ms = Date.parse(`${time.replace(/\//g, '-').replace(' ', 'T')}+09:00`);
+		return Number.isNaN(ms) ? null : ms;
+	}
+
+	@bindThis
+	private isOriginAlreadyReported(originTime: string): boolean {
+		const originMs = this.parseJstTime(originTime);
+		if (originMs == null) return false;
+		for (const reported of this.reportedOrigins.keys()) {
+			if (Math.abs(reported - originMs) <= ORIGIN_DEDUPE_WINDOW_MS) return true;
+		}
+		return false;
+	}
+
+	@bindThis
+	private recordReportedOrigin(originTime: string): void {
+		const originMs = this.parseJstTime(originTime);
+		if (originMs == null) return;
+		const now = Date.now();
+		// 古い記録を掃除してから追加する (地震は低頻度なので線形走査で十分)。
+		for (const [origin, recordedAt] of this.reportedOrigins) {
+			if (now - recordedAt > ORIGIN_DEDUPE_RETENTION_MS) this.reportedOrigins.delete(origin);
+		}
+		this.reportedOrigins.set(originMs, now);
 	}
 
 	@bindThis

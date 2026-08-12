@@ -7,6 +7,7 @@ process.env.NODE_ENV = 'test';
 
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { EarthquakeAlertService, intensityRank } from '@/core/earthquake/EarthquakeAlertService.js';
+import { p2pquakeEewToJmaAlert } from '@/core/earthquake/EarthquakeP2pquakeSource.js';
 import { LoggerService } from '@/core/LoggerService.js';
 
 // bsky-fork 独自: 地震速報の「第一報・最終報のみ / 震度3以上」フィルタリングロジックの検証。
@@ -178,5 +179,101 @@ describe('EarthquakeAlertService', () => {
 		expect(globalEventService.publishBroadcastStream).not.toHaveBeenCalled();
 		expect(notificationService.createNotification).not.toHaveBeenCalled();
 		expect(service.getHistory().length).toBe(0);
+	});
+
+	test('警報 (isWarn) は震度が「不明」でも採用する', async () => {
+		await feed({ Serial: 1, MaxIntensity: '不明', isWarn: true });
+
+		expect(globalEventService.publishBroadcastStream).toHaveBeenCalledTimes(1);
+		expect(globalEventService.publishBroadcastStream.mock.calls[0][1].alert.reportKind).toBe('first');
+	});
+
+	// 複数ソース購読 (Wolfx + P2P地震情報) の重複ガード検証
+	describe('multi-source dedupe', () => {
+		async function ingest(overrides: Record<string, unknown>, source = 'test') {
+			service.ingest(baseAlert(overrides) as any, source);
+			await new Promise(resolve => setImmediate(resolve));
+		}
+
+		test('同一EventIDなら別ソースからの同じ地震は第一報を二重に出さない', async () => {
+			await ingest({ EventID: 'evt-x', Serial: 1, isWarn: true }, 'p2pquake');
+			await ingest({ EventID: 'evt-x', Serial: 1 }, 'wolfx');
+
+			expect(globalEventService.publishBroadcastStream).toHaveBeenCalledTimes(1);
+		});
+
+		test('EventIDが不一致でも発生時刻が±3秒以内なら第一報を二重に出さない', async () => {
+			await ingest({ EventID: 'evt-p2p', Serial: 1, OriginTime: '2026-08-12 15:00:00', isWarn: true }, 'p2pquake');
+			await ingest({ EventID: 'evt-wolfx', Serial: 1, OriginTime: '2026-08-12 15:00:02' }, 'wolfx');
+
+			expect(globalEventService.publishBroadcastStream).toHaveBeenCalledTimes(1);
+			// (第一報1回) × 2ユーザーのみ
+			expect(notificationService.createNotification).toHaveBeenCalledTimes(2);
+		});
+
+		test('EventID不一致の地震でも Wolfx の最終報は最終報として出る (第一報とペアになる)', async () => {
+			await ingest({ EventID: 'evt-p2p', Serial: 1, OriginTime: '2026-08-12 15:00:00', isWarn: true }, 'p2pquake');
+			await ingest({ EventID: 'evt-wolfx', Serial: 5, OriginTime: '2026-08-12 15:00:01', isFinal: true }, 'wolfx');
+
+			expect(globalEventService.publishBroadcastStream).toHaveBeenCalledTimes(2);
+			expect(globalEventService.publishBroadcastStream.mock.calls[1][1].alert.reportKind).toBe('final');
+		});
+
+		test('発生時刻が十分離れた別の地震は独立して第一報を出す', async () => {
+			await ingest({ EventID: 'evt-1st', Serial: 1, OriginTime: '2026-08-12 15:00:00' });
+			await ingest({ EventID: 'evt-2nd', Serial: 1, OriginTime: '2026-08-12 15:05:00' });
+
+			expect(globalEventService.publishBroadcastStream).toHaveBeenCalledTimes(2);
+		});
+	});
+});
+
+// P2P地震情報 556 → JmaEewAlert 変換の検証 (payload は API v2 実データの構造に準拠)
+describe('p2pquakeEewToJmaAlert', () => {
+	function base556(overrides: Record<string, unknown> = {}) {
+		return {
+			code: 556,
+			cancelled: false,
+			earthquake: {
+				originTime: '2026/07/29 22:19:36',
+				arrivalTime: '2026/07/29 22:19:39',
+				hypocenter: { name: '熊本県天草・芦北地方', depth: 10, latitude: 32.4, longitude: 130.5, magnitude: 4.5 },
+			},
+			issue: { eventId: '20260729221939', serial: '1', time: '2026/07/29 22:19:44' },
+			areas: [
+				{ pref: '熊本', name: '熊本県熊本', scaleFrom: 45, scaleTo: 45 },
+				{ pref: '熊本', name: '熊本県球磨', scaleFrom: 40, scaleTo: 40 },
+			],
+			...overrides,
+		};
+	}
+
+	test('警報を JmaEewAlert に変換する (最大震度 = areas の最大)', () => {
+		const alert = p2pquakeEewToJmaAlert(base556() as any);
+		expect(alert).not.toBeNull();
+		expect(alert!.EventID).toBe('20260729221939');
+		expect(alert!.Serial).toBe(1);
+		expect(alert!.isWarn).toBe(true);
+		expect(alert!.isFinal).toBe(false);
+		expect(alert!.MaxIntensity).toBe('5弱');
+		expect(alert!.Hypocenter).toBe('熊本県天草・芦北地方');
+		expect(alert!.OriginTime).toBe('2026/07/29 22:19:36');
+	});
+
+	test('取消報は isCancel になる', () => {
+		const alert = p2pquakeEewToJmaAlert(base556({ cancelled: true }) as any);
+		expect(alert!.isCancel).toBe(true);
+	});
+
+	test('scale 99 (程度以上の未確定値) は無視し、有効値が無ければ不明', () => {
+		const alert = p2pquakeEewToJmaAlert(base556({ areas: [{ pref: 'x', name: 'y', scaleFrom: 99, scaleTo: 99 }] }) as any);
+		expect(alert!.MaxIntensity).toBe('不明');
+		// 警報なので不明でも採用対象 (classifyReport 側で isWarn が qualify する)
+		expect(alert!.isWarn).toBe(true);
+	});
+
+	test('556 以外や eventId 欠落は null', () => {
+		expect(p2pquakeEewToJmaAlert(base556({ code: 551 }) as any)).toBeNull();
+		expect(p2pquakeEewToJmaAlert(base556({ issue: { eventId: '', serial: '1', time: 'x' } }) as any)).toBeNull();
 	});
 });
