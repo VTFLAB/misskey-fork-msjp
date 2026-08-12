@@ -134,6 +134,7 @@ import { RoleEntityService } from './entities/RoleEntityService.js';
 import { ReversiGameEntityService } from './entities/ReversiGameEntityService.js';
 import { MetaEntityService } from './entities/MetaEntityService.js';
 import { UpdateInfoEntityService } from './entities/UpdateInfoEntityService.js';
+import { UserFeedbackEntityService } from './entities/UserFeedbackEntityService.js';
 
 import { ApAudienceService } from './activitypub/ApAudienceService.js';
 import { ApDbResolverService } from './activitypub/ApDbResolverService.js';
@@ -324,6 +325,7 @@ const $ReversiGameEntityService: Provider = { provide: 'ReversiGameEntityService
 const $MetaEntityService: Provider = { provide: 'MetaEntityService', useExisting: MetaEntityService };
 const $SystemWebhookEntityService: Provider = { provide: 'SystemWebhookEntityService', useExisting: SystemWebhookEntityService };
 const $UpdateInfoEntityService: Provider = { provide: 'UpdateInfoEntityService', useExisting: UpdateInfoEntityService };
+const $UserFeedbackEntityService: Provider = { provide: 'UserFeedbackEntityService', useExisting: UserFeedbackEntityService };
 
 const $ApAudienceService: Provider = { provide: 'ApAudienceService', useExisting: ApAudienceService };
 const $ApDbResolverService: Provider = { provide: 'ApDbResolverService', useExisting: ApDbResolverService };
@@ -515,6 +517,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		MetaEntityService,
 		SystemWebhookEntityService,
 		UpdateInfoEntityService,
+		UserFeedbackEntityService,
 
 		ApAudienceService,
 		ApDbResolverService,
@@ -704,6 +707,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$MetaEntityService,
 		$SystemWebhookEntityService,
 		$UpdateInfoEntityService,
+		$UserFeedbackEntityService,
 
 		$ApAudienceService,
 		$ApDbResolverService,
@@ -890,6 +894,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		MetaEntityService,
 		SystemWebhookEntityService,
 		UpdateInfoEntityService,
+		UserFeedbackEntityService,
 
 		ApAudienceService,
 		ApDbResolverService,
@@ -1077,6 +1082,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$MetaEntityService,
 		$SystemWebhookEntityService,
 		$UpdateInfoEntityService,
+		$UserFeedbackEntityService,
 
 		$ApAudienceService,
 		$ApDbResolverService,
