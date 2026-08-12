@@ -2318,6 +2318,8 @@ declare namespace entities {
         TwitchSubtitlePublishResponse,
         TwitchUpdateSettingsRequest,
         TwitchUpdateSettingsResponse,
+        UpdateInfoCreateLocalRequest,
+        UpdateInfoCreateLocalResponse,
         UpdateInfoShowRequest,
         UpdateInfoShowResponse,
         UpdateInfosRequest,
@@ -3969,6 +3971,12 @@ type TwitchUpdateSettingsResponse = operations['twitch___update-settings']['resp
 
 // @public (undocumented)
 type UpdateInfo = components['schemas']['UpdateInfo'];
+
+// @public (undocumented)
+type UpdateInfoCreateLocalRequest = operations['update-info___create-local']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type UpdateInfoCreateLocalResponse = operations['update-info___create-local']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type UpdateInfoShowRequest = operations['update-info___show']['requestBody']['content']['application/json'];

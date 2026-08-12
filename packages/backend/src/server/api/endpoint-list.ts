@@ -394,6 +394,7 @@ export * as 'sw/show-registration' from './endpoints/sw/show-registration.js';
 export * as 'sw/unregister' from './endpoints/sw/unregister.js';
 export * as 'sw/update-registration' from './endpoints/sw/update-registration.js';
 export * as 'test' from './endpoints/test.js';
+export * as 'update-info/create-local' from './endpoints/update-info/create-local.js';
 export * as 'update-info/show' from './endpoints/update-info/show.js';
 export * as 'update-infos' from './endpoints/update-infos.js';
 export * as 'username/available' from './endpoints/username/available.js';
