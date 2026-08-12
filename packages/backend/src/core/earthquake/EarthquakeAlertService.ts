@@ -5,6 +5,7 @@
 
 import cluster from 'node:cluster';
 import { Inject, Injectable, OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
+import * as Redis from 'ioredis';
 import { IsNull } from 'typeorm';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
@@ -75,6 +76,12 @@ const CONNECT_TIMEOUT_MS = 20_000;
 const HEARTBEAT_CHECK_INTERVAL_MS = 30_000;
 const HEARTBEAT_TIMEOUT_MS = 5 * 60_000;
 const HISTORY_LIMIT = 30;
+// 履歴の Redis 永続化。デプロイ (auto-update) のたびにプロセスが再起動し、メモリ上の
+// 履歴が消えて履歴ウィジェットが空になっていたため、再起動をまたいで復元する。
+// TTL は最後の地震から 7 日 (エントリ追加ごとに更新)。それ以上古い履歴だけが残っている
+// 状況では鮮度的に表示価値が薄いので、キーごと自然消滅させる。
+const HISTORY_REDIS_KEY = 'earthquake:eewHistory';
+const HISTORY_REDIS_TTL_SEC = 7 * 24 * 60 * 60;
 // 履歴・通知の対象とする最小震度。これ未満 (震度1-2 や解析不能値) の地震はユーザーに出さない。
 const MIN_REPORT_INTENSITY = 3;
 // 別ソース間で EventID が万一一致しない場合の二次重複ガード。発生時刻 (OriginTime) が
@@ -109,6 +116,9 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 		private globalEventService: GlobalEventService,
 		private notificationService: NotificationService,
 
+		@Inject(DI.redis)
+		private redisClient: Redis.Redis,
+
 		@Inject(DI.usersRepository)
 		private usersRepository: UsersRepository,
 	) {
@@ -121,11 +131,41 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 			return;
 		}
 		// Jetstream と同じ理由で、cluster worker との重複接続を避けるため primary のみで起動する。
+		// 履歴 API (/api/earthquake/history) も primary が応答する (worker は queue 専任) ため、
+		// 復元も primary のみで行えば足りる。
 		if (!cluster.isPrimary) {
 			this.logger.info(`skip start: not cluster primary (worker.id=${cluster.worker?.id})`);
 			return;
 		}
+		// 購読開始前に復元する。復元失敗 (Redis 不調・壊れた JSON) は空履歴で開始するだけで、
+		// 購読自体は必ず開始する。
+		await this.restoreHistory();
 		this.start();
+	}
+
+	@bindThis
+	private async restoreHistory(): Promise<void> {
+		try {
+			const raw = await this.redisClient.get(HISTORY_REDIS_KEY);
+			if (raw == null) return;
+			const parsed = JSON.parse(raw) as unknown;
+			if (!Array.isArray(parsed)) return;
+			this.history = parsed
+				.filter((x): x is JmaEewHistoryEntry => typeof x === 'object' && x != null && typeof (x as JmaEewHistoryEntry).EventID === 'string')
+				.slice(-HISTORY_LIMIT);
+			this.logger.info(`restored ${this.history.length} history entries from Redis`);
+		} catch (e) {
+			this.logger.warn(`failed to restore history from Redis: ${e instanceof Error ? e.message : String(e)}`);
+		}
+	}
+
+	@bindThis
+	private persistHistory(): void {
+		// 地震は低頻度なので全量 SET で十分。失敗しても履歴機能はメモリで動き続けるため
+		// ログだけ残して握りつぶす (EEW の主経路 = broadcast/通知を Redis 不調で止めない)。
+		this.redisClient.set(HISTORY_REDIS_KEY, JSON.stringify(this.history), 'EX', HISTORY_REDIS_TTL_SEC).catch(e => {
+			this.logger.warn(`failed to persist history to Redis: ${e instanceof Error ? e.message : String(e)}`);
+		});
 	}
 
 	async onApplicationShutdown(): Promise<void> {
@@ -323,6 +363,7 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 		if (this.history.length > HISTORY_LIMIT) {
 			this.history.shift();
 		}
+		this.persistHistory();
 
 		this.globalEventService.publishBroadcastStream('earthquakeAlert', { alert: entry });
 		this.notifyAllUsers(entry).catch(e => {
