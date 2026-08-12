@@ -299,7 +299,11 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 		}
 
 		const reportKind = this.classifyReport(evt);
-		this.logger.info(`EEW: ${evt.Hypocenter} M${evt.Magunitude} 最大震度${evt.MaxIntensity} (Serial=${evt.Serial}, isFinal=${evt.isFinal}, isCancel=${evt.isCancel}, reportKind=${reportKind ?? 'skip'})`);
+		// Wolfx の発表時刻 (JST) と受信時刻の差 = 上流経路の配信遅延。恒常的に大きい場合は
+		// 配信ソースの追加 (P2P地震情報 / dmdata 等の並行購読) を検討する判断材料にする。
+		const announcedMs = Date.parse(`${evt.AnnouncedTime.replace(/\//g, '-').replace(' ', 'T')}+09:00`);
+		const lagMs = Number.isNaN(announcedMs) ? null : Date.now() - announcedMs;
+		this.logger.info(`EEW: ${evt.Hypocenter} M${evt.Magunitude} 最大震度${evt.MaxIntensity} (Serial=${evt.Serial}, isFinal=${evt.isFinal}, isCancel=${evt.isCancel}, reportKind=${reportKind ?? 'skip'}, lag=${lagMs != null ? `${lagMs}ms` : 'n/a'})`);
 		if (reportKind == null) return;
 
 		const entry: JmaEewHistoryEntry = { ...evt, reportKind };

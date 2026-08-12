@@ -187,7 +187,8 @@ export class NotificationService implements OnApplicationShutdown {
 
 		// 2秒経っても(今回作成した)通知が既読にならなかったら「未読の通知がありますよ」イベントを発行する
 		// テスト通知の場合は即時発行
-		const interval = notification.type === 'test' ? 0 : 2000;
+		// 地震速報 (bsky-fork 独自) は一刻を争うため、既読待ちを挟まず即時にプッシュ通知する
+		const interval = (notification.type === 'test' || notification.type === 'earthquakeAlert') ? 0 : 2000;
 		setTimeout(interval, 'unread notification', { signal: this.#shutdownController.signal }).then(async () => {
 			const latestReadNotificationId = await this.redisClient.get(`latestReadNotification:${notifieeId}`);
 			if (latestReadNotificationId && (latestReadNotificationId >= redisId)) return;
