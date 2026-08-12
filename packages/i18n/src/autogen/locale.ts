@@ -14940,13 +14940,31 @@ export interface Locale extends ILocale {
          */
         "reportBody": string;
         /**
-         * 再現手順・期待する動作・実際の動作をできるだけ具体的に書いてください
+         * テンプレートに沿って書ける範囲で記入してください (全部埋めなくても大丈夫です)。
          */
-        "bugBodyPlaceholder": string;
+        "bodyTemplateNote": string;
         /**
-         * どんな機能がほしいか、どんな場面で困っているかを書いてください
+         * 【発生した問題】
+         *
+         *
+         * 【再現手順】
+         * 1.
+         *
+         * 【期待する動作】
+         *
+         *
+         * 【実際の動作】
+         *
          */
-        "featureBodyPlaceholder": string;
+        "bugTemplate": string;
+        /**
+         * 【ほしい機能・改善案】
+         *
+         *
+         * 【困っている場面・理由】
+         *
+         */
+        "featureTemplate": string;
         /**
          * スクリーンショットを添付
          */
