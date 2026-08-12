@@ -186,6 +186,7 @@ import { GoogleYoutubeService } from './google/GoogleYoutubeService.js';
 import { RemoteGuestSessionService } from './remote-guest/RemoteGuestSessionService.js';
 import { RemoteGuestMiAuthClientService } from './remote-guest/RemoteGuestMiAuthClientService.js';
 import { EarthquakeAlertService } from './earthquake/EarthquakeAlertService.js';
+import { EarthquakeP2pquakeSource } from './earthquake/EarthquakeP2pquakeSource.js';
 import { QueueModule } from './QueueModule.js';
 import { QueueService } from './QueueService.js';
 import { LoggerService } from './LoggerService.js';
@@ -568,6 +569,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		GoogleYoutubeService,
 		LiveRecordingService,
 		EarthquakeAlertService,
+		EarthquakeP2pquakeSource,
 
 		QueueService,
 		TelemetryService,
@@ -942,6 +944,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		GoogleYoutubeService,
 		LiveRecordingService,
 		EarthquakeAlertService,
+		EarthquakeP2pquakeSource,
 
 		QueueService,
 		TelemetryService,
