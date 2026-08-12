@@ -50,6 +50,21 @@ export type JmaEewAlert = {
 	isCancel: boolean;
 };
 
+// 履歴・通知に採用した報の分類。first=第一報 / final=最終報 / cancel=取消報。
+// ここでの「第一報」は Serial=1 ではなく「震度条件を初めて満たし採用された報」を指す
+// (深発地震などで途中の serial から震度が引き上がるケースがあるため)。
+export type JmaEewReportKind = 'first' | 'final' | 'cancel';
+
+export type JmaEewHistoryEntry = JmaEewAlert & { reportKind: JmaEewReportKind };
+
+// JMA の震度階級文字列 (「1」〜「7」「5弱」「5強」等) を比較可能な数値へ変換する。
+// 「不明」や未知の表記は null を返し、震度フィルタでは非該当扱いにする。
+export function intensityRank(intensity: string): number | null {
+	const m = /^([0-7])(弱|強)?$/.exec(intensity);
+	if (m == null) return null;
+	return Number(m[1]) + (m[2] === '強' ? 0.5 : 0);
+}
+
 const WOLFX_JMA_EEW_URL = 'wss://ws-api.wolfx.jp/jma_eew';
 const RECONNECT_MIN_MS = 1_000;
 const RECONNECT_MAX_MS = 60_000;
@@ -60,6 +75,8 @@ const CONNECT_TIMEOUT_MS = 20_000;
 const HEARTBEAT_CHECK_INTERVAL_MS = 30_000;
 const HEARTBEAT_TIMEOUT_MS = 5 * 60_000;
 const HISTORY_LIMIT = 30;
+// 履歴・通知の対象とする最小震度。これ未満 (震度1-2 や解析不能値) の地震はユーザーに出さない。
+const MIN_REPORT_INTENSITY = 3;
 
 @Injectable()
 export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdown {
@@ -73,9 +90,10 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 	private heartbeatTimer: NodeJS.Timeout | null = null;
 	private lastMessageAt: number | null = null;
 	private suppressNextReconnect = false;
-	private history: JmaEewAlert[] = [];
-	// isWarn が発報済みのEventIDを保持 (通知欄が埋まるのを防ぐため重要イベントのみpushする判定に使う)。
-	private warnedEvents = new Set<string>();
+	private history: JmaEewHistoryEntry[] = [];
+	// 第一報を採用済みのEventID。1つの地震で続報のたびに履歴・通知が増えるのを防ぎ、
+	// 第一報と最終報 (と取消報) だけを採用する判定に使う。
+	private reportedEvents = new Set<string>();
 	// EventIDごとの直近の有効な最大予測震度。深発地震などでJMAが震度予測を打ち切ると
 	// 後続serial (最終報含む) の MaxIntensity が「不明」になるため、表示用に引き継ぐ。
 	private lastKnownIntensity = new Map<string, string>();
@@ -118,7 +136,7 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 	}
 
 	@bindThis
-	public getHistory(): JmaEewAlert[] {
+	public getHistory(): JmaEewHistoryEntry[] {
 		// 新しい順で返す。呼び出し元が内部配列を書き換えられないよう複製する。
 		return [...this.history].reverse();
 	}
@@ -280,47 +298,49 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 			this.lastKnownIntensity.delete(evt.EventID);
 		}
 
-		this.history.push(evt);
+		const reportKind = this.classifyReport(evt);
+		this.logger.info(`EEW: ${evt.Hypocenter} M${evt.Magunitude} 最大震度${evt.MaxIntensity} (Serial=${evt.Serial}, isFinal=${evt.isFinal}, isCancel=${evt.isCancel}, reportKind=${reportKind ?? 'skip'})`);
+		if (reportKind == null) return;
+
+		const entry: JmaEewHistoryEntry = { ...evt, reportKind };
+		this.history.push(entry);
 		if (this.history.length > HISTORY_LIMIT) {
 			this.history.shift();
 		}
 
-		this.logger.info(`EEW: ${evt.Hypocenter} M${evt.Magunitude} 最大震度${evt.MaxIntensity} (Serial=${evt.Serial}, isFinal=${evt.isFinal}, isCancel=${evt.isCancel})`);
-		this.globalEventService.publishBroadcastStream('earthquakeAlert', { alert: evt });
-
-		if (this.shouldNotify(evt)) {
-			this.notifyAllUsers(evt).catch(e => {
-				this.logger.error(`notifyAllUsers failed: ${e instanceof Error ? e.message : String(e)}`);
-			});
-		}
+		this.globalEventService.publishBroadcastStream('earthquakeAlert', { alert: entry });
+		this.notifyAllUsers(entry).catch(e => {
+			this.logger.error(`notifyAllUsers failed: ${e instanceof Error ? e.message : String(e)}`);
+		});
 	}
 
-	// 重要イベントのみ通知 (push) 対象にする。全serialをpushすると通知欄が埋まるため、
-	// (1) 警報級に達した最初の瞬間、(2) 最終報、(3) 警報発出後の取消、の3点に絞る。
+	// 1つの地震 (EventID) につき履歴・通知・トーストに出すのは第一報と最終報 (と取消報) のみ。
+	// 全serialを出すと1つの地震で通知欄・履歴が埋まるため。さらに最大予測震度が
+	// MIN_REPORT_INTENSITY 未満の地震はそもそも採用しない。null = 採用しない。
 	@bindThis
-	private shouldNotify(evt: JmaEewAlert): boolean {
-		// isWarn と isFinal が同一serialで同時に立つケースもあるため、早期returnにせず
-		// 独立に判定する (warnedEventsの掃除漏れを防ぐ)。
-		let notify = false;
-
-		if (evt.isWarn && !this.warnedEvents.has(evt.EventID)) {
-			this.warnedEvents.add(evt.EventID);
-			notify = true;
+	private classifyReport(evt: JmaEewAlert): JmaEewReportKind | null {
+		if (evt.isCancel) {
+			// 取消報は第一報を出した地震に限り出す (出していない地震の取消は意味を持たないため)。
+			return this.reportedEvents.delete(evt.EventID) ? 'cancel' : null;
 		}
+
+		const rank = intensityRank(evt.MaxIntensity);
+		const qualifies = rank != null && rank >= MIN_REPORT_INTENSITY;
+
 		if (evt.isFinal) {
-			this.warnedEvents.delete(evt.EventID);
-			notify = true;
+			if (this.reportedEvents.delete(evt.EventID)) return 'final';
+			// 続報が無く最終報しか来ない小規模イベントでも、震度条件を満たすなら最終報1件だけ出す。
+			return qualifies ? 'final' : null;
 		}
-		if (evt.isCancel && this.warnedEvents.has(evt.EventID)) {
-			this.warnedEvents.delete(evt.EventID);
-			notify = true;
+		if (qualifies && !this.reportedEvents.has(evt.EventID)) {
+			this.reportedEvents.add(evt.EventID);
+			return 'first';
 		}
-
-		return notify;
+		return null;
 	}
 
 	@bindThis
-	private async notifyAllUsers(evt: JmaEewAlert): Promise<void> {
+	private async notifyAllUsers(evt: JmaEewHistoryEntry): Promise<void> {
 		const localActiveUsers = await this.usersRepository.findBy({
 			host: IsNull(),
 			isSuspended: false,
@@ -338,6 +358,7 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 				isWarn: evt.isWarn,
 				isFinal: evt.isFinal,
 				isCancel: evt.isCancel,
+				reportKind: evt.reportKind,
 			});
 		}
 	}

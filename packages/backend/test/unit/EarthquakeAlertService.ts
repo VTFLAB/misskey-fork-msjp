@@ -6,12 +6,13 @@
 process.env.NODE_ENV = 'test';
 
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { EarthquakeAlertService } from '@/core/earthquake/EarthquakeAlertService.js';
+import { EarthquakeAlertService, intensityRank } from '@/core/earthquake/EarthquakeAlertService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 
-// bsky-fork 独自: 地震速報 push 通知の「重要イベントのみ通知する」フィルタリングロジックの検証。
-// 全serialをpushすると通知欄が埋まるため、(1) isWarn初回, (2) isFinal, (3) 警報後のisCancel、
-// の3点のみが通知対象になることを確認する。DB/Redis は使わずコンストラクタ引数を直接モックする。
+// bsky-fork 独自: 地震速報の「第一報・最終報のみ / 震度3以上」フィルタリングロジックの検証。
+// 全serialを出すと1つの地震で履歴・通知が埋まるため、履歴・broadcast・push通知のいずれも
+// (1) 震度3以上を初めて満たした報 (=第一報)、(2) 最終報、(3) 第一報後の取消報、
+// のみが対象になることを確認する。DB/Redis は使わずコンストラクタ引数を直接モックする。
 describe('EarthquakeAlertService', () => {
 	let globalEventService: { publishBroadcastStream: ReturnType<typeof vi.fn> };
 	let notificationService: { createNotification: ReturnType<typeof vi.fn> };
@@ -65,61 +66,95 @@ describe('EarthquakeAlertService', () => {
 		await new Promise(resolve => setImmediate(resolve));
 	}
 
-	test('isWarn:false の中間serialは通知しない', async () => {
-		await feed({ Serial: 1, isWarn: false });
+	test('intensityRank は JMA 震度階級を比較可能な数値にする', () => {
+		expect(intensityRank('2')).toBe(2);
+		expect(intensityRank('3')).toBe(3);
+		expect(intensityRank('5弱')).toBe(5);
+		expect(intensityRank('5強')).toBe(5.5);
+		expect(intensityRank('7')).toBe(7);
+		expect(intensityRank('不明')).toBeNull();
+	});
+
+	test('震度3未満の報は履歴・broadcast・通知のいずれにも出ない', async () => {
+		await feed({ Serial: 1, MaxIntensity: '2' });
+
+		expect(globalEventService.publishBroadcastStream).not.toHaveBeenCalled();
+		expect(notificationService.createNotification).not.toHaveBeenCalled();
+		expect(service.getHistory().length).toBe(0);
+	});
+
+	test('震度3以上を初めて満たした報は第一報として履歴・通知に出る', async () => {
+		await feed({ Serial: 1, MaxIntensity: '3' });
 
 		expect(globalEventService.publishBroadcastStream).toHaveBeenCalledTimes(1);
+		expect(globalEventService.publishBroadcastStream.mock.calls[0][1].alert.reportKind).toBe('first');
+		// 2ユーザー分
+		expect(notificationService.createNotification).toHaveBeenCalledTimes(2);
+		expect(notificationService.createNotification.mock.calls[0][2].reportKind).toBe('first');
+		expect(service.getHistory()[0].reportKind).toBe('first');
+	});
+
+	test('第一報と最終報の間の続報は出ない', async () => {
+		await feed({ Serial: 1 });
+		await feed({ Serial: 2 });
+		await feed({ Serial: 3 });
+		await feed({ Serial: 4, isFinal: true });
+
+		expect(globalEventService.publishBroadcastStream).toHaveBeenCalledTimes(2);
+		// getHistory は新しい順
+		expect(service.getHistory().map(e => e.reportKind)).toEqual(['final', 'first']);
+		// (第一報 + 最終報) × 2ユーザー
+		expect(notificationService.createNotification).toHaveBeenCalledTimes(4);
+	});
+
+	test('途中の serial から震度3以上になった地震はその報を第一報として出す', async () => {
+		await feed({ Serial: 1, MaxIntensity: '2' });
+		await feed({ Serial: 2, MaxIntensity: '4' });
+
+		expect(globalEventService.publishBroadcastStream).toHaveBeenCalledTimes(1);
+		const alert = globalEventService.publishBroadcastStream.mock.calls[0][1].alert;
+		expect(alert.reportKind).toBe('first');
+		expect(alert.Serial).toBe(2);
+	});
+
+	test('続報なしで最終報のみでも震度3以上なら最終報1件だけ出す', async () => {
+		await feed({ Serial: 1, MaxIntensity: '4', isFinal: true });
+
+		expect(globalEventService.publishBroadcastStream).toHaveBeenCalledTimes(1);
+		expect(globalEventService.publishBroadcastStream.mock.calls[0][1].alert.reportKind).toBe('final');
+		expect(service.getHistory().length).toBe(1);
+	});
+
+	test('震度3未満のまま終わった地震は最終報も出ない', async () => {
+		await feed({ Serial: 1, MaxIntensity: '1' });
+		await feed({ Serial: 2, MaxIntensity: '1', isFinal: true });
+
+		expect(globalEventService.publishBroadcastStream).not.toHaveBeenCalled();
 		expect(notificationService.createNotification).not.toHaveBeenCalled();
+		expect(service.getHistory().length).toBe(0);
 	});
 
-	test('isWarnが最初にtrueになった瞬間は通知する', async () => {
-		await feed({ Serial: 1, isWarn: false });
-		await feed({ Serial: 2, isWarn: true });
-
-		expect(notificationService.createNotification).toHaveBeenCalledTimes(2);
-		expect(notificationService.createNotification.mock.calls.every(call => call[1] === 'earthquakeAlert')).toBe(true);
-	});
-
-	test('同一イベントの2回目以降のisWarnは通知しない (isFinalまで抑制)', async () => {
-		await feed({ Serial: 1, isWarn: true });
-		await feed({ Serial: 2, isWarn: true });
-		await feed({ Serial: 3, isWarn: true });
-
-		// 最初の1回分 (2ユーザー) のみ
-		expect(notificationService.createNotification).toHaveBeenCalledTimes(2);
-	});
-
-	test('isFinalは常に通知する', async () => {
-		await feed({ Serial: 1, isWarn: false });
-		await feed({ Serial: 2, isWarn: false, isFinal: true });
-
-		expect(notificationService.createNotification).toHaveBeenCalledTimes(2);
-	});
-
-	test('isWarnの後のisCancelは通知するが、isWarn無しのisCancelは通知しない', async () => {
-		await feed({ EventID: 'evt-a', Serial: 1, isWarn: true });
+	test('取消報は第一報を出した地震に限り出す', async () => {
+		await feed({ EventID: 'evt-a', Serial: 1, MaxIntensity: '5弱' });
 		await feed({ EventID: 'evt-a', Serial: 2, isCancel: true });
-		await feed({ EventID: 'evt-b', Serial: 1, isCancel: true });
+		await feed({ EventID: 'evt-b', Serial: 1, MaxIntensity: '2' });
+		await feed({ EventID: 'evt-b', Serial: 2, isCancel: true });
 
-		// evt-a: isWarn(2件) + isCancel(2件) = 4件、evt-b: isWarn無しのisCancelは0件
+		// evt-a: 第一報 + 取消、evt-b: どちらも出ない
+		expect(globalEventService.publishBroadcastStream).toHaveBeenCalledTimes(2);
+		expect(globalEventService.publishBroadcastStream.mock.calls[1][1].alert.reportKind).toBe('cancel');
+		// (第一報 + 取消) × 2ユーザー
 		expect(notificationService.createNotification).toHaveBeenCalledTimes(4);
 	});
 
 	test('MaxIntensity「不明」は同一イベントの直近の有効値で補完される', async () => {
-		await feed({ Serial: 1, MaxIntensity: '2' });
-		await feed({ Serial: 2, MaxIntensity: '3' });
-		await feed({ Serial: 3, MaxIntensity: '不明', isFinal: true });
+		await feed({ Serial: 1, MaxIntensity: '4' });
+		await feed({ Serial: 2, MaxIntensity: '不明', isFinal: true });
 
-		const final = globalEventService.publishBroadcastStream.mock.calls[2][1].alert;
-		expect(final.MaxIntensity).toBe('3');
-		expect(service.getHistory()[0].MaxIntensity).toBe('3');
-	});
-
-	test('有効値が一度も無いイベントの「不明」はそのまま', async () => {
-		await feed({ Serial: 1, MaxIntensity: '不明' });
-
-		const alert = globalEventService.publishBroadcastStream.mock.calls[0][1].alert;
-		expect(alert.MaxIntensity).toBe('不明');
+		const final = globalEventService.publishBroadcastStream.mock.calls[1][1].alert;
+		expect(final.MaxIntensity).toBe('4');
+		expect(final.reportKind).toBe('final');
+		expect(service.getHistory()[0].MaxIntensity).toBe('4');
 	});
 
 	test('取消報の「不明」は補完しない', async () => {

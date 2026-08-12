@@ -5270,6 +5270,8 @@ export type components = {
             isWarn: boolean;
             isFinal: boolean;
             isCancel: boolean;
+            /** @enum {string} */
+            reportKind: 'first' | 'final' | 'cancel';
         } | {
             /** Format: id */
             id: string;
@@ -21923,6 +21925,8 @@ export interface operations {
                             isWarn: boolean;
                             isFinal: boolean;
                             isCancel: boolean;
+                            /** @enum {string} */
+                            reportKind: 'first' | 'final' | 'cancel';
                         }[];
                     };
                 };

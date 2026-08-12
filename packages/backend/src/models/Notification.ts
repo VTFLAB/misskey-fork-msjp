@@ -164,6 +164,7 @@ export type MiNotification = {
 	isWarn: boolean;
 	isFinal: boolean;
 	isCancel: boolean;
+	reportKind: 'first' | 'final' | 'cancel';
 } | {
 	// フォロー中ユーザーの Twitch 配信開始通知 (bsky-fork 独自)
 	type: 'twitchLiveStreamStarted';

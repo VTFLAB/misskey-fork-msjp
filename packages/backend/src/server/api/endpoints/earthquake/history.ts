@@ -54,6 +54,7 @@ export const meta = {
 						isWarn: { type: 'boolean', optional: false, nullable: false },
 						isFinal: { type: 'boolean', optional: false, nullable: false },
 						isCancel: { type: 'boolean', optional: false, nullable: false },
+						reportKind: { type: 'string', optional: false, nullable: false, enum: ['first', 'final', 'cancel'] },
 					},
 				},
 			},
