@@ -7,7 +7,7 @@ process.env.NODE_ENV = 'test';
 
 import * as assert from 'assert';
 import { describe, beforeAll, test } from 'vitest';
-import { api, signup, uploadFile } from '../utils.js';
+import { api, castAsError, signup, uploadFile } from '../utils.js';
 import type * as misskey from 'misskey-js';
 
 // bsky-fork 独自: バグ報告・機能要望の受付 API (feedback/create, feedback/list)。
@@ -55,7 +55,7 @@ describe('フィードバック受付', () => {
 			fileIds: [file.id],
 		}, alice);
 		assert.strictEqual(res.status, 400);
-		assert.strictEqual(res.body.error.code, 'NO_SUCH_FILE');
+		assert.strictEqual(castAsError(res.body as any).error.code, 'NO_SUCH_FILE');
 	});
 
 	test('画像以外 (SVG) は添付できない', async () => {
@@ -67,7 +67,7 @@ describe('フィードバック受付', () => {
 			fileIds: [file.id],
 		}, alice);
 		assert.strictEqual(res.status, 400);
-		assert.strictEqual(res.body.error.code, 'INVALID_FILE_TYPE');
+		assert.strictEqual(castAsError(res.body as any).error.code, 'INVALID_FILE_TYPE');
 	});
 
 	test('未認証では送信できない', async () => {
@@ -92,6 +92,6 @@ describe('フィードバック受付', () => {
 	test('LAN 限定 endpoint は経路ガードで拒否される (allowedIps 未設定)', async () => {
 		const res = await api('feedback/list-local', {});
 		assert.strictEqual(res.status, 400);
-		assert.strictEqual(res.body.error.code, 'ACCESS_DENIED');
+		assert.strictEqual(castAsError(res.body as any).error.code, 'ACCESS_DENIED');
 	});
 });
