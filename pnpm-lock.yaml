@@ -4278,10 +4278,6 @@ packages:
       eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
       typescript: '>=4.8.4 <6.1.0'
 
-  '@typescript-eslint/types@8.62.0':
-    resolution: {integrity: sha512-KvAclkktORPvM54TgLgA4z9HIV1M8zOgw9ZVNXl9f/8dLYfXYX1wkMXP7qmabpijQRV5bHJLOmoyGQbLMaUYeg==}
-    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
   '@typescript-eslint/types@8.63.0':
     resolution: {integrity: sha512-xyLtl9DUBBFrcJS4x2pIqGLH68/tC2uOa4Z7pUteW09D3bXnnXUom4dyPikzWgB7llmIc1zoeI3aoUdC4rPK/Q==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
@@ -5293,6 +5289,7 @@ packages:
   cron-parser@4.9.0:
     resolution: {integrity: sha512-p0SaNjrHOnQeR8/VnfGbmg9te2kfyYSQ7Sc/j/6DtPL3JQvKxmjO9TSjNFpujqV3vEYYBvNNvXSxzyksBWAx1Q==}
     engines: {node: '>=12.0.0'}
+    deprecated: v4 is no longer maintained, upgrade to v5
 
   cropperjs@2.1.1:
     resolution: {integrity: sha512-FDJMarkY+/SepYarPZsvkG2LmI2PElecciMFnvBiBIoKnFYua/scprC5qejCLLyuX2jEqJRS2njbAsHxfjtIXA==}
@@ -7275,11 +7272,6 @@ packages:
 
   nan@2.27.0:
     resolution: {integrity: sha512-hC+0LidcL3XE4rp1C4H54KujgXKzbfyTngZTwBByQxsOxCEKZT0MPQ4hOKUH2jU1OYstqdDH4onyHPDzcV0XdQ==}
-
-  nanoid@3.3.12:
-    resolution: {integrity: sha512-ZB9RH/39qpq5Vu6Y+NmUaFhQR6pp+M2Xt76XBnEwDaGcVAqhlvxrl3B2bKS5D3NH3QR76v3aSrKaF/Kiy7lEtQ==}
-    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
-    hasBin: true
 
   nanoid@3.3.16:
     resolution: {integrity: sha512-bzlKTyNJ7+LdGIIwy8ijFpIqEQIvafahV7eYykJ8Cvh42EdJeODoJ6gUJXpQJvej1BddH8OqTXZNE/KfbWAu8Q==}
@@ -11254,7 +11246,7 @@ snapshots:
       detect-libc: 2.1.2
       is-glob: 4.0.3
       node-addon-api: 7.1.1
-      picomatch: 4.0.4
+      picomatch: 4.0.5
     optionalDependencies:
       '@parcel/watcher-android-arm64': 2.5.6
       '@parcel/watcher-darwin-arm64': 2.5.6
@@ -12119,12 +12111,12 @@ snapshots:
   '@stylistic/eslint-plugin@5.10.0(eslint@9.39.5)':
     dependencies:
       '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.5)
-      '@typescript-eslint/types': 8.62.0
+      '@typescript-eslint/types': 8.63.0
       eslint: 9.39.5
       eslint-visitor-keys: 4.2.1
       espree: 10.4.0
       estraverse: 5.3.0
-      picomatch: 4.0.4
+      picomatch: 4.0.5
 
   '@syuilo/aiscript@0.19.0':
     dependencies:
@@ -12374,7 +12366,7 @@ snapshots:
 
   '@types/set-cookie-parser@2.4.10':
     dependencies:
-      '@types/node': 26.0.1
+      '@types/node': 26.1.1
 
   '@types/simple-oauth2@5.0.8': {}
 
@@ -12526,8 +12518,6 @@ snapshots:
       typescript: 6.0.2
     transitivePeerDependencies:
       - supports-color
-
-  '@typescript-eslint/types@8.62.0': {}
 
   '@typescript-eslint/types@8.63.0': {}
 
@@ -12959,7 +12949,7 @@ snapshots:
       '@vue/shared': 3.5.39
       estree-walker: 2.0.2
       magic-string: 0.30.21
-      postcss: 8.5.15
+      postcss: 8.5.22
       source-map-js: 1.2.1
 
   '@vue/compiler-ssr@3.5.39':
@@ -13413,7 +13403,7 @@ snapshots:
 
   buffer-image-size@0.6.4:
     dependencies:
-      '@types/node': 26.0.1
+      '@types/node': 26.1.1
 
   buffer@5.6.0:
     dependencies:
@@ -14612,9 +14602,9 @@ snapshots:
     dependencies:
       reusify: 1.1.0
 
-  fdir@6.5.0(picomatch@4.0.4):
+  fdir@6.5.0(picomatch@4.0.5):
     optionalDependencies:
-      picomatch: 4.0.4
+      picomatch: 4.0.5
 
   feed@6.0.0:
     dependencies:
@@ -14944,7 +14934,7 @@ snapshots:
 
   happy-dom@20.10.6(bufferutil@4.1.0)(utf-8-validate@6.0.6):
     dependencies:
-      '@types/node': 26.0.1
+      '@types/node': 26.1.1
       '@types/whatwg-mimetype': 3.0.2
       '@types/ws': 8.18.1
       buffer-image-size: 0.6.4
@@ -16252,8 +16242,6 @@ snapshots:
 
   nan@2.27.0: {}
 
-  nanoid@3.3.12: {}
-
   nanoid@3.3.16: {}
 
   nanoid@6.0.0: {}
@@ -16820,7 +16808,7 @@ snapshots:
 
   postcss@8.5.15:
     dependencies:
-      nanoid: 3.3.12
+      nanoid: 3.3.16
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
@@ -18135,8 +18123,8 @@ snapshots:
 
   tinyglobby@0.2.17:
     dependencies:
-      fdir: 6.5.0(picomatch@4.0.4)
-      picomatch: 4.0.4
+      fdir: 6.5.0(picomatch@4.0.5)
+      picomatch: 4.0.5
 
   tinyrainbow@1.2.0: {}
 
