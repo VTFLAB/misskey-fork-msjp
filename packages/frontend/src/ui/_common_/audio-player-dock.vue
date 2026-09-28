@@ -1,0 +1,272 @@
+<!--
+SPDX-FileCopyrightText: syuilo and misskey-project
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+
+<template>
+<div v-if="hasQueue" :class="$style.root" class="_panel _shadow" role="region" :aria-label="i18n.ts._audioPlayer.title">
+	<button class="_button" :class="$style.artwork" :aria-label="i18n.ts._audioPlayer.expand" @click="openWindow">
+		<img v-if="currentTrack?.file.thumbnailUrl" :src="currentTrack.file.thumbnailUrl" :class="$style.artworkImg" alt=""/>
+		<i v-else class="ti ti-music" :class="$style.artworkIcon"></i>
+	</button>
+
+	<div :class="$style.body">
+		<button class="_button" :class="$style.meta" :aria-label="i18n.ts._audioPlayer.expand" @click="openWindow">
+			<div :class="$style.title">{{ trackTitle }}</div>
+			<div :class="$style.artist">{{ trackArtist }}</div>
+		</button>
+
+		<div :class="$style.seekRow">
+			<span :class="$style.time">{{ hms(audioPlayerState.currentTime * 1000) }}</span>
+			<MkMediaRange
+				v-model="seekValue"
+				:buffer="audioPlayerState.buffered"
+				:ariaLabel="i18n.ts._audioPlayer.title"
+				:class="$style.seek"
+			/>
+			<span :class="$style.time">{{ hms(audioPlayerState.duration * 1000) }}</span>
+		</div>
+	</div>
+
+	<div :class="$style.controls">
+		<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts._audioPlayer.previous" @click="prev">
+			<i class="ti ti-player-track-prev"></i>
+		</button>
+		<button class="_button" :class="$style.controlButton" :aria-label="audioPlayerState.playing ? i18n.ts._audioPlayer.pause : i18n.ts._audioPlayer.play" @click="toggle">
+			<i v-if="audioPlayerState.playing" class="ti ti-player-pause"></i>
+			<i v-else class="ti ti-player-play"></i>
+		</button>
+		<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts.next" @click="next">
+			<i class="ti ti-player-track-next"></i>
+		</button>
+
+		<div :class="$style.volumeGroup">
+			<button class="_button" :class="$style.controlButton" :aria-label="audioPlayerState.muted || audioPlayerState.volume === 0 ? i18n.ts.unmute : i18n.ts.mute" @click="toggleMute">
+				<i v-if="audioPlayerState.muted || audioPlayerState.volume === 0" class="ti ti-volume-3"></i>
+				<i v-else-if="audioPlayerState.volume < 0.5" class="ti ti-volume-2"></i>
+				<i v-else class="ti ti-volume"></i>
+			</button>
+			<MkMediaRange v-model="volumeValue" :ariaLabel="i18n.ts.volume" :class="$style.volumeSeek"/>
+		</div>
+
+		<button class="_button" :class="$style.controlButton" :aria-label="loopLabel" @click="cycleLoop">
+			<i class="ti ti-repeat" :class="{ [$style.loopActive]: audioPlayerState.loop !== 'off' }"></i>
+		</button>
+		<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts._audioPlayer.expand" @click="openWindow">
+			<i class="ti ti-arrows-maximize"></i>
+		</button>
+		<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts._audioPlayer.close" @click="clear">
+			<i class="ti ti-x"></i>
+		</button>
+	</div>
+</div>
+</template>
+
+<script lang="ts" setup>
+import { computed } from 'vue';
+import { hms } from '@/filters/hms.js';
+import { i18n } from '@/i18n.js';
+import * as os from '@/os.js';
+import MkMediaRange from '@/components/MkMediaRange.vue';
+import {
+	audioPlayerState,
+	hasQueue,
+	currentTrack,
+	toggle,
+	next,
+	prev,
+	seek,
+	setVolume,
+	toggleMute,
+	cycleLoop,
+	clear,
+} from '@/utility/audio-player.js';
+
+const zIndex = os.claimZIndex('high');
+
+const trackTitle = computed(() => {
+	const track = currentTrack.value;
+	if (track == null) return '';
+	return track.file.comment || track.file.name;
+});
+
+const trackArtist = computed(() => {
+	const user = currentTrack.value?.user;
+	if (user == null) return '';
+	return user.name || user.username;
+});
+
+const seekValue = computed({
+	get: () => audioPlayerState.duration > 0 ? audioPlayerState.currentTime / audioPlayerState.duration : 0,
+	set: (v: number) => {
+		seek(v * audioPlayerState.duration);
+	},
+});
+
+const volumeValue = computed({
+	get: () => audioPlayerState.volume,
+	set: (v: number) => {
+		setVolume(v);
+	},
+});
+
+const loopLabel = computed(() => {
+	switch (audioPlayerState.loop) {
+		case 'one': return i18n.ts._audioPlayer.loopOne;
+		case 'all': return i18n.ts._audioPlayer.loopAll;
+		default: return i18n.ts._audioPlayer.loopOff;
+	}
+});
+
+let windowOpening = false;
+
+async function openWindow() {
+	if (windowOpening) return;
+	windowOpening = true;
+	try {
+		const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkAudioPlayerWindow.vue').then(x => x.default), {}, {
+			closed: () => {
+				dispose();
+				windowOpening = false;
+			},
+		});
+	} catch (err) {
+		// e.g. the dynamic import failed; do not leave the expand button latched.
+		windowOpening = false;
+		throw err;
+	}
+}
+</script>
+
+<style lang="scss" module>
+.root {
+	position: fixed;
+	z-index: v-bind(zIndex);
+	bottom: calc(var(--MI-minBottomSpacing) + var(--MI-margin));
+	right: var(--MI-margin);
+	width: min(420px, calc(100vw - var(--MI-margin) * 2));
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 12px;
+	border-radius: 12px;
+}
+
+@media (max-width: 500px) {
+	.root {
+		left: var(--MI-margin);
+		right: var(--MI-margin);
+		width: auto;
+	}
+}
+
+.artwork {
+	flex-shrink: 0;
+	width: 40px;
+	height: 40px;
+	border-radius: 8px;
+	overflow: clip;
+	display: grid;
+	place-items: center;
+	background: var(--MI_THEME-buttonBg);
+}
+
+.artworkImg {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.artworkIcon {
+	font-size: 1.2em;
+	opacity: 0.7;
+}
+
+.body {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.meta {
+	display: block;
+	text-align: left;
+	min-width: 0;
+}
+
+.title {
+	font-size: 0.9em;
+	font-weight: bold;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.artist {
+	font-size: 0.8em;
+	opacity: 0.7;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.seekRow {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.seek {
+	flex: 1;
+}
+
+.time {
+	font-size: 0.75em;
+	opacity: 0.7;
+	flex-shrink: 0;
+}
+
+.controls {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.controlButton {
+	padding: 6px;
+	border-radius: 4px;
+
+	&:hover {
+		background-color: var(--MI_THEME-accentedBg);
+		color: var(--MI_THEME-accent);
+	}
+
+	&:focus-visible {
+		outline: none;
+	}
+}
+
+.loopActive {
+	color: var(--MI_THEME-accent);
+}
+
+.volumeGroup {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.volumeSeek {
+	width: 70px;
+}
+
+@media (max-width: 500px) {
+	.volumeGroup {
+		display: none;
+	}
+}
+</style>
