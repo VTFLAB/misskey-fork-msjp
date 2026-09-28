@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div class="_panel mkw-audio-player" :class="$style.root">
 	<div v-if="currentTrack" :class="$style.nowPlaying">
-		<img v-if="currentTrack.file.thumbnailUrl" :src="currentTrack.file.thumbnailUrl" :class="$style.artwork" alt=""/>
+		<img v-if="artworkUrl" :src="artworkUrl" :class="$style.artwork" alt=""/>
 		<i v-else class="ti ti-music" :class="$style.artworkIcon"></i>
 		<div :class="$style.meta">
 			<div :class="$style.title">{{ trackTitle }}</div>
@@ -32,6 +32,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 		</button>
 		<button class="_button" :class="$style.controlButton" :aria-label="loopLabel" @click="cycleLoop">
 			<i class="ti ti-repeat" :class="{ [$style.loopActive]: audioPlayerState.loop !== 'off' }"></i>
+		</button>
+		<button v-if="currentTrack" v-tooltip="i18n.ts._nowPlaying.post" class="_button" :class="$style.controlButton" :aria-label="i18n.ts._nowPlaying.post" @click="postNowPlaying">
+			<i class="ti ti-music"></i>
 		</button>
 	</div>
 
@@ -59,6 +62,7 @@ import MkMediaRange from '@/components/MkMediaRange.vue';
 import {
 	audioPlayerState,
 	currentTrack,
+	trackArtworkUrl,
 	toggle,
 	next,
 	prev,
@@ -66,6 +70,7 @@ import {
 	cycleLoop,
 	playAt,
 } from '@/utility/audio-player.js';
+import { postNowPlayingForMisskeyTrack } from '@/utility/now-playing.js';
 
 const name = 'audioPlayer';
 
@@ -94,6 +99,13 @@ const trackArtist = computed(() => {
 	if (user == null) return '';
 	return user.name || user.username;
 });
+
+const artworkUrl = computed(() => trackArtworkUrl(currentTrack.value));
+
+async function postNowPlaying() {
+	if (currentTrack.value == null) return;
+	await postNowPlayingForMisskeyTrack(currentTrack.value);
+}
 
 const seekValue = computed({
 	get: () => audioPlayerState.duration > 0 ? audioPlayerState.currentTime / audioPlayerState.duration : 0,

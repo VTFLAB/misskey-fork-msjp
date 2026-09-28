@@ -208,6 +208,10 @@ export const ROUTE_DEF = [{
 		name: 'juice-settings',
 		component: page(() => import('@/pages/settings/juice.vue')),
 	}, {
+		path: '/nowplaying',
+		name: 'nowplaying-settings',
+		component: page(() => import('@/pages/settings/nowplaying.vue')),
+	}, {
 		path: '/',
 		component: page(() => import('@/pages/_empty_.vue')),
 	}],
