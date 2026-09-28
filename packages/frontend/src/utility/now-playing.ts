@@ -207,6 +207,9 @@ export async function openNowPlayingPost(track: NowPlayingTrack): Promise<void> 
 	await os.post({
 		initialText: buildNowPlayingText(track),
 		initialFiles,
+		// instant を付けないと MkPostForm が書きかけの下書きを復元して initialText / initialFiles を
+		// 上書きしてしまう (share ページと同じ指定)。NowPlaying は一回限りの投稿なので下書き保存も不要
+		instant: true,
 	});
 }
 
