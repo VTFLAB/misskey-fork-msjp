@@ -20,6 +20,17 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</FormSection>
 		</SearchMarker>
 
+		<SearchMarker :keywords="['card', 'image', 'artwork']">
+			<FormSection>
+				<template #label><i class="ti ti-photo"></i> <SearchLabel>{{ i18n.ts._nowPlaying.attachCard }}</SearchLabel></template>
+
+				<MkSwitch v-model="attachCard">
+					<template #label><SearchLabel>{{ i18n.ts._nowPlaying.attachCard }}</SearchLabel></template>
+					<template #caption><SearchText>{{ i18n.ts._nowPlaying.attachCardCaption }}</SearchText></template>
+				</MkSwitch>
+			</FormSection>
+		</SearchMarker>
+
 		<SearchMarker :keywords="['lastfm', 'listenbrainz', 'link', 'connect']">
 			<FormSection>
 				<template #label><i class="ti ti-plug-connected"></i> <SearchLabel>{{ i18n.ts._nowPlaying.linkedAccounts }}</SearchLabel></template>
@@ -74,6 +85,7 @@ import { computed, onMounted, ref } from 'vue';
 import * as Misskey from 'misskey-js';
 import MkInput from '@/components/MkInput.vue';
 import MkButton from '@/components/MkButton.vue';
+import MkSwitch from '@/components/MkSwitch.vue';
 import MkInfo from '@/components/MkInfo.vue';
 import MkKeyValue from '@/components/MkKeyValue.vue';
 import FormSection from '@/components/form/section.vue';
@@ -87,6 +99,7 @@ import { definePage } from '@/page.js';
 const DEFAULT_TEMPLATE = '#NowPlaying {title} / {artist} from {service}';
 
 const template = ref(prefer.s.nowPlayingTemplate);
+const attachCard = prefer.model('nowPlayingAttachCard');
 
 const templatePreview = computed(() => buildNowPlayingText({
 	title: 'Song Title',
