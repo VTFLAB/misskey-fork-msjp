@@ -367,6 +367,9 @@ export const PREF_DEF = definePreferences({
 	useGlobalAudioPlayer: {
 		default: true,
 	},
+	nowPlayingTemplate: {
+		default: '#NowPlaying {title} / {artist} from {service}',
+	},
 	keepOriginalFilename: {
 		default: true,
 	},

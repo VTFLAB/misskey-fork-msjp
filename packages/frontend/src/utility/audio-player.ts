@@ -63,6 +63,12 @@ audioEl.muted = audioPlayerState.muted;
 export const hasQueue = computed(() => audioPlayerState.queue.length > 0);
 export const currentTrack = computed<AudioTrack | null>(() => audioPlayerState.queue[audioPlayerState.index] ?? null);
 
+// サムネイルが無いファイルは投稿者のアバターをアートワーク代わりに表示する。
+export function trackArtworkUrl(track: AudioTrack | null | undefined): string | null {
+	if (track == null) return null;
+	return track.file.thumbnailUrl || track.user?.avatarUrl || null;
+}
+
 function syncBuffered(): void {
 	const buffered = audioEl.buffered;
 	if (buffered.length === 0 || !Number.isFinite(audioEl.duration) || audioEl.duration === 0) {
@@ -90,11 +96,12 @@ function updateMediaSessionMetadata(): void {
 	}
 
 	const artist = track.user != null ? (track.user.name || track.user.username) : '';
+	const artworkUrl = track.file.thumbnailUrl || track.user?.avatarUrl || null;
 
 	navigator.mediaSession.metadata = new MediaMetadata({
 		title: track.file.comment || track.file.name,
 		artist,
-		artwork: track.file.thumbnailUrl ? [{ src: track.file.thumbnailUrl }] : [],
+		artwork: artworkUrl ? [{ src: artworkUrl }] : [],
 	});
 }
 

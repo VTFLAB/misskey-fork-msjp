@@ -101,6 +101,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button v-tooltip="i18n.ts.aiGenerated" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: isAIGenerated }]" @click="isAIGenerated = !isAIGenerated"><i class="ti ti-ai" :class="$style.aiGeneratedButtonIcon"></i></button>
 			<button v-tooltip="i18n.ts.hashtags" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: withHashtags }]" @click="withHashtags = !withHashtags"><i class="ti ti-hash"></i></button>
 			<button v-tooltip="i18n.ts.mention" class="_button" :class="$style.footerButton" @click="insertMention"><i class="ti ti-at"></i></button>
+			<button v-tooltip="i18n.ts._nowPlaying.title" class="_button" :class="$style.footerButton" @click="openNowPlayingDialog"><i class="ti ti-music"></i></button>
 			<button v-if="showAddMfmFunction" v-tooltip="i18n.ts.addMfmFunction" :class="['_button', $style.footerButton]" @click="insertMfmFunction"><i class="ti ti-palette"></i></button>
 			<button v-if="postFormActions.length > 0" v-tooltip="i18n.ts.plugins" class="_button" :class="$style.footerButton" @click="showActions"><i class="ti ti-plug"></i></button>
 			<button v-tooltip="i18n.ts._mfmToolbar.show" :class="['_button', $style.footerButton, { [$style.footerButtonActive]: showMfmToolbar }]" @click="showMfmToolbar = !showMfmToolbar"><i class="ti ti-wand"></i></button>
@@ -1216,6 +1217,17 @@ function insertMention() {
 	os.selectUser({ localOnly: localOnly.value, includeSelf: true }).then(user => {
 		if (textareaEl.value == null) return;
 		insertTextAtCursor(textareaEl.value, '@' + Misskey.acct.toString(user) + ' ');
+	});
+}
+
+function openNowPlayingDialog() {
+	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkNowPlayingDialog.vue')), {}, {
+		insert: (nowPlayingText: string) => {
+			if (textareaEl.value == null) return;
+			const prefix = text.value.length > 0 && !text.value.endsWith('\n') ? '\n' : '';
+			insertTextAtCursor(textareaEl.value, prefix + nowPlayingText);
+		},
+		closed: () => dispose(),
 	});
 }
 
