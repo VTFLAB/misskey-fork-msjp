@@ -28,6 +28,8 @@ import { bindThis } from '@/decorators.js';
 import { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import { IdService } from '@/core/IdService.js';
 import { UtilityService } from '@/core/UtilityService.js';
+import { JuiceSettingsService } from '@/core/JuiceSettingsService.js';
+import { resolveAiGeneratedFallbackCwSettings } from '@/models/JuiceSettings.js';
 import { escapeHtml } from '@/misc/escape-html.js';
 import { JsonLdService } from './JsonLdService.js';
 import { ApMfmService } from './ApMfmService.js';
@@ -36,6 +38,10 @@ import type { IAccept, IActivity, IAdd, IAnnounce, IApDocument, IApEmoji, IApHas
 
 // JUICE: ReactionService.decodeCustomEmojiRegexpと同一パターン
 const decodeCustomEmojiRegexp = /^:([\w+-]+)(?:@([\w.-]+))?:$/;
+
+// JUICE: AI生成物フラグのCWフォールバック文言。juice本家はEmailI18nService経由でロケール別に
+// 出し分けるが、本forkにはそのサービスが無いため固定文言とする
+const AI_GENERATED_LABEL = 'AI生成 (AI generated)';
 
 @Injectable()
 export class ApRendererService {
@@ -73,6 +79,7 @@ export class ApRendererService {
 		private mfmService: MfmService,
 		private idService: IdService,
 		private utilityService: UtilityService,
+		private juiceSettingsService: JuiceSettingsService,
 	) {
 	}
 
@@ -181,6 +188,7 @@ export class ApRendererService {
 			width: file.properties?.width,
 			height: file.properties?.height,
 			sensitive: file.isSensitive,
+			_juice_isAIGenerated: file.isAIGenerated, // JUICE
 		};
 	}
 
@@ -473,7 +481,25 @@ export class ApRendererService {
 			extraHtml = `<br><br><span class="quote-inline">RE: <a href="${escapeHtml(quote)}">${escapeHtml(quote)}</a></span>`;
 		}
 
-		const summary = note.cw === '' ? String.fromCharCode(0x200B) : note.cw;
+		let summary = note.cw === '' ? String.fromCharCode(0x200B) : note.cw;
+
+		// JUICE: _juice_isAIGeneratedを解釈できない非JUICE実装でも、AI生成物であることが
+		// 一目でわかるよう、AI生成ノートのsummary(AS2標準のCW相当)にフォールバック文言を合成する。
+		// 元々CWが無ければ文言のみ、既にCWがある場合は「AI生成 | 元のCW」の形で先頭に付け加える。
+		// DB上のnote.cwは変更しないため、ローカル・JUICE間の表示は今まで通りバッジのみ
+		// (_juice_summaryIsAIGeneratedFallbackを見て採用を抑制し、_juice_originalCwから元の
+		// CWを復元する。合成後のsummaryをそのままCWとして採用すると、JUICE間の連合でも
+		// 「AI生成 | 」が本来のCWの前に混入してしまうため)。
+		// ノート本体のisAIGeneratedだけでなく、添付ファイルのうち1件でもAI生成フラグが
+		// 立っていれば対象にする(ノート本体と添付ファイルは独立したフラグのため)
+		let summaryIsAIGeneratedFallback = false;
+		if (note.isAIGenerated || files.some(f => f.isAIGenerated)) {
+			const { aiGeneratedFallbackCwEnabled } = resolveAiGeneratedFallbackCwSettings(await this.juiceSettingsService.fetch());
+			if (aiGeneratedFallbackCwEnabled) {
+				summary = (note.cw != null && note.cw !== '') ? `${AI_GENERATED_LABEL} | ${note.cw}` : AI_GENERATED_LABEL;
+				summaryIsAIGeneratedFallback = true;
+			}
+		}
 
 		const { content, noMisskeyContent } = this.apMfmService.getNoteHtml(note, extraHtml);
 
@@ -514,6 +540,11 @@ export class ApRendererService {
 			}),
 			_misskey_quote: quote,
 			quoteUrl: quote,
+			_juice_isAIGenerated: note.isAIGenerated, // JUICE
+			// JUICE: summaryIsAIGeneratedFallback時、summary自体は非JUICE向けの合成文言(フォールバック
+			// 文言単独、または「フォールバック文言 | 元のCW」)になっているため、JUICE間の連合で
+			// 元のCWをそのまま復元できるよう、DB上のnote.cwを別プロパティとして併せて連合する
+			...(summaryIsAIGeneratedFallback ? { _juice_summaryIsAIGeneratedFallback: true, _juice_originalCw: note.cw } : {}), // JUICE
 			published: this.idService.parse(note.id).date.toISOString(),
 			to,
 			cc,
