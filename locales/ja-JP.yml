@@ -2661,6 +2661,7 @@ _widgets:
   chat: "ダイレクトメッセージ"
   weather: "天気"
   earthquakeHistory: "地震速報履歴"
+  audioPlayer: "オーディオプレイヤー"
 
 _widgetOptions:
   showHeader: "ヘッダーを表示"
@@ -3307,6 +3308,26 @@ _mediaControls:
   pip: "ピクチャインピクチャ"
   playbackRate: "再生速度"
   loop: "ループ再生"
+
+_audioPlayer:
+  title: "オーディオプレイヤー"
+  nowPlaying: "再生中"
+  queue: "キュー"
+  addToQueue: "キューに追加"
+  openInLightbox: "ライトボックスで開く"
+  openNote: "投稿を表示"
+  clearQueue: "キューをクリア"
+  removeFromQueue: "キューから削除"
+  expand: "プレイヤーを開く"
+  close: "プレイヤーを閉じる"
+  play: "再生"
+  pause: "一時停止"
+  previous: "前のトラック"
+  loopOff: "ループなし"
+  loopOne: "1曲をループ"
+  loopAll: "すべてをループ"
+  useGlobalAudioPlayer: "バックグラウンド再生プレイヤーを使用する"
+  useGlobalAudioPlayer_description: "投稿の音声ファイルをクリックすると、画面下部の常設プレイヤーで再生します。ページを移動しても再生が継続されます。"
 
 _contextMenu:
   title: "コンテキストメニュー"
