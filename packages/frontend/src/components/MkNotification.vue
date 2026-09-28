@@ -14,6 +14,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-else-if="notification.type === 'earthquakeAlert'" :class="[$style.icon, $style.icon_earthquakeAlert]"><i class="ti ti-alert-triangle" style="line-height: 1;"></i></div>
 		<div v-else-if="notification.type === 'googleAuthExpired'" :class="[$style.icon, $style.icon_googleAuthExpired]"><i class="ti ti-plug-connected-x" style="line-height: 1;"></i></div>
 		<div v-else-if="notification.type === 'feedbackReceived'" :class="[$style.icon, $style.icon_feedbackReceived]"><i class="ti ti-message-report" style="line-height: 1;"></i></div>
+		<!-- JUICE: 通報対象ユーザーをアイコンとして表示する -->
+		<MkAvatar v-else-if="notification.type === 'newAbuseUserReport'" :class="$style.icon" :user="notification.targetUser" link preview/>
 		<MkAvatar v-else-if="'user' in notification" :class="$style.icon" :user="notification.user" link preview/>
 		<img v-else-if="'icon' in notification && notification.icon != null" :class="[$style.icon, $style.icon_app]" :src="notification.icon" alt=""/>
 		<img v-else-if="notification.type === 'updateInfo'" :class="[$style.icon, $style.icon_app]" :src="instance.iconUrl ?? '/favicon.ico'" alt=""/>
@@ -37,6 +39,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				[$style.t_roleAssigned]: notification.type === 'roleAssigned' && notification.role.iconUrl == null,
 				[$style.t_updateInfo]: notification.type === 'updateInfo',
 				[$style.t_twitchLiveStreamStarted]: notification.type === 'twitchLiveStreamStarted',
+				[$style.t_newAbuseUserReport]: notification.type === 'newAbuseUserReport',
 			}]"
 		>
 			<i v-if="notification.type === 'follow'" class="ti ti-plus"></i>
@@ -56,6 +59,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<i v-else-if="notification.type === 'chatRoomInvitationReceived'" class="ti ti-messages"></i>
 			<i v-else-if="notification.type === 'updateInfo'" class="ti ti-speakerphone"></i>
 			<i v-else-if="notification.type === 'twitchLiveStreamStarted'" class="ti ti-broadcast"></i>
+			<i v-else-if="notification.type === 'newAbuseUserReport'" class="ti ti-flag"></i>
 			<template v-else-if="notification.type === 'roleAssigned'">
 				<img v-if="notification.role.iconUrl" style="height: 1.3em; vertical-align: -22%;" :src="notification.role.iconUrl" alt=""/>
 				<i v-else class="ti ti-badges"></i>
@@ -84,6 +88,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span v-else-if="notification.type === 'earthquakeAlert'">{{ i18n.ts.earthquakeEarlyWarning }}({{ getEarthquakeKindLabel(notification) }})</span>
 			<span v-else-if="notification.type === 'googleAuthExpired'">{{ i18n.ts._notification.googleAuthExpired }}</span>
 			<span v-else-if="notification.type === 'feedbackReceived'">{{ i18n.ts._notification.feedbackReceived }}</span>
+			<span v-else-if="notification.type === 'newAbuseUserReport'">{{ i18n.ts._notification.newAbuseUserReportHeader }}<template v-if="notification.targetUser">: <MkUserName :user="notification.targetUser"/></template></span>
 			<span v-else-if="notification.type === 'exportCompleted'">{{ i18n.tsx._notification.exportOfXCompleted({ x: exportEntityName[notification.exportedEntity] }) }}</span>
 			<MkA v-else-if="notification.type === 'follow' || notification.type === 'mention' || notification.type === 'reply' || notification.type === 'renote' || notification.type === 'quote' || notification.type === 'reaction' || notification.type === 'receiveFollowRequest' || notification.type === 'followRequestAccepted' || notification.type === 'twitchLiveStreamStarted'" v-user-preview="notification.user.id" :class="$style.headerName" :to="userPage(notification.user)"><MkUserName :user="notification.user"/></MkA>
 			<span v-else-if="notification.type === 'reaction:grouped' && notification.note.reactionAcceptance === 'likeOnly'">{{ i18n.tsx._notification.likedBySomeUsers({ n: getActualReactedUsersCount(notification) }) }}</span>
@@ -183,6 +188,13 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkA v-else-if="notification.type === 'googleAuthExpired'" :class="$style.text" to="/settings/streaming">
 				{{ i18n.tsx._notification.googleAuthExpiredDescription({ target: notification.target === 'youtube' ? 'YouTube' : 'Google Drive' }) }}
 			</MkA>
+			<!-- JUICE: カテゴリは管理者が自由に設定できるキー文字列のため、固定の翻訳ラベルを持たずそのまま表示する -->
+			<template v-else-if="notification.type === 'newAbuseUserReport'">
+				<div v-if="notification.category" :class="$style.text" style="opacity: 0.6;">{{ notification.category }}</div>
+				<div :class="$style.requestActions">
+					<MkButton small rounded type="routerLink" to="/admin/abuses">{{ i18n.ts.check }}</MkButton>
+				</div>
+			</template>
 
 			<div v-if="notification.type === 'reaction:grouped'">
 				<div v-for="reaction of notification.reactions" :key="reaction.user.id + reaction.reaction" :class="$style.reactionsItem">
@@ -458,6 +470,11 @@ function getEarthquakeKindLabel(notification: Misskey.entities.Notification & { 
 	pointer-events: none;
 }
 
+.t_newAbuseUserReport {
+	background: var(--eventOther);
+	pointer-events: none;
+}
+
 .tail {
 	flex: 1;
 	min-width: 0;
@@ -515,6 +532,13 @@ function getEarthquakeKindLabel(notification: Misskey.entities.Notification & { 
 }
 .followRequestCommandButton {
 	flex: 1;
+}
+
+.requestActions {
+	display: flex;
+	gap: 8px;
+	max-width: 300px;
+	margin-top: 8px;
 }
 
 .reactionsItem {

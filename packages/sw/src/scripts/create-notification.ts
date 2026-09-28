@@ -306,6 +306,16 @@ async function composeNotification(data: PushNotificationDataMap[keyof PushNotif
 						renotify: true,
 					}];
 
+				// JUICE: モデレーター向け、新着通報の通知。通報コメント・通報者はPII保護のため本文に含めない
+				case 'newAbuseUserReport':
+					return [i18n.ts._notification.newAbuseUserReportHeader, {
+						body: data.body.targetUser ? getUserName(data.body.targetUser) : '',
+						badge: iconUrl('bell'),
+						tag: `newAbuseUserReport:${data.body.reportId}`,
+						data,
+						renotify: true,
+					}];
+
 				default:
 					return null;
 			}
