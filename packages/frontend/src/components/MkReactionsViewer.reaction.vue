@@ -33,7 +33,7 @@ import { $i } from '@/i.js';
 import MkReactionEffect from '@/components/MkReactionEffect.vue';
 import { i18n } from '@/i18n.js';
 import * as sound from '@/utility/sound.js';
-// import { checkReactionPermissions } from '@/utility/check-reaction-permissions.js';
+import { checkReactionPermissions } from '@/utility/check-reaction-permissions.js';
 import { customEmojisMap } from '@/custom-emojis.js';
 import { prefer } from '@/preferences.js';
 import { DI } from '@/di.js';
@@ -41,8 +41,10 @@ import { noteEvents } from '@/composables/use-note-capture.js';
 import { mute as muteEmoji, unmute as unmuteEmoji, checkMuted as isEmojiMuted } from '@/utility/emoji-mute.js';
 import { addToEmojiPalette } from '@/utility/emoji-palette.js';
 import { haptic } from '@/utility/haptic.js';
+import { useReactionPiggybackOnRemoteEnabled } from '@/utility/reaction-piggyback.js';
 
 const props = defineProps<{
+	note: Misskey.entities.Note;
 	noteId: Misskey.entities.Note['id'];
 	reaction: string;
 	reactionEmojis: Misskey.entities.Note['reactionEmojis'];
@@ -63,13 +65,28 @@ const emojiName = computed(() => getEmojiNameFromReaction(props.reaction));
 
 const isLocalCustomEmoji = computed(() => isLocalCustomEmojiReaction(props.reaction));
 
-const canToggle = computed(() => {
-	const emoji = isLocalCustomEmoji.value ? customEmojisMap.get(emojiName.value) : getUnicodeEmojiOrNull(props.reaction);
+// JUICE: リモートのカスタム絵文字を使ったリアクションへの相乗り(既存リアクションに便乗して
+// 同じリアクションを付けること)を管理者設定で有効化できるようにする(著作権者の許諾なく
+// リモートの絵文字画像を表示・使用することになりうるため、既定は無効)。
+const reactionPiggybackOnRemoteEnabled = useReactionPiggybackOnRemoteEnabled();
 
-	// TODO
-	//return $i != null && emoji != null && checkReactionPermissions($i, props.note, emoji);
-	return $i != null && emoji != null;
+const canToggle = computed(() => {
+	if ($i == null) return false;
+
+	// JUICE: リモートホスト付きのカスタム絵文字("@host"形式)は権限情報(ロール制限等)を
+	// ローカルで持っていないため事前判定できない。サーバー側(ReactionService.create)が
+	// ローカルに同名絵文字が無ければ既定のリアクションにフォールバックするので、
+	// クリックできること自体はここでは(管理者設定が有効な場合のみ)許可する
+	if (props.reaction[0] === ':' && !isLocalCustomEmoji.value) {
+		return reactionPiggybackOnRemoteEnabled.value;
+	}
+
+	const emoji = isLocalCustomEmoji.value ? customEmojisMap.get(emojiName.value) : getUnicodeEmojiOrNull(props.reaction);
+	if (emoji == null) return false;
+	return checkReactionPermissions($i, props.note, emoji);
 });
+// JUICE: リモートのカスタム絵文字によるリアクションも、ライセンス等の詳細情報を確認できるようにする
+const canGetInfo = computed(() => props.reaction.includes(':'));
 
 async function toggleReaction() {
 	if (!canToggle.value) return;
@@ -162,14 +179,20 @@ async function toggleReaction() {
 async function menu(ev: PointerEvent) {
 	let menuItems: MenuItem[] = [];
 
-	if (isLocalCustomEmoji.value) {
+	if (canGetInfo.value) {
 		menuItems.push({
 			text: i18n.ts.info,
 			icon: 'ti ti-info-circle',
 			action: async () => {
+				// JUICE: リモートのカスタム絵文字("@host"付き)も情報取得の対象にするため、
+				// name/hostを分離してemoji APIへ渡す(ローカル・"@."表記の場合はhostを省略する)
+				const decoded = props.reaction.match(/^:([\w+-]+)(?:@([\w.-]+))?:$/);
+				const decodedName = decoded?.[1] ?? emojiName.value;
+				const decodedHost = decoded?.[2];
 				const { dispose } = os.popup(MkCustomEmojiDetailedDialog, {
 					emoji: await misskeyApiGet('emoji', {
-						name: emojiName.value,
+						name: decodedName,
+						...(decodedHost != null && decodedHost !== '.' ? { host: decodedHost } : {}),
 					}),
 				}, {
 					closed: () => dispose(),

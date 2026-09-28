@@ -23,7 +23,7 @@ import { MfmService } from '@/core/MfmService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { DriveFileEntityService } from '@/core/entities/DriveFileEntityService.js';
 import type { MiUserKeypair } from '@/models/UserKeypair.js';
-import type { UsersRepository, UserProfilesRepository, NotesRepository, DriveFilesRepository, PollsRepository, MiMeta } from '@/models/_.js';
+import type { UsersRepository, UserProfilesRepository, NotesRepository, DriveFilesRepository, PollsRepository, MiMeta, EmojisRepository } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
 import { CustomEmojiService } from '@/core/CustomEmojiService.js';
 import { IdService } from '@/core/IdService.js';
@@ -33,6 +33,9 @@ import { JsonLdService } from './JsonLdService.js';
 import { ApMfmService } from './ApMfmService.js';
 import { CONTEXT } from './misc/contexts.js';
 import type { IAccept, IActivity, IAdd, IAnnounce, IApDocument, IApEmoji, IApHashtag, IApImage, IApMention, IBlock, ICreate, IDelete, IFlag, IFollow, IKey, ILike, IMove, IObject, IPost, IQuestion, IReject, IRemove, ITombstone, IUndo, IUpdate } from './type.js';
+
+// JUICE: ReactionService.decodeCustomEmojiRegexpと同一パターン
+const decodeCustomEmojiRegexp = /^:([\w+-]+)(?:@([\w.-]+))?:$/;
 
 @Injectable()
 export class ApRendererService {
@@ -57,6 +60,9 @@ export class ApRendererService {
 
 		@Inject(DI.pollsRepository)
 		private pollsRepository: PollsRepository,
+
+		@Inject(DI.emojisRepository)
+		private emojisRepository: EmojisRepository,
 
 		private customEmojiService: CustomEmojiService,
 		private userEntityService: UserEntityService,
@@ -181,10 +187,14 @@ export class ApRendererService {
 	@bindThis
 	public renderEmoji(emoji: MiEmoji): IApEmoji {
 		return {
-			id: `${this.config.url}/emojis/${emoji.name}`,
+			// JUICE: 相乗り等でローカル以外(リモートからキャッシュ済み)の絵文字を送信することがあるため、
+			// 常に自インスタンスのURLを名乗らず、元のuriが分かっていればそちらを優先する
+			id: emoji.uri || `${this.config.url}/emojis/${emoji.name}`,
 			type: 'Emoji',
 			name: `:${emoji.name}:`,
+			host: emoji.host ?? this.config.host,
 			updated: emoji.updatedAt != null ? emoji.updatedAt.toISOString() : new Date().toISOString(),
+			keywords: emoji.aliases,
 			icon: {
 				type: 'Image',
 				mediaType: emoji.type ?? 'image/png',
@@ -310,21 +320,42 @@ export class ApRendererService {
 	public async renderLike(noteReaction: MiNoteReaction, note: { uri: string | null }): Promise<ILike> {
 		const reaction = noteReaction.reaction;
 
+		// JUICE: リアクション相乗り(ReactionService.create参照)により、reactionが自インスタンスに
+		// 存在しない絵文字(:name@host:形式、hostは相乗り元の絵文字の実際の提供元)になりうる。
+		// name/hostを正しく分離し、host指定がある場合は(ローカル・相乗り元問わず)絵文字テーブル
+		// 全体から検索してtagを付与する
+		let sendReaction = reaction;
+		let emoji: MiEmoji | null = null;
+
+		const custom = reaction.match(decodeCustomEmojiRegexp);
+		if (custom) {
+			const name = custom[1];
+			const host = custom[2] === '.' ? null : (custom[2] ?? null);
+			emoji = host == null
+				? (await this.customEmojiService.localEmojisCache.fetch()).get(name) ?? null
+				: await this.emojisRepository.findOneBy({ host, name });
+
+			// JUICE: 本家Misskey等の受信側は、絵文字リアクションの判定に`/^:([\w+-]+)(?:@\.)?:$/`
+			// (ローカルの@.のみ許容)という正規表現を使っており、@に実ホスト名が付いた文字列は
+			// そもそも絵文字として認識できず、tagを付けても意味が無いままハートにフォールバック
+			// してしまう。相乗り(host !== null)の場合はcontent/_misskey_reactionを:name:の
+			// ベア形式に落とし、あとはtagの画像で解決してもらう通常のリモート絵文字リアクションと
+			// 同じ扱いにすることで、JUICE/tempura以外の一般的な受信側でも正しく表示されるようにする
+			if (host != null) {
+				sendReaction = `:${name}:`;
+			}
+		}
+
 		const object: ILike = {
 			type: 'Like',
 			id: `${this.config.url}/likes/${noteReaction.id}`,
 			actor: `${this.config.url}/users/${noteReaction.userId}`,
 			object: note.uri ? note.uri : `${this.config.url}/notes/${noteReaction.noteId}`,
-			content: reaction,
-			_misskey_reaction: reaction,
+			content: sendReaction,
+			_misskey_reaction: sendReaction,
 		};
 
-		if (reaction.startsWith(':')) {
-			const name = reaction.replaceAll(':', '');
-			const emoji = (await this.customEmojiService.localEmojisCache.fetch()).get(name);
-
-			if (emoji && !emoji.localOnly) object.tag = [this.renderEmoji(emoji)];
-		}
+		if (emoji && !emoji.localOnly) object.tag = [this.renderEmoji(emoji)];
 
 		return object;
 	}
