@@ -6,10 +6,14 @@
 // NowPlaying: 「今聴いている曲」を投稿フォームへ差し込むテキストを組み立てるヘルパー群。
 // テンプレート展開はユーザー入力に依存するため、どんな壊れたテンプレートでも例外を投げない。
 
+import * as Misskey from 'misskey-js';
 import { instance } from '@/instance.js';
 import { host, url } from '@@/js/config.js';
 import { prefer } from '@/preferences.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { useStream } from '@/stream.js';
+import { genId } from '@/utility/id.js';
+import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import type { AudioTrack } from '@/utility/audio-player.js';
 
@@ -18,6 +22,8 @@ export type NowPlayingTrack = {
 	artist: string | null;
 	serviceLabel: string;
 	url: string | null;
+	/** 添付するアートワーク (ジャケット画像や投稿者アイコン) の URL。無ければ画像なしで投稿する */
+	artworkUrl?: string | null;
 };
 
 // 差し込む値 (曲名・アーティスト名・サービス名) は他人が付けたファイル名やコメント、表示名、
@@ -104,12 +110,56 @@ export async function misskeyTrackToNowPlaying(track: AudioTrack): Promise<NowPl
 		artist,
 		serviceLabel,
 		url: trackUrl,
+		// Misskey 内の楽曲はジャケット画像を持たないので、投稿者のアイコンをアートワークにする
+		artworkUrl: track.user?.avatarUrl ?? null,
 	};
 }
 
-export function openNowPlayingPost(track: NowPlayingTrack): void {
-	os.post({
+// アートワーク画像をサーバー経由でドライブに取り込む (drive/files/upload-from-url は非同期で、
+// 完了は main ストリームの urlUploadFinished に marker 付きで届く)。同じ画像は md5 で
+// 重複排除されるので、同じ曲を何度 NowPlaying してもドライブが増え続けることはない。
+export function uploadNowPlayingArtwork(imageUrl: string, comment: string | null, timeoutMs = 20000): Promise<Misskey.entities.DriveFile | null> {
+	return new Promise((resolve) => {
+		const marker = genId();
+		const connection = useStream().useChannel('main');
+		let settled = false;
+		const finish = (file: Misskey.entities.DriveFile | null) => {
+			if (settled) return;
+			settled = true;
+			connection.dispose();
+			resolve(file);
+		};
+		const timer = window.setTimeout(() => finish(null), timeoutMs);
+		connection.on('urlUploadFinished', (res) => {
+			if (res.marker !== marker) return;
+			window.clearTimeout(timer);
+			finish(res.file);
+		});
+		misskeyApi('drive/files/upload-from-url', {
+			url: imageUrl,
+			folderId: prefer.s.uploadFolder,
+			comment: comment != null && comment !== '' ? comment.slice(0, 512) : null,
+			marker,
+		}).catch(() => {
+			window.clearTimeout(timer);
+			finish(null);
+		});
+	});
+}
+
+export async function openNowPlayingPost(track: NowPlayingTrack): Promise<void> {
+	let initialFiles: Misskey.entities.DriveFile[] | undefined;
+	if (track.artworkUrl) {
+		const file = await uploadNowPlayingArtwork(track.artworkUrl, [track.title, track.artist].filter(Boolean).join(' / '));
+		if (file != null) {
+			initialFiles = [file];
+		} else {
+			os.toast(i18n.ts._nowPlaying.artworkUploadFailed);
+		}
+	}
+	await os.post({
 		initialText: buildNowPlayingText(track),
+		initialFiles,
 	});
 }
 
@@ -119,7 +169,7 @@ export async function postNowPlayingForMisskeyTrack(track: AudioTrack): Promise<
 	if (postingMisskeyTrack) return;
 	postingMisskeyTrack = true;
 	try {
-		openNowPlayingPost(await misskeyTrackToNowPlaying(track));
+		await openNowPlayingPost(await misskeyTrackToNowPlaying(track));
 	} finally {
 		postingMisskeyTrack = false;
 	}
