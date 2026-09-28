@@ -370,6 +370,9 @@ export const PREF_DEF = definePreferences({
 	nowPlayingTemplate: {
 		default: '#NowPlaying {title} / {artist} from {service}',
 	},
+	nowPlayingAttachCard: {
+		default: true,
+	},
 	keepOriginalFilename: {
 		default: true,
 	},
