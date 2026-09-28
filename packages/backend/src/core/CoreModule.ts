@@ -171,6 +171,11 @@ import { TwitchCommentService } from './twitch/TwitchCommentService.js';
 import { TwitchChatRelayService } from './twitch/TwitchChatRelayService.js';
 import { TwitchStreamBlockService } from './twitch/TwitchStreamBlockService.js';
 import { TwitchTranslationService } from './twitch/TwitchTranslationService.js';
+import { NowPlayingLoggerService } from './nowplaying/NowPlayingLoggerService.js';
+import { MusicUrlResolverService } from './nowplaying/MusicUrlResolverService.js';
+import { LastfmApiService } from './nowplaying/LastfmApiService.js';
+import { ListenBrainzApiService } from './nowplaying/ListenBrainzApiService.js';
+import { NowPlayingService } from './nowplaying/NowPlayingService.js';
 import { LiveLoggerService } from './live/LiveLoggerService.js';
 import { LiveChannelService } from './live/LiveChannelService.js';
 import { LiveArchiveAccessService } from './live/LiveArchiveAccessService.js';
@@ -366,6 +371,13 @@ const $TwitchCommentService: Provider = { provide: 'TwitchCommentService', useEx
 const $TwitchChatRelayService: Provider = { provide: 'TwitchChatRelayService', useExisting: TwitchChatRelayService };
 const $TwitchStreamBlockService: Provider = { provide: 'TwitchStreamBlockService', useExisting: TwitchStreamBlockService };
 const $TwitchTranslationService: Provider = { provide: 'TwitchTranslationService', useExisting: TwitchTranslationService };
+
+const $NowPlayingLoggerService: Provider = { provide: 'NowPlayingLoggerService', useExisting: NowPlayingLoggerService };
+const $MusicUrlResolverService: Provider = { provide: 'MusicUrlResolverService', useExisting: MusicUrlResolverService };
+const $LastfmApiService: Provider = { provide: 'LastfmApiService', useExisting: LastfmApiService };
+const $ListenBrainzApiService: Provider = { provide: 'ListenBrainzApiService', useExisting: ListenBrainzApiService };
+const $NowPlayingService: Provider = { provide: 'NowPlayingService', useExisting: NowPlayingService };
+
 const $LiveLoggerService: Provider = { provide: 'LiveLoggerService', useExisting: LiveLoggerService };
 const $LiveChannelService: Provider = { provide: 'LiveChannelService', useExisting: LiveChannelService };
 const $LiveArchiveAccessService: Provider = { provide: 'LiveArchiveAccessService', useExisting: LiveArchiveAccessService };
@@ -559,6 +571,11 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		TwitchChatRelayService,
 		TwitchStreamBlockService,
 		TwitchTranslationService,
+		NowPlayingLoggerService,
+		MusicUrlResolverService,
+		LastfmApiService,
+		ListenBrainzApiService,
+		NowPlayingService,
 		LiveLoggerService,
 		LiveChannelService,
 		LiveArchiveAccessService,
@@ -752,6 +769,11 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$TwitchChatRelayService,
 		$TwitchStreamBlockService,
 		$TwitchTranslationService,
+		$NowPlayingLoggerService,
+		$MusicUrlResolverService,
+		$LastfmApiService,
+		$ListenBrainzApiService,
+		$NowPlayingService,
 		$LiveLoggerService,
 		$LiveChannelService,
 		$LiveArchiveAccessService,
@@ -939,6 +961,11 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		TwitchChatRelayService,
 		TwitchStreamBlockService,
 		TwitchTranslationService,
+		NowPlayingLoggerService,
+		MusicUrlResolverService,
+		LastfmApiService,
+		ListenBrainzApiService,
+		NowPlayingService,
 		LiveLoggerService,
 		LiveChannelService,
 		LiveArchiveAccessService,
@@ -1130,6 +1157,11 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$TwitchChatRelayService,
 		$TwitchStreamBlockService,
 		$TwitchTranslationService,
+		$NowPlayingLoggerService,
+		$MusicUrlResolverService,
+		$LastfmApiService,
+		$ListenBrainzApiService,
+		$NowPlayingService,
 		$LiveLoggerService,
 		$LiveChannelService,
 		$LiveArchiveAccessService,
