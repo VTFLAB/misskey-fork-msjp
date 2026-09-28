@@ -559,6 +559,11 @@ export const ROUTE_DEF = [{
 		name: 'abuse-report-notification-recipient',
 		component: page(() => import('@/pages/admin/abuse-report/notification-recipient.vue')),
 	}, {
+		// JUICE: 通報カテゴリ管理
+		path: '/abuse-report-categories',
+		name: 'abuse-report-categories',
+		component: page(() => import('@/pages/admin/abuse-report/categories.vue')),
+	}, {
 		path: '/system-webhook',
 		name: 'system-webhook',
 		component: page(() => import('@/pages/admin/system-webhook.vue')),

@@ -44,6 +44,9 @@ type Ad = components['schemas']['Ad'];
 // Warning: (ae-forgotten-export) The symbol "operations" needs to be exported by the entry point index.d.ts
 //
 // @public (undocumented)
+type AdminAbuseReportCategoriesResponse = operations['admin___abuse-report___categories']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type AdminAbuseReportNotificationRecipientCreateRequest = operations['admin___abuse-report___notification-recipient___create']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -1662,6 +1665,7 @@ declare namespace entities {
         PartialRolePolicyOverride,
         EmptyRequest,
         EmptyResponse,
+        AdminAbuseReportCategoriesResponse,
         AdminAbuseReportNotificationRecipientCreateRequest,
         AdminAbuseReportNotificationRecipientCreateResponse,
         AdminAbuseReportNotificationRecipientDeleteRequest,
@@ -3490,7 +3494,7 @@ type Notification_2 = components['schemas']['Notification'];
 type NotificationsCreateRequest = operations['notifications___create']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
-export const notificationTypes: readonly ["note", "follow", "mention", "reply", "renote", "quote", "reaction", "pollEnded", "scheduledNotePosted", "scheduledNotePostFailed", "receiveFollowRequest", "followRequestAccepted", "app", "roleAssigned", "chatRoomInvitationReceived", "achievementEarned", "exportCompleted", "test", "login", "createToken", "updateInfo", "earthquakeAlert", "twitchLiveStreamStarted", "googleAuthExpired", "feedbackReceived"];
+export const notificationTypes: readonly ["note", "follow", "mention", "reply", "renote", "quote", "reaction", "pollEnded", "scheduledNotePosted", "scheduledNotePostFailed", "receiveFollowRequest", "followRequestAccepted", "app", "roleAssigned", "chatRoomInvitationReceived", "achievementEarned", "exportCompleted", "test", "login", "createToken", "updateInfo", "earthquakeAlert", "twitchLiveStreamStarted", "googleAuthExpired", "feedbackReceived", "newAbuseUserReport"];
 
 // @public (undocumented)
 export function nyaize(text: string): string;

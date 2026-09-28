@@ -2,6 +2,15 @@
 /* eslint @typescript-eslint/no-explicit-any: 0 */
 
 export type paths = {
+    '/admin/abuse-report/categories': {
+        /**
+         * admin/abuse-report/categories
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:admin:abuse-user-reports*
+         */
+        post: operations['admin___abuse-report___categories'];
+    };
     '/admin/abuse-report/notification-recipient/create': {
         /**
          * admin/abuse-report/notification-recipient/create
@@ -5394,6 +5403,17 @@ export type components = {
             /** @enum {string} */
             feedbackType: 'bug' | 'feature';
             title: string;
+        } | {
+            /** Format: id */
+            id: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @enum {string} */
+            type: 'newAbuseUserReport';
+            targetUser: components['schemas']['UserLite'];
+            /** Format: id */
+            reportId: string;
+            category: string | null;
         };
         DriveFile: {
             /**
@@ -6349,6 +6369,70 @@ export type components = {
 };
 export type $defs = Record<string, never>;
 export interface operations {
+    'admin___abuse-report___categories': {
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        key: string;
+                        text: string;
+                        enabled: boolean;
+                        order: number;
+                        isDefault: boolean;
+                    }[];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
     'admin___abuse-report___notification-recipient___create': {
         requestBody: {
             content: {
@@ -6713,6 +6797,8 @@ export interface operations {
                      * @enum {string}
                      */
                     targetUserOrigin?: 'combined' | 'local' | 'remote';
+                    /** @default null */
+                    category?: string | null;
                 };
             };
         };
@@ -6747,6 +6833,12 @@ export interface operations {
                         /** @enum {string|null} */
                         resolvedAs: 'accept' | 'reject' | null;
                         moderationNote: string;
+                        category: string | null;
+                        /** @enum {string|null} */
+                        targetType: 'note' | 'chatMessage' | null;
+                        targetNote: components['schemas']['Note'] | null;
+                        targetChatMessage: components['schemas']['ChatMessage'] | null;
+                        situationDetail: string | null;
                     }[];
                 };
             };
@@ -28908,8 +29000,8 @@ export interface operations {
                     untilDate?: number;
                     /** @default true */
                     markAsRead?: boolean;
-                    includeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'scheduledNotePosted' | 'scheduledNotePostFailed' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'app' | 'test' | 'updateInfo' | 'earthquakeAlert' | 'twitchLiveStreamStarted' | 'googleAuthExpired' | 'feedbackReceived' | 'pollVote' | 'groupInvited')[];
-                    excludeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'scheduledNotePosted' | 'scheduledNotePostFailed' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'app' | 'test' | 'updateInfo' | 'earthquakeAlert' | 'twitchLiveStreamStarted' | 'googleAuthExpired' | 'feedbackReceived' | 'pollVote' | 'groupInvited')[];
+                    includeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'scheduledNotePosted' | 'scheduledNotePostFailed' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'app' | 'test' | 'updateInfo' | 'earthquakeAlert' | 'twitchLiveStreamStarted' | 'googleAuthExpired' | 'feedbackReceived' | 'newAbuseUserReport' | 'pollVote' | 'groupInvited')[];
+                    excludeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'scheduledNotePosted' | 'scheduledNotePostFailed' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'app' | 'test' | 'updateInfo' | 'earthquakeAlert' | 'twitchLiveStreamStarted' | 'googleAuthExpired' | 'feedbackReceived' | 'newAbuseUserReport' | 'pollVote' | 'groupInvited')[];
                 };
             };
         };
@@ -28993,8 +29085,8 @@ export interface operations {
                     untilDate?: number;
                     /** @default true */
                     markAsRead?: boolean;
-                    includeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'scheduledNotePosted' | 'scheduledNotePostFailed' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'app' | 'test' | 'updateInfo' | 'earthquakeAlert' | 'twitchLiveStreamStarted' | 'googleAuthExpired' | 'feedbackReceived' | 'pollVote' | 'groupInvited')[];
-                    excludeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'scheduledNotePosted' | 'scheduledNotePostFailed' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'app' | 'test' | 'updateInfo' | 'earthquakeAlert' | 'twitchLiveStreamStarted' | 'googleAuthExpired' | 'feedbackReceived' | 'pollVote' | 'groupInvited')[];
+                    includeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'scheduledNotePosted' | 'scheduledNotePostFailed' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'app' | 'test' | 'updateInfo' | 'earthquakeAlert' | 'twitchLiveStreamStarted' | 'googleAuthExpired' | 'feedbackReceived' | 'newAbuseUserReport' | 'pollVote' | 'groupInvited')[];
+                    excludeTypes?: ('note' | 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'pollEnded' | 'scheduledNotePosted' | 'scheduledNotePostFailed' | 'receiveFollowRequest' | 'followRequestAccepted' | 'roleAssigned' | 'chatRoomInvitationReceived' | 'achievementEarned' | 'exportCompleted' | 'login' | 'createToken' | 'app' | 'test' | 'updateInfo' | 'earthquakeAlert' | 'twitchLiveStreamStarted' | 'googleAuthExpired' | 'feedbackReceived' | 'newAbuseUserReport' | 'pollVote' | 'groupInvited')[];
                 };
             };
         };
@@ -41794,6 +41886,12 @@ export interface operations {
                     /** Format: misskey:id */
                     userId: string;
                     comment: string;
+                    category?: string | null;
+                    /** Format: misskey:id */
+                    noteId?: string | null;
+                    /** Format: misskey:id */
+                    messageId?: string | null;
+                    situationDetail?: string | null;
                 };
             };
         };

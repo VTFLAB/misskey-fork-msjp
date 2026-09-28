@@ -42,6 +42,8 @@ export const notificationTypes = [
 	'twitchLiveStreamStarted',
 	'googleAuthExpired',
 	'feedbackReceived',
+	// JUICE: モデレーター向け、新着通報の通知
+	'newAbuseUserReport',
 ] as const;
 
 export const noteVisibilities = ['public', 'home', 'followers', 'specified'] as const;
