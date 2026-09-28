@@ -12712,6 +12712,10 @@ export interface Locale extends ILocale {
          * Last.fmアカウントの連携に失敗しました
          */
         "lastfmLinkFailed": string;
+        /**
+         * アートワーク画像の取り込みに失敗したため、画像なしで投稿フォームを開きます
+         */
+        "artworkUploadFailed": string;
     };
     "_contextMenu": {
         /**

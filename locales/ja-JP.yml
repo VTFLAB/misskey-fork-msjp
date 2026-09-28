@@ -3381,6 +3381,7 @@ _nowPlaying:
   insert: "挿入"
   lastfmLinked: "Last.fmアカウントを連携しました"
   lastfmLinkFailed: "Last.fmアカウントの連携に失敗しました"
+  artworkUploadFailed: "アートワーク画像の取り込みに失敗したため、画像なしで投稿フォームを開きます"
 
 _contextMenu:
   title: "コンテキストメニュー"
