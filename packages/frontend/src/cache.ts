@@ -13,3 +13,5 @@ export const userListsCache = new Cache<Misskey.entities.UserList[]>(1000 * 60 *
 export const antennasCache = new Cache<Misskey.entities.Antenna[]>(1000 * 60 * 30, () => misskeyApi('antennas/list', { limit: 30 }));
 export const favoritedChannelsCache = new Cache<Misskey.entities.Channel[]>(1000 * 60 * 30, () => misskeyApi('channels/my-favorites', { limit: 100 }));
 export const favoritedClipsCache = new Cache<Misskey.entities.Clip[]>(1000 * 60 * 30, () => misskeyApi('clips/my-favorites', {}));
+// JUICE
+export const juicePublicSettingsCache = new Cache<Misskey.entities.JuicePublicSettingsResponse>(1000 * 60 * 30, () => misskeyApi('juice/public-settings'));

@@ -22457,6 +22457,7 @@ export interface operations {
             content: {
                 'application/json': {
                     name: string;
+                    host?: string | null;
                 };
             };
         };

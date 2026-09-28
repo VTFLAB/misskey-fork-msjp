@@ -490,8 +490,10 @@ export function createMfmRenderer<P extends MfmBaseProps = MfmBaseProps>(config:
 								normal: props.plain,
 								host: props.author.host,
 								useOriginalSize: scale >= 2.5,
-								// リモートの絵文字はリアクションできないので menuReaction は常に false
-								...(supportsEmojiMenu ? { menu: props.enableEmojiMenu, menuReaction: false } : {}),
+								// JUICE: 本家はリモート絵文字への相乗りリアクション自体が存在しないため常にfalseだったが、
+								// JUICEには管理者設定で有効化できる相乗り機能があるため、ローカルと同じくpropsに従う。
+								// 実際に相乗り可能かどうかの最終判定はMkCustomEmoji.vue側で行う
+								...(supportsEmojiMenu ? { menu: props.enableEmojiMenu, menuReaction: props.enableEmojiMenuReaction } : {}),
 							})];
 						}
 					}
