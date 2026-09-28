@@ -77,7 +77,7 @@ import { misskeyApi } from '@/utility/misskey-api.js';
 import { buildNowPlayingText } from '@/utility/now-playing.js';
 
 const emit = defineEmits<{
-	(ev: 'insert', payload: { text: string; artworkUrl: string | null; comment: string | null }): void;
+	(ev: 'insert', payload: { text: string; title: string; artist: string | null; serviceLabel: string; url: string | null; artworkUrl: string | null }): void;
 	(ev: 'closed'): void;
 }>();
 
@@ -156,8 +156,11 @@ async function fetchCurrent() {
 function insert() {
 	emit('insert', {
 		text: previewText.value,
+		title: title.value,
+		artist: artist.value || null,
+		serviceLabel: serviceLabel.value,
+		url: trackUrl.value || null,
 		artworkUrl: thumbnailUrl.value,
-		comment: [title.value, artist.value].filter(v => v !== '').join(' / ') || null,
 	});
 	if (dialog.value) dialog.value.close();
 }

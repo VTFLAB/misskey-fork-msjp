@@ -122,7 +122,7 @@ import { watch, nextTick, onMounted, defineAsyncComponent, provide, shallowRef, 
 import * as mfm from 'mfm-js';
 import * as Misskey from 'misskey-js';
 import insertTextAtCursor from 'insert-text-at-cursor';
-import { uploadNowPlayingArtwork } from '@/utility/now-playing.js';
+import { attachNowPlayingCard } from '@/utility/now-playing.js';
 import { toASCII } from 'punycode.js';
 import { host, url } from '@@/js/config.js';
 import MkUploaderItems from './MkUploaderItems.vue';
@@ -1227,21 +1227,28 @@ function openNowPlayingDialog() {
 	// おき、ダイアログが閉じてから text の値を直接書き換える (insertMfmFunction と同じ方式)。
 	const pos = textareaEl.value?.selectionStart ?? text.value.length;
 	const posEnd = textareaEl.value?.selectionEnd ?? pos;
-	let pending: { text: string; artworkUrl: string | null; comment: string | null } | null = null;
+	type NowPlayingDialogPayload = { text: string; title: string; artist: string | null; serviceLabel: string; url: string | null; artworkUrl: string | null };
+	let pending: NowPlayingDialogPayload | null = null;
 	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkNowPlayingDialog.vue')), {}, {
-		insert: (payload: { text: string; artworkUrl: string | null; comment: string | null }) => {
+		insert: (payload: NowPlayingDialogPayload) => {
 			pending = payload;
 		},
 		closed: () => {
 			dispose();
 			if (pending == null) return;
-			if (pending.artworkUrl) {
-				// アートワークはサーバー経由でドライブに取り込んでから添付する (完了まで数秒かかる)
-				uploadNowPlayingArtwork(pending.artworkUrl, pending.comment).then(file => {
+			if (prefer.s.nowPlayingAttachCard) {
+				// カード画像 (アートワーク + 曲情報) を生成してから添付する (完了まで数秒かかる)
+				attachNowPlayingCard({
+					title: pending.title,
+					artist: pending.artist,
+					serviceLabel: pending.serviceLabel,
+					url: pending.url,
+					artworkUrl: pending.artworkUrl,
+				}).then(file => {
 					if (file != null) {
 						files.value.push(file);
 					} else {
-						os.toast(i18n.ts._nowPlaying.artworkUploadFailed);
+						os.toast(i18n.ts._nowPlaying.cardGenerationFailed);
 					}
 				});
 			}

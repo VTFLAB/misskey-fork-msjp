@@ -12716,6 +12716,22 @@ export interface Locale extends ILocale {
          * アートワーク画像の取り込みに失敗したため、画像なしで投稿フォームを開きます
          */
         "artworkUploadFailed": string;
+        /**
+         * カード画像を添付
+         */
+        "attachCard": string;
+        /**
+         * NowPlaying投稿にアートワークと曲情報をまとめたカード画像を生成して添付します。オフにすると画像なしで投稿します。
+         */
+        "attachCardCaption": string;
+        /**
+         * カード画像の生成に失敗したため、画像なしで投稿フォームを開きます
+         */
+        "cardGenerationFailed": string;
+        /**
+         * カード画像を生成しています...
+         */
+        "generatingCard": string;
     };
     "_contextMenu": {
         /**
