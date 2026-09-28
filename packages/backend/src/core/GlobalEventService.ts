@@ -131,6 +131,9 @@ export interface NoteEventTypes {
 		reaction: string;
 		userId: MiUser['id'];
 	};
+	aiGeneratedChanged: {
+		isAIGenerated: boolean;
+	};
 }
 type NoteStreamEventTypes = {
 	[key in keyof NoteEventTypes]: {

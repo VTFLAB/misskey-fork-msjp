@@ -12,6 +12,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkUserName :user="note.user"/>
 	</MkA>
 	<div v-if="note.user.isBot" :class="$style.isBot">bot</div>
+	<!-- JUICE: 投稿1件ごとに出る要素のため、他のJUICEバッジ(設定画面・メニュー等、1画面に数回しか出ない箇所)とは異なり
+	     意図的にJUICEバッジを付けていない(タイムライン上で常時大量に表示されると視認性を損なうため) -->
+	<div v-if="isAIGenerated" v-tooltip="i18n.ts.aiGenerated" :class="$style.aiGenerated" :aria-label="i18n.ts.aiGenerated" role="img"><i class="ti ti-ai"></i></div>
 	<div :class="$style.username"><MkAcct :user="note.user"/></div>
 	<div v-if="note.user.badgeRoles" :class="$style.badgeRoles">
 		<img v-for="(role, i) in note.user.badgeRoles" :key="i" v-tooltip="role.name" :class="$style.badgeRole" :src="role.iconUrl!"/>
@@ -35,18 +38,22 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { inject } from 'vue';
+import { inject, computed } from 'vue';
 import * as Misskey from 'misskey-js';
 import { i18n } from '@/i18n.js';
 import { notePage } from '@/filters/note.js';
 import { userPage } from '@/filters/user.js';
 import { DI } from '@/di.js';
 
-defineProps<{
+const props = defineProps<{
 	note: Misskey.entities.Note;
+	// JUICE: リアクション等と同様、ストリーム経由でリアクティブに上書きしたい場合に渡す(未指定ならnoteの値をそのまま使う)
+	isAIGenerated?: boolean;
 }>();
 
 const mock = inject(DI.mock, false);
+
+const isAIGenerated = computed(() => props.isAIGenerated ?? props.note.isAIGenerated);
 </script>
 
 <style lang="scss" module>
@@ -78,6 +85,16 @@ const mock = inject(DI.mock, false);
 	margin: 0 .5em 0 0;
 	padding: 1px 6px;
 	font-size: 80%;
+	border: solid 0.5px var(--MI_THEME-divider);
+	border-radius: 3px;
+}
+
+.aiGenerated {
+	flex-shrink: 0;
+	align-self: center;
+	margin: 0 .5em 0 0;
+	padding: 1px 6px;
+	font-size: 95%;
 	border: solid 0.5px var(--MI_THEME-divider);
 	border-radius: 3px;
 }

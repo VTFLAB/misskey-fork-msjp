@@ -181,7 +181,15 @@ export class ApNoteService {
 		const apMentions = await this.apMentionService.extractApMentions(note.tag, resolver);
 		const apHashtags = extractApHashtags(note.tag);
 
-		const cw = note.summary === '' ? null : note.summary;
+		// JUICE: _juice_summaryIsAIGeneratedFallbackが立っている場合、summaryは著者が設定した
+		// 本来のCWそのものではなく、_juice_isAIGeneratedを解釈できない非JUICE実装向けに送信側が
+		// 合成した文言(フォールバック文言単独、または「フォールバック文言 | 元のCW」、
+		// ApRendererService参照)。受信側はJUICEとして_juice_isAIGenerated(下記)を直接解釈できる
+		// ため、このsummaryをそのままローカルのCWとして採用せず、_juice_originalCw(著者が実際に
+		// 設定していた本来のCW、無ければnull)から復元する
+		const cw = note._juice_summaryIsAIGeneratedFallback
+			? (note._juice_originalCw ?? null)
+			: (note.summary === '' ? null : note.summary);
 
 		// テキストのパース
 		let text: string | null = null;
@@ -322,6 +330,7 @@ export class ApNoteService {
 				cw,
 				text,
 				localOnly: false,
+				isAIGenerated: !!note._juice_isAIGenerated, // JUICE
 				visibility,
 				visibleUsers,
 				apMentions,
