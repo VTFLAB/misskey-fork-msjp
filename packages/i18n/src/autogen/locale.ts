@@ -12625,50 +12625,6 @@ export interface Locale extends ILocale {
          */
         "fetch": string;
         /**
-         * 今聴いている曲を取得
-         */
-        "fetchCurrent": string;
-        /**
-         * 再生中の曲が見つかりません
-         */
-        "noCurrentTrack": string;
-        /**
-         * Last.fmまたはListenBrainzのアカウントが連携されていません。
-         */
-        "notLinked": string;
-        /**
-         * 連携済みアカウント
-         */
-        "linkedAccounts": string;
-        /**
-         * 連携
-         */
-        "link": string;
-        /**
-         * 連携解除
-         */
-        "unlink": string;
-        /**
-         * 連携を解除しますか?
-         */
-        "unlinkConfirm": string;
-        /**
-         * ListenBrainz APIトークン
-         */
-        "listenbrainzToken": string;
-        /**
-         * ListenBrainzの「Settings」ページから取得できるユーザートークンを入力してください。
-         */
-        "listenbrainzTokenCaption": string;
-        /**
-         * Last.fm
-         */
-        "lastfm": string;
-        /**
-         * ListenBrainz
-         */
-        "listenbrainz": string;
-        /**
          * 投稿テンプレート
          */
         "template": string;
@@ -12704,14 +12660,6 @@ export interface Locale extends ILocale {
          * 挿入
          */
         "insert": string;
-        /**
-         * Last.fmアカウントを連携しました
-         */
-        "lastfmLinked": string;
-        /**
-         * Last.fmアカウントの連携に失敗しました
-         */
-        "lastfmLinkFailed": string;
         /**
          * アートワーク画像の取り込みに失敗したため、画像なしで投稿フォームを開きます
          */
