@@ -496,6 +496,15 @@ export * as 'twitch/streams/retry-drive-upload' from './endpoints/twitch/streams
 export * as 'twitch/subtitle/publish' from './endpoints/twitch/subtitle/publish.js';
 export * as 'twitch/unlink' from './endpoints/twitch/unlink.js';
 
+// nowplaying (音楽共有 URL 解決 + Last.fm/ListenBrainz 連携、fork 独自)
+export * as 'nowplaying/resolve-url' from './endpoints/nowplaying/resolve-url.js';
+export * as 'nowplaying/current' from './endpoints/nowplaying/current.js';
+export * as 'nowplaying/accounts' from './endpoints/nowplaying/accounts.js';
+export * as 'nowplaying/lastfm/generate-auth-url' from './endpoints/nowplaying/lastfm/generate-auth-url.js';
+export * as 'nowplaying/listenbrainz/link' from './endpoints/nowplaying/listenbrainz/link.js';
+export * as 'nowplaying/unlink' from './endpoints/nowplaying/unlink.js';
+export * as 'nowplaying/misskey-label' from './endpoints/nowplaying/misskey-label.js';
+
 // google-drive (配信アーカイブの Google Drive 連携、private fork 専用)
 export * as 'google-drive/generate-oauth-url' from './endpoints/google-drive/generate-oauth-url.js';
 export * as 'google-drive/unlink' from './endpoints/google-drive/unlink.js';
