@@ -168,7 +168,11 @@ export class ReactionService {
 						? [resolvedDeclaratedHost, null, noteHost]
 						: [null, noteHost];
 				} else {
-					hostsToSearch = [reacterHost];
+					// 相乗り無効時 / リモート発のリアクションは upstream と同じ解析結果にする:
+					// upstream の isCustomEmojiRegexp は ":name:" と ":name@.:" しか受け付けないため、
+					// 明示的な外部ホスト付き (":name@host:") は絵文字として解決せず FALLBACK に落とす
+					// (旧実装では normalize() 経由で FALLBACK になっていた挙動の維持)。
+					hostsToSearch = (custom[2] == null || custom[2] === '.') ? [reacterHost] : [];
 				}
 
 				const hosts = [...new Set(hostsToSearch)].filter((h): h is string | null => h !== undefined);
