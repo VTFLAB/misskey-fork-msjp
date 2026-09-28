@@ -547,6 +547,10 @@ export const ROUTE_DEF = [{
 		name: 'performance',
 		component: page(() => import('@/pages/admin/performance.vue')),
 	}, {
+		path: '/juice',
+		name: 'juice',
+		component: page(() => import('@/pages/admin/juice.vue')),
+	}, {
 		path: '/invites',
 		name: 'invites',
 		component: page(() => import('@/pages/admin/invites.vue')),

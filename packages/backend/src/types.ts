@@ -148,6 +148,7 @@ export const moderationLogTypes = [
 	'createUpdateInfo',
 	'updateUpdateInfo',
 	'deleteUpdateInfo',
+	'updateJuiceSettings',
 ] as const;
 
 export type ModerationLogPayloads = {
@@ -427,6 +428,10 @@ export type ModerationLogPayloads = {
 	deleteUpdateInfo: {
 		updateInfoId: string;
 		updateInfo: any;
+	};
+	updateJuiceSettings: {
+		before: any | null;
+		after: any | null;
 	};
 };
 
