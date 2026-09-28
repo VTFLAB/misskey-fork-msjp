@@ -34,6 +34,7 @@ import { OpenApiServerService } from './api/openapi/OpenApiServerService.js';
 import { OAuth2ProviderService } from './oauth/OAuth2ProviderService.js';
 import { registerHttpAccessLog } from './http-access-log.js';
 import { TwitchServerService } from './twitch/TwitchServerService.js';
+import { NowPlayingServerService } from './nowplaying/NowPlayingServerService.js';
 import { RemoteGuestServerService } from './remote-guest/RemoteGuestServerService.js';
 import { OmeServerService } from './ome/OmeServerService.js';
 import { GoogleDriveServerService } from './google/GoogleDriveServerService.js';
@@ -76,6 +77,7 @@ export class ServerService implements OnApplicationShutdown {
 		private loggerService: LoggerService,
 		private oauth2ProviderService: OAuth2ProviderService,
 		private twitchServerService: TwitchServerService,
+		private nowPlayingServerService: NowPlayingServerService,
 		private remoteGuestServerService: RemoteGuestServerService,
 		private omeServerService: OmeServerService,
 		private googleDriveServerService: GoogleDriveServerService,
@@ -171,6 +173,7 @@ export class ServerService implements OnApplicationShutdown {
 		fastify.register(this.oauth2ProviderService.createServer, { prefix: '/oauth' });
 		fastify.register(this.oauth2ProviderService.createTokenServer, { prefix: '/oauth/token' });
 		fastify.register(this.twitchServerService.createServer, { prefix: '/twitch' });
+		fastify.register(this.nowPlayingServerService.createServer, { prefix: '/nowplaying' });
 		fastify.register(this.googleDriveServerService.createServer, { prefix: '/google-drive' });
 		fastify.register(this.recordingDownloadServerService.createServer, { prefix: '/recording-download' });
 		fastify.register(this.remoteGuestServerService.createServer, { prefix: '/remote-guest' });

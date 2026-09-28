@@ -2270,6 +2270,15 @@ declare namespace entities {
         NotesUserListTimelineRequest,
         NotesUserListTimelineResponse,
         NotificationsCreateRequest,
+        NowplayingAccountsResponse,
+        NowplayingCurrentResponse,
+        NowplayingLastfmGenerateAuthUrlResponse,
+        NowplayingListenbrainzLinkRequest,
+        NowplayingListenbrainzLinkResponse,
+        NowplayingMisskeyLabelResponse,
+        NowplayingResolveUrlRequest,
+        NowplayingResolveUrlResponse,
+        NowplayingUnlinkRequest,
         PagePushRequest,
         PagesCreateRequest,
         PagesCreateResponse,
@@ -3507,6 +3516,33 @@ type NotificationsCreateRequest = operations['notifications___create']['requestB
 
 // @public (undocumented)
 export const notificationTypes: readonly ["note", "follow", "mention", "reply", "renote", "quote", "reaction", "pollEnded", "scheduledNotePosted", "scheduledNotePostFailed", "receiveFollowRequest", "followRequestAccepted", "app", "roleAssigned", "chatRoomInvitationReceived", "achievementEarned", "exportCompleted", "test", "login", "createToken", "updateInfo", "earthquakeAlert", "twitchLiveStreamStarted", "googleAuthExpired", "feedbackReceived", "newAbuseUserReport"];
+
+// @public (undocumented)
+type NowplayingAccountsResponse = operations['nowplaying___accounts']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type NowplayingCurrentResponse = operations['nowplaying___current']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type NowplayingLastfmGenerateAuthUrlResponse = operations['nowplaying___lastfm___generate-auth-url']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type NowplayingListenbrainzLinkRequest = operations['nowplaying___listenbrainz___link']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type NowplayingListenbrainzLinkResponse = operations['nowplaying___listenbrainz___link']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type NowplayingMisskeyLabelResponse = operations['nowplaying___misskey-label']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type NowplayingResolveUrlRequest = operations['nowplaying___resolve-url']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type NowplayingResolveUrlResponse = operations['nowplaying___resolve-url']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type NowplayingUnlinkRequest = operations['nowplaying___unlink']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
 export function nyaize(text: string): string;

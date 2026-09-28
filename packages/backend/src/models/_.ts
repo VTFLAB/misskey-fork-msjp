@@ -74,6 +74,7 @@ import { MiSignin } from '@/models/Signin.js';
 import { MiSwSubscription } from '@/models/SwSubscription.js';
 import { MiSystemAccount } from '@/models/SystemAccount.js';
 import { MiSystemWebhook } from '@/models/SystemWebhook.js';
+import { MiMusicServiceAccount } from '@/models/MusicServiceAccount.js';
 import { MiTwitchAccount } from '@/models/TwitchAccount.js';
 import { MiTwitchStream } from '@/models/TwitchStream.js';
 import { MiTwitchStreamComment } from '@/models/TwitchStreamComment.js';
@@ -137,6 +138,7 @@ export {
 	MiLiveChannel,
 	MiMeta,
 	MiModerationLog,
+	MiMusicServiceAccount,
 	MiMuting,
 	MiRenoteMuting,
 	MiNote,
@@ -249,6 +251,7 @@ export type RemoteGuestSessionsRepository = Repository<MiRemoteGuestSession> & M
 export type SigninsRepository = Repository<MiSignin> & MiRepository<MiSignin>;
 export type SwSubscriptionsRepository = Repository<MiSwSubscription> & MiRepository<MiSwSubscription>;
 export type SystemAccountsRepository = Repository<MiSystemAccount> & MiRepository<MiSystemAccount>;
+export type MusicServiceAccountsRepository = Repository<MiMusicServiceAccount> & MiRepository<MiMusicServiceAccount>;
 export type TwitchAccountsRepository = Repository<MiTwitchAccount> & MiRepository<MiTwitchAccount>;
 export type TwitchStreamsRepository = Repository<MiTwitchStream> & MiRepository<MiTwitchStream>;
 export type TwitchStreamCommentsRepository = Repository<MiTwitchStreamComment> & MiRepository<MiTwitchStreamComment>;

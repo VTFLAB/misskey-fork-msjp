@@ -101,5 +101,6 @@ export const DI = {
 	remoteGuestAccountsRepository: Symbol('remoteGuestAccountsRepository'),
 	remoteGuestSessionsRepository: Symbol('remoteGuestSessionsRepository'),
 	googleAccountsRepository: Symbol('googleAccountsRepository'),
+	musicServiceAccountsRepository: Symbol('musicServiceAccountsRepository'),
 	//#endregion
 };
