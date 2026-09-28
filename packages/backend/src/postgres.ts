@@ -66,6 +66,7 @@ import { MiTwitchStream } from '@/models/TwitchStream.js';
 import { MiGoogleAccount } from '@/models/GoogleAccount.js';
 import { MiTwitchStreamComment } from '@/models/TwitchStreamComment.js';
 import { MiTwitchStreamBlock } from '@/models/TwitchStreamBlock.js';
+import { MiJuiceSettings } from '@/models/JuiceSettings.js';
 import { MiUpdateInfo } from '@/models/UpdateInfo.js';
 import { MiUserFeedback } from '@/models/UserFeedback.js';
 import { MiUsedUsername } from '@/models/UsedUsername.js';
@@ -274,6 +275,7 @@ export const entities = [
 	MiChatApproval,
 	MiBubbleGameRecord,
 	MiReversiGame,
+	MiJuiceSettings,
 	...charts,
 ];
 
