@@ -2593,6 +2593,8 @@ _permissions:
   "write:report-abuse": "違反を報告する"
   "write:chat": "ダイレクトメッセージを操作する"
   "read:chat": "ダイレクトメッセージを閲覧する"
+  "write:admin:juice-settings": "拡張設定 (JUICE 由来) を操作する"
+  "read:admin:juice-settings": "拡張設定 (JUICE 由来) を見る"
 
 _auth:
   shareAccessTitle: "アプリへのアクセス許可"
@@ -4225,3 +4227,9 @@ _remoteGuestLogin:
   hostNotAllowed: "このホストは許可されていません。"
   loggedInAs: "{acct} としてログイン中"
   logout: "ログアウト"
+_juiceSettings:
+  title: "拡張設定 (JUICE 由来)"
+  reactionPiggybackOnRemoteEnabled: "リモートのカスタム絵文字を使ったリアクションへの相乗りを許可する"
+  reactionPiggybackOnRemoteEnabledCaption: "有効にすると、既存のリモート絵文字リアクションをクリックして同じリアクションを付けられるようになります。リモートの絵文字画像を著作権者の許諾なく表示・使用することになりうるため、既定は無効です。"
+  aiGeneratedFallbackCwEnabled: "AI生成物のフォールバックCWを有効にする"
+  aiGeneratedFallbackCwEnabledCaption: "有効にすると、AI生成物フラグが立っているノートを連合する際、CW(内容の警告)にフォールバック文言を合成して送出します。"

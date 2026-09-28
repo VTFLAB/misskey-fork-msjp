@@ -494,6 +494,24 @@ export type paths = {
          */
         post: operations['admin___invite___list'];
     };
+    '/admin/juice/settings': {
+        /**
+         * admin/juice/settings
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:admin:juice-settings*
+         */
+        post: operations['admin___juice___settings'];
+    };
+    '/admin/juice/update-settings': {
+        /**
+         * admin/juice/update-settings
+         * @description No description provided.
+         *
+         *     **Credential required**: *Yes* / **Permission**: *write:admin:juice-settings*
+         */
+        post: operations['admin___juice___update-settings'];
+    };
     '/admin/meta': {
         /**
          * admin/meta
@@ -3118,6 +3136,15 @@ export type paths = {
          *     **Credential required**: *Yes* / **Permission**: *read:invite-codes*
          */
         post: operations['invite___list'];
+    };
+    '/juice/public-settings': {
+        /**
+         * juice/public-settings
+         * @description No description provided.
+         *
+         *     **Credential required**: *No*
+         */
+        post: operations['juice___public-settings'];
     };
     '/live-channels/create': {
         /**
@@ -10108,6 +10135,144 @@ export interface operations {
                 };
                 content: {
                     'application/json': components['schemas']['InviteCode'][];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    admin___juice___settings: {
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        reactionPiggybackOnRemoteEnabled: boolean;
+                        reportCategories: {
+                            key: string;
+                            text: string;
+                            enabled: boolean;
+                            order: number;
+                            isDefault: boolean;
+                        }[];
+                        aiGeneratedFallbackCwEnabled: boolean;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'admin___juice___update-settings': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    reactionPiggybackOnRemoteEnabled?: boolean;
+                    reportCategories?: {
+                        key: string;
+                        text: string;
+                        enabled: boolean;
+                        order: number;
+                        isDefault: boolean;
+                    }[];
+                    aiGeneratedFallbackCwEnabled?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (without any results) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
                 };
             };
             /** @description Client error */
@@ -30950,6 +31115,73 @@ export interface operations {
                 };
                 content: {
                     'application/json': components['schemas']['InviteCode'][];
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'juice___public-settings': {
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        reactionPiggybackOnRemoteEnabled: boolean;
+                        reportCategories: {
+                            key: string;
+                            text: string;
+                            enabled: boolean;
+                            order: number;
+                            isDefault: boolean;
+                        }[];
+                    };
                 };
             };
             /** @description Client error */

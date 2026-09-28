@@ -9874,6 +9874,14 @@ export interface Locale extends ILocale {
          * ダイレクトメッセージを閲覧する
          */
         "read:chat": string;
+        /**
+         * 拡張設定 (JUICE 由来) を操作する
+         */
+        "write:admin:juice-settings": string;
+        /**
+         * 拡張設定 (JUICE 由来) を見る
+         */
+        "read:admin:juice-settings": string;
     };
     "_auth": {
         /**
@@ -10112,6 +10120,10 @@ export interface Locale extends ILocale {
          * 地震速報履歴
          */
         "earthquakeHistory": string;
+        /**
+         * オーディオプレイヤー
+         */
+        "audioPlayer": string;
     };
     "_widgetOptions": {
         /**
@@ -12422,6 +12434,80 @@ export interface Locale extends ILocale {
          * ループ再生
          */
         "loop": string;
+    };
+    "_audioPlayer": {
+        /**
+         * オーディオプレイヤー
+         */
+        "title": string;
+        /**
+         * 再生中
+         */
+        "nowPlaying": string;
+        /**
+         * キュー
+         */
+        "queue": string;
+        /**
+         * キューに追加
+         */
+        "addToQueue": string;
+        /**
+         * ライトボックスで開く
+         */
+        "openInLightbox": string;
+        /**
+         * 投稿を表示
+         */
+        "openNote": string;
+        /**
+         * キューをクリア
+         */
+        "clearQueue": string;
+        /**
+         * キューから削除
+         */
+        "removeFromQueue": string;
+        /**
+         * プレイヤーを開く
+         */
+        "expand": string;
+        /**
+         * プレイヤーを閉じる
+         */
+        "close": string;
+        /**
+         * 再生
+         */
+        "play": string;
+        /**
+         * 一時停止
+         */
+        "pause": string;
+        /**
+         * 前のトラック
+         */
+        "previous": string;
+        /**
+         * ループなし
+         */
+        "loopOff": string;
+        /**
+         * 1曲をループ
+         */
+        "loopOne": string;
+        /**
+         * すべてをループ
+         */
+        "loopAll": string;
+        /**
+         * バックグラウンド再生プレイヤーを使用する
+         */
+        "useGlobalAudioPlayer": string;
+        /**
+         * 投稿の音声ファイルをクリックすると、画面下部の常設プレイヤーで再生します。ページを移動しても再生が継続されます。
+         */
+        "useGlobalAudioPlayer_description": string;
     };
     "_contextMenu": {
         /**
@@ -15923,5 +16009,27 @@ export interface Locale extends ILocale {
          * ログアウト
          */
         "logout": string;
+    };
+    "_juiceSettings": {
+        /**
+         * 拡張設定 (JUICE 由来)
+         */
+        "title": string;
+        /**
+         * リモートのカスタム絵文字を使ったリアクションへの相乗りを許可する
+         */
+        "reactionPiggybackOnRemoteEnabled": string;
+        /**
+         * 有効にすると、既存のリモート絵文字リアクションをクリックして同じリアクションを付けられるようになります。リモートの絵文字画像を著作権者の許諾なく表示・使用することになりうるため、既定は無効です。
+         */
+        "reactionPiggybackOnRemoteEnabledCaption": string;
+        /**
+         * AI生成物のフォールバックCWを有効にする
+         */
+        "aiGeneratedFallbackCwEnabled": string;
+        /**
+         * 有効にすると、AI生成物フラグが立っているノートを連合する際、CW(内容の警告)にフォールバック文言を合成して送出します。
+         */
+        "aiGeneratedFallbackCwEnabledCaption": string;
     };
 }
