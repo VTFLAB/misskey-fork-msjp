@@ -5,40 +5,52 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <template>
 <div v-if="hasQueue" :class="$style.root" class="_panel _shadow" role="region" :aria-label="i18n.ts._audioPlayer.title">
-	<button class="_button" :class="$style.artwork" :aria-label="i18n.ts._audioPlayer.expand" @click="openWindow">
-		<img v-if="artworkUrl" :src="artworkUrl" :class="$style.artworkImg" alt=""/>
-		<i v-else class="ti ti-music" :class="$style.artworkIcon"></i>
-	</button>
-
-	<div :class="$style.body">
-		<button class="_button" :class="$style.meta" :aria-label="i18n.ts._audioPlayer.expand" @click="openWindow">
-			<div :class="$style.title">{{ trackTitle }}</div>
-			<div :class="$style.artist">{{ trackArtist }}</div>
+	<div :class="$style.topRow">
+		<button class="_button" :class="$style.artwork" :aria-label="i18n.ts._audioPlayer.expand" @click="openWindow">
+			<img v-if="artworkUrl" :src="artworkUrl" :class="$style.artworkImg" alt=""/>
+			<i v-else class="ti ti-music" :class="$style.artworkIcon"></i>
 		</button>
 
-		<div :class="$style.seekRow">
-			<span :class="$style.time">{{ hms(audioPlayerState.currentTime * 1000) }}</span>
-			<MkMediaRange
-				v-model="seekValue"
-				:buffer="audioPlayerState.buffered"
-				:ariaLabel="i18n.ts._audioPlayer.title"
-				:class="$style.seek"
-			/>
-			<span :class="$style.time">{{ hms(audioPlayerState.duration * 1000) }}</span>
+		<button class="_button" :class="$style.meta" :aria-label="i18n.ts._audioPlayer.expand" @click="openWindow">
+			<div :class="$style.title" :title="trackTitle">{{ trackTitle }}</div>
+			<div :class="$style.artist" :title="trackArtist">{{ trackArtist }}</div>
+		</button>
+
+		<div :class="$style.transport">
+			<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts._audioPlayer.previous" @click="prev">
+				<i class="ti ti-player-track-prev"></i>
+			</button>
+			<button class="_button" :class="[$style.controlButton, $style.playButton]" :aria-label="audioPlayerState.playing ? i18n.ts._audioPlayer.pause : i18n.ts._audioPlayer.play" @click="toggle">
+				<i v-if="audioPlayerState.playing" class="ti ti-player-pause"></i>
+				<i v-else class="ti ti-player-play"></i>
+			</button>
+			<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts.next" @click="next">
+				<i class="ti ti-player-track-next"></i>
+			</button>
+		</div>
+
+		<div :class="$style.secondary">
+			<button v-if="currentTrack" v-tooltip="i18n.ts._nowPlaying.post" class="_button" :class="$style.controlButton" :aria-label="i18n.ts._nowPlaying.post" @click="postNowPlaying">
+				<i class="ti ti-music"></i>
+			</button>
+			<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts._audioPlayer.expand" @click="openWindow">
+				<i class="ti ti-arrows-maximize"></i>
+			</button>
+			<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts._audioPlayer.close" @click="clear">
+				<i class="ti ti-x"></i>
+			</button>
 		</div>
 	</div>
 
-	<div :class="$style.controls">
-		<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts._audioPlayer.previous" @click="prev">
-			<i class="ti ti-player-track-prev"></i>
-		</button>
-		<button class="_button" :class="$style.controlButton" :aria-label="audioPlayerState.playing ? i18n.ts._audioPlayer.pause : i18n.ts._audioPlayer.play" @click="toggle">
-			<i v-if="audioPlayerState.playing" class="ti ti-player-pause"></i>
-			<i v-else class="ti ti-player-play"></i>
-		</button>
-		<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts.next" @click="next">
-			<i class="ti ti-player-track-next"></i>
-		</button>
+	<div :class="$style.bottomRow">
+		<span :class="$style.time">{{ hms(audioPlayerState.currentTime * 1000) }}</span>
+		<MkMediaRange
+			v-model="seekValue"
+			:buffer="audioPlayerState.buffered"
+			:ariaLabel="i18n.ts._audioPlayer.title"
+			:class="$style.seek"
+		/>
+		<span :class="$style.time">{{ hms(audioPlayerState.duration * 1000) }}</span>
 
 		<div :class="$style.volumeGroup">
 			<button class="_button" :class="$style.controlButton" :aria-label="audioPlayerState.muted || audioPlayerState.volume === 0 ? i18n.ts.unmute : i18n.ts.mute" @click="toggleMute">
@@ -51,15 +63,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		<button class="_button" :class="$style.controlButton" :aria-label="loopLabel" @click="cycleLoop">
 			<i class="ti ti-repeat" :class="{ [$style.loopActive]: audioPlayerState.loop !== 'off' }"></i>
-		</button>
-		<button v-if="currentTrack" v-tooltip="i18n.ts._nowPlaying.post" class="_button" :class="$style.controlButton" :aria-label="i18n.ts._nowPlaying.post" @click="postNowPlaying">
-			<i class="ti ti-music"></i>
-		</button>
-		<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts._audioPlayer.expand" @click="openWindow">
-			<i class="ti ti-arrows-maximize"></i>
-		</button>
-		<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts._audioPlayer.close" @click="clear">
-			<i class="ti ti-x"></i>
 		</button>
 	</div>
 </div>
@@ -156,12 +159,12 @@ async function openWindow() {
 	z-index: v-bind(zIndex);
 	bottom: calc(var(--MI-minBottomSpacing) + var(--MI-margin));
 	right: var(--MI-margin);
-	width: min(420px, calc(100vw - var(--MI-margin) * 2));
+	width: min(520px, calc(100vw - var(--MI-margin) * 2));
 	box-sizing: border-box;
 	display: flex;
-	align-items: center;
-	gap: 10px;
-	padding: 8px 12px;
+	flex-direction: column;
+	gap: 4px;
+	padding: 10px 12px 8px;
 	border-radius: 12px;
 }
 
@@ -173,10 +176,17 @@ async function openWindow() {
 	}
 }
 
+.topRow {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+}
+
 .artwork {
 	flex-shrink: 0;
-	width: 40px;
-	height: 40px;
+	width: 44px;
+	height: 44px;
 	border-radius: 8px;
 	overflow: clip;
 	display: grid;
@@ -195,23 +205,17 @@ async function openWindow() {
 	opacity: 0.7;
 }
 
-.body {
-	flex: 1;
-	min-width: 0;
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-}
-
 .meta {
+	flex: 1 1 auto;
+	min-width: 0;
 	display: block;
 	text-align: left;
-	min-width: 0;
 }
 
 .title {
 	font-size: 0.9em;
 	font-weight: bold;
+	line-height: 1.3;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -219,38 +223,50 @@ async function openWindow() {
 
 .artist {
 	font-size: 0.8em;
+	line-height: 1.3;
 	opacity: 0.7;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
-.seekRow {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-}
-
-.seek {
-	flex: 1;
-}
-
-.time {
-	font-size: 0.75em;
-	opacity: 0.7;
-	flex-shrink: 0;
-}
-
-.controls {
+.transport,
+.secondary {
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
 	gap: 2px;
 }
 
+.secondary {
+	margin-left: 4px;
+	padding-left: 6px;
+	border-left: 1px solid var(--MI_THEME-divider);
+}
+
+.bottomRow {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.seek {
+	flex: 1 1 auto;
+	min-width: 60px;
+}
+
+.time {
+	flex-shrink: 0;
+	font-size: 0.75em;
+	font-variant-numeric: tabular-nums;
+	opacity: 0.7;
+}
+
 .controlButton {
 	padding: 6px;
-	border-radius: 4px;
+	border-radius: 6px;
+	line-height: 1;
 
 	&:hover {
 		background-color: var(--MI_THEME-accentedBg);
@@ -262,22 +278,28 @@ async function openWindow() {
 	}
 }
 
+.playButton {
+	font-size: 1.15em;
+}
+
 .loopActive {
 	color: var(--MI_THEME-accent);
 }
 
 .volumeGroup {
+	flex-shrink: 0;
 	display: flex;
 	align-items: center;
 	gap: 2px;
+	margin-left: 4px;
 }
 
 .volumeSeek {
-	width: 70px;
+	width: 80px;
 }
 
 @media (max-width: 500px) {
-	.volumeGroup {
+	.volumeSeek {
 		display: none;
 	}
 }
