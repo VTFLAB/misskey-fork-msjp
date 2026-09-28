@@ -26,6 +26,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 					:class="$style.media"
 					:audio="media"
 					@mediaClick="onMediaClick(media)"
+					@addToQueue="onAddToQueue(media)"
+					@openInLightbox="openAudioInLightbox(media.id)"
 				/>
 				<XVideo
 					v-if="media.type.startsWith('video')"
@@ -65,11 +67,15 @@ import * as os from '@/os.js';
 import { prefer } from '@/preferences.js';
 import { isPreviewable, getType } from '@/utility/lightbox.js';
 import { genId } from '@/utility/id.js';
+import { playTracks, enqueue, pause as pauseGlobalAudio } from '@/utility/audio-player.js';
+import type { AudioTrack } from '@/utility/audio-player.js';
+import { shouldHideFileByDefault } from '@/utility/sensitive-file.js';
 
 const props = defineProps<{
 	mediaList: Misskey.entities.DriveFile[];
 	user?: Misskey.entities.User | null; // DriveFileのuserはnullになることがある。その場合に使用する所有者情報
 	raw?: boolean;
+	noteId?: string;
 }>();
 
 const gallery = useTemplateRef('gallery');
@@ -92,6 +98,16 @@ const medias = computed(() => {
 const mediaComponents = new Map<string, MediaComponentExposes | null>();
 const count = computed(() => medias.value.previewable.length);
 const markerId = genId();
+const audioFiles = computed(() => medias.value.previewable.filter(file => getType(file.type) === 'audio'));
+
+function toAudioTrack(file: Misskey.entities.DriveFile): AudioTrack {
+	return {
+		id: file.id,
+		file,
+		user: props.user ?? file.user ?? null,
+		noteId: props.noteId,
+	};
+}
 
 async function calcAspectRatio() {
 	if (!gallery.value) return;
@@ -135,11 +151,31 @@ onUnmounted(() => {
 });
 
 function onMediaClick(file: Misskey.entities.DriveFile) {
+	if (getType(file.type) === 'audio' && prefer.s.useGlobalAudioPlayer) {
+		// Auto-queue only the clicked file (already revealed by the user) and the sibling audio
+		// files that are shown by default. Sensitive / data-saver-hidden siblings must not be
+		// queued implicitly, otherwise auto-advance would play and expose them without a reveal.
+		const queueFiles = audioFiles.value.filter(f => f.id === file.id || !shouldHideFileByDefault(f));
+		const tracks = queueFiles.map(toAudioTrack);
+		const startIndex = queueFiles.findIndex(f => f.id === file.id);
+		playTracks(tracks, startIndex === -1 ? 0 : startIndex);
+		return;
+	}
 	if (prefer.s.imageNewTab) {
 		window.open(file.url, '_blank');
 		return;
 	}
 	openGallery(file.id);
+}
+
+function onAddToQueue(file: Misskey.entities.DriveFile) {
+	enqueue([toAudioTrack(file)]);
+}
+
+function openAudioInLightbox(id: string) {
+	// The Lightbox has its own <audio>; pause the global player so both never play at once.
+	pauseGlobalAudio();
+	openGallery(id);
 }
 
 async function openGallery(id?: string) {

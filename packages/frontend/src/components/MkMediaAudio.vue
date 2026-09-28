@@ -81,6 +81,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <script lang="ts" setup>
 import { ref } from 'vue';
 import * as Misskey from 'misskey-js';
+import type { MenuItem } from '@/types/menu.js';
 import bytes from '@/filters/bytes.js';
 import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
@@ -94,6 +95,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
 	(event: 'mediaClick', ev: PointerEvent | KeyboardEvent): void;
+	(event: 'addToQueue'): void;
+	(event: 'openInLightbox'): void;
 }>();
 
 // eslint-disable-next-line vue/no-setup-props-reactivity-loss
@@ -108,7 +111,21 @@ async function reveal() {
 }
 
 function showMenu(ev: PointerEvent) {
-	os.popupMenu(getFileMenu(props.audio, (newHide) => { hide.value = newHide; }), (ev.currentTarget ?? ev.target ?? undefined) as HTMLElement | undefined);
+	const menu: MenuItem[] = [
+		{
+			text: i18n.ts._audioPlayer.addToQueue,
+			icon: 'ti ti-playlist',
+			action: () => emit('addToQueue'),
+		},
+		{
+			text: i18n.ts._audioPlayer.openInLightbox,
+			icon: 'ti ti-arrows-maximize',
+			action: () => emit('openInLightbox'),
+		},
+		{ type: 'divider' },
+		...getFileMenu(props.audio, (newHide) => { hide.value = newHide; }),
+	];
+	os.popupMenu(menu, (ev.currentTarget ?? ev.target ?? undefined) as HTMLElement | undefined);
 }
 
 function onContextmenu(ev: PointerEvent) {
