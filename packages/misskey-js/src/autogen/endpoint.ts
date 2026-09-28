@@ -77,6 +77,8 @@ import type {
 	AdminInviteCreateResponse,
 	AdminInviteListRequest,
 	AdminInviteListResponse,
+	AdminJuiceSettingsResponse,
+	AdminJuiceUpdateSettingsRequest,
 	AdminMetaResponse,
 	AdminPromoCreateRequest,
 	AdminQueueClearRequest,
@@ -518,6 +520,7 @@ import type {
 	InviteLimitResponse,
 	InviteListRequest,
 	InviteListResponse,
+	JuicePublicSettingsResponse,
 	LiveChannelsCreateResponse,
 	LiveChannelsListRequest,
 	LiveChannelsListResponse,
@@ -813,6 +816,8 @@ export type Endpoints = {
 	'admin/get-user-ips': { req: AdminGetUserIpsRequest; res: AdminGetUserIpsResponse };
 	'admin/invite/create': { req: AdminInviteCreateRequest; res: AdminInviteCreateResponse };
 	'admin/invite/list': { req: AdminInviteListRequest; res: AdminInviteListResponse };
+	'admin/juice/settings': { req: EmptyRequest; res: AdminJuiceSettingsResponse };
+	'admin/juice/update-settings': { req: AdminJuiceUpdateSettingsRequest; res: EmptyResponse };
 	'admin/meta': { req: EmptyRequest; res: AdminMetaResponse };
 	'admin/promo/create': { req: AdminPromoCreateRequest; res: EmptyResponse };
 	'admin/queue/clear': { req: AdminQueueClearRequest; res: EmptyResponse };
@@ -1100,6 +1105,7 @@ export type Endpoints = {
 	'invite/delete': { req: InviteDeleteRequest; res: EmptyResponse };
 	'invite/limit': { req: EmptyRequest; res: InviteLimitResponse };
 	'invite/list': { req: InviteListRequest; res: InviteListResponse };
+	'juice/public-settings': { req: EmptyRequest; res: JuicePublicSettingsResponse };
 	'live-channels/create': { req: EmptyRequest; res: LiveChannelsCreateResponse };
 	'live-channels/list': { req: LiveChannelsListRequest; res: LiveChannelsListResponse };
 	'live-channels/my': { req: EmptyRequest; res: LiveChannelsMyResponse };

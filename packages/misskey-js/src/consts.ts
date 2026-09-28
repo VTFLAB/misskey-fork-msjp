@@ -143,6 +143,8 @@ export const permissions = [
 	'write:report-abuse',
 	'write:chat',
 	'read:chat',
+	'write:admin:juice-settings',
+	'read:admin:juice-settings',
 ] as const;
 
 export const moderationLogTypes = [

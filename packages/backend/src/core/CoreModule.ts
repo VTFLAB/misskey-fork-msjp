@@ -161,6 +161,7 @@ import { AtpPersonService } from './atproto/AtpPersonService.js';
 import { AtpSearchService } from './atproto/AtpSearchService.js';
 import { AtpNoteService } from './atproto/AtpNoteService.js';
 import { AtpJetstreamService } from './atproto/AtpJetstreamService.js';
+import { JuiceSettingsService } from './JuiceSettingsService.js';
 import { TwitchLoggerService } from './twitch/TwitchLoggerService.js';
 import { TwitchApiService } from './twitch/TwitchApiService.js';
 import { TwitchOAuthService } from './twitch/TwitchOAuthService.js';
@@ -354,6 +355,8 @@ const $AtpSearchService: Provider = { provide: 'AtpSearchService', useExisting: 
 const $AtpNoteService: Provider = { provide: 'AtpNoteService', useExisting: AtpNoteService };
 const $AtpJetstreamService: Provider = { provide: 'AtpJetstreamService', useExisting: AtpJetstreamService };
 
+const $JuiceSettingsService: Provider = { provide: 'JuiceSettingsService', useExisting: JuiceSettingsService };
+
 const $TwitchLoggerService: Provider = { provide: 'TwitchLoggerService', useExisting: TwitchLoggerService };
 const $TwitchApiService: Provider = { provide: 'TwitchApiService', useExisting: TwitchApiService };
 const $TwitchOAuthService: Provider = { provide: 'TwitchOAuthService', useExisting: TwitchOAuthService };
@@ -546,6 +549,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		AtpSearchService,
 		AtpNoteService,
 		AtpJetstreamService,
+		JuiceSettingsService,
 		TwitchLoggerService,
 		TwitchApiService,
 		TwitchOAuthService,
@@ -737,6 +741,8 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$AtpNoteService,
 		$AtpJetstreamService,
 
+		$JuiceSettingsService,
+
 		$TwitchLoggerService,
 		$TwitchApiService,
 		$TwitchOAuthService,
@@ -923,6 +929,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		AtpSearchService,
 		AtpNoteService,
 		AtpJetstreamService,
+		JuiceSettingsService,
 		TwitchLoggerService,
 		TwitchApiService,
 		TwitchOAuthService,
@@ -1111,6 +1118,8 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$AtpSearchService,
 		$AtpNoteService,
 		$AtpJetstreamService,
+
+		$JuiceSettingsService,
 
 		$TwitchLoggerService,
 		$TwitchApiService,
