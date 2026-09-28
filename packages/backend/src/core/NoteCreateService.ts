@@ -177,6 +177,7 @@ type Option = {
 	files?: MiDriveFile[] | null;
 	poll?: IPoll | null;
 	localOnly?: boolean | null;
+	isAIGenerated?: boolean | null;
 	reactionAcceptance?: MiNote['reactionAcceptance'];
 	cw?: string | null;
 	visibility?: string;
@@ -292,6 +293,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		visibleUserIds: MiUser['id'][];
 		channelId: MiChannel['id'] | null;
 		localOnly: boolean;
+		isAIGenerated: boolean;
 		reactionAcceptance: MiNote['reactionAcceptance'];
 		poll: IPoll | null;
 		apMentions?: MinimumUser[] | null;
@@ -429,6 +431,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 			renote,
 			cw: data.cw,
 			localOnly: data.localOnly,
+			isAIGenerated: data.isAIGenerated,
 			reactionAcceptance: data.reactionAcceptance,
 			visibility: data.visibility,
 			visibleUsers,
@@ -664,6 +667,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 			emojis,
 			userId: user.id,
 			localOnly: data.localOnly!,
+			isAIGenerated: data.isAIGenerated ?? false,
 			reactionAcceptance: data.reactionAcceptance ?? null,
 			visibility: data.visibility as any,
 			visibleUserIds: data.visibility === 'specified'

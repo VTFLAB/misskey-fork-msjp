@@ -531,6 +531,9 @@ const context_iris = [
 	'https://w3id.org/security/v1',
 ];
 
+// JUICE: 独自プロパティの名前空間(JSON-LDの識別子。URLとして開くためのものではない)
+export const JUICE_NAMESPACE = 'https://github.com/misskey-juice/misskey-juice#';
+
 const extension_context_definition = {
 	Key: 'sec:Key',
 	// as non-standards
@@ -564,6 +567,11 @@ const extension_context_definition = {
 		'@type': 'schema:text',
 	},
 	'isCat': 'misskey:isCat',
+	// JUICE (misskey-juice独自拡張。misskey-hub.netの名前空間とは別に、フォーク独自のプロパティとして分離する)
+	juice: JUICE_NAMESPACE,
+	'_juice_isAIGenerated': 'juice:_juice_isAIGenerated',
+	'_juice_summaryIsAIGeneratedFallback': 'juice:_juice_summaryIsAIGeneratedFallback',
+	'_juice_originalCw': 'juice:_juice_originalCw',
 	// vcard
 	vcard: 'http://www.w3.org/2006/vcard/ns#',
 } satisfies Context;

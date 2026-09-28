@@ -81,7 +81,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div v-if="maxTextLength - textLength < 100" :class="['_acrylic', $style.textCount, { [$style.textOver]: textLength > maxTextLength }]">{{ maxTextLength - textLength }}</div>
 	</div>
 	<input v-show="withHashtags" ref="hashtagsInputEl" v-model="hashtags" :class="$style.hashtags" :placeholder="i18n.ts.hashtags" list="hashtags">
-	<XPostFormAttaches v-model="files" @detach="detachFile" @changeSensitive="updateFileSensitive" @changeName="updateFileName"/>
+	<XPostFormAttaches v-model="files" @detach="detachFile" @changeSensitive="updateFileSensitive" @changeAIGenerated="updateFileAIGenerated" @changeName="updateFileName"/>
 	<div v-if="uploader.items.value.length > 0" style="padding: 12px;">
 		<MkTip k="postFormUploader">
 			{{ i18n.ts._postForm.uploaderTip }}
@@ -98,6 +98,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button v-tooltip="i18n.ts.attachFile + ' (' + i18n.ts.fromDrive + ')'" class="_button" :class="$style.footerButton" @click="chooseFileFromDrive"><i class="ti ti-cloud-download"></i></button>
 			<button v-tooltip="i18n.ts.poll" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: poll }]" @click="togglePoll"><i class="ti ti-chart-arrows"></i></button>
 			<button v-tooltip="i18n.ts.useCw" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: useCw }]" @click="useCw = !useCw"><i class="ti ti-eye-off"></i></button>
+			<button v-tooltip="i18n.ts.aiGenerated" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: isAIGenerated }]" @click="isAIGenerated = !isAIGenerated"><i class="ti ti-ai" :class="$style.aiGeneratedButtonIcon"></i></button>
 			<button v-tooltip="i18n.ts.hashtags" class="_button" :class="[$style.footerButton, { [$style.footerButtonActive]: withHashtags }]" @click="withHashtags = !withHashtags"><i class="ti ti-hash"></i></button>
 			<button v-tooltip="i18n.ts.mention" class="_button" :class="$style.footerButton" @click="insertMention"><i class="ti ti-at"></i></button>
 			<button v-if="showAddMfmFunction" v-tooltip="i18n.ts.addMfmFunction" :class="['_button', $style.footerButton]" @click="insertMfmFunction"><i class="ti ti-palette"></i></button>
@@ -204,6 +205,7 @@ const text = ref(props.initialText ?? '');
 const files = ref(props.initialFiles ?? []);
 const poll = ref<PollEditorModelValue | null>(null);
 const useCw = ref<boolean>(!!props.initialCw);
+const isAIGenerated = ref<boolean>(false); // JUICE
 const showPreview = ref(store.s.showPreview);
 watch(showPreview, () => store.set('showPreview', showPreview.value));
 const showAddMfmFunction = ref(prefer.s.enableQuickAddMfmFunction);
@@ -440,6 +442,7 @@ function watchForDraft() {
 	watch(files, () => saveDraft(), { deep: true });
 	watch(visibility, () => saveDraft());
 	watch(localOnly, () => saveDraft());
+	watch(isAIGenerated, () => saveDraft()); // JUICE
 	watch(quoteId, () => saveDraft());
 	watch(reactionAcceptance, () => saveDraft());
 	watch(scheduledAt, () => saveDraft());
@@ -522,6 +525,10 @@ function updateFileSensitive(file: Misskey.entities.DriveFile, isSensitive: bool
 		emit('fileChangeSensitive', file.id, isSensitive);
 	}
 	files.value[files.value.findIndex(x => x.id === file.id)].isSensitive = isSensitive;
+}
+
+function updateFileAIGenerated(file: Misskey.entities.DriveFile, isAIGenerated: boolean) {
+	files.value[files.value.findIndex(x => x.id === file.id)].isAIGenerated = isAIGenerated;
 }
 
 function updateFileName(file: Misskey.entities.DriveFile, name: Misskey.entities.DriveFile['name']) {
@@ -875,6 +882,7 @@ type StoredDrafts = {
 			cw: string | null;
 			visibility: 'public' | 'home' | 'followers' | 'specified';
 			localOnly: boolean;
+			isAIGenerated: boolean;
 			files: Misskey.entities.DriveFile[];
 			poll: PollEditorModelValue | null;
 			visibleUserIds?: string[];
@@ -898,6 +906,7 @@ function saveDraft() {
 			cw: cw.value,
 			visibility: visibility.value,
 			localOnly: localOnly.value,
+			isAIGenerated: isAIGenerated.value,
 			files: files.value,
 			poll: poll.value,
 			...( visibleUsers.value.length > 0 ? { visibleUserIds: visibleUsers.value.map(x => x.id) } : {}),
@@ -927,6 +936,7 @@ async function saveServerDraft(options: {
 		cw: useCw.value ? cw.value || null : null,
 		visibility: visibility.value,
 		localOnly: localOnly.value,
+		isAIGenerated: isAIGenerated.value,
 		hashtag: hashtags.value,
 		fileIds: files.value.map(f => f.id),
 		poll: poll.value,
@@ -1033,6 +1043,7 @@ async function post(ev?: PointerEvent) {
 		poll: poll.value,
 		cw: useCw.value ? cw.value ?? '' : null,
 		localOnly: visibility.value === 'specified' ? false : localOnly.value,
+		isAIGenerated: isAIGenerated.value,
 		visibility: visibility.value,
 		visibleUserIds: visibility.value === 'specified' ? visibleUsers.value.map(u => u.id) : undefined,
 		reactionAcceptance: reactionAcceptance.value,
@@ -1078,6 +1089,38 @@ async function post(ev?: PointerEvent) {
 				text: 'cannot find the token of the selected account.',
 			});
 			return;
+		}
+	}
+
+	if (isAIGenerated.value) {
+		const targetFiles = files.value.filter(f => !f.isAIGenerated);
+		if (targetFiles.length > 0) {
+			const results = await Promise.allSettled(targetFiles.map(f =>
+				misskeyApi('drive/files/update', { fileId: f.id, isAIGenerated: true }, token).then(() => {
+					f.isAIGenerated = true;
+					return f;
+				}),
+			));
+
+			const failed = results.some(r => r.status === 'rejected');
+			if (failed) {
+				// JUICE: 一部だけ成功した状態のまま投稿を中断すると、
+				// 投稿しなかったのにファイルだけAI生成物になって残ってしまうため、
+				// 成功した分はベストエフォートで元に戻してから中断する
+				const succeeded = results.filter(r => r.status === 'fulfilled').map(r => r.value);
+				await Promise.allSettled(succeeded.map(f =>
+					misskeyApi('drive/files/update', { fileId: f.id, isAIGenerated: false }, token).then(() => {
+						f.isAIGenerated = false;
+					}),
+				));
+
+				const firstError = results.find(r => r.status === 'rejected') as PromiseRejectedResult;
+				await os.alert({
+					type: 'error',
+					text: firstError.reason?.message + '\n' + firstError.reason?.id,
+				});
+				return;
+			}
 		}
 	}
 
@@ -1277,6 +1320,7 @@ async function openAccountMenu(ev: PointerEvent) {
 				cw.value = draft.cw ?? null;
 				visibility.value = draft.visibility;
 				localOnly.value = draft.localOnly ?? false;
+				isAIGenerated.value = draft.isAIGenerated ?? false;
 				files.value = draft.files ?? [];
 				hashtags.value = draft.hashtag ?? '';
 				if (draft.hashtag) withHashtags.value = true;
@@ -1440,6 +1484,7 @@ onMounted(() => {
 				cw.value = draft.data.cw;
 				visibility.value = draft.data.visibility;
 				localOnly.value = draft.data.localOnly;
+				isAIGenerated.value = draft.data.isAIGenerated ?? false;
 				files.value = (draft.data.files || []).filter(draftFile => draftFile);
 				if (draft.data.poll) {
 					poll.value = draft.data.poll;
@@ -1463,6 +1508,7 @@ onMounted(() => {
 			cw.value = init.cw ?? null;
 			visibility.value = init.visibility;
 			localOnly.value = init.localOnly ?? false;
+			isAIGenerated.value = init.isAIGenerated ?? false;
 			files.value = init.files ?? [];
 			if (init.poll) {
 				poll.value = {
@@ -1848,6 +1894,16 @@ html[data-color-scheme=light] .preview {
 	&.footerButtonActive {
 		color: var(--MI_THEME-accent);
 	}
+}
+
+// JUICE: ti-aiは「AI」の文字を描いた線画のため、他のfooterButtonの単一記号アイコン
+// (ti-photo-plus等、24x24のボックスをほぼ埋める)と同じfont-sizeでも余白が多く小さく見える。
+// このボタンだけ少し拡大する。font-sizeで拡大すると、アイコン自身のレイアウト用ボックスも一緒に
+// 広がり、footerButtonの幅(width: auto、中身にフィットするサイズ)が他のfooterButtonより
+// 広くなってツールバーの並びがガタつくため、レイアウトに影響しないtransform: scale()で拡大する
+.aiGeneratedButtonIcon {
+	display: inline-block;
+	transform: scale(1.5);
 }
 
 .previewButtonActive {
