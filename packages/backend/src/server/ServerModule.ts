@@ -30,7 +30,6 @@ import { UrlPreviewService } from './web/UrlPreviewService.js';
 import { ClientLoggerService } from './web/ClientLoggerService.js';
 import { OAuth2ProviderService } from './oauth/OAuth2ProviderService.js';
 import { TwitchServerService } from './twitch/TwitchServerService.js';
-import { NowPlayingServerService } from './nowplaying/NowPlayingServerService.js';
 import { RemoteGuestServerService } from './remote-guest/RemoteGuestServerService.js';
 import { OmeServerService } from './ome/OmeServerService.js';
 import { GoogleDriveServerService } from './google/GoogleDriveServerService.js';
@@ -111,7 +110,6 @@ import { SigninWithPasskeyApiService } from './api/SigninWithPasskeyApiService.j
 		OpenApiServerService,
 		OAuth2ProviderService,
 		TwitchServerService,
-		NowPlayingServerService,
 		RemoteGuestServerService,
 		OmeServerService,
 		GoogleDriveServerService,
