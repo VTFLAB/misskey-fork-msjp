@@ -1221,13 +1221,32 @@ function insertMention() {
 }
 
 function openNowPlayingDialog() {
+	// ダイアログが開いている間はモーダルのフォーカストラップで textarea にフォーカスを移せず、
+	// insertTextAtCursor (execCommand ベース) が空振りする。開いた時点のカーソル位置を控えて
+	// おき、ダイアログが閉じてから text の値を直接書き換える (insertMfmFunction と同じ方式)。
+	const pos = textareaEl.value?.selectionStart ?? text.value.length;
+	const posEnd = textareaEl.value?.selectionEnd ?? pos;
+	let pending: string | null = null;
 	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkNowPlayingDialog.vue')), {}, {
 		insert: (nowPlayingText: string) => {
-			if (textareaEl.value == null) return;
-			const prefix = text.value.length > 0 && !text.value.endsWith('\n') ? '\n' : '';
-			insertTextAtCursor(textareaEl.value, prefix + nowPlayingText);
+			pending = nowPlayingText;
 		},
-		closed: () => dispose(),
+		closed: () => {
+			dispose();
+			if (pending == null) return;
+			const before = text.value.substring(0, pos);
+			const after = text.value.substring(posEnd);
+			const prefix = before.length > 0 && !before.endsWith('\n') ? '\n' : '';
+			const suffix = after.length > 0 && !after.startsWith('\n') ? '\n' : '';
+			const inserted = prefix + pending + suffix;
+			text.value = before + inserted + after;
+			nextTick(() => {
+				if (textareaEl.value == null) return;
+				textareaEl.value.focus();
+				const caret = before.length + inserted.length;
+				textareaEl.value.setSelectionRange(caret, caret);
+			});
+		},
 	});
 }
 
