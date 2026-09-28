@@ -52,6 +52,7 @@ import { prefer } from '@/preferences.js';
 import { DI } from '@/di.js';
 import { makeEmojiMuteKey, mute as muteEmoji, unmute as unmuteEmoji, checkMuted as checkEmojiMuted } from '@/utility/emoji-mute';
 import { addToEmojiPalette } from '@/utility/emoji-palette.js';
+import { useReactionPiggybackOnRemoteEnabled } from '@/utility/reaction-piggyback.js';
 
 const props = defineProps<{
 	name: string;
@@ -73,6 +74,16 @@ const isLocal = computed(() => isLocalCustomEmojiName(customEmojiName.value, pro
 const emojiCodeToMute = makeEmojiMuteKey(props);
 const isMuted = checkEmojiMuted(emojiCodeToMute);
 const shouldMute = computed(() => !props.ignoreMuted && isMuted.value);
+
+// JUICE: ノート本文等に埋め込まれたリモートのカスタム絵文字への相乗りリアクション・
+// 絵文字パレットへの追加を、MkReactionsViewer.reaction.vueの相乗り機能と同じ管理者設定で
+// 許可するかどうか判定する
+const reactionPiggybackOnRemoteEnabled = useReactionPiggybackOnRemoteEnabled();
+const canUseRemoteEmojiActions = computed(() => isLocal.value || reactionPiggybackOnRemoteEnabled.value);
+// JUICE: リアクション文字列はローカルなら`:name:`、リモートなら`:name@host:`
+// (MFM由来のprops.nameはホスト情報を含まないため、ここで組み立てる。hostが無い場合は
+// isLocalCustomEmojiNameの判定上ローカル扱いになるはずだが、念のためフォールバックする)
+const reactionString = computed(() => (isLocal.value || !props.host) ? `:${props.name}:` : `:${customEmojiName.value}@${props.host}:`);
 
 const rawUrl = computed(() => {
 	if (props.url) {
@@ -123,33 +134,34 @@ function onClick(ev: PointerEvent) {
 			});
 		}
 
-		if (props.menuReaction && react) {
+		if (props.menuReaction && react && canUseRemoteEmojiActions.value) {
 			menuItems.push({
 				text: i18n.ts.doReaction,
 				icon: 'ti ti-plus',
 				action: () => {
-					react(`:${props.name}:`);
+					react(reactionString.value);
 				},
 			});
 		}
 
-		if (isLocal.value) {
-			menuItems.push({
-				type: 'divider',
-			}, {
-				text: i18n.ts.info,
-				icon: 'ti ti-info-circle',
-				action: async () => {
-					const { dispose } = os.popup(MkCustomEmojiDetailedDialog, {
-						emoji: await misskeyApiGet('emoji', {
-							name: customEmojiName.value,
-						}),
-					}, {
-						closed: () => dispose(),
-					});
-				},
-			});
-		}
+		menuItems.push({
+			type: 'divider',
+		}, {
+			// JUICE: リモートのカスタム絵文字(ノート本文・CW・プロフィール等に埋め込まれたもの)でも
+			// ライセンス等の詳細情報を確認できるように、ローカル限定の制約を撤廃してhostを渡す
+			text: i18n.ts.info,
+			icon: 'ti ti-info-circle',
+			action: async () => {
+				const { dispose } = os.popup(MkCustomEmojiDetailedDialog, {
+					emoji: await misskeyApiGet('emoji', {
+						name: customEmojiName.value,
+						...(isLocal.value ? {} : { host: props.host }),
+					}),
+				}, {
+					closed: () => dispose(),
+				});
+			},
+		});
 
 		if (isMuted.value) {
 			menuItems.push({
@@ -169,12 +181,12 @@ function onClick(ev: PointerEvent) {
 			});
 		}
 
-		if (isLocal.value) {
+		if (canUseRemoteEmojiActions.value) {
 			menuItems.push({
 				text: i18n.ts.addToEmojiPalette,
 				icon: 'ti ti-palette',
 				action: () => {
-					addToEmojiPalette(`:${props.name}:`);
+					addToEmojiPalette(reactionString.value);
 				},
 			});
 		}
