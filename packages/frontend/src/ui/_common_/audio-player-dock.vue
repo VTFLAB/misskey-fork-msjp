@@ -6,7 +6,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <template>
 <div v-if="hasQueue" :class="$style.root" class="_panel _shadow" role="region" :aria-label="i18n.ts._audioPlayer.title">
 	<button class="_button" :class="$style.artwork" :aria-label="i18n.ts._audioPlayer.expand" @click="openWindow">
-		<img v-if="currentTrack?.file.thumbnailUrl" :src="currentTrack.file.thumbnailUrl" :class="$style.artworkImg" alt=""/>
+		<img v-if="artworkUrl" :src="artworkUrl" :class="$style.artworkImg" alt=""/>
 		<i v-else class="ti ti-music" :class="$style.artworkIcon"></i>
 	</button>
 
@@ -52,6 +52,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<button class="_button" :class="$style.controlButton" :aria-label="loopLabel" @click="cycleLoop">
 			<i class="ti ti-repeat" :class="{ [$style.loopActive]: audioPlayerState.loop !== 'off' }"></i>
 		</button>
+		<button v-if="currentTrack" v-tooltip="i18n.ts._nowPlaying.post" class="_button" :class="$style.controlButton" :aria-label="i18n.ts._nowPlaying.post" @click="postNowPlaying">
+			<i class="ti ti-music"></i>
+		</button>
 		<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts._audioPlayer.expand" @click="openWindow">
 			<i class="ti ti-arrows-maximize"></i>
 		</button>
@@ -72,6 +75,7 @@ import {
 	audioPlayerState,
 	hasQueue,
 	currentTrack,
+	trackArtworkUrl,
 	toggle,
 	next,
 	prev,
@@ -81,6 +85,7 @@ import {
 	cycleLoop,
 	clear,
 } from '@/utility/audio-player.js';
+import { postNowPlayingForMisskeyTrack } from '@/utility/now-playing.js';
 
 const zIndex = os.claimZIndex('high');
 
@@ -95,6 +100,13 @@ const trackArtist = computed(() => {
 	if (user == null) return '';
 	return user.name || user.username;
 });
+
+const artworkUrl = computed(() => trackArtworkUrl(currentTrack.value));
+
+async function postNowPlaying() {
+	if (currentTrack.value == null) return;
+	await postNowPlayingForMisskeyTrack(currentTrack.value);
+}
 
 const seekValue = computed({
 	get: () => audioPlayerState.duration > 0 ? audioPlayerState.currentTime / audioPlayerState.duration : 0,

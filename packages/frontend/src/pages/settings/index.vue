@@ -153,6 +153,11 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		to: '/settings/juice',
 		active: currentPage.value?.route.name === 'juice-settings',
 	}, {
+		icon: 'ti ti-music',
+		text: i18n.ts._nowPlaying.title,
+		to: '/settings/nowplaying',
+		active: currentPage.value?.route.name === 'nowplaying-settings',
+	}, {
 		icon: 'ti ti-link',
 		text: i18n.ts._settings.serviceConnection,
 		to: '/settings/connect',
