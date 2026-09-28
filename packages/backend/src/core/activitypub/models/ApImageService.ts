@@ -84,6 +84,7 @@ export class ApImageService {
 			user: actor,
 			uri: image.url,
 			sensitive: image.sensitive,
+			isAIGenerated: !!image._juice_isAIGenerated, // JUICE
 			isLink: !shouldBeCached,
 			comment: truncate(image.name ?? undefined, DB_MAX_IMAGE_COMMENT_LENGTH),
 		});

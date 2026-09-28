@@ -589,6 +589,22 @@ export interface Locale extends ILocale {
      */
     "unmarkAsSensitive": string;
     /**
+     * AI生成物としてマーク
+     */
+    "markAsAIGenerated": string;
+    /**
+     * AI生成物のマークを解除
+     */
+    "unmarkAsAIGenerated": string;
+    /**
+     * AI生成
+     */
+    "aiGenerated": string;
+    /**
+     * AI生成物のみ表示
+     */
+    "aiGeneratedOnly": string;
+    /**
      * ファイル名を入力
      */
     "enterFileName": string;
@@ -5242,6 +5258,10 @@ export interface Locale extends ILocale {
      * {name}のセンシティブなファイルを含む投稿
      */
     "userSaysSomethingSensitive": ParameterizedString<"name">;
+    /**
+     * {name}はAI生成物を投稿しました
+     */
+    "userSaysSomethingAIGenerated": ParameterizedString<"name">;
     /**
      * スワイプしてタブを切り替える
      */
@@ -16109,5 +16129,21 @@ export interface Locale extends ILocale {
          * 有効にすると、AI生成物フラグが立っているノートを連合する際、CW(内容の警告)にフォールバック文言を合成して送出します。
          */
         "aiGeneratedFallbackCwEnabledCaption": string;
+        /**
+         * AI生成物をミュート
+         */
+        "muteAIGeneratedNotes": string;
+        /**
+         * AI生成物としてマークされたノートの扱いを選択してください。自分自身の投稿には適用されません。
+         */
+        "muteAIGeneratedNotesDescription": string;
+        /**
+         * ミュート(折りたたんで表示)
+         */
+        "muteAIGeneratedNotesMute": string;
+        /**
+         * ハードミュート(完全に非表示)
+         */
+        "muteAIGeneratedNotesHardMute": string;
     };
 }

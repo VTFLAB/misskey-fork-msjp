@@ -17,6 +17,17 @@ export interface IObject {
 	_misskey_requireSigninToViewContents?: boolean;
 	_misskey_makeNotesFollowersOnlyBefore?: number | null;
 	_misskey_makeNotesHiddenBefore?: number | null;
+	// JUICE: AI生成物フラグ
+	_juice_isAIGenerated?: boolean;
+	// JUICE: summaryが著者の設定した本来のCWそのものではなく、_juice_isAIGeneratedを解釈できない
+	// 実装向けの合成CW(フォールバック文言単独、または「フォールバック文言 | 元のCW」)であることを
+	// 示す目印。JUICE側の受信処理はこれが立っている場合、summaryをそのままローカルのCWとして
+	// 採用せず(バッジ表示のみに留め)、_juice_originalCwから元のCWを復元する
+	_juice_summaryIsAIGeneratedFallback?: boolean;
+	// JUICE: _juice_summaryIsAIGeneratedFallback使用時、著者が実際に設定していた本来のCW
+	// (無ければnull)。summaryが合成文言で上書きされてしまうため、JUICE間の連合で元のCWを
+	// 復元するために別プロパティとして送出する
+	_juice_originalCw?: string | null;
 	published?: string;
 	cc?: ApObject;
 	to?: ApObject;
