@@ -11,10 +11,11 @@ import { instance } from '@/instance.js';
 import { host, url } from '@@/js/config.js';
 import { prefer } from '@/preferences.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import { useStream } from '@/stream.js';
-import { genId } from '@/utility/id.js';
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
+import { getProxiedImageUrl } from '@/utility/media-proxy.js';
+import { uploadFile } from '@/utility/drive.js';
+import { extractDominantColors, renderNowPlayingCard, NOW_PLAYING_CARD_SIZE } from '@/utility/now-playing-card.js';
 import type { AudioTrack } from '@/utility/audio-player.js';
 
 export type NowPlayingTrack = {
@@ -115,46 +116,92 @@ export async function misskeyTrackToNowPlaying(track: AudioTrack): Promise<NowPl
 	};
 }
 
-// アートワーク画像をサーバー経由でドライブに取り込む (drive/files/upload-from-url は非同期で、
-// 完了は main ストリームの urlUploadFinished に marker 付きで届く)。同じ画像は md5 で
-// 重複排除されるので、同じ曲を何度 NowPlaying してもドライブが増え続けることはない。
-export function uploadNowPlayingArtwork(imageUrl: string, comment: string | null, timeoutMs = 20000): Promise<Misskey.entities.DriveFile | null> {
+// アートワーク画像を <img> に読み込む。クロスオリジンの画像を canvas から汚染 (tainted) 無しで
+// 読み取れるよう、必ず自インスタンス経由のプロキシ URL (mustOrigin) を通して crossOrigin=anonymous
+// で読み込む。取得に失敗した場合は null を返し、呼び出し側はアートワーク無しでカードを描画する。
+function loadImageForCard(imageUrl: string, timeoutMs = 10000): Promise<HTMLImageElement | null> {
 	return new Promise((resolve) => {
-		const marker = genId();
-		const connection = useStream().useChannel('main');
+		const img = new Image();
 		let settled = false;
-		const finish = (file: Misskey.entities.DriveFile | null) => {
+		const finish = (result: HTMLImageElement | null) => {
 			if (settled) return;
 			settled = true;
-			connection.dispose();
-			resolve(file);
+			window.clearTimeout(timer);
+			resolve(result);
 		};
 		const timer = window.setTimeout(() => finish(null), timeoutMs);
-		connection.on('urlUploadFinished', (res) => {
-			if (res.marker !== marker) return;
-			window.clearTimeout(timer);
-			finish(res.file);
-		});
-		misskeyApi('drive/files/upload-from-url', {
-			url: imageUrl,
-			folderId: prefer.s.uploadFolder,
-			comment: comment != null && comment !== '' ? comment.slice(0, 512) : null,
-			marker,
-		}).catch(() => {
-			window.clearTimeout(timer);
-			finish(null);
-		});
+		img.crossOrigin = 'anonymous';
+		img.onload = () => finish(img);
+		img.onerror = () => finish(null);
+		img.src = getProxiedImageUrl(imageUrl, undefined, true);
 	});
+}
+
+// NowPlaying カード画像 (PNG) を生成する。アートワークが取得できない場合は art card として
+// 生成する (renderNowPlayingCard 側の仕様)。canvas / 画像読み込みに失敗した場合は null を返す。
+export async function generateNowPlayingCard(track: NowPlayingTrack): Promise<Blob | null> {
+	try {
+		const canvas = window.document.createElement('canvas');
+		canvas.width = NOW_PLAYING_CARD_SIZE.width;
+		canvas.height = NOW_PLAYING_CARD_SIZE.height;
+		const ctx = canvas.getContext('2d');
+		if (ctx == null) return null;
+
+		const artwork = track.artworkUrl ? await loadImageForCard(track.artworkUrl) : null;
+
+		let artworkColors: { r: number; g: number; b: number }[] | undefined;
+		if (artwork != null) {
+			const sampleCanvas = window.document.createElement('canvas');
+			sampleCanvas.width = 32;
+			sampleCanvas.height = 32;
+			const sampleCtx = sampleCanvas.getContext('2d');
+			if (sampleCtx != null) {
+				artworkColors = extractDominantColors(sampleCtx, artwork, 2);
+			}
+		}
+
+		renderNowPlayingCard(ctx, {
+			title: track.title,
+			artist: track.artist,
+			serviceLabel: track.serviceLabel,
+			footer: `#NowPlaying・${host}`,
+			artwork,
+			artworkColors,
+		});
+
+		return await new Promise<Blob | null>((resolve) => {
+			canvas.toBlob((blob) => resolve(blob), 'image/png');
+		});
+	} catch {
+		return null;
+	}
+}
+
+// カード画像を生成してドライブにアップロードする。生成/アップロードいずれかが失敗したら null を返す
+// (呼び出し側は画像無しで投稿を続行する)。
+export async function attachNowPlayingCard(track: NowPlayingTrack): Promise<Misskey.entities.DriveFile | null> {
+	try {
+		const blob = await generateNowPlayingCard(track);
+		if (blob == null) return null;
+		const { filePromise } = uploadFile(blob, {
+			name: 'nowplaying.png',
+			folderId: prefer.s.uploadFolder,
+			caption: [track.title, track.artist].filter(Boolean).join(' / ') || null,
+		});
+		return await filePromise;
+	} catch {
+		return null;
+	}
 }
 
 export async function openNowPlayingPost(track: NowPlayingTrack): Promise<void> {
 	let initialFiles: Misskey.entities.DriveFile[] | undefined;
-	if (track.artworkUrl) {
-		const file = await uploadNowPlayingArtwork(track.artworkUrl, [track.title, track.artist].filter(Boolean).join(' / '));
+	if (prefer.s.nowPlayingAttachCard) {
+		const file = await attachNowPlayingCard(track);
 		if (file != null) {
 			initialFiles = [file];
 		} else {
-			os.toast(i18n.ts._nowPlaying.artworkUploadFailed);
+			os.toast(i18n.ts._nowPlaying.cardGenerationFailed);
 		}
 	}
 	await os.post({
