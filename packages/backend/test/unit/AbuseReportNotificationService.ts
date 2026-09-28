@@ -379,6 +379,13 @@ describe('AbuseReportNotificationService', () => {
 					resolvedAs: null,
 					targetUserHost: null,
 					reporterHost: null,
+					category: null,
+					targetType: null,
+					targetNoteId: null,
+					targetNote: null,
+					targetChatMessageId: null,
+					targetChatMessage: null,
+					situationDetail: null,
 				},
 			];
 
