@@ -18,7 +18,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<div :class="$style.root">
 		<div :class="$style.player">
 			<div v-if="currentTrack" :class="$style.nowPlaying">
-				<img v-if="currentTrack.file.thumbnailUrl" :src="currentTrack.file.thumbnailUrl" :class="$style.artwork" alt=""/>
+				<img v-if="artworkUrl" :src="artworkUrl" :class="$style.artwork" alt=""/>
 				<i v-else class="ti ti-music" :class="$style.artworkIcon"></i>
 				<div :class="$style.meta">
 					<div :class="$style.title">{{ trackTitle }}</div>
@@ -47,6 +47,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<button class="_button" :class="$style.controlButton" :aria-label="loopLabel" @click="cycleLoop">
 					<i class="ti ti-repeat" :class="{ [$style.loopActive]: audioPlayerState.loop !== 'off' }"></i>
 				</button>
+				<button v-if="currentTrack" v-tooltip="i18n.ts._nowPlaying.post" class="_button" :class="$style.controlButton" :aria-label="i18n.ts._nowPlaying.post" @click="postNowPlaying">
+					<i class="ti ti-music"></i>
+				</button>
 			</div>
 
 			<div :class="$style.volumeRow">
@@ -71,7 +74,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				:class="[$style.queueItem, { [$style.queueItemActive]: i === audioPlayerState.index }]"
 			>
 				<button class="_button" :class="$style.queueItemMain" @click="playAt(i)">
-					<img v-if="track.file.thumbnailUrl" :src="track.file.thumbnailUrl" :class="$style.queueItemArtwork" alt=""/>
+					<img v-if="trackArtworkUrl(track)" :src="trackArtworkUrl(track) ?? undefined" :class="$style.queueItemArtwork" alt=""/>
 					<i v-else class="ti ti-music" :class="$style.queueItemArtworkIcon"></i>
 					<div :class="$style.queueItemMeta">
 						<div :class="$style.queueItemTitle">{{ track.file.comment || track.file.name }}</div>
@@ -99,6 +102,7 @@ import MkMediaRange from '@/components/MkMediaRange.vue';
 import {
 	audioPlayerState,
 	currentTrack,
+	trackArtworkUrl,
 	toggle,
 	next,
 	prev,
@@ -110,6 +114,7 @@ import {
 	remove,
 	clear,
 } from '@/utility/audio-player.js';
+import { postNowPlayingForMisskeyTrack } from '@/utility/now-playing.js';
 
 const emit = defineEmits<{
 	(ev: 'closed'): void;
@@ -126,6 +131,13 @@ const trackArtist = computed(() => {
 	if (user == null) return '';
 	return user.name || user.username;
 });
+
+const artworkUrl = computed(() => trackArtworkUrl(currentTrack.value));
+
+async function postNowPlaying() {
+	if (currentTrack.value == null) return;
+	await postNowPlayingForMisskeyTrack(currentTrack.value);
+}
 
 const seekValue = computed({
 	get: () => audioPlayerState.duration > 0 ? audioPlayerState.currentTime / audioPlayerState.duration : 0,

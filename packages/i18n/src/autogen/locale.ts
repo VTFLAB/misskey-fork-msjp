@@ -12607,6 +12607,112 @@ export interface Locale extends ILocale {
          */
         "useGlobalAudioPlayer_description": string;
     };
+    "_nowPlaying": {
+        /**
+         * NowPlaying
+         */
+        "title": string;
+        /**
+         * NowPlayingを投稿
+         */
+        "post": string;
+        /**
+         * 共有URLから
+         */
+        "fromUrl": string;
+        /**
+         * 取得
+         */
+        "fetch": string;
+        /**
+         * 今聴いている曲を取得
+         */
+        "fetchCurrent": string;
+        /**
+         * 再生中の曲が見つかりません
+         */
+        "noCurrentTrack": string;
+        /**
+         * Last.fmまたはListenBrainzのアカウントが連携されていません。
+         */
+        "notLinked": string;
+        /**
+         * 連携済みアカウント
+         */
+        "linkedAccounts": string;
+        /**
+         * 連携
+         */
+        "link": string;
+        /**
+         * 連携解除
+         */
+        "unlink": string;
+        /**
+         * 連携を解除しますか?
+         */
+        "unlinkConfirm": string;
+        /**
+         * ListenBrainz APIトークン
+         */
+        "listenbrainzToken": string;
+        /**
+         * ListenBrainzの「Settings」ページから取得できるユーザートークンを入力してください。
+         */
+        "listenbrainzTokenCaption": string;
+        /**
+         * Last.fm
+         */
+        "lastfm": string;
+        /**
+         * ListenBrainz
+         */
+        "listenbrainz": string;
+        /**
+         * 投稿テンプレート
+         */
+        "template": string;
+        /**
+         * {title}、{artist}、{service}がそれぞれ曲名・アーティスト名・サービス名に置き換わります。アーティスト名が取得できない場合は自動的に省略されます。
+         */
+        "templateCaption": ParameterizedString<"title" | "artist" | "service">;
+        /**
+         * デフォルトに戻す
+         */
+        "resetTemplate": string;
+        /**
+         * 曲名
+         */
+        "titleField": string;
+        /**
+         * アーティスト
+         */
+        "artistField": string;
+        /**
+         * サービス
+         */
+        "serviceField": string;
+        /**
+         * URL
+         */
+        "urlField": string;
+        /**
+         * プレビュー
+         */
+        "preview": string;
+        /**
+         * 挿入
+         */
+        "insert": string;
+        /**
+         * Last.fmアカウントを連携しました
+         */
+        "lastfmLinked": string;
+        /**
+         * Last.fmアカウントの連携に失敗しました
+         */
+        "lastfmLinkFailed": string;
+    };
     "_contextMenu": {
         /**
          * コンテキストメニュー
