@@ -370,6 +370,9 @@ export const PREF_DEF = definePreferences({
 	useNativeUiForVideoAudioPlayer: {
 		default: false,
 	},
+	useGlobalAudioPlayer: {
+		default: true,
+	},
 	keepOriginalFilename: {
 		default: true,
 	},
