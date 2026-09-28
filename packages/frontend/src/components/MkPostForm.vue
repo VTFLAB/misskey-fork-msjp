@@ -122,6 +122,7 @@ import { watch, nextTick, onMounted, defineAsyncComponent, provide, shallowRef, 
 import * as mfm from 'mfm-js';
 import * as Misskey from 'misskey-js';
 import insertTextAtCursor from 'insert-text-at-cursor';
+import { uploadNowPlayingArtwork } from '@/utility/now-playing.js';
 import { toASCII } from 'punycode.js';
 import { host, url } from '@@/js/config.js';
 import MkUploaderItems from './MkUploaderItems.vue';
@@ -1226,19 +1227,29 @@ function openNowPlayingDialog() {
 	// おき、ダイアログが閉じてから text の値を直接書き換える (insertMfmFunction と同じ方式)。
 	const pos = textareaEl.value?.selectionStart ?? text.value.length;
 	const posEnd = textareaEl.value?.selectionEnd ?? pos;
-	let pending: string | null = null;
+	let pending: { text: string; artworkUrl: string | null; comment: string | null } | null = null;
 	const { dispose } = os.popup(defineAsyncComponent(() => import('@/components/MkNowPlayingDialog.vue')), {}, {
-		insert: (nowPlayingText: string) => {
-			pending = nowPlayingText;
+		insert: (payload: { text: string; artworkUrl: string | null; comment: string | null }) => {
+			pending = payload;
 		},
 		closed: () => {
 			dispose();
 			if (pending == null) return;
+			if (pending.artworkUrl) {
+				// アートワークはサーバー経由でドライブに取り込んでから添付する (完了まで数秒かかる)
+				uploadNowPlayingArtwork(pending.artworkUrl, pending.comment).then(file => {
+					if (file != null) {
+						files.value.push(file);
+					} else {
+						os.toast(i18n.ts._nowPlaying.artworkUploadFailed);
+					}
+				});
+			}
 			const before = text.value.substring(0, pos);
 			const after = text.value.substring(posEnd);
 			const prefix = before.length > 0 && !before.endsWith('\n') ? '\n' : '';
 			const suffix = after.length > 0 && !after.startsWith('\n') ? '\n' : '';
-			const inserted = prefix + pending + suffix;
+			const inserted = prefix + pending.text + suffix;
 			text.value = before + inserted + after;
 			nextTick(() => {
 				if (textareaEl.value == null) return;
