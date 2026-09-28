@@ -28,15 +28,6 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkInfo v-if="resolveError" warn>{{ resolveError }}</MkInfo>
 			</div>
 
-			<div class="_gaps_s">
-				<div style="font-weight: bold;">{{ i18n.ts._nowPlaying.fetchCurrent }}</div>
-				<MkButton :disabled="fetchingCurrent" @click="fetchCurrent">{{ i18n.ts._nowPlaying.fetchCurrent }}</MkButton>
-				<MkInfo v-if="currentHint" warn>
-					{{ currentHint }}
-					<span v-if="currentHintNotLinked"> <MkA to="/settings/nowplaying" class="_link">{{ i18n.ts._nowPlaying.linkedAccounts }}</MkA></span>
-				</MkInfo>
-			</div>
-
 			<img v-if="thumbnailUrl" :src="thumbnailUrl" :class="$style.thumbnail" alt=""/>
 
 			<div class="_gaps_s">
@@ -71,7 +62,6 @@ import MkModalWindow from '@/components/MkModalWindow.vue';
 import MkInput from '@/components/MkInput.vue';
 import MkButton from '@/components/MkButton.vue';
 import MkInfo from '@/components/MkInfo.vue';
-import MkA from '@/components/global/MkA.vue';
 import { i18n } from '@/i18n.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { buildNowPlayingText } from '@/utility/now-playing.js';
@@ -86,10 +76,6 @@ const dialog = useTemplateRef('dialog');
 const sourceUrl = ref('');
 const resolving = ref(false);
 const resolveError = ref<string | null>(null);
-
-const fetchingCurrent = ref(false);
-const currentHint = ref<string | null>(null);
-const currentHintNotLinked = ref(false);
 
 const title = ref('');
 const artist = ref('');
@@ -123,33 +109,6 @@ async function resolveUrl() {
 		}
 	} finally {
 		resolving.value = false;
-	}
-}
-
-async function fetchCurrent() {
-	fetchingCurrent.value = true;
-	currentHint.value = null;
-	currentHintNotLinked.value = false;
-	try {
-		const res = await misskeyApi('nowplaying/current', {});
-		if (res == null) {
-			currentHint.value = i18n.ts._nowPlaying.noCurrentTrack;
-			return;
-		}
-		title.value = res.title;
-		artist.value = res.artist;
-		serviceLabel.value = res.serviceLabel;
-		trackUrl.value = res.url ?? '';
-		thumbnailUrl.value = res.thumbnailUrl;
-	} catch (err: any) {
-		if (err?.code === 'NO_LINKED_ACCOUNT') {
-			currentHint.value = i18n.ts._nowPlaying.notLinked;
-			currentHintNotLinked.value = true;
-		} else {
-			currentHint.value = i18n.ts.somethingHappened;
-		}
-	} finally {
-		fetchingCurrent.value = false;
 	}
 }
 

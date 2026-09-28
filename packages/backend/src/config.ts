@@ -131,11 +131,6 @@ type Source = {
 		clientSecret?: string;
 	};
 
-	lastfm?: {
-		apiKey?: string;
-		apiSecret?: string;
-	};
-
 	twitchTranslation?: {
 		url?: string;
 		timeout?: number;
@@ -286,12 +281,6 @@ export type Config = {
 	twitchTranslation: {
 		url: string;
 		timeout: number;
-	} | undefined;
-
-	// NowPlaying (fork 独自) の Last.fm 連携。未設定なら Last.fm 連携のみ無効 (ListenBrainz は常時利用可能)。
-	lastfm: {
-		apiKey: string;
-		apiSecret: string;
 	} | undefined;
 
 	// OvenMediaEngine (OME) 連携 (fork 独自)。未設定なら機能全体が無効。
@@ -458,10 +447,6 @@ export function loadConfig(): Config {
 		twitchTranslation: config.twitchTranslation?.url ? {
 			url: config.twitchTranslation.url,
 			timeout: config.twitchTranslation.timeout ?? 8000,
-		} : undefined,
-		lastfm: (config.lastfm?.apiKey && config.lastfm.apiSecret) ? {
-			apiKey: config.lastfm.apiKey,
-			apiSecret: config.lastfm.apiSecret,
 		} : undefined,
 		ome: (config.ome?.apiUrl && config.ome.apiToken && config.ome.signedPolicySecret && config.ome.publicWhipUrl) ? {
 			apiUrl: config.ome.apiUrl,

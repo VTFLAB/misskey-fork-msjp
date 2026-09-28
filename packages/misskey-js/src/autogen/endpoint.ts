@@ -608,15 +608,9 @@ import type {
 	NotesUserListTimelineRequest,
 	NotesUserListTimelineResponse,
 	NotificationsCreateRequest,
-	NowplayingAccountsResponse,
-	NowplayingCurrentResponse,
-	NowplayingLastfmGenerateAuthUrlResponse,
-	NowplayingListenbrainzLinkRequest,
-	NowplayingListenbrainzLinkResponse,
 	NowplayingMisskeyLabelResponse,
 	NowplayingResolveUrlRequest,
 	NowplayingResolveUrlResponse,
-	NowplayingUnlinkRequest,
 	PagePushRequest,
 	PagesCreateRequest,
 	PagesCreateResponse,
@@ -1175,13 +1169,8 @@ export type Endpoints = {
 	'notifications/flush': { req: EmptyRequest; res: EmptyResponse };
 	'notifications/mark-all-as-read': { req: EmptyRequest; res: EmptyResponse };
 	'notifications/test-notification': { req: EmptyRequest; res: EmptyResponse };
-	'nowplaying/accounts': { req: EmptyRequest; res: NowplayingAccountsResponse };
-	'nowplaying/current': { req: EmptyRequest; res: NowplayingCurrentResponse };
-	'nowplaying/lastfm/generate-auth-url': { req: EmptyRequest; res: NowplayingLastfmGenerateAuthUrlResponse };
-	'nowplaying/listenbrainz/link': { req: NowplayingListenbrainzLinkRequest; res: NowplayingListenbrainzLinkResponse };
 	'nowplaying/misskey-label': { req: EmptyRequest; res: NowplayingMisskeyLabelResponse };
 	'nowplaying/resolve-url': { req: NowplayingResolveUrlRequest; res: NowplayingResolveUrlResponse };
-	'nowplaying/unlink': { req: NowplayingUnlinkRequest; res: EmptyResponse };
 	'page-push': { req: PagePushRequest; res: EmptyResponse };
 	'pages/create': { req: PagesCreateRequest; res: PagesCreateResponse };
 	'pages/delete': { req: PagesDeleteRequest; res: EmptyResponse };
