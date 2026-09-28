@@ -4457,52 +4457,6 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
-     * 自分の NowPlaying (Last.fm / ListenBrainz) 連携状態を返す。lastfmAvailable はこのインスタンスで Last.fm 連携が有効かどうか。
-     * 
-     * **Credential required**: *Yes* / **Permission**: *read:account*
-     */
-    request<E extends 'nowplaying/accounts', P extends Endpoints[E]['req']>(
-      endpoint: E,
-      params: P,
-      credential?: string | null,
-    ): Promise<SwitchCaseResponseType<E, P>>;
-
-    /**
-     * リンク済の Last.fm / ListenBrainz アカウントから現在再生中のトラックを返す。再生中のトラックが無ければ null。
-     * 
-     * **Credential required**: *Yes* / **Permission**: *read:account*
-     */
-    request<E extends 'nowplaying/current', P extends Endpoints[E]['req']>(
-      endpoint: E,
-      params: P,
-      credential?: string | null,
-    ): Promise<SwitchCaseResponseType<E, P>>;
-
-    /**
-     * Last.fm アカウント連携の認可 URL を発行する。
-     * 
-     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
-     * **Credential required**: *Yes*
-     */
-    request<E extends 'nowplaying/lastfm/generate-auth-url', P extends Endpoints[E]['req']>(
-      endpoint: E,
-      params: P,
-      credential?: string | null,
-    ): Promise<SwitchCaseResponseType<E, P>>;
-
-    /**
-     * ListenBrainz の user token を検証してアカウントを連携する。
-     * 
-     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
-     * **Credential required**: *Yes*
-     */
-    request<E extends 'nowplaying/listenbrainz/link', P extends Endpoints[E]['req']>(
-      endpoint: E,
-      params: P,
-      credential?: string | null,
-    ): Promise<SwitchCaseResponseType<E, P>>;
-
-    /**
      * Misskey にホストされている (このインスタンス自体が音源の) トラックの "from" 表示用ラベルを返す。
      * 
      * **Credential required**: *Yes* / **Permission**: *read:account*
@@ -4519,18 +4473,6 @@ declare module '../api.js' {
      * **Credential required**: *Yes* / **Permission**: *read:account*
      */
     request<E extends 'nowplaying/resolve-url', P extends Endpoints[E]['req']>(
-      endpoint: E,
-      params: P,
-      credential?: string | null,
-    ): Promise<SwitchCaseResponseType<E, P>>;
-
-    /**
-     * NowPlaying の Last.fm / ListenBrainz アカウント連携を解除する。
-     * 
-     * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.
-     * **Credential required**: *Yes*
-     */
-    request<E extends 'nowplaying/unlink', P extends Endpoints[E]['req']>(
       endpoint: E,
       params: P,
       credential?: string | null,

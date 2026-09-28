@@ -40,7 +40,6 @@ import {
 	MiLiveChannel,
 	MiMeta,
 	MiModerationLog,
-	MiMusicServiceAccount,
 	MiMuting,
 	MiNote,
 	MiNoteFavorite,
@@ -597,12 +596,6 @@ const $twitchStreamBlocksRepository: Provider = {
 	inject: [DI.db],
 };
 
-const $musicServiceAccountsRepository: Provider = {
-	provide: DI.musicServiceAccountsRepository,
-	useFactory: (db: DataSource) => db.getRepository(MiMusicServiceAccount).extend(miRepository as MiRepository<MiMusicServiceAccount>),
-	inject: [DI.db],
-};
-
 const $remoteGuestAccountsRepository: Provider = {
 	provide: DI.remoteGuestAccountsRepository,
 	useFactory: (db: DataSource) => db.getRepository(MiRemoteGuestAccount).extend(miRepository as MiRepository<MiRemoteGuestAccount>),
@@ -710,7 +703,6 @@ const $googleAccountsRepository: Provider = {
 		$remoteGuestAccountsRepository,
 		$remoteGuestSessionsRepository,
 		$googleAccountsRepository,
-		$musicServiceAccountsRepository,
 	],
 	exports: [
 		$usersRepository,
@@ -799,7 +791,6 @@ const $googleAccountsRepository: Provider = {
 		$remoteGuestAccountsRepository,
 		$remoteGuestSessionsRepository,
 		$googleAccountsRepository,
-		$musicServiceAccountsRepository,
 	],
 })
 export class RepositoryModule {
