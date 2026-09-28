@@ -81,6 +81,7 @@ export type UploaderItem = {
 	watermarkLayers: WatermarkLayers | null;
 	imageFrameParams: ImageFrameParams | null;
 	isSensitive?: boolean;
+	isAIGenerated?: boolean;
 	caption?: string | null;
 	abort?: (() => void) | null;
 	abortPreprocess?: (() => void) | null;
@@ -219,6 +220,14 @@ export function useUploader(options: {
 				ref: computed({
 					get: () => item.isSensitive ?? false,
 					set: (value) => item.isSensitive = value,
+				}),
+			}, {
+				type: 'switch',
+				text: i18n.ts.aiGenerated,
+				icon: 'ti ti-ai',
+				ref: computed({
+					get: () => item.isAIGenerated ?? false,
+					set: (value) => item.isAIGenerated = value,
 				}),
 			}, {
 				text: i18n.ts.describeFile,
@@ -562,6 +571,7 @@ export function useUploader(options: {
 			name: getUploadName(item),
 			folderId: options.folderId === undefined ? prefer.s.uploadFolder : options.folderId,
 			isSensitive: item.isSensitive ?? false,
+			isAIGenerated: item.isAIGenerated ?? false,
 			caption: item.caption ?? null,
 			onProgress: (progress) => {
 				if (item.progress == null) {

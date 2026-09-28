@@ -10,6 +10,9 @@ import { MiUser } from './User.js';
 import { MiPage } from './Page.js';
 import { MiUserList } from './UserList.js';
 
+// AI生成物としてマークされたノートの扱い(JUICE)。none: 通常表示、mute: 折りたたみ表示、hardMute: 完全に非表示
+export const aiGeneratedNoteMuteModes = ['none', 'mute', 'hardMute'] as const;
+
 // TODO: このテーブルで管理している情報すべてレジストリで管理するようにしても良いかも
 //       ただ、「emailVerified が true なユーザーを find する」のようなクエリは書けなくなるからウーン
 @Entity('user_profile')
@@ -68,6 +71,12 @@ export class MiUserProfile {
 		length: 32, nullable: true,
 	})
 	public lang: string | null;
+
+	@Column('varchar', {
+		length: 16, default: 'none',
+		comment: 'How to treat notes flagged as AI-generated (JUICE): none, mute (collapse), or hardMute (fully hide).',
+	})
+	public muteAIGeneratedNotes: typeof aiGeneratedNoteMuteModes[number];
 
 	@Column('varchar', {
 		length: 512, nullable: true,
