@@ -24,6 +24,7 @@ import { MiAvatarDecoration, MiChatMessage, MiChatRoom, MiReversiGame, MiRole, M
 import type { Packed } from '@/misc/json-schema.js';
 import type { JmaEewHistoryEntry } from '@/core/earthquake/EarthquakeAlertService.js';
 import type { TwitchChatFragment } from '@/models/TwitchStreamComment.js';
+import type { JuiceSettingsValue } from '@/models/JuiceSettings.js';
 import { DI } from '@/di-symbols.js';
 import type { Config } from '@/config.js';
 import { bindThis } from '@/decorators.js';
@@ -266,6 +267,8 @@ export interface InternalEventTypes {
 	unmute: { muterId: MiUser['id']; muteeId: MiUser['id']; };
 	userListMemberAdded: { userListId: MiUserList['id']; memberId: MiUser['id']; };
 	userListMemberRemoved: { userListId: MiUserList['id']; memberId: MiUser['id']; };
+	// JUICE: JuiceSettingsService のキャッシュをクラスタ全体で同期するための内部イベント
+	juiceSettingsUpdated: { before: JuiceSettingsValue; after: JuiceSettingsValue; };
 }
 
 export type EventTypesToEventPayload<T> = EventUnionFromDictionary<UndefinedAsNullAll<SerializedAll<T>>>;

@@ -241,6 +241,14 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		active: currentPage.value?.route.name === 'performance',
 	}],
 }, {
+	title: i18n.ts._juiceSettings.title,
+	items: [{
+		icon: 'ti ti-droplet',
+		text: i18n.ts._juiceSettings.title,
+		to: '/admin/juice',
+		active: currentPage.value?.route.name === 'juice',
+	}],
+}, {
 	title: i18n.ts.info,
 	items: [{
 		icon: 'ti ti-database',
