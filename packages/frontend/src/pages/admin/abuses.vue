@@ -25,6 +25,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkSelect v-model="reporterOrigin" :items="reporterOriginDef" style="margin: 0; flex: 1;">
 					<template #label>{{ i18n.ts.reporterOrigin }}</template>
 				</MkSelect>
+				<MkSelect v-model="category" :items="categoryDef" style="margin: 0; flex: 1;">
+					<template #label>{{ i18n.ts._abuseUserReport.category }}</template>
+				</MkSelect>
 			</div>
 
 			<!-- TODO
@@ -59,6 +62,7 @@ import { useMkSelect } from '@/composables/use-mkselect.js';
 import MkButton from '@/components/MkButton.vue';
 import { store } from '@/store.js';
 import { Paginator } from '@/utility/paginator.js';
+import { useAbuseReportCategories } from '@/composables/useAbuseReportCategories.js';
 
 const {
 	model: state,
@@ -93,6 +97,17 @@ const {
 	],
 	initialValue: 'combined',
 });
+// JUICE: 通報カテゴリでの絞り込み。無効化されたカテゴリを持つ過去の通報も絞り込めるよう、
+// includeDisabledで(モデレーター向けの)無効カテゴリも含めた一覧を取得する
+const { fetchCategories, categoryOptions } = useAbuseReportCategories();
+fetchCategories({ includeDisabled: true });
+
+const category = ref('all');
+const categoryDef = computed(() => [
+	{ label: i18n.ts.all, value: 'all' },
+	...categoryOptions.value,
+]);
+
 const searchUsername = ref('');
 const searchHost = ref('');
 
@@ -102,6 +117,7 @@ const paginator = markRaw(new Paginator('admin/abuse-user-reports', {
 		state: state.value,
 		reporterOrigin: reporterOrigin.value,
 		targetUserOrigin: targetUserOrigin.value,
+		category: category.value === 'all' ? undefined : category.value,
 	})),
 }));
 

@@ -23,6 +23,7 @@ import { RecipientMethod } from '@/models/AbuseReportNotificationRecipient.js';
 import { ModerationLogService } from '@/core/ModerationLogService.js';
 import { SystemWebhookService } from '@/core/SystemWebhookService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
+import { NotificationService } from '@/core/NotificationService.js';
 import { IdService } from './IdService.js';
 
 @Injectable()
@@ -44,16 +45,22 @@ export class AbuseReportNotificationService implements OnApplicationShutdown {
 		private moderationLogService: ModerationLogService,
 		private globalEventService: GlobalEventService,
 		private userEntityService: UserEntityService,
+		private notificationService: NotificationService,
 	) {
 		this.redisForSub.on('message', this.onMessage);
 	}
 
 	/**
 	 * 管理者用Redisイベントを用いて{@link abuseReports}の内容を管理者各位に通知する.
+	 * あわせて{@link NotificationService.createNotification}で通常の通知(🔔)としても残す
+	 * (JUICE: admin streamはアプリを開いている間だけのリアルタイムトースト用、通知(🔔)は
+	 * オフライン/リロード後でも遡って確認できるようにするためのもの。他のJUICE管理用通知
+	 * (newEmojiRequest等、JuiceAdminNotificationService参照)と揃える)。
 	 * 通知先ユーザは{@link getModeratorIds}の取得結果に依る.
 	 *
 	 * @see RoleService.getModeratorIds
 	 * @see GlobalEventService.publishAdminStream
+	 * @see NotificationService.createNotification
 	 */
 	@bindThis
 	public async notifyAdminStream(abuseReports: MiAbuseUserReport[]) {
@@ -78,6 +85,13 @@ export class AbuseReportNotificationService implements OnApplicationShutdown {
 						comment: abuseReport.comment,
 					},
 				);
+				// JUICE: 通報コメント・通報者はPII保護のため通知(🔔)本体には含めない
+				// (詳細は通報管理画面で確認させる。newContactFormと同じ方針)
+				this.notificationService.createNotification(moderatorId, 'newAbuseUserReport', {
+					reportId: abuseReport.id,
+					targetUserId: abuseReport.targetUserId,
+					category: abuseReport.category,
+				});
 			}
 		}
 	}

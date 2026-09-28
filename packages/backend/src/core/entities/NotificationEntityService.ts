@@ -105,6 +105,14 @@ export class NotificationEntityService implements OnModuleInit {
 		// if the user has been deleted, don't show this notification
 		if (needsUser && !userIfNeed) return null;
 
+		// JUICE: 通報が新しく来たとき、通報対象ユーザーをパックする(通報者はPII保護のため含めない)
+		const targetUserId = notification.type === 'newAbuseUserReport' ? notification.targetUserId : undefined;
+		const targetUserIfNeed = targetUserId != null ? (
+			hint?.packedUsers != null
+				? hint.packedUsers.get(targetUserId)
+				: this.userEntityService.pack(targetUserId, { id: meId })
+		) : undefined;
+
 		//#region Grouped notifications
 		if (notification.type === 'reaction:grouped') {
 			const reactions = (await Promise.all(notification.reactions.map(async reaction => {
@@ -231,6 +239,11 @@ export class NotificationEntityService implements OnModuleInit {
 				feedbackType: notification.feedbackType,
 				title: notification.title,
 			} : {}),
+			...(targetUserIfNeed != null ? { targetUser: targetUserIfNeed } : {}),
+			...(notification.type === 'newAbuseUserReport' ? {
+				reportId: notification.reportId,
+				category: notification.category,
+			} : {}),
 		});
 	}
 
@@ -267,6 +280,8 @@ export class NotificationEntityService implements OnModuleInit {
 		const userIds = [];
 		for (const notification of validNotifications) {
 			if ('notifierId' in notification) userIds.push(notification.notifierId);
+			// JUICE: 通報の通報対象ユーザーもまとめてパックする
+			if (notification.type === 'newAbuseUserReport') userIds.push(notification.targetUserId);
 			if (notification.type === 'reaction:grouped') userIds.push(...notification.reactions.map(x => x.userId));
 			if (notification.type === 'renote:grouped') userIds.push(...notification.userIds);
 		}

@@ -351,6 +351,13 @@ export class WebhookTestService {
 			reporterHost: null,
 			resolvedAs: null,
 			moderationNote: 'foo',
+			category: null,
+			targetType: null,
+			targetNoteId: null,
+			targetNote: null,
+			targetChatMessageId: null,
+			targetChatMessage: null,
+			situationDetail: null,
 			...override,
 		};
 

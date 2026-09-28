@@ -182,6 +182,11 @@ const menuDef = computed<SuperMenuDef[]>(() => [{
 		to: '/admin/abuses',
 		active: currentPage.value?.route.name === 'abuses',
 	}, {
+		icon: 'ti ti-flag',
+		text: i18n.ts._abuseUserReport._category.categoryManagement,
+		to: '/admin/abuse-report-categories',
+		active: currentPage.value?.route.name === 'abuse-report-categories',
+	}, {
 		icon: 'ti ti-list-search',
 		text: i18n.ts.moderationLogs,
 		to: '/admin/modlog',
