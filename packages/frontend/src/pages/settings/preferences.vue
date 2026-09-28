@@ -562,6 +562,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 								</MkPreferenceContainer>
 							</SearchMarker>
 
+							<SearchMarker :keywords="['global', 'background', 'audio', 'player', 'queue', 'media session']">
+								<MkPreferenceContainer k="useGlobalAudioPlayer">
+									<MkSwitch v-model="useGlobalAudioPlayer">
+										<template #label><SearchLabel>{{ i18n.ts._audioPlayer.useGlobalAudioPlayer }}</SearchLabel></template>
+										<template #caption><SearchText>{{ i18n.ts._audioPlayer.useGlobalAudioPlayer_description }}</SearchText></template>
+									</MkSwitch>
+								</MkPreferenceContainer>
+							</SearchMarker>
+
 							<SearchMarker :keywords="['text', 'selectable']">
 								<MkPreferenceContainer k="makeEveryTextElementsSelectable">
 									<MkSwitch v-model="makeEveryTextElementsSelectable">
@@ -954,6 +963,7 @@ const enableHorizontalSwipe = prefer.model('enableHorizontalSwipe');
 const showPageTabBarBottom = prefer.model('showPageTabBarBottom');
 const enablePullToRefresh = prefer.model('enablePullToRefresh');
 const useNativeUiForVideoAudioPlayer = prefer.model('useNativeUiForVideoAudioPlayer');
+const useGlobalAudioPlayer = prefer.model('useGlobalAudioPlayer');
 const contextMenu = prefer.model('contextMenu');
 const menuStyle = prefer.model('menuStyle');
 const makeEveryTextElementsSelectable = prefer.model('makeEveryTextElementsSelectable');
