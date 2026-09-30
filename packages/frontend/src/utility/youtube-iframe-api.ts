@@ -20,8 +20,8 @@ export interface YTPlayer {
 	playVideo(): void;
 	pauseVideo(): void;
 	stopVideo(): void;
-	loadVideoById(videoId: string): void;
-	cueVideoById(videoId: string): void;
+	loadVideoById(args: { videoId: string; startSeconds?: number }): void;
+	cueVideoById(args: { videoId: string; startSeconds?: number }): void;
 	destroy(): void;
 }
 

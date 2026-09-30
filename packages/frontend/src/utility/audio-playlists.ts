@@ -9,12 +9,12 @@
 // インデックス用のキーにまとめて持つ。
 
 import { reactive } from 'vue';
-import * as Misskey from 'misskey-js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { genId } from '@/utility/id.js';
+import { toPersistableTrack } from '@/utility/audio-player.js';
 import type { AudioTrack } from '@/utility/audio-player.js';
 
 const REGISTRY_SCOPE = ['client', 'audioPlayer'];
@@ -87,55 +87,6 @@ function serialize<T>(fn: () => Promise<T>): Promise<T> {
 	return run;
 }
 
-// 保存用に、再生・表示・NowPlaying に必要な項目だけを残した軽量なスナップショットにする。
-// DriveFile / UserLite を丸ごと保存すると 1 曲 2KB 前後になり、API の body 上限 (1MB) に近づくため。
-// 再生キュー用の qid も保存しない。
-function toStoredTrack(track: AudioTrack): AudioTrack {
-	if (track.kind === 'youtube') {
-		return { kind: 'youtube', id: track.id, youtube: { ...track.youtube } };
-	}
-	const file = track.file;
-	const user = track.user ?? null;
-	return {
-		id: track.id,
-		file: {
-			id: file.id,
-			createdAt: file.createdAt,
-			name: file.name,
-			type: file.type,
-			md5: file.md5,
-			size: file.size,
-			isSensitive: file.isSensitive,
-			blurhash: null,
-			properties: {},
-			url: file.url,
-			thumbnailUrl: file.thumbnailUrl,
-			comment: file.comment,
-			folderId: null,
-			folder: null,
-			userId: null,
-			user: null,
-		} as Misskey.entities.DriveFile,
-		user: user == null ? null : {
-			id: user.id,
-			name: user.name,
-			username: user.username,
-			host: user.host,
-			avatarUrl: user.avatarUrl,
-			avatarBlurhash: null,
-			avatarDecorations: [],
-			isBot: user.isBot,
-			isCat: user.isCat,
-			instance: user.instance != null ? { ...user.instance } : undefined,
-			emojis: {},
-			onlineStatus: 'unknown',
-			badgeRoles: [],
-		} as Misskey.entities.UserLite,
-		noteId: track.noteId,
-		noteUrl: track.noteUrl ?? null,
-	};
-}
-
 async function readIndex(): Promise<AudioPlaylistSummary[]> {
 	const list = await registryGet<AudioPlaylistSummary[]>(INDEX_KEY);
 	return Array.isArray(list) ? list : [];
@@ -172,7 +123,7 @@ export function createPlaylist(name: string, tracks: AudioTrack[] = []): Promise
 		const playlist: AudioPlaylist = {
 			id: genId(),
 			name: name.slice(0, PLAYLIST_NAME_MAX_LENGTH),
-			tracks: tracks.slice(0, PLAYLIST_MAX_TRACKS).map(toStoredTrack),
+			tracks: tracks.slice(0, PLAYLIST_MAX_TRACKS).map(toPersistableTrack),
 			updatedAt: Date.now(),
 		};
 		await registrySet(playlistKey(playlist.id), playlist);
@@ -189,7 +140,7 @@ export function createPlaylist(name: string, tracks: AudioTrack[] = []): Promise
 async function writePlaylist(playlist: AudioPlaylist): Promise<AudioPlaylist> {
 	const saved: AudioPlaylist = {
 		...playlist,
-		tracks: playlist.tracks.slice(0, PLAYLIST_MAX_TRACKS).map(toStoredTrack),
+		tracks: playlist.tracks.slice(0, PLAYLIST_MAX_TRACKS).map(toPersistableTrack),
 		updatedAt: Date.now(),
 	};
 	await registrySet(playlistKey(saved.id), saved);
