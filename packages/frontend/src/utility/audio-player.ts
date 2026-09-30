@@ -5,12 +5,26 @@
 
 // グローバルオーディオプレイヤー: ページ遷移・スクロールをまたいで再生を継続する単一のシングルトン。
 // <audio> 要素はこのモジュールの中に一つだけ存在する。
+// YouTube の曲 (bsky-fork 独自) は audio-player-youtube.ts の IFrame Player で再生し、再生位置・状態は
+// どちらの再生方式でも audioPlayerState に集約する。
 
 import { computed, reactive } from 'vue';
 import * as Misskey from 'misskey-js';
 import { genId } from '@/utility/id.js';
+import { i18n } from '@/i18n.js';
+import {
+	setYoutubeHandlers,
+	youtubeLoad,
+	youtubePlay,
+	youtubePause,
+	youtubeStop,
+	youtubeSeek,
+	youtubeSetVolume,
+	youtubeSetMuted,
+} from '@/utility/audio-player-youtube.js';
 
-export type AudioTrack = {
+export type FileAudioTrack = {
+	kind?: 'file';
 	id: string; // ドライブファイルID
 	file: Misskey.entities.DriveFile;
 	user?: Misskey.entities.UserLite | null;
@@ -21,11 +35,37 @@ export type AudioTrack = {
 	qid?: string;
 };
 
+export type YoutubeTrackInfo = {
+	videoId: string;
+	title: string;
+	author: string | null;
+	thumbnailUrl: string | null;
+	/** 共有・NowPlaying 用の URL (YouTube Music から追加した場合は music.youtube.com) */
+	url: string;
+	service: 'youtube' | 'youtubeMusic';
+};
+
+export type YoutubeAudioTrack = {
+	kind: 'youtube';
+	id: string; // `yt:${videoId}`
+	youtube: YoutubeTrackInfo;
+	qid?: string;
+};
+
+export type AudioTrack = FileAudioTrack | YoutubeAudioTrack;
+
+export function createYoutubeTrack(info: YoutubeTrackInfo): YoutubeAudioTrack {
+	return { kind: 'youtube', id: `yt:${info.videoId}`, youtube: info };
+}
+
 export type LoopMode = 'off' | 'one' | 'all';
 
 const VOLUME_STORAGE_KEY = 'mkGlobalAudioPlayerVolume';
 const LOOP_ORDER: LoopMode[] = ['off', 'one', 'all'];
 const SEEK_STEP_SEC = 10;
+
+// YouTube の曲の連続再生失敗数 (下の onError ハンドラ参照)
+let youtubeErrorStreak = 0;
 
 function loadStoredVolume(): number {
 	try {
@@ -60,18 +100,53 @@ export const audioPlayerState = reactive({
 	volume: loadStoredVolume(),
 	muted: false,
 	loop: 'off' as LoopMode,
+	// ナビゲーションから呼び出したときは、キューが空でもミニプレイヤーを表示する
+	dockRequested: false,
 });
 
 audioEl.volume = audioPlayerState.volume;
 audioEl.muted = audioPlayerState.muted;
+youtubeSetVolume(audioPlayerState.volume);
 
 export const hasQueue = computed(() => audioPlayerState.queue.length > 0);
+export const dockShown = computed(() => hasQueue.value || audioPlayerState.dockRequested);
+
+export function showDock(): void {
+	audioPlayerState.dockRequested = true;
+}
+
+// ミニプレイヤーの閉じるボタン: 再生を止めてキューを空にし、プレイヤーを隠す
+export function closeDock(): void {
+	clear();
+	audioPlayerState.dockRequested = false;
+}
 export const currentTrack = computed<AudioTrack | null>(() => audioPlayerState.queue[audioPlayerState.index] ?? null);
+
+const isYoutubeCurrent = computed(() => currentTrack.value?.kind === 'youtube');
+export { isYoutubeCurrent };
 
 // サムネイルが無いファイルは投稿者のアバターをアートワーク代わりに表示する。
 export function trackArtworkUrl(track: AudioTrack | null | undefined): string | null {
 	if (track == null) return null;
+	if (track.kind === 'youtube') return track.youtube.thumbnailUrl;
 	return track.file.thumbnailUrl || track.user?.avatarUrl || null;
+}
+
+export function trackTitle(track: AudioTrack | null | undefined): string {
+	if (track == null) return '';
+	if (track.kind === 'youtube') return track.youtube.title;
+	return track.file.comment || track.file.name;
+}
+
+export function trackNoteId(track: AudioTrack | null | undefined): string | null {
+	if (track == null || track.kind === 'youtube') return null;
+	return track.noteId ?? null;
+}
+
+export function trackArtist(track: AudioTrack | null | undefined): string {
+	if (track == null) return '';
+	if (track.kind === 'youtube') return track.youtube.author ?? '';
+	return track.user != null ? (track.user.name || track.user.username) : '';
 }
 
 function syncBuffered(): void {
@@ -100,25 +175,25 @@ function updateMediaSessionMetadata(): void {
 		return;
 	}
 
-	const artist = track.user != null ? (track.user.name || track.user.username) : '';
-	const artworkUrl = track.file.thumbnailUrl || track.user?.avatarUrl || null;
+	const artworkUrl = trackArtworkUrl(track);
 
 	navigator.mediaSession.metadata = new MediaMetadata({
-		title: track.file.comment || track.file.name,
-		artist,
+		title: trackTitle(track),
+		artist: trackArtist(track),
 		artwork: artworkUrl ? [{ src: artworkUrl }] : [],
 	});
 }
 
 function updatePositionState(): void {
 	if (!hasMediaSession() || typeof navigator.mediaSession.setPositionState !== 'function') return;
-	if (!Number.isFinite(audioEl.duration) || audioEl.duration <= 0) return;
+	const duration = audioPlayerState.duration;
+	if (!Number.isFinite(duration) || duration <= 0) return;
 
 	try {
 		navigator.mediaSession.setPositionState({
-			duration: audioEl.duration,
-			playbackRate: audioEl.playbackRate,
-			position: Math.min(audioEl.currentTime, audioEl.duration),
+			duration,
+			playbackRate: 1,
+			position: Math.min(audioPlayerState.currentTime, duration),
 		});
 	} catch {
 		// ブラウザによってはstate遷移の順序次第で例外になりうるが、致命的ではないので握りつぶす
@@ -145,16 +220,17 @@ function setupMediaSessionActions(): void {
 		if (details.seekTime != null) seek(details.seekTime);
 	});
 	setActionHandler('seekbackward', (details) => {
-		seek(Math.max(0, audioEl.currentTime - (details.seekOffset ?? SEEK_STEP_SEC)));
+		seek(Math.max(0, audioPlayerState.currentTime - (details.seekOffset ?? SEEK_STEP_SEC)));
 	});
 	setActionHandler('seekforward', (details) => {
-		seek(Math.min(audioEl.duration || Infinity, audioEl.currentTime + (details.seekOffset ?? SEEK_STEP_SEC)));
+		seek(Math.min(audioPlayerState.duration || Infinity, audioPlayerState.currentTime + (details.seekOffset ?? SEEK_STEP_SEC)));
 	});
 }
 
 function loadAt(i: number, autoplay: boolean): void {
 	if (i < 0 || i >= audioPlayerState.queue.length) {
 		audioPlayerState.index = -1;
+		youtubeStop();
 		audioEl.pause();
 		audioEl.removeAttribute('src');
 		audioEl.load();
@@ -168,10 +244,23 @@ function loadAt(i: number, autoplay: boolean): void {
 
 	audioPlayerState.index = i;
 	const track = audioPlayerState.queue[i];
-	audioEl.src = track.file.url;
 	audioPlayerState.currentTime = 0;
 	audioPlayerState.duration = 0;
 	audioPlayerState.buffered = 0;
+
+	if (track.kind === 'youtube') {
+		audioEl.pause();
+		audioEl.removeAttribute('src');
+		audioEl.load();
+		audioPlayerState.playing = false;
+		updateMediaSessionMetadata();
+		youtubeLoad(track.youtube.videoId, autoplay);
+		return;
+	}
+
+	youtubeErrorStreak = 0;
+	youtubeStop();
+	audioEl.src = track.file.url;
 	updateMediaSessionMetadata();
 
 	if (autoplay) {
@@ -185,6 +274,11 @@ function play(): void {
 		return;
 	}
 
+	if (isYoutubeCurrent.value) {
+		youtubePlay();
+		return;
+	}
+
 	// 自動再生ブロック等でrejectしうるが、再生ボタンが出たままになるだけなので握りつぶす
 	audioEl.play().catch(() => {
 		audioPlayerState.playing = false;
@@ -192,11 +286,15 @@ function play(): void {
 }
 
 function pause(): void {
+	if (isYoutubeCurrent.value) {
+		youtubePause();
+		return;
+	}
 	audioEl.pause();
 }
 
 function toggle(): void {
-	if (audioEl.paused) {
+	if (!audioPlayerState.playing) {
 		play();
 	} else {
 		pause();
@@ -205,7 +303,7 @@ function toggle(): void {
 
 function onEnded(): void {
 	if (audioPlayerState.loop === 'one') {
-		audioEl.currentTime = 0;
+		seek(0);
 		play();
 		return;
 	}
@@ -235,8 +333,8 @@ function next(): void {
 function prev(): void {
 	if (audioPlayerState.queue.length === 0) return;
 
-	if (audioEl.currentTime > 3) {
-		audioEl.currentTime = 0;
+	if (audioPlayerState.currentTime > 3) {
+		seek(0);
 		return;
 	}
 
@@ -244,7 +342,7 @@ function prev(): void {
 		if (audioPlayerState.loop === 'all' && audioPlayerState.queue.length > 1) {
 			loadAt(audioPlayerState.queue.length - 1, true);
 		} else {
-			audioEl.currentTime = 0;
+			seek(0);
 		}
 		return;
 	}
@@ -254,6 +352,13 @@ function prev(): void {
 
 function seek(sec: number): void {
 	if (!Number.isFinite(sec)) return;
+	if (isYoutubeCurrent.value) {
+		const max = audioPlayerState.duration > 0 ? audioPlayerState.duration : sec;
+		const clamped = Math.min(Math.max(0, sec), max);
+		audioPlayerState.currentTime = clamped;
+		youtubeSeek(clamped);
+		return;
+	}
 	const max = Number.isFinite(audioEl.duration) ? audioEl.duration : sec;
 	audioEl.currentTime = Math.min(Math.max(0, sec), max);
 }
@@ -262,12 +367,14 @@ function setVolume(v: number): void {
 	const clamped = Math.min(1, Math.max(0, v));
 	audioPlayerState.volume = clamped;
 	audioEl.volume = clamped;
+	youtubeSetVolume(clamped);
 	persistVolume(clamped);
 }
 
 function toggleMute(): void {
 	audioPlayerState.muted = !audioPlayerState.muted;
 	audioEl.muted = audioPlayerState.muted;
+	youtubeSetMuted(audioPlayerState.muted);
 }
 
 function cycleLoop(): void {
@@ -281,6 +388,7 @@ function toQueueEntries(tracks: AudioTrack[]): AudioTrack[] {
 
 function playTracks(tracks: AudioTrack[], startIndex = 0): void {
 	if (tracks.length === 0) return;
+	youtubeErrorStreak = 0;
 	audioPlayerState.queue.splice(0, audioPlayerState.queue.length, ...toQueueEntries(tracks));
 	loadAt(Math.min(Math.max(0, startIndex), tracks.length - 1), true);
 }
@@ -295,6 +403,7 @@ function enqueue(tracks: AudioTrack[]): void {
 }
 
 function playAt(i: number): void {
+	youtubeErrorStreak = 0;
 	loadAt(i, true);
 }
 
@@ -337,6 +446,7 @@ function moveInQueue(from: number, to: number): void {
 }
 
 function clear(): void {
+	youtubeStop();
 	audioEl.pause();
 	audioEl.removeAttribute('src');
 	audioEl.load();
@@ -353,31 +463,89 @@ function clear(): void {
 	}
 }
 
+// YouTube の曲の再生中は <audio> 側のイベント (src を外した際の pause など) を状態に反映しない
 audioEl.addEventListener('play', () => {
+	if (isYoutubeCurrent.value) return;
 	audioPlayerState.playing = true;
 	if (hasMediaSession()) navigator.mediaSession.playbackState = 'playing';
 });
 
 audioEl.addEventListener('pause', () => {
+	if (isYoutubeCurrent.value) return;
 	audioPlayerState.playing = false;
 	if (hasMediaSession()) navigator.mediaSession.playbackState = 'paused';
 });
 
 audioEl.addEventListener('timeupdate', () => {
+	if (isYoutubeCurrent.value) return;
 	audioPlayerState.currentTime = audioEl.currentTime;
 	updatePositionState();
 });
 
 audioEl.addEventListener('durationchange', () => {
+	if (isYoutubeCurrent.value) return;
 	audioPlayerState.duration = Number.isFinite(audioEl.duration) ? audioEl.duration : 0;
 });
 
-audioEl.addEventListener('progress', syncBuffered);
+audioEl.addEventListener('progress', () => {
+	if (isYoutubeCurrent.value) return;
+	syncBuffered();
+});
 audioEl.addEventListener('seeked', () => {
+	if (isYoutubeCurrent.value) return;
 	audioPlayerState.currentTime = audioEl.currentTime;
 	syncBuffered();
 });
-audioEl.addEventListener('ended', onEnded);
+audioEl.addEventListener('ended', () => {
+	if (isYoutubeCurrent.value) return;
+	onEnded();
+});
+
+// 埋め込み禁止・削除済みなどで再生できない YouTube の曲は飛ばして次へ進む。
+// キュー全体が再生できない場合に延々と飛ばし続けないよう、連続失敗がキューの長さに達したら止める
+function notifySkipped(): void {
+	import('@/os.js').then(os => os.toast(i18n.ts._audioPlayer.youtubeUnplayable)).catch(() => {});
+}
+
+setYoutubeHandlers({
+	onPlay: () => {
+		youtubeErrorStreak = 0;
+		audioPlayerState.playing = true;
+		if (hasMediaSession()) navigator.mediaSession.playbackState = 'playing';
+	},
+	onPause: () => {
+		audioPlayerState.playing = false;
+		if (hasMediaSession()) navigator.mediaSession.playbackState = 'paused';
+	},
+	onEnded: () => {
+		// <audio> と違い ended の前に pause が来ないので、ここで停止状態にしておく
+		// (ループ時は onEnded() の中で再び再生される)
+		audioPlayerState.playing = false;
+		if (hasMediaSession()) navigator.mediaSession.playbackState = 'paused';
+		onEnded();
+	},
+	onError: () => {
+		audioPlayerState.playing = false;
+		notifySkipped();
+		youtubeErrorStreak += 1;
+		if (youtubeErrorStreak >= audioPlayerState.queue.length) {
+			youtubeErrorStreak = 0;
+			return;
+		}
+		const isLast = audioPlayerState.index >= audioPlayerState.queue.length - 1;
+		if (!isLast) {
+			loadAt(audioPlayerState.index + 1, true);
+		} else if (audioPlayerState.loop === 'all') {
+			loadAt(0, true);
+		}
+	},
+	onTick: (currentTime, duration, buffered) => {
+		audioPlayerState.currentTime = currentTime;
+		audioPlayerState.duration = Number.isFinite(duration) ? duration : 0;
+		audioPlayerState.buffered = buffered;
+		updatePositionState();
+	},
+});
 
 setupMediaSessionActions();
 

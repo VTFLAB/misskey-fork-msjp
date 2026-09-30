@@ -101,6 +101,16 @@ function stripExtension(fileName: string): string {
 }
 
 export async function misskeyTrackToNowPlaying(track: AudioTrack): Promise<NowPlayingTrack> {
+	if (track.kind === 'youtube') {
+		return {
+			title: track.youtube.title,
+			artist: track.youtube.author,
+			serviceLabel: track.youtube.service === 'youtubeMusic' ? 'YouTube Music' : 'YouTube',
+			url: track.youtube.url,
+			artworkUrl: track.youtube.thumbnailUrl,
+		};
+	}
+
 	const title = track.file.comment || stripExtension(track.file.name);
 	const artist = track.user != null ? (track.user.name || track.user.username) : null;
 	// リモートユーザーの楽曲は元サーバーのノート URL とサーバー名を from として示す

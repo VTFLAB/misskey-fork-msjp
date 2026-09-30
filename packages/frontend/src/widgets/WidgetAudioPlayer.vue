@@ -9,8 +9,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<img v-if="artworkUrl" :src="artworkUrl" :class="$style.artwork" alt=""/>
 		<i v-else class="ti ti-music" :class="$style.artworkIcon"></i>
 		<div :class="$style.meta">
-			<div :class="$style.title">{{ trackTitle }}</div>
-			<div :class="$style.artist">{{ trackArtist }}</div>
+			<div :class="$style.title">{{ currentTitle }}</div>
+			<div :class="$style.artist">{{ currentArtist }}</div>
 		</div>
 	</div>
 	<div v-else :class="$style.empty">
@@ -46,7 +46,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			:class="[$style.queueItem, { [$style.queueItemActive]: i === audioPlayerState.index }]"
 			@click="playAt(i)"
 		>
-			<span :class="$style.queueItemTitle">{{ track.file.comment || track.file.name }}</span>
+			<span :class="$style.queueItemTitle">{{ trackTitle(track) }}</span>
 		</button>
 	</div>
 </div>
@@ -63,6 +63,8 @@ import {
 	audioPlayerState,
 	currentTrack,
 	trackArtworkUrl,
+	trackTitle,
+	trackArtist,
 	toggle,
 	next,
 	prev,
@@ -88,17 +90,9 @@ const { widgetProps, configure } = useWidgetPropsManager(name,
 	emit,
 );
 
-const trackTitle = computed(() => {
-	const track = currentTrack.value;
-	if (track == null) return '';
-	return track.file.comment || track.file.name;
-});
+const currentTitle = computed(() => trackTitle(currentTrack.value));
 
-const trackArtist = computed(() => {
-	const user = currentTrack.value?.user;
-	if (user == null) return '';
-	return user.name || user.username;
-});
+const currentArtist = computed(() => trackArtist(currentTrack.value));
 
 const artworkUrl = computed(() => trackArtworkUrl(currentTrack.value));
 

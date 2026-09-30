@@ -91,6 +91,9 @@ function serialize<T>(fn: () => Promise<T>): Promise<T> {
 // DriveFile / UserLite を丸ごと保存すると 1 曲 2KB 前後になり、API の body 上限 (1MB) に近づくため。
 // 再生キュー用の qid も保存しない。
 function toStoredTrack(track: AudioTrack): AudioTrack {
+	if (track.kind === 'youtube') {
+		return { kind: 'youtube', id: track.id, youtube: { ...track.youtube } };
+	}
 	const file = track.file;
 	const user = track.user ?? null;
 	return {
