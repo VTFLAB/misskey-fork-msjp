@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="dockShown" :class="$style.root" class="_panel _shadow" role="region" :aria-label="i18n.ts._audioPlayer.title">
+<div v-if="dockShown" v-show="!hidden" :class="$style.root" class="_panel _shadow" role="region" :aria-label="i18n.ts._audioPlayer.title">
 	<!-- YouTube の曲の再生中だけ表示する動画枠 (bsky-fork 独自)。中身は audio-player-youtube.ts が
 	IFrame Player に置き換えて管理するため、この要素の子にはバインディングを持たせない -->
 	<div v-show="isYoutubeCurrent" ref="youtubeHostEl" :class="$style.video"></div>
@@ -97,6 +97,12 @@ import {
 import { postNowPlayingForMisskeyTrack } from '@/utility/now-playing.js';
 import { openAudioPlayerWindow } from '@/utility/audio-player-window.js';
 import { attachYoutubeHost, detachYoutubeHost } from '@/utility/audio-player-youtube.js';
+
+defineProps<{
+	// スマホ幅でサイドメニュー・ウィジェットのドロワーを開いている間は隠す (プレイヤーの方が前面に来て
+	// ドロワーを操作できなくなるため)。v-if だと YouTube プレイヤーが作り直されるので v-show で隠し、再生は続ける
+	hidden?: boolean;
+}>();
 
 const zIndex = os.claimZIndex('high');
 
