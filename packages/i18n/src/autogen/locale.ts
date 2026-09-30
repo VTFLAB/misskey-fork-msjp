@@ -12606,6 +12606,86 @@ export interface Locale extends ILocale {
          * 投稿の音声ファイルをクリックすると、画面下部の常設プレイヤーで再生します。ページを移動しても再生が継続されます。
          */
         "useGlobalAudioPlayer_description": string;
+        /**
+         * キューは空です。投稿の音声を再生するか、プレイリストから再生できます
+         */
+        "emptyQueue": string;
+        /**
+         * 上へ移動
+         */
+        "moveUp": string;
+        /**
+         * 下へ移動
+         */
+        "moveDown": string;
+        /**
+         * プレイリスト
+         */
+        "playlists": string;
+        /**
+         * 新しいプレイリスト
+         */
+        "newPlaylist": string;
+        /**
+         * プレイリスト名
+         */
+        "playlistName": string;
+        /**
+         * プレイリストに追加
+         */
+        "addToPlaylist": string;
+        /**
+         * プレイリストに追加しました
+         */
+        "addedToPlaylist": string;
+        /**
+         * プレイリストに保存
+         */
+        "saveQueueToPlaylist": string;
+        /**
+         * キューの曲をすべて追加
+         */
+        "addQueueToPlaylist": string;
+        /**
+         * プレイリストを再生
+         */
+        "playPlaylist": string;
+        /**
+         * プレイリストから削除
+         */
+        "removeFromPlaylist": string;
+        /**
+         * プレイリストを削除
+         */
+        "deletePlaylist": string;
+        /**
+         * プレイリスト「{name}」を削除しますか？
+         */
+        "deletePlaylistConfirm": ParameterizedString<"name">;
+        /**
+         * このプレイリストには曲がありません
+         */
+        "emptyPlaylist": string;
+        /**
+         * プレイリストはまだありません
+         */
+        "noPlaylists": string;
+        /**
+         * プレイリストが見つかりませんでした
+         */
+        "playlistNotFound": string;
+        /**
+         * {n}曲
+         */
+        "nTracks": ParameterizedString<"n">;
+        /**
+         * プレイリストの上限 ({max}曲) に達したため、一部の曲は追加されませんでした
+         */
+        "playlistFull": ParameterizedString<"max">;
+        /**
+         * プレイリストは{max}個まで作成できます
+         */
+        "tooManyPlaylists": ParameterizedString<"max">;
     };
     "_nowPlaying": {
         /**
