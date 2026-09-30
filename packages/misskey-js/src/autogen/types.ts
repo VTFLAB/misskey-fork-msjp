@@ -3673,6 +3673,15 @@ export type paths = {
          */
         post: operations['nowplaying___resolve-url'];
     };
+    '/nowplaying/youtube-videos': {
+        /**
+         * nowplaying/youtube-videos
+         * @description YouTube の動画 ID (最大 50 件) の曲名・チャンネル名・サムネイルと再生可否をまとめて取得する。常駐プレイヤーのプレイリスト情報の定期更新と、YouTube プレイリストのインポートに使う。playlistId を渡すとプレイリスト名も返す。
+         *
+         *     **Credential required**: *Yes* / **Permission**: *read:account*
+         */
+        post: operations['nowplaying___youtube-videos'];
+    };
     '/page-push': {
         /**
          * page-push
@@ -35660,6 +35669,91 @@ export interface operations {
                         artist: string | null;
                         url: string;
                         thumbnailUrl: string | null;
+                    };
+                };
+            };
+            /** @description Client error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Authentication error */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Forbidden error */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description I'm Ai */
+            418: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': components['schemas']['Error'];
+                };
+            };
+        };
+    };
+    'nowplaying___youtube-videos': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    videoIds: string[];
+                    playlistId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK (with results) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    'application/json': {
+                        videos: {
+                            videoId: string;
+                            /** @enum {string} */
+                            status: 'available' | 'removed' | 'private' | 'error';
+                            title: string | null;
+                            author: string | null;
+                            thumbnailUrl: string | null;
+                        }[];
+                        playlistTitle: string | null;
                     };
                 };
             };

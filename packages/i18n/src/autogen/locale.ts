@@ -12723,6 +12723,78 @@ export interface Locale extends ILocale {
          */
         "nPlaylists": ParameterizedString<"n">;
         /**
+         * 削除された動画
+         */
+        "videoRemoved": string;
+        /**
+         * 非公開の動画
+         */
+        "videoPrivate": string;
+        /**
+         * 埋め込み再生できない動画
+         */
+        "videoNotEmbeddable": string;
+        /**
+         * 削除または非公開の動画
+         */
+        "videoUnavailable": string;
+        /**
+         * 取り込み
+         */
+        "importShort": string;
+        /**
+         * YouTubeのプレイリストから追加
+         */
+        "addFromYoutubePlaylist": string;
+        /**
+         * YouTubeのプレイリストを取り込む
+         */
+        "importYoutubePlaylist": string;
+        /**
+         * https://www.youtube.com/playlist?list=...
+         */
+        "youtubePlaylistUrlPlaceholder": string;
+        /**
+         * 読み込む
+         */
+        "load": string;
+        /**
+         * プレイリストを読み込んでいます
+         */
+        "readingPlaylist": string;
+        /**
+         * 曲情報を取得しています ({done}/{total})
+         */
+        "fetchingTrackInfo": ParameterizedString<"done" | "total">;
+        /**
+         * 再生できない動画 {n}曲を含みます (リストには残し、再生時は飛ばします)
+         */
+        "includesUnplayable": ParameterizedString<"n">;
+        /**
+         * {max}曲を超える分は取り込んでいません
+         */
+        "importTruncated": ParameterizedString<"max">;
+        /**
+         * プレイリストとして保存
+         */
+        "saveAsPlaylist": string;
+        /**
+         * 公開・限定公開のプレイリストを取り込めます。非公開のプレイリストと、YouTube が自動で作るミックスは取り込めません。
+         */
+        "importYoutubePlaylistNote": string;
+        /**
+         * プレイリストを読み込めませんでした。非公開のプレイリストか URL が正しくない、または先頭の動画が埋め込み再生を許可していない可能性があります
+         */
+        "playlistReadFailed": string;
+        /**
+         * YouTube または YouTube Music のプレイリスト URL を入力してください
+         */
+        "invalidYoutubePlaylistUrl": string;
+        /**
+         * YouTube が自動で作るミックスは取り込めません
+         */
+        "youtubeMixNotSupported": string;
+        /**
          * YouTube または YouTube Music の動画 URL を入力してください
          */
         "invalidYoutubeUrl": string;

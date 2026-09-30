@@ -2273,6 +2273,8 @@ declare namespace entities {
         NowplayingMisskeyLabelResponse,
         NowplayingResolveUrlRequest,
         NowplayingResolveUrlResponse,
+        NowplayingYoutubeVideosRequest,
+        NowplayingYoutubeVideosResponse,
         PagePushRequest,
         PagesCreateRequest,
         PagesCreateResponse,
@@ -3519,6 +3521,12 @@ type NowplayingResolveUrlRequest = operations['nowplaying___resolve-url']['reque
 
 // @public (undocumented)
 type NowplayingResolveUrlResponse = operations['nowplaying___resolve-url']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type NowplayingYoutubeVideosRequest = operations['nowplaying___youtube-videos']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type NowplayingYoutubeVideosResponse = operations['nowplaying___youtube-videos']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 export function nyaize(text: string): string;
