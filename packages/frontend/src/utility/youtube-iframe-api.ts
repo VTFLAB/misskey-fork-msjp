@@ -22,6 +22,8 @@ export interface YTPlayer {
 	stopVideo(): void;
 	loadVideoById(args: { videoId: string; startSeconds?: number }): void;
 	cueVideoById(args: { videoId: string; startSeconds?: number }): void;
+	cuePlaylist(args: { list: string; listType: 'playlist'; index?: number }): void;
+	getPlaylist(): string[] | null;
 	destroy(): void;
 }
 
@@ -87,6 +89,27 @@ export function loadYoutubeIframeApi(): Promise<YTNamespace> {
 	});
 
 	return iframeApiPromise;
+}
+
+// YouTube / YouTube Music のプレイリスト URL (または ID そのもの) からプレイリスト ID を取り出す。
+// YouTube Music の "VL" 付き ID は通常の ID に直す。中身が毎回変わる自動生成のミックス (RD...) は対象外
+export function extractYoutubePlaylistId(raw: string): { id: string; isMusic: boolean } | { error: 'mix' } | null {
+	const text = raw.trim();
+	let id: string | null = null;
+	let isMusic = false;
+	try {
+		const url = new URL(text);
+		const host = url.hostname.toLowerCase();
+		if (!['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be'].includes(host)) return null;
+		isMusic = host === 'music.youtube.com';
+		id = url.searchParams.get('list');
+	} catch {
+		id = text;
+	}
+	if (id == null || !/^[A-Za-z0-9_-]{2,64}$/.test(id)) return null;
+	if (id.startsWith('VL')) id = id.slice(2);
+	if (id.startsWith('RD')) return { error: 'mix' };
+	return { id, isMusic };
 }
 
 // YouTube / YouTube Music の共有 URL から動画 ID を取り出す。該当しなければ null
