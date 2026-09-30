@@ -108,6 +108,18 @@ describe('unplayable tracks are skipped', () => {
 		expect(m.isUnplayableTrack(q[0])).toBe(true);
 	});
 
+	test('loop all returns to the first track after the last one ends', async () => {
+		const m = await import('@/utility/audio-player.js');
+		m.playTracks([ytTrack('aaaaaaaaaaa'), ytTrack('bbbbbbbbbbb')] as never, 1);
+		m.cycleLoop(); // off -> one
+		m.cycleLoop(); // one -> all
+		expect(m.audioPlayerState.loop).toBe('all');
+		const handlers = yt.setYoutubeHandlers.mock.calls[0][0];
+		handlers.onEnded();
+		expect(m.audioPlayerState.index).toBe(0);
+		expect(yt.youtubeLoad).toHaveBeenLastCalledWith('aaaaaaaaaaa', true, 0);
+	});
+
 	test('prev skips backwards over unplayable tracks', async () => {
 		const m = await import('@/utility/audio-player.js');
 		m.playTracks([ytTrack('aaaaaaaaaaa'), ytTrack('bbbbbbbbbbb', { unavailable: 'private' }), ytTrack('ccccccccccc')] as never, 2);
