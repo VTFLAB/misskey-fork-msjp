@@ -4,16 +4,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div v-if="hasQueue" :class="$style.root" class="_panel _shadow" role="region" :aria-label="i18n.ts._audioPlayer.title">
+<div v-if="dockShown" :class="$style.root" class="_panel _shadow" role="region" :aria-label="i18n.ts._audioPlayer.title">
+	<!-- YouTube の曲の再生中だけ表示する動画枠 (bsky-fork 独自)。中身は audio-player-youtube.ts が
+	IFrame Player に置き換えて管理するため、この要素の子にはバインディングを持たせない -->
+	<div v-show="isYoutubeCurrent" ref="youtubeHostEl" :class="$style.video"></div>
 	<div :class="$style.topRow">
-		<button class="_button" :class="$style.artwork" :aria-label="i18n.ts._audioPlayer.expand" @click="openWindow">
+		<button class="_button" :class="$style.artwork" :aria-label="i18n.ts._audioPlayer.queueAndPlaylists" @click="openWindow">
 			<img v-if="artworkUrl" :src="artworkUrl" :class="$style.artworkImg" alt=""/>
 			<i v-else class="ti ti-music" :class="$style.artworkIcon"></i>
 		</button>
 
-		<button class="_button" :class="$style.meta" :aria-label="i18n.ts._audioPlayer.expand" @click="openWindow">
-			<div :class="$style.title" :title="trackTitle">{{ trackTitle }}</div>
-			<div :class="$style.artist" :title="trackArtist">{{ trackArtist }}</div>
+		<button class="_button" :class="$style.meta" :aria-label="i18n.ts._audioPlayer.queueAndPlaylists" @click="openWindow">
+			<div :class="$style.title" :title="currentTitle">{{ currentTrack ? currentTitle : i18n.ts._audioPlayer.notPlaying }}</div>
+			<div :class="$style.artist" :title="currentArtist">{{ currentArtist }}</div>
 		</button>
 
 		<div :class="$style.transport">
@@ -33,10 +36,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<button v-if="currentTrack" v-tooltip="i18n.ts._nowPlaying.post" class="_button" :class="$style.controlButton" :aria-label="i18n.ts._nowPlaying.post" @click="postNowPlaying">
 				<i class="ti ti-music"></i>
 			</button>
-			<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts._audioPlayer.expand" @click="openWindow">
-				<i class="ti ti-arrows-maximize"></i>
+			<button v-tooltip="i18n.ts._audioPlayer.queueAndPlaylists" class="_button" :class="$style.controlButton" :aria-label="i18n.ts._audioPlayer.queueAndPlaylists" @click="openWindow">
+				<i class="ti ti-playlist"></i>
 			</button>
-			<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts._audioPlayer.close" @click="clear">
+			<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts._audioPlayer.close" @click="closeDock">
 				<i class="ti ti-x"></i>
 			</button>
 		</div>
@@ -69,16 +72,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue';
+import { computed, useTemplateRef, watch, onBeforeUnmount } from 'vue';
 import { hms } from '@/filters/hms.js';
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import MkMediaRange from '@/components/MkMediaRange.vue';
 import {
 	audioPlayerState,
-	hasQueue,
+	dockShown,
+	closeDock,
+	isYoutubeCurrent,
 	currentTrack,
 	trackArtworkUrl,
+	trackTitle,
+	trackArtist,
 	toggle,
 	next,
 	prev,
@@ -86,24 +93,27 @@ import {
 	setVolume,
 	toggleMute,
 	cycleLoop,
-	clear,
 } from '@/utility/audio-player.js';
 import { postNowPlayingForMisskeyTrack } from '@/utility/now-playing.js';
 import { openAudioPlayerWindow } from '@/utility/audio-player-window.js';
+import { attachYoutubeHost, detachYoutubeHost } from '@/utility/audio-player-youtube.js';
 
 const zIndex = os.claimZIndex('high');
 
-const trackTitle = computed(() => {
-	const track = currentTrack.value;
-	if (track == null) return '';
-	return track.file.comment || track.file.name;
+// キューが空になるとルート要素ごと消えるので、動画枠の出入りに合わせて YouTube プレイヤーを付け外しする
+const youtubeHostEl = useTemplateRef('youtubeHostEl');
+watch(youtubeHostEl, (el, oldEl) => {
+	if (oldEl != null) detachYoutubeHost(oldEl);
+	if (el != null) attachYoutubeHost(el);
+}, { immediate: true });
+
+onBeforeUnmount(() => {
+	if (youtubeHostEl.value != null) detachYoutubeHost(youtubeHostEl.value);
 });
 
-const trackArtist = computed(() => {
-	const user = currentTrack.value?.user;
-	if (user == null) return '';
-	return user.name || user.username;
-});
+const currentTitle = computed(() => trackTitle(currentTrack.value));
+
+const currentArtist = computed(() => trackArtist(currentTrack.value));
 
 const artworkUrl = computed(() => trackArtworkUrl(currentTrack.value));
 
@@ -159,6 +169,24 @@ function openWindow() {
 		left: var(--MI-margin);
 		right: var(--MI-margin);
 		width: auto;
+	}
+}
+
+.video {
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	// YouTube の埋め込みプレイヤーは 200x200px 以上の表示領域が必要
+	min-height: 200px;
+	margin-bottom: 4px;
+	border-radius: 8px;
+	overflow: clip;
+	background: #000;
+
+	> :global(iframe) {
+		display: block;
+		width: 100%;
+		height: 100%;
+		border: none;
 	}
 }
 
