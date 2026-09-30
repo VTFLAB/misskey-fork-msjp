@@ -65,8 +65,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<MkMediaRange v-model="volumeValue" :ariaLabel="i18n.ts.volume" :class="$style.volumeSeek"/>
 		</div>
 
-		<button class="_button" :class="$style.controlButton" :aria-label="loopLabel" @click="cycleLoop">
-			<i class="ti ti-repeat" :class="{ [$style.loopActive]: audioPlayerState.loop !== 'off' }"></i>
+		<button v-tooltip="loopLabel" class="_button" :class="$style.controlButton" :aria-label="loopLabel" @click="cycleLoop">
+			<i :class="[audioPlayerState.loop === 'one' ? 'ti ti-repeat-once' : 'ti ti-repeat', { [$style.loopActive]: audioPlayerState.loop !== 'off' }]"></i>
 		</button>
 	</div>
 </div>
