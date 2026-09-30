@@ -8,16 +8,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<MkLoading v-if="loading"/>
 
 	<template v-else-if="detail != null">
-		<div :class="$style.header">
-			<button class="_button" :class="$style.iconButton" :aria-label="i18n.ts.goBack" @click="closeDetail">
-				<i class="ti ti-arrow-left"></i>
+		<button class="_button" :class="$style.back" @click="closeDetail">
+			<i class="ti ti-chevron-left"></i>
+			<span :class="$style.backTitle">{{ detail.name }}</span>
+		</button>
+
+		<div :class="$style.toolbar">
+			<span :class="$style.toolbarMeta">{{ i18n.tsx._audioPlayer.nTracks({ n: detailItems.length }) }}</span>
+			<button class="_button" :class="$style.toolButton" :disabled="detailItems.length === 0" @click="playDetail(0)">
+				<i class="ti ti-player-play"></i>{{ i18n.ts._audioPlayer.play }}
 			</button>
-			<span :class="$style.headerTitle">{{ detail.name }} ({{ detailItems.length }})</span>
-			<button v-tooltip="i18n.ts._audioPlayer.playPlaylist" class="_button" :class="$style.iconButton" :aria-label="i18n.ts._audioPlayer.playPlaylist" :disabled="detailItems.length === 0" @click="playDetail(0)">
-				<i class="ti ti-player-play"></i>
+			<button class="_button" :class="$style.toolButton" @click="openDetailAddMenu">
+				<i class="ti ti-plus"></i>{{ i18n.ts._audioPlayer.add }}
 			</button>
-			<button class="_button" :class="$style.iconButton" :aria-label="i18n.ts.menu" @click="openDetailMenu">
-				<i class="ti ti-dots"></i>
+			<button class="_button" :class="$style.toolButton" @click="openDetailMenu">
+				<i class="ti ti-dots"></i>{{ i18n.ts._audioPlayer.more }}
 			</button>
 		</div>
 
@@ -53,9 +58,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</template>
 
 	<template v-else>
-		<div :class="$style.header">
-			<span :class="$style.headerTitle"><i class="ti ti-playlist"></i> {{ i18n.ts._audioPlayer.playlists }} ({{ audioPlaylistsState.list.length }})</span>
-			<button class="_textButton" @click="newPlaylist"><i class="ti ti-plus"></i> {{ i18n.ts._audioPlayer.newPlaylist }}</button>
+		<div :class="$style.toolbar">
+			<span :class="$style.toolbarMeta">{{ i18n.tsx._audioPlayer.nPlaylists({ n: audioPlaylistsState.list.length }) }}</span>
+			<button class="_button" :class="$style.toolButton" @click="newPlaylist">
+				<i class="ti ti-plus"></i>{{ i18n.ts._audioPlayer.create }}
+			</button>
 		</div>
 
 		<div :class="$style.list">
@@ -245,14 +252,19 @@ function openTrackMenu(ev: PointerEvent, index: number) {
 function openDetailMenu(ev: PointerEvent) {
 	const current = detail.value;
 	if (current == null) return;
-	os.popupMenu([
-		{
-			text: i18n.ts._audioPlayer.addFromYoutube,
-			icon: 'ti ti-brand-youtube',
-			action: () => addYoutubeToDetail(),
-		},
-		...playlistMenuItems({ id: current.id, name: current.name }),
-	], (ev.currentTarget ?? ev.target ?? undefined) as HTMLElement | undefined);
+	os.popupMenu(playlistMenuItems({ id: current.id, name: current.name }), (ev.currentTarget ?? ev.target ?? undefined) as HTMLElement | undefined);
+}
+
+function openDetailAddMenu(ev: PointerEvent) {
+	os.popupMenu([{
+		text: i18n.ts._audioPlayer.addFromYoutube,
+		icon: 'ti ti-brand-youtube',
+		action: () => addYoutubeToDetail(),
+	}, ...(audioPlayerState.queue.length > 0 && detail.value != null ? [{
+		text: i18n.ts._audioPlayer.addQueueToPlaylist,
+		icon: 'ti ti-playlist-add',
+		action: () => { if (detail.value != null) addQueueToPlaylist(detail.value.id); },
+	}] : [])], (ev.currentTarget ?? ev.target ?? undefined) as HTMLElement | undefined);
 }
 
 async function addYoutubeToDetail() {
@@ -366,23 +378,70 @@ async function onReorderPlaylists(list: AudioPlaylistSummary[]) {
 	flex-direction: column;
 	min-height: 0;
 	flex: 1;
-	gap: 8px;
+	gap: 10px;
 }
 
-.header {
+.back {
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
 	gap: 4px;
+	min-width: 0;
+	padding: 4px 6px 4px 2px;
+	border-radius: 6px;
+	font-weight: bold;
+	text-align: left;
+
+	&:hover {
+		background: var(--MI_THEME-buttonBg);
+	}
 }
 
-.headerTitle {
-	flex: 1;
+.backTitle {
 	min-width: 0;
-	font-weight: bold;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+.toolbar {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+
+.toolbarMeta {
+	flex: 1;
+	min-width: 0;
+	font-size: 0.85em;
+	opacity: 0.7;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.toolButton {
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	height: 28px;
+	padding: 0 10px;
+	border-radius: 999px;
+	font-size: 0.85em;
+	white-space: nowrap;
+	background: var(--MI_THEME-buttonBg);
+
+	&:hover:not(:disabled) {
+		background: var(--MI_THEME-buttonHoverBg);
+	}
+
+	&:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
 }
 
 .list {

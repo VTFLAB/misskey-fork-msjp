@@ -3376,6 +3376,12 @@ _audioPlayer:
   addFromYoutube: "YouTubeのURLから追加"
   queueAndPlaylists: "キュー・プレイリスト"
   notPlaying: "再生していません"
+  add: "追加"
+  save: "保存"
+  clear: "クリア"
+  create: "新規作成"
+  more: "その他"
+  nPlaylists: "{n}件のプレイリスト"
   invalidYoutubeUrl: "YouTube または YouTube Music の動画 URL を入力してください"
   youtubeUnplayable: "この動画は埋め込み再生が許可されていないか、再生できないため飛ばしました"
 

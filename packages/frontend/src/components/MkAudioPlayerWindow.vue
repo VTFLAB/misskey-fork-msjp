@@ -16,26 +16,45 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</template>
 
 	<div :class="$style.root">
-		<MkTab
-			v-if="canUsePlaylists()"
-			v-model="tab"
-			:tabs="[
-				{ key: 'queue', label: i18n.ts._audioPlayer.queue, icon: 'ti ti-list' },
-				{ key: 'playlists', label: i18n.ts._audioPlayer.playlists, icon: 'ti ti-playlist' },
-			]"
-			:class="$style.tabs"
-		/>
+		<div v-if="canUsePlaylists()" :class="$style.tabs" role="tablist">
+			<button
+				class="_button"
+				role="tab"
+				:aria-selected="tab === 'queue'"
+				:class="[$style.tab, { [$style.tabActive]: tab === 'queue' }]"
+				@click="tab = 'queue'"
+			>
+				<i class="ti ti-list"></i>
+				<span>{{ i18n.ts._audioPlayer.queue }}</span>
+				<span :class="$style.tabCount">{{ audioPlayerState.queue.length }}</span>
+			</button>
+			<button
+				class="_button"
+				role="tab"
+				:aria-selected="tab === 'playlists'"
+				:class="[$style.tab, { [$style.tabActive]: tab === 'playlists' }]"
+				@click="tab = 'playlists'"
+			>
+				<i class="ti ti-playlist"></i>
+				<span>{{ i18n.ts._audioPlayer.playlists }}</span>
+				<span v-if="audioPlaylistsState.loaded" :class="$style.tabCount">{{ audioPlaylistsState.list.length }}</span>
+			</button>
+		</div>
 
 		<MkAudioPlayerPlaylists v-if="tab === 'playlists'"/>
 
 		<template v-else>
-			<div :class="$style.queueHeader">
-				<span :class="$style.queueTitle"><i class="ti ti-list"></i> {{ i18n.ts._audioPlayer.queue }} ({{ audioPlayerState.queue.length }})</span>
-				<button v-tooltip="i18n.ts._audioPlayer.addFromYoutube" class="_button" :class="$style.queueItemButton" :aria-label="i18n.ts._audioPlayer.addFromYoutube" @click="addYoutubeToQueue">
-					<i class="ti ti-brand-youtube"></i>
+			<div :class="$style.toolbar">
+				<span :class="$style.toolbarMeta">{{ i18n.tsx._audioPlayer.nTracks({ n: audioPlayerState.queue.length }) }}</span>
+				<button class="_button" :class="$style.toolButton" @click="openAddMenu">
+					<i class="ti ti-plus"></i>{{ i18n.ts._audioPlayer.add }}
 				</button>
-				<button v-if="canUsePlaylists()" class="_textButton" :disabled="audioPlayerState.queue.length === 0" @click="saveQueueToPlaylist">{{ i18n.ts._audioPlayer.saveQueueToPlaylist }}</button>
-				<button class="_textButton" :disabled="audioPlayerState.queue.length === 0" @click="clear">{{ i18n.ts._audioPlayer.clearQueue }}</button>
+				<button v-if="canUsePlaylists()" class="_button" :class="$style.toolButton" :disabled="audioPlayerState.queue.length === 0" @click="saveQueueToPlaylist">
+					<i class="ti ti-device-floppy"></i>{{ i18n.ts._audioPlayer.save }}
+				</button>
+				<button class="_button" :class="$style.toolButton" :disabled="audioPlayerState.queue.length === 0" @click="clear">
+					<i class="ti ti-trash"></i>{{ i18n.ts._audioPlayer.clear }}
+				</button>
 			</div>
 
 			<div :class="$style.queue">
@@ -79,7 +98,6 @@ import type { AudioTrack } from '@/utility/audio-player.js';
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import MkWindow from '@/components/MkWindow.vue';
-import MkTab from '@/components/MkTab.vue';
 import MkDraggable from '@/components/MkDraggable.vue';
 import MkAudioPlayerPlaylists from '@/components/MkAudioPlayerPlaylists.vue';
 import {
@@ -95,7 +113,7 @@ import {
 	moveInQueue,
 	enqueue,
 } from '@/utility/audio-player.js';
-import { canUsePlaylists, pickPlaylistAndAdd } from '@/utility/audio-playlists.js';
+import { audioPlaylistsState, canUsePlaylists, pickPlaylistAndAdd } from '@/utility/audio-playlists.js';
 import { promptYoutubeTrack } from '@/utility/youtube-track.js';
 
 const emit = defineEmits<{
@@ -111,6 +129,14 @@ const queueItems = computed<{ id: string; track: AudioTrack }[]>({
 		reorderQueue(items.map(x => x.track));
 	},
 });
+
+function openAddMenu(ev: PointerEvent) {
+	os.popupMenu([{
+		text: i18n.ts._audioPlayer.addFromYoutube,
+		icon: 'ti ti-brand-youtube',
+		action: () => addYoutubeToQueue(),
+	}], (ev.currentTarget ?? ev.target ?? undefined) as HTMLElement | undefined);
+}
 
 async function addYoutubeToQueue() {
 	const track = await promptYoutubeTrack();
@@ -164,26 +190,94 @@ function openQueueItemMenu(ev: PointerEvent, index: number) {
 	display: flex;
 	flex-direction: column;
 	height: 100%;
-	padding: 16px;
+	padding: 12px 14px;
 	box-sizing: border-box;
-	gap: 12px;
+	gap: 10px;
 }
 
 .tabs {
 	flex-shrink: 0;
+	display: flex;
+	gap: 4px;
+	padding: 4px;
+	border-radius: 10px;
+	background: var(--MI_THEME-buttonBg);
 }
 
-.queueHeader {
+.tab {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	height: 32px;
+	border-radius: 7px;
+	font-size: 0.9em;
+	opacity: 0.75;
+	white-space: nowrap;
+
+	&:hover {
+		opacity: 1;
+	}
+}
+
+.tabActive {
+	opacity: 1;
+	font-weight: bold;
+	background: var(--MI_THEME-panel);
+	color: var(--MI_THEME-accent);
+}
+
+.tabCount {
+	min-width: 1.6em;
+	padding: 0 6px;
+	border-radius: 999px;
+	font-size: 0.8em;
+	font-weight: normal;
+	line-height: 1.6;
+	background: var(--MI_THEME-accentedBg);
+	color: var(--MI_THEME-accent);
+}
+
+.toolbar {
 	flex-shrink: 0;
 	display: flex;
 	align-items: center;
-	gap: 12px;
+	gap: 6px;
+	min-width: 0;
 }
 
-.queueTitle {
+.toolbarMeta {
 	flex: 1;
 	min-width: 0;
-	font-weight: bold;
+	font-size: 0.85em;
+	opacity: 0.7;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.toolButton {
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	height: 28px;
+	padding: 0 10px;
+	border-radius: 999px;
+	font-size: 0.85em;
+	white-space: nowrap;
+	background: var(--MI_THEME-buttonBg);
+
+	&:hover:not(:disabled) {
+		background: var(--MI_THEME-buttonHoverBg);
+	}
+
+	&:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
 }
 
 .queueEmpty {

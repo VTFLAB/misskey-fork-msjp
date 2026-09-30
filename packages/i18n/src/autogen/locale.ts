@@ -12699,6 +12699,30 @@ export interface Locale extends ILocale {
          */
         "notPlaying": string;
         /**
+         * 追加
+         */
+        "add": string;
+        /**
+         * 保存
+         */
+        "save": string;
+        /**
+         * クリア
+         */
+        "clear": string;
+        /**
+         * 新規作成
+         */
+        "create": string;
+        /**
+         * その他
+         */
+        "more": string;
+        /**
+         * {n}件のプレイリスト
+         */
+        "nPlaylists": ParameterizedString<"n">;
+        /**
          * YouTube または YouTube Music の動画 URL を入力してください
          */
         "invalidYoutubeUrl": string;
