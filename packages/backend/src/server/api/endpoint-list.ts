@@ -499,6 +499,7 @@ export * as 'twitch/unlink' from './endpoints/twitch/unlink.js';
 // nowplaying (音楽共有 URL 解決、fork 独自)
 export * as 'nowplaying/resolve-url' from './endpoints/nowplaying/resolve-url.js';
 export * as 'nowplaying/misskey-label' from './endpoints/nowplaying/misskey-label.js';
+export * as 'nowplaying/youtube-videos' from './endpoints/nowplaying/youtube-videos.js';
 
 // google-drive (配信アーカイブの Google Drive 連携、private fork 専用)
 export * as 'google-drive/generate-oauth-url' from './endpoints/google-drive/generate-oauth-url.js';

@@ -66,14 +66,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 					manualDragStart
 				>
 					<template #default="{ item, index, dragStart }">
-						<div :class="[$style.queueItem, { [$style.queueItemActive]: index === audioPlayerState.index }]">
+						<div :class="[$style.queueItem, { [$style.queueItemActive]: index === audioPlayerState.index, [$style.queueItemUnplayable]: isUnplayableTrack(item.track) }]">
 							<span :class="$style.queueItemHandle" :draggable="true" @dragstart.stop="dragStart"><i class="ti ti-grip-vertical"></i></span>
 							<button class="_button" :class="$style.queueItemMain" @click="playAt(index)">
 								<img v-if="trackArtworkUrl(item.track)" :src="trackArtworkUrl(item.track) ?? undefined" :class="$style.queueItemArtwork" alt=""/>
 								<i v-else class="ti ti-music" :class="$style.queueItemArtworkIcon"></i>
 								<div :class="$style.queueItemMeta">
 									<div :class="$style.queueItemTitle">{{ trackTitle(item.track) }}</div>
-									<div :class="$style.queueItemArtist">{{ trackArtist(item.track) }}</div>
+									<div v-if="trackUnavailableLabel(item.track)" :class="$style.unavailableLabel"><i class="ti ti-ban"></i> {{ trackUnavailableLabel(item.track) }}</div>
+									<div v-else :class="$style.queueItemArtist">{{ trackArtist(item.track) }}</div>
 								</div>
 							</button>
 							<button class="_button" :class="$style.queueItemButton" :aria-label="i18n.ts.menu" @click="openQueueItemMenu($event, index)">
@@ -106,6 +107,8 @@ import {
 	trackTitle,
 	trackArtist,
 	trackNoteId,
+	isUnplayableTrack,
+	trackUnavailableLabel,
 	playAt,
 	remove,
 	clear,
@@ -114,7 +117,7 @@ import {
 	enqueue,
 } from '@/utility/audio-player.js';
 import { audioPlaylistsState, canUsePlaylists, pickPlaylistAndAdd } from '@/utility/audio-playlists.js';
-import { promptYoutubeTrack } from '@/utility/youtube-track.js';
+import { promptYoutubeTrack, openYoutubePlaylistImport } from '@/utility/youtube-track.js';
 
 const emit = defineEmits<{
 	(ev: 'closed'): void;
@@ -135,6 +138,10 @@ function openAddMenu(ev: PointerEvent) {
 		text: i18n.ts._audioPlayer.addFromYoutube,
 		icon: 'ti ti-brand-youtube',
 		action: () => addYoutubeToQueue(),
+	}, {
+		text: i18n.ts._audioPlayer.addFromYoutubePlaylist,
+		icon: 'ti ti-playlist-add',
+		action: () => openYoutubePlaylistImport(),
 	}], (ev.currentTarget ?? ev.target ?? undefined) as HTMLElement | undefined);
 }
 
@@ -301,6 +308,18 @@ function openQueueItemMenu(ev: PointerEvent, index: number) {
 	&:hover {
 		background-color: var(--MI_THEME-buttonBg);
 	}
+}
+
+.queueItemUnplayable .queueItemMain {
+	opacity: 0.55;
+}
+
+.unavailableLabel {
+	font-size: 0.8em;
+	color: var(--MI_THEME-warn);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .queueItemActive {

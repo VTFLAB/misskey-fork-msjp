@@ -14,8 +14,9 @@ import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { genId } from '@/utility/id.js';
-import { toPersistableTrack } from '@/utility/audio-player.js';
-import type { AudioTrack } from '@/utility/audio-player.js';
+import { toPersistableTrack, patchQueueYoutubeInfo, refreshQueueYoutubeInfo } from '@/utility/audio-player.js';
+import { refreshStaleYoutubeTracks } from '@/utility/youtube-metadata.js';
+import type { AudioTrack, YoutubeTrackInfo } from '@/utility/audio-player.js';
 
 const REGISTRY_SCOPE = ['client', 'audioPlayer'];
 const INDEX_KEY = 'playlists';
@@ -201,6 +202,66 @@ export function reorderPlaylists(orderedIds: string[]): Promise<void> {
 			return [...list].sort((a, b) => (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity));
 		});
 	});
+}
+
+// プレイリスト内の古い YouTube の曲情報を取得し直して保存する。取得し直した曲情報 (動画 ID ごと) を返す。
+// 問い合わせには時間がかかるので書き込みの直列化の外で行い、保存時に最新のプレイリストへ動画 ID で反映する
+// (その間に並べ替え・削除されていても上書きしない)
+export async function refreshPlaylistYoutubeInfo(id: string): Promise<Map<string, YoutubeTrackInfo> | null> {
+	if (!canUsePlaylists()) return null;
+	const playlist = await getPlaylist(id);
+	if (playlist == null) return null;
+	const updated = await refreshStaleYoutubeTracks(playlist.tracks);
+	if (updated == null) return null;
+
+	const infos = new Map<string, YoutubeTrackInfo>();
+	for (const track of updated) {
+		if (track.kind === 'youtube') infos.set(track.youtube.videoId, track.youtube);
+	}
+
+	await serialize(async () => {
+		const latest = await getPlaylist(id);
+		if (latest == null) return;
+		await writePlaylist({
+			...latest,
+			tracks: latest.tracks.map(track => {
+				if (track.kind !== 'youtube') return track;
+				const info = infos.get(track.youtube.videoId);
+				return info != null ? { ...track, youtube: info } : track;
+			}),
+		});
+	});
+	patchQueueYoutubeInfo(infos);
+	return infos;
+}
+
+// 開いていない・再生していないプレイリストも 30 日以内に更新されるよう、1 日 1 回、起動からしばらく後に
+// プレイリストを 1 つずつ順番に見回る (問い合わせ間隔は youtube-metadata.ts 側で空ける)
+const MAINTENANCE_DELAY_MS = 60 * 1000;
+const MAINTENANCE_INTERVAL_MS = 1000 * 60 * 60 * 24;
+let maintenanceScheduled = false;
+
+export function schedulePlaylistMaintenance(): void {
+	if (maintenanceScheduled || !canUsePlaylists()) return;
+	maintenanceScheduled = true;
+	const key = `mkAudioPlaylistMaintainedAt:${$i!.id}`;
+	window.setTimeout(async () => {
+		try {
+			const last = Number(window.localStorage.getItem(key) ?? '0');
+			if (Date.now() - last < MAINTENANCE_INTERVAL_MS) return;
+			window.localStorage.setItem(key, String(Date.now()));
+		} catch {
+			return;
+		}
+		try {
+			await refreshQueueYoutubeInfo();
+			for (const summary of await readIndex()) {
+				await refreshPlaylistYoutubeInfo(summary.id);
+			}
+		} catch {
+			// 次回の見回りで再試行する
+		}
+	}, MAINTENANCE_DELAY_MS);
 }
 
 export async function promptPlaylistName(defaultName?: string): Promise<string | null> {

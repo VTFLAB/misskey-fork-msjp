@@ -8,6 +8,7 @@ import { MemoryKVCache } from '@/misc/cache.js';
 import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
+import { StatusError } from '@/misc/status-error.js';
 import { NowPlayingLoggerService } from './NowPlayingLoggerService.js';
 
 // NowPlaying (fork 独自): ユーザーが貼った音楽共有 URL をタイトル/アーティスト/サムネイルに解決する。
@@ -25,6 +26,26 @@ export type ResolvedMusicUrl = {
 };
 
 const CACHE_TTL_MS = 1000 * 60 * 60; // 1h
+
+// YouTube 動画情報の一括取得 (常駐プレイヤーのプレイリストの 30 日ごとの更新・インポート用)。
+// 多数のユーザーが同じ動画を更新しても oEmbed への問い合わせが増えないよう長めにキャッシュし、
+// 1 リクエスト内の問い合わせも同時実行数を絞る
+const YOUTUBE_VIDEO_CACHE_TTL_MS = 1000 * 60 * 60 * 6; // 6h
+const YOUTUBE_LOOKUP_CONCURRENCY = 6;
+// 1 リクエスト全体の上限。間に合わなかった動画は error (呼び出し側が後で再試行) として返す
+const YOUTUBE_LOOKUP_DEADLINE_MS = 20 * 1000;
+
+// available: 再生可能 / removed: 削除済み・存在しない / private: 非公開 (または埋め込み不可) /
+// error: 一時的な失敗 (呼び出し側は前回の情報を維持して後で再試行する)
+export type YoutubeVideoStatus = 'available' | 'removed' | 'private' | 'error';
+
+export type YoutubeVideoInfo = {
+	videoId: string;
+	status: YoutubeVideoStatus;
+	title: string | null;
+	author: string | null;
+	thumbnailUrl: string | null;
+};
 
 function decodeHtmlEntities(s: string): string {
 	return s
@@ -61,6 +82,8 @@ function splitTitleByArtist(text: string): { title: string; artist: string } | n
 export class MusicUrlResolverService {
 	private logger: Logger;
 	private readonly cache: MemoryKVCache<ResolvedMusicUrl>;
+	private readonly youtubeVideoCache: MemoryKVCache<YoutubeVideoInfo>;
+	private readonly youtubePlaylistTitleCache: MemoryKVCache<string>;
 
 	constructor(
 		private httpRequestService: HttpRequestService,
@@ -69,6 +92,8 @@ export class MusicUrlResolverService {
 		this.logger = this.nowPlayingLoggerService.child('url-resolver');
 		// The key is a user-supplied URL, so cap the entry count to bound memory under abuse.
 		this.cache = new MemoryKVCache<ResolvedMusicUrl>(CACHE_TTL_MS, 5000);
+		this.youtubeVideoCache = new MemoryKVCache<YoutubeVideoInfo>(YOUTUBE_VIDEO_CACHE_TTL_MS, 20000);
+		this.youtubePlaylistTitleCache = new MemoryKVCache<string>(YOUTUBE_VIDEO_CACHE_TTL_MS, 2000);
 	}
 
 	@bindThis
@@ -216,6 +241,77 @@ export class MusicUrlResolverService {
 			url: canonical,
 			thumbnailUrl: oembed?.thumbnail_url ?? null,
 		};
+	}
+
+	@bindThis
+	private async lookupYoutubeVideo(videoId: string): Promise<YoutubeVideoInfo> {
+		const cached = this.youtubeVideoCache.get(videoId);
+		if (cached) return cached;
+
+		const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+		let info: YoutubeVideoInfo;
+		try {
+			const oembed = await this.httpRequestService.getJson<{ title?: string; author_name?: string; thumbnail_url?: string }>(
+				`https://www.youtube.com/oembed?url=${encodeURIComponent(watchUrl)}&format=json`,
+			);
+			info = {
+				videoId,
+				status: 'available',
+				title: oembed.title ?? null,
+				author: oembed.author_name?.replace(/\s*-\s*Topic$/, '').trim() || null,
+				thumbnailUrl: oembed.thumbnail_url ?? null,
+			};
+		} catch (err) {
+			// oEmbed は削除済み・存在しない動画に 404 (不正な ID は 400)、非公開の動画に 401 / 403 を返す
+			const status = err instanceof StatusError ? err.statusCode : null;
+			const kind: YoutubeVideoStatus = status === 404 || status === 400 ? 'removed'
+				: status === 401 || status === 403 ? 'private'
+				: 'error';
+			info = { videoId, status: kind, title: null, author: null, thumbnailUrl: null };
+			if (kind === 'error') {
+				this.logger.debug(`youtube oembed failed for ${videoId}: ${err instanceof Error ? err.message : err}`);
+				// 一時的な失敗はキャッシュしない
+				return info;
+			}
+		}
+
+		this.youtubeVideoCache.set(videoId, info);
+		return info;
+	}
+
+	@bindThis
+	public async lookupYoutubeVideos(videoIds: string[]): Promise<YoutubeVideoInfo[]> {
+		const results = new Array<YoutubeVideoInfo>(videoIds.length);
+		const deadline = Date.now() + YOUTUBE_LOOKUP_DEADLINE_MS;
+		let cursor = 0;
+		const worker = async () => {
+			while (cursor < videoIds.length) {
+				const i = cursor++;
+				results[i] = Date.now() < deadline
+					? await this.lookupYoutubeVideo(videoIds[i])
+					: { videoId: videoIds[i], status: 'error', title: null, author: null, thumbnailUrl: null };
+			}
+		};
+		await Promise.all(Array.from({ length: Math.min(YOUTUBE_LOOKUP_CONCURRENCY, videoIds.length) }, worker));
+		return results;
+	}
+
+	@bindThis
+	public async lookupYoutubePlaylistTitle(playlistId: string): Promise<string | null> {
+		const cached = this.youtubePlaylistTitleCache.get(playlistId);
+		if (cached !== undefined) return cached === '' ? null : cached;
+		try {
+			const oembed = await this.httpRequestService.getJson<{ title?: string }>(
+				`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/playlist?list=${playlistId}`)}&format=json`,
+			);
+			const title = oembed.title ?? '';
+			this.youtubePlaylistTitleCache.set(playlistId, title);
+			return title === '' ? null : title;
+		} catch (err) {
+			// 存在しない・非公開 (4xx) は空文字としてキャッシュし、同じ ID で繰り返し問い合わせない
+			if (err instanceof StatusError && err.isClientError) this.youtubePlaylistTitleCache.set(playlistId, '');
+			return null;
+		}
 	}
 
 	@bindThis
