@@ -27,6 +27,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 					:audio="media"
 					@mediaClick="onMediaClick(media)"
 					@addToQueue="onAddToQueue(media)"
+					@addToPlaylist="onAddToPlaylist(media)"
 					@openInLightbox="openAudioInLightbox(media.id)"
 				/>
 				<XVideo
@@ -69,6 +70,7 @@ import { isPreviewable, getType } from '@/utility/lightbox.js';
 import { genId } from '@/utility/id.js';
 import { playTracks, enqueue, pause as pauseGlobalAudio } from '@/utility/audio-player.js';
 import type { AudioTrack } from '@/utility/audio-player.js';
+import { pickPlaylistAndAdd } from '@/utility/audio-playlists.js';
 import { shouldHideFileByDefault } from '@/utility/sensitive-file.js';
 
 const props = defineProps<{
@@ -172,6 +174,10 @@ function onMediaClick(file: Misskey.entities.DriveFile) {
 
 function onAddToQueue(file: Misskey.entities.DriveFile) {
 	enqueue([toAudioTrack(file)]);
+}
+
+function onAddToPlaylist(file: Misskey.entities.DriveFile) {
+	pickPlaylistAndAdd([toAudioTrack(file)]);
 }
 
 function openAudioInLightbox(id: string) {
