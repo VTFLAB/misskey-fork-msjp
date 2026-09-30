@@ -31,7 +31,7 @@ let player: YTPlayer | null = null;
 let ready = false;
 let creating = false;
 // 再生したい動画 (プレイヤーの準備完了前に要求された場合もここに残し、準備完了時に反映する)
-let desired: { videoId: string; autoplay: boolean } | null = null;
+let desired: { videoId: string; autoplay: boolean; startSeconds: number } | null = null;
 let volume = 1;
 let muted = false;
 let tickTimer: number | null = null;
@@ -39,6 +39,8 @@ let tickTimer: number | null = null;
 let awaitingState = false;
 // プレイヤーに最後に読み込ませた動画 ID
 let loadingVideoId: string | null = null;
+// 再生せずに読み込んだ (cue した) 動画の開始位置。cue 中は getCurrentTime が 0 を返すので、表示にはこちらを使う
+let cuedStart: number | null = null;
 
 export function setYoutubeHandlers(h: YoutubeEngineHandlers): void {
 	handlers = h;
@@ -58,7 +60,8 @@ function stopTick(): void {
 function tick(): void {
 	if (player == null || !ready || desired == null || awaitingState) return;
 	try {
-		handlers?.onTick(player.getCurrentTime(), player.getDuration(), player.getVideoLoadedFraction());
+		const currentTime = cuedStart ?? player.getCurrentTime();
+		handlers?.onTick(currentTime, player.getDuration(), player.getVideoLoadedFraction());
 	} catch {
 		// プレイヤーの破棄直後などに呼ばれた場合は無視する
 	}
@@ -78,10 +81,13 @@ function applyDesired(): void {
 	if (player == null || !ready || desired == null) return;
 	awaitingState = true;
 	loadingVideoId = desired.videoId;
+	const args = { videoId: desired.videoId, startSeconds: desired.startSeconds };
 	if (desired.autoplay) {
-		player.loadVideoById(desired.videoId);
+		cuedStart = null;
+		player.loadVideoById(args);
 	} else {
-		player.cueVideoById(desired.videoId);
+		cuedStart = desired.startSeconds;
+		player.cueVideoById(args);
 	}
 	startTick();
 }
@@ -123,6 +129,7 @@ async function ensurePlayer(): Promise<void> {
 					switch (ev.data) {
 						case YT_STATE.PLAYING:
 							awaitingState = false;
+							cuedStart = null;
 							handlers?.onPlay();
 							startTick();
 							break;
@@ -184,8 +191,8 @@ export function detachYoutubeHost(el: HTMLElement): void {
 	host = null;
 }
 
-export function youtubeLoad(videoId: string, autoplay: boolean): void {
-	desired = { videoId, autoplay };
+export function youtubeLoad(videoId: string, autoplay: boolean, startSeconds = 0): void {
+	desired = { videoId, autoplay, startSeconds };
 	if (player == null) {
 		ensurePlayer();
 		return;
@@ -212,13 +219,20 @@ export function youtubePause(): void {
 // 音声ファイルの曲へ切り替えたとき・キューを空にしたときに呼ぶ
 export function youtubeStop(): void {
 	desired = null;
+	cuedStart = null;
 	stopTick();
 	if (player == null || !ready) return;
 	player.stopVideo();
 }
 
 export function youtubeSeek(sec: number): void {
-	if (player == null || !ready) return;
+	if (desired == null) return;
+	// cue 中に seekTo すると再生が始まってしまう (公式仕様) ため、開始位置を変えて cue し直す
+	if (cuedStart != null || player == null || !ready) {
+		desired = { ...desired, autoplay: false, startSeconds: sec };
+		applyDesired();
+		return;
+	}
 	player.seekTo(sec, true);
 }
 
