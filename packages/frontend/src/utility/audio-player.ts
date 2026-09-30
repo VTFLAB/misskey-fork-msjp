@@ -23,6 +23,7 @@ import {
 	youtubeSetVolume,
 	youtubeSetMuted,
 } from '@/utility/audio-player-youtube.js';
+import { refreshStaleYoutubeTracks } from '@/utility/youtube-metadata.js';
 
 export type FileAudioTrack = {
 	kind?: 'file';
@@ -44,7 +45,27 @@ export type YoutubeTrackInfo = {
 	/** 共有・NowPlaying 用の URL (YouTube Music から追加した場合は music.youtube.com) */
 	url: string;
 	service: 'youtube' | 'youtubeMusic';
+	/** 曲名等を YouTube から取得した日時 (ms)。YouTube API ポリシー (III.E.4) により 30 日以内に取得し直す */
+	fetchedAt?: number;
+	/** 再生できない理由。削除・非公開は定期更新 (oEmbed) で、埋め込み不可などは再生時のエラーで判明する */
+	unavailable?: YoutubeUnavailableReason | null;
 };
+
+export type YoutubeUnavailableReason = 'removed' | 'private' | 'notEmbeddable' | 'unavailable';
+
+export function isUnplayableTrack(track: AudioTrack | null | undefined): boolean {
+	return track?.kind === 'youtube' && track.youtube.unavailable != null;
+}
+
+export function trackUnavailableLabel(track: AudioTrack | null | undefined): string | null {
+	if (track?.kind !== 'youtube' || track.youtube.unavailable == null) return null;
+	switch (track.youtube.unavailable) {
+		case 'removed': return i18n.ts._audioPlayer.videoRemoved;
+		case 'private': return i18n.ts._audioPlayer.videoPrivate;
+		case 'notEmbeddable': return i18n.ts._audioPlayer.videoNotEmbeddable;
+		default: return i18n.ts._audioPlayer.videoUnavailable;
+	}
+}
 
 export type YoutubeAudioTrack = {
 	kind: 'youtube';
@@ -292,9 +313,34 @@ function setupMediaSessionActions(): void {
 	});
 }
 
-function loadAt(i: number, autoplay: boolean, startAt = 0): void {
+// i から direction 方向に、再生できる曲を探す (i 自身は含まない)。全曲ループ時のみ端で折り返す
+function findPlayableIndex(i: number, direction: 1 | -1): number | null {
+	const length = audioPlayerState.queue.length;
+	for (let step = 1; step < length; step++) {
+		let j = i + direction * step;
+		if (j < 0 || j >= length) {
+			if (audioPlayerState.loop !== 'all') return null;
+			j = (j + length) % length;
+		}
+		if (!isUnplayableTrack(audioPlayerState.queue[j])) return j;
+	}
+	return null;
+}
+
+function loadAt(i: number, autoplay: boolean, startAt = 0, direction: 1 | -1 = 1): void {
 	resumeYoutubeOnVisible = false;
 	pendingStartAt = null;
+
+	// 削除・非公開などで再生できない YouTube の曲は、リストには残したまま飛ばす
+	if (autoplay && i >= 0 && i < audioPlayerState.queue.length && isUnplayableTrack(audioPlayerState.queue[i])) {
+		const j = findPlayableIndex(i, direction);
+		if (j != null) {
+			i = j;
+			startAt = 0;
+		} else {
+			autoplay = false;
+		}
+	}
 	if (i < 0 || i >= audioPlayerState.queue.length) {
 		audioPlayerState.index = -1;
 		youtubeStop();
@@ -321,6 +367,13 @@ function loadAt(i: number, autoplay: boolean, startAt = 0): void {
 		audioEl.load();
 		audioPlayerState.playing = false;
 		updateMediaSessionMetadata();
+		if (track.youtube.unavailable != null) {
+			// 再生できない曲を選んだまま止める (プレイヤーには読み込まない)
+			youtubeStop();
+			if (hasMediaSession()) navigator.mediaSession.playbackState = 'paused';
+			savePosition();
+			return;
+		}
 		const hidden = window.document.visibilityState === 'hidden';
 		if (autoplay && hidden) {
 			resumeYoutubeOnVisible = true;
@@ -346,6 +399,11 @@ function loadAt(i: number, autoplay: boolean, startAt = 0): void {
 function play(): void {
 	if (audioPlayerState.index === -1 && audioPlayerState.queue.length > 0) {
 		loadAt(0, true);
+		return;
+	}
+
+	if (isUnplayableTrack(currentTrack.value)) {
+		loadAt(audioPlayerState.index, true);
 		return;
 	}
 
@@ -417,14 +475,14 @@ function prev(): void {
 
 	if (audioPlayerState.index <= 0) {
 		if (audioPlayerState.loop === 'all' && audioPlayerState.queue.length > 1) {
-			loadAt(audioPlayerState.queue.length - 1, true);
+			loadAt(audioPlayerState.queue.length - 1, true, 0, -1);
 		} else {
 			seek(0);
 		}
 		return;
 	}
 
-	loadAt(audioPlayerState.index - 1, true);
+	loadAt(audioPlayerState.index - 1, true, 0, -1);
 }
 
 function seek(sec: number): void {
@@ -615,9 +673,21 @@ setYoutubeHandlers({
 		if (hasMediaSession()) navigator.mediaSession.playbackState = 'paused';
 		onEnded();
 	},
-	onError: () => {
+	onError: (code) => {
 		audioPlayerState.playing = false;
 		notifySkipped();
+
+		// 動画側の理由で再生できない場合は、曲に印を付けて以後は再生せずに飛ばす
+		// (100: 削除済み・非公開 / 101, 150: 埋め込み不可。それ以外は一時的な失敗として扱う)
+		const reason: YoutubeUnavailableReason | null = code === 100 ? 'unavailable' : code === 101 || code === 150 ? 'notEmbeddable' : null;
+		const track = currentTrack.value;
+		if (reason != null && track?.kind === 'youtube') {
+			track.youtube = { ...track.youtube, unavailable: reason };
+			saveQueue();
+			loadAt(audioPlayerState.index, true);
+			return;
+		}
+
 		youtubeErrorStreak += 1;
 		if (youtubeErrorStreak >= audioPlayerState.queue.length) {
 			youtubeErrorStreak = 0;
@@ -718,6 +788,39 @@ function restoreSession(): void {
 }
 
 restoreSession();
+
+// キュー内の YouTube の曲情報を差し替える (プレイリスト側で取得し直した結果の反映など)
+export function patchQueueYoutubeInfo(infos: Map<string, YoutubeTrackInfo>): void {
+	let changed = false;
+	for (const track of audioPlayerState.queue) {
+		if (track.kind !== 'youtube') continue;
+		const info = infos.get(track.youtube.videoId);
+		if (info == null) continue;
+		track.youtube = { ...info };
+		changed = true;
+	}
+	if (changed) {
+		saveQueue();
+		updateMediaSessionMetadata();
+	}
+}
+
+// キュー内の古い YouTube の曲情報を取得し直す (起動直後の読み込みと重ならないよう少し遅らせる)
+export async function refreshQueueYoutubeInfo(): Promise<void> {
+	const updated = await refreshStaleYoutubeTracks([...audioPlayerState.queue]);
+	if (updated == null) return;
+	const infos = new Map<string, YoutubeTrackInfo>();
+	for (const track of updated) {
+		if (track.kind === 'youtube') infos.set(track.youtube.videoId, track.youtube);
+	}
+	patchQueueYoutubeInfo(infos);
+}
+
+if (audioPlayerState.queue.some(track => track.kind === 'youtube')) {
+	window.setTimeout(() => {
+		refreshQueueYoutubeInfo().catch(() => {});
+	}, 10 * 1000);
+}
 
 // キューの中身・並びが変わったら保存する (連続した変更はまとめる)
 let saveQueueTimer: number | null = null;

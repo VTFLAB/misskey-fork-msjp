@@ -611,6 +611,8 @@ import type {
 	NowplayingMisskeyLabelResponse,
 	NowplayingResolveUrlRequest,
 	NowplayingResolveUrlResponse,
+	NowplayingYoutubeVideosRequest,
+	NowplayingYoutubeVideosResponse,
 	PagePushRequest,
 	PagesCreateRequest,
 	PagesCreateResponse,
@@ -1171,6 +1173,7 @@ export type Endpoints = {
 	'notifications/test-notification': { req: EmptyRequest; res: EmptyResponse };
 	'nowplaying/misskey-label': { req: EmptyRequest; res: NowplayingMisskeyLabelResponse };
 	'nowplaying/resolve-url': { req: NowplayingResolveUrlRequest; res: NowplayingResolveUrlResponse };
+	'nowplaying/youtube-videos': { req: NowplayingYoutubeVideosRequest; res: NowplayingYoutubeVideosResponse };
 	'page-push': { req: PagePushRequest; res: EmptyResponse };
 	'pages/create': { req: PagesCreateRequest; res: PagesCreateResponse };
 	'pages/delete': { req: PagesDeleteRequest; res: EmptyResponse };

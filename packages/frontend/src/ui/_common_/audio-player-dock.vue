@@ -16,7 +16,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 		<button class="_button" :class="$style.meta" :aria-label="i18n.ts._audioPlayer.queueAndPlaylists" @click="openWindow">
 			<div :class="$style.title" :title="currentTitle">{{ currentTrack ? currentTitle : i18n.ts._audioPlayer.notPlaying }}</div>
-			<div :class="$style.artist" :title="currentArtist">{{ currentArtist }}</div>
+			<div v-if="trackUnavailableLabel(currentTrack)" :class="[$style.artist, $style.unavailable]">{{ trackUnavailableLabel(currentTrack) }}</div>
+			<div v-else :class="$style.artist" :title="currentArtist">{{ currentArtist }}</div>
 		</button>
 
 		<div :class="$style.transport">
@@ -72,7 +73,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, useTemplateRef, watch, onBeforeUnmount } from 'vue';
+import { computed, useTemplateRef, watch, onBeforeUnmount, onMounted } from 'vue';
 import { hms } from '@/filters/hms.js';
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
@@ -86,6 +87,7 @@ import {
 	trackArtworkUrl,
 	trackTitle,
 	trackArtist,
+	trackUnavailableLabel,
 	toggle,
 	next,
 	prev,
@@ -97,6 +99,7 @@ import {
 import { postNowPlayingForMisskeyTrack } from '@/utility/now-playing.js';
 import { openAudioPlayerWindow } from '@/utility/audio-player-window.js';
 import { attachYoutubeHost, detachYoutubeHost } from '@/utility/audio-player-youtube.js';
+import { schedulePlaylistMaintenance } from '@/utility/audio-playlists.js';
 
 defineProps<{
 	// スマホ幅でサイドメニュー・ウィジェットのドロワーを開いている間は隠す (プレイヤーの方が前面に来て
@@ -112,6 +115,11 @@ watch(youtubeHostEl, (el, oldEl) => {
 	if (oldEl != null) detachYoutubeHost(oldEl);
 	if (el != null) attachYoutubeHost(el);
 }, { immediate: true });
+
+onMounted(() => {
+	// YouTube の曲情報の定期更新 (1 日 1 回、起動からしばらく後に少しずつ)
+	schedulePlaylistMaintenance();
+});
 
 onBeforeUnmount(() => {
 	if (youtubeHostEl.value != null) detachYoutubeHost(youtubeHostEl.value);
@@ -248,6 +256,11 @@ function openWindow() {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+.unavailable {
+	color: var(--MI_THEME-warn);
+	opacity: 1;
 }
 
 .transport,
