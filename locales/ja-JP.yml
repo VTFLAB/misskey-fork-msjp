@@ -3373,6 +3373,11 @@ _audioPlayer:
   nTracks: "{n}曲"
   playlistFull: "プレイリストの上限 ({max}曲) に達したため、一部の曲は追加されませんでした"
   tooManyPlaylists: "プレイリストは{max}個まで作成できます"
+  addFromYoutube: "YouTubeのURLから追加"
+  queueAndPlaylists: "キュー・プレイリスト"
+  notPlaying: "再生していません"
+  invalidYoutubeUrl: "YouTube または YouTube Music の動画 URL を入力してください"
+  youtubeUnplayable: "この動画は埋め込み再生が許可されていないか、再生できないため飛ばしました"
 
 _nowPlaying:
   title: "NowPlaying"

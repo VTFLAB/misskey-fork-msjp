@@ -12686,6 +12686,26 @@ export interface Locale extends ILocale {
          * プレイリストは{max}個まで作成できます
          */
         "tooManyPlaylists": ParameterizedString<"max">;
+        /**
+         * YouTubeのURLから追加
+         */
+        "addFromYoutube": string;
+        /**
+         * キュー・プレイリスト
+         */
+        "queueAndPlaylists": string;
+        /**
+         * 再生していません
+         */
+        "notPlaying": string;
+        /**
+         * YouTube または YouTube Music の動画 URL を入力してください
+         */
+        "invalidYoutubeUrl": string;
+        /**
+         * この動画は埋め込み再生が許可されていないか、再生できないため飛ばしました
+         */
+        "youtubeUnplayable": string;
     };
     "_nowPlaying": {
         /**

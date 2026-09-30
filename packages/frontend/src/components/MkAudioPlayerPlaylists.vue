@@ -100,7 +100,8 @@ import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import MkDraggable from '@/components/MkDraggable.vue';
 import { genId } from '@/utility/id.js';
-import { audioPlayerState, trackArtworkUrl, playTracks, enqueue } from '@/utility/audio-player.js';
+import { promptYoutubeTrack } from '@/utility/youtube-track.js';
+import { audioPlayerState, trackArtworkUrl, trackTitle, trackArtist, trackNoteId, playTracks, enqueue } from '@/utility/audio-player.js';
 import {
 	audioPlaylistsState,
 	fetchPlaylists,
@@ -130,14 +131,6 @@ const detailItems = computed<DetailItem[]>({
 		saveDetailTracks();
 	},
 });
-
-function trackTitle(track: AudioTrack): string {
-	return track.file.comment || track.file.name;
-}
-
-function trackArtist(track: AudioTrack): string {
-	return track.user ? (track.user.name || track.user.username) : '';
-}
 
 function showError(err: unknown) {
 	os.alert({ type: 'error', text: errorMessage(err) });
@@ -232,11 +225,11 @@ function openTrackMenu(ev: PointerEvent, index: number) {
 			icon: 'ti ti-arrow-down',
 			action: () => moveTrack(index, index + 1),
 		}] : []),
-		...(track.noteId != null ? [{
+		...(trackNoteId(track) != null ? [{
 			type: 'link' as const,
 			text: i18n.ts._audioPlayer.openNote,
 			icon: 'ti ti-note',
-			to: `/notes/${track.noteId}`,
+			to: `/notes/${trackNoteId(track)}`,
 		}] : []),
 		{ type: 'divider' },
 		{
@@ -252,7 +245,24 @@ function openTrackMenu(ev: PointerEvent, index: number) {
 function openDetailMenu(ev: PointerEvent) {
 	const current = detail.value;
 	if (current == null) return;
-	os.popupMenu(playlistMenuItems({ id: current.id, name: current.name }), (ev.currentTarget ?? ev.target ?? undefined) as HTMLElement | undefined);
+	os.popupMenu([
+		{
+			text: i18n.ts._audioPlayer.addFromYoutube,
+			icon: 'ti ti-brand-youtube',
+			action: () => addYoutubeToDetail(),
+		},
+		...playlistMenuItems({ id: current.id, name: current.name }),
+	], (ev.currentTarget ?? ev.target ?? undefined) as HTMLElement | undefined);
+}
+
+async function addYoutubeToDetail() {
+	const track = await promptYoutubeTrack();
+	if (track == null || detail.value == null) return;
+	if (detailItemsRaw.value.length >= PLAYLIST_MAX_TRACKS) {
+		os.toast(i18n.tsx._audioPlayer.playlistFull({ max: PLAYLIST_MAX_TRACKS }));
+		return;
+	}
+	detailItems.value = [...detailItemsRaw.value, { id: genId(), track }];
 }
 
 async function playPlaylist(id: string) {
