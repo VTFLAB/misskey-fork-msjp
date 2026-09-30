@@ -4479,6 +4479,17 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * YouTube の動画 ID (最大 50 件) の曲名・チャンネル名・サムネイルと再生可否をまとめて取得する。常駐プレイヤーのプレイリスト情報の定期更新と、YouTube プレイリストのインポートに使う。playlistId を渡すとプレイリスト名も返す。
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'nowplaying/youtube-videos', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * No description provided.
      * 
      * **Internal Endpoint**: This endpoint is an API for the misskey mainframe and is not intended for use by third parties.

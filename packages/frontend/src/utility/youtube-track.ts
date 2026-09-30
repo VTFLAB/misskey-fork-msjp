@@ -30,6 +30,7 @@ export async function resolveYoutubeTrack(rawUrl: string): Promise<YoutubeAudioT
 	let title: string | null = null;
 	let author: string | null = null;
 	let thumbnailUrl: string | null = null;
+	let fetchedAt: number | undefined;
 
 	// 曲名・チャンネル名・サムネイルは NowPlaying と同じサーバー側の解析 (oEmbed) で取る。ログインが必要なので
 	// 未ログイン時や失敗時は動画 ID だけで登録する
@@ -39,6 +40,7 @@ export async function resolveYoutubeTrack(rawUrl: string): Promise<YoutubeAudioT
 			title = res.title;
 			author = res.artist;
 			thumbnailUrl = res.thumbnailUrl;
+			if (res.title != null) fetchedAt = Date.now();
 		} catch {
 			// ignore
 		}
@@ -51,6 +53,13 @@ export async function resolveYoutubeTrack(rawUrl: string): Promise<YoutubeAudioT
 		thumbnailUrl: thumbnailUrl ?? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
 		url,
 		service,
+		fetchedAt,
+	});
+}
+
+export async function openYoutubePlaylistImport(): Promise<void> {
+	const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkYoutubePlaylistImportDialog.vue').then(x => x.default), {}, {
+		closed: () => dispose(),
 	});
 }
 

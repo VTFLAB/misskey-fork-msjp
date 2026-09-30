@@ -35,14 +35,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 				manualDragStart
 			>
 				<template #default="{ item, index, dragStart }">
-					<div :class="$style.item">
+					<div :class="[$style.item, { [$style.itemUnplayable]: isUnplayableTrack(item.track) }]">
 						<span :class="$style.handle" :draggable="true" @dragstart.stop="dragStart"><i class="ti ti-grip-vertical"></i></span>
 						<button class="_button" :class="$style.itemMain" @click="playDetail(index)">
 							<img v-if="trackArtworkUrl(item.track)" :src="trackArtworkUrl(item.track) ?? undefined" :class="$style.artwork" alt=""/>
 							<i v-else class="ti ti-music" :class="$style.artworkIcon"></i>
 							<div :class="$style.itemMeta">
 								<div :class="$style.itemTitle">{{ trackTitle(item.track) }}</div>
-								<div :class="$style.itemSub">{{ trackArtist(item.track) }}</div>
+								<div v-if="trackUnavailableLabel(item.track)" :class="$style.unavailableLabel"><i class="ti ti-ban"></i> {{ trackUnavailableLabel(item.track) }}</div>
+								<div v-else :class="$style.itemSub">{{ trackArtist(item.track) }}</div>
 							</div>
 						</button>
 						<button class="_button" :class="$style.iconButton" :aria-label="i18n.ts.menu" @click="openTrackMenu($event, index)">
@@ -60,6 +61,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<template v-else>
 		<div :class="$style.toolbar">
 			<span :class="$style.toolbarMeta">{{ i18n.tsx._audioPlayer.nPlaylists({ n: audioPlaylistsState.list.length }) }}</span>
+			<button class="_button" :class="$style.toolButton" @click="openYoutubePlaylistImport">
+				<i class="ti ti-brand-youtube"></i>{{ i18n.ts._audioPlayer.importShort }}
+			</button>
 			<button class="_button" :class="$style.toolButton" @click="newPlaylist">
 				<i class="ti ti-plus"></i>{{ i18n.ts._audioPlayer.create }}
 			</button>
@@ -107,8 +111,8 @@ import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import MkDraggable from '@/components/MkDraggable.vue';
 import { genId } from '@/utility/id.js';
-import { promptYoutubeTrack } from '@/utility/youtube-track.js';
-import { audioPlayerState, trackArtworkUrl, trackTitle, trackArtist, trackNoteId, playTracks, enqueue } from '@/utility/audio-player.js';
+import { promptYoutubeTrack, openYoutubePlaylistImport } from '@/utility/youtube-track.js';
+import { audioPlayerState, trackArtworkUrl, trackTitle, trackArtist, trackNoteId, isUnplayableTrack, trackUnavailableLabel, playTracks, enqueue } from '@/utility/audio-player.js';
 import {
 	audioPlaylistsState,
 	fetchPlaylists,
@@ -120,6 +124,7 @@ import {
 	deletePlaylist,
 	reorderPlaylists,
 	promptPlaylistName,
+	refreshPlaylistYoutubeInfo,
 	errorMessage,
 	PLAYLIST_MAX_TRACKS,
 } from '@/utility/audio-playlists.js';
@@ -174,6 +179,18 @@ async function openDetail(id: string) {
 	if (playlist == null) return;
 	detail.value = playlist;
 	detailItemsRaw.value = playlist.tracks.map(track => ({ id: genId(), track }));
+	refreshDetailInBackground(playlist.id);
+}
+
+// 表示したプレイリストの古い YouTube の曲情報を裏で取得し直し、終わったら表示に反映する
+async function refreshDetailInBackground(id: string) {
+	const infos = await refreshPlaylistYoutubeInfo(id).catch(() => null);
+	if (infos == null || detail.value?.id !== id) return;
+	detailItemsRaw.value = detailItemsRaw.value.map(item => {
+		if (item.track.kind !== 'youtube') return item;
+		const info = infos.get(item.track.youtube.videoId);
+		return info != null ? { ...item, track: { ...item.track, youtube: info } } : item;
+	});
 }
 
 function closeDetail() {
@@ -281,12 +298,15 @@ async function playPlaylist(id: string) {
 	const playlist = await loadPlaylist(id);
 	if (playlist == null || playlist.tracks.length === 0) return;
 	playTracks(playlist.tracks, 0);
+	// 再生はすぐ始め、古い曲情報の取得し直しは裏で行う (結果はキューにも反映される)
+	refreshPlaylistYoutubeInfo(id).catch(() => {});
 }
 
 async function enqueuePlaylist(id: string) {
 	const playlist = await loadPlaylist(id);
 	if (playlist == null || playlist.tracks.length === 0) return;
 	enqueue(playlist.tracks);
+	refreshPlaylistYoutubeInfo(id).catch(() => {});
 }
 
 async function addQueueToPlaylist(id: string) {
@@ -465,6 +485,18 @@ async function onReorderPlaylists(list: AudioPlaylistSummary[]) {
 	&:hover {
 		background-color: var(--MI_THEME-buttonBg);
 	}
+}
+
+.itemUnplayable .itemMain {
+	opacity: 0.55;
+}
+
+.unavailableLabel {
+	font-size: 0.8em;
+	color: var(--MI_THEME-warn);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .handle {
