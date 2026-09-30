@@ -14,6 +14,8 @@ export type AudioTrack = {
 	file: Misskey.entities.DriveFile;
 	user?: Misskey.entities.UserLite | null;
 	noteId?: string;
+	/** リモートノートの場合、元サーバー上のノート URL (note.url ?? note.uri) */
+	noteUrl?: string | null;
 };
 
 export type LoopMode = 'off' | 'one' | 'all';
