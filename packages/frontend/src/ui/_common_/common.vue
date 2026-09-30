@@ -89,7 +89,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <XStreamIndicator/>
 
-<XAudioPlayerDock/>
+<XAudioPlayerDock :hidden="drawerMenuShowing || widgetsShowing"/>
 
 <div v-if="pendingApiRequestsCount > 0" id="wait"></div>
 
