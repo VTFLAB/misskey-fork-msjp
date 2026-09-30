@@ -8,6 +8,7 @@
 
 import { computed, reactive } from 'vue';
 import * as Misskey from 'misskey-js';
+import { genId } from '@/utility/id.js';
 
 export type AudioTrack = {
 	id: string; // ドライブファイルID
@@ -16,6 +17,8 @@ export type AudioTrack = {
 	noteId?: string;
 	/** リモートノートの場合、元サーバー上のノート URL (note.url ?? note.uri) */
 	noteUrl?: string | null;
+	/** キュー内でエントリを一意に識別するキー (同じファイルを複数回積めるため id とは別)。キュー投入時に採番する */
+	qid?: string;
 };
 
 export type LoopMode = 'off' | 'one' | 'all';
@@ -272,16 +275,20 @@ function cycleLoop(): void {
 	audioPlayerState.loop = LOOP_ORDER[(i + 1) % LOOP_ORDER.length];
 }
 
+function toQueueEntries(tracks: AudioTrack[]): AudioTrack[] {
+	return tracks.map(track => ({ ...track, qid: genId() }));
+}
+
 function playTracks(tracks: AudioTrack[], startIndex = 0): void {
 	if (tracks.length === 0) return;
-	audioPlayerState.queue.splice(0, audioPlayerState.queue.length, ...tracks);
+	audioPlayerState.queue.splice(0, audioPlayerState.queue.length, ...toQueueEntries(tracks));
 	loadAt(Math.min(Math.max(0, startIndex), tracks.length - 1), true);
 }
 
 function enqueue(tracks: AudioTrack[]): void {
 	if (tracks.length === 0) return;
 	const wasEmpty = audioPlayerState.queue.length === 0;
-	audioPlayerState.queue.push(...tracks);
+	audioPlayerState.queue.push(...toQueueEntries(tracks));
 	if (wasEmpty) {
 		loadAt(0, true);
 	}
@@ -308,6 +315,25 @@ function remove(i: number): void {
 	} else if (i < audioPlayerState.index) {
 		audioPlayerState.index -= 1;
 	}
+}
+
+// キューを並べ替える (D&D の結果をそのまま受け取る)。再生中のトラックは止めずに、その新しい位置へ index を追従させる。
+// newQueue は現在のキューの並べ替えであること (要素の追加・削除は remove / enqueue を使う)。
+function reorderQueue(newQueue: AudioTrack[]): void {
+	const currentQid = currentTrack.value?.qid ?? null;
+	audioPlayerState.queue.splice(0, audioPlayerState.queue.length, ...newQueue);
+	if (currentQid != null) {
+		audioPlayerState.index = audioPlayerState.queue.findIndex(track => track.qid === currentQid);
+	}
+}
+
+function moveInQueue(from: number, to: number): void {
+	const queue = audioPlayerState.queue;
+	if (from < 0 || from >= queue.length || to < 0 || to >= queue.length || from === to) return;
+	const newQueue = [...queue];
+	const [moved] = newQueue.splice(from, 1);
+	newQueue.splice(to, 0, moved);
+	reorderQueue(newQueue);
 }
 
 function clear(): void {
@@ -368,5 +394,7 @@ export {
 	toggleMute,
 	cycleLoop,
 	remove,
+	reorderQueue,
+	moveInQueue,
 	clear,
 };

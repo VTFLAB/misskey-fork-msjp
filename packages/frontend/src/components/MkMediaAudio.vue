@@ -87,6 +87,7 @@ import { i18n } from '@/i18n.js';
 import { prefer } from '@/preferences.js';
 import * as os from '@/os.js';
 import { getFileMenu } from '@/utility/get-file-menu.js';
+import { canUsePlaylists } from '@/utility/audio-playlists.js';
 import { shouldHideFileByDefault, canRevealFile } from '@/utility/sensitive-file.js';
 
 const props = defineProps<{
@@ -96,6 +97,7 @@ const props = defineProps<{
 const emit = defineEmits<{
 	(event: 'mediaClick', ev: PointerEvent | KeyboardEvent): void;
 	(event: 'addToQueue'): void;
+	(event: 'addToPlaylist'): void;
 	(event: 'openInLightbox'): void;
 }>();
 
@@ -117,6 +119,11 @@ function showMenu(ev: PointerEvent) {
 			icon: 'ti ti-playlist',
 			action: () => emit('addToQueue'),
 		},
+		...(canUsePlaylists() ? [{
+			text: i18n.ts._audioPlayer.addToPlaylist,
+			icon: 'ti ti-playlist-add',
+			action: () => emit('addToPlaylist'),
+		}] : []),
 		{
 			text: i18n.ts._audioPlayer.openInLightbox,
 			icon: 'ti ti-arrows-maximize',

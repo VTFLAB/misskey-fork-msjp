@@ -190,6 +190,7 @@ export const PREF_DEF = definePreferences({
 			'notifications',
 			'clips',
 			'drive',
+			'audioPlayer',
 			'followRequests',
 			'chat',
 			'-',

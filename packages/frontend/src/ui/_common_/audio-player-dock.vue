@@ -89,6 +89,7 @@ import {
 	clear,
 } from '@/utility/audio-player.js';
 import { postNowPlayingForMisskeyTrack } from '@/utility/now-playing.js';
+import { openAudioPlayerWindow } from '@/utility/audio-player-window.js';
 
 const zIndex = os.claimZIndex('high');
 
@@ -133,23 +134,8 @@ const loopLabel = computed(() => {
 	}
 });
 
-let windowOpening = false;
-
-async function openWindow() {
-	if (windowOpening) return;
-	windowOpening = true;
-	try {
-		const { dispose } = await os.popupAsyncWithDialog(import('@/components/MkAudioPlayerWindow.vue').then(x => x.default), {}, {
-			closed: () => {
-				dispose();
-				windowOpening = false;
-			},
-		});
-	} catch (err) {
-		// e.g. the dynamic import failed; do not leave the expand button latched.
-		windowOpening = false;
-		throw err;
-	}
+function openWindow() {
+	openAudioPlayerWindow();
 }
 </script>
 
