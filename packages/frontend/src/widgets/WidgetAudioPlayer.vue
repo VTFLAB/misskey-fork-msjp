@@ -30,8 +30,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts.next" @click="next">
 			<i class="ti ti-player-track-next"></i>
 		</button>
-		<button class="_button" :class="$style.controlButton" :aria-label="loopLabel" @click="cycleLoop">
-			<i class="ti ti-repeat" :class="{ [$style.loopActive]: audioPlayerState.loop !== 'off' }"></i>
+		<button v-tooltip="loopLabel" class="_button" :class="$style.controlButton" :aria-label="loopLabel" @click="cycleLoop">
+			<i :class="[audioPlayerState.loop === 'one' ? 'ti ti-repeat-once' : 'ti ti-repeat', { [$style.loopActive]: audioPlayerState.loop !== 'off' }]"></i>
 		</button>
 		<button v-if="currentTrack" v-tooltip="i18n.ts._nowPlaying.post" class="_button" :class="$style.controlButton" :aria-label="i18n.ts._nowPlaying.post" @click="postNowPlaying">
 			<i class="ti ti-music"></i>
