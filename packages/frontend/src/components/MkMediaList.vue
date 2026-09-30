@@ -76,6 +76,7 @@ const props = defineProps<{
 	user?: Misskey.entities.User | null; // DriveFileのuserはnullになることがある。その場合に使用する所有者情報
 	raw?: boolean;
 	noteId?: string;
+	noteUrl?: string | null;
 }>();
 
 const gallery = useTemplateRef('gallery');
@@ -106,6 +107,7 @@ function toAudioTrack(file: Misskey.entities.DriveFile): AudioTrack {
 		file,
 		user: props.user ?? file.user ?? null,
 		noteId: props.noteId,
+		noteUrl: props.noteUrl,
 	};
 }
 

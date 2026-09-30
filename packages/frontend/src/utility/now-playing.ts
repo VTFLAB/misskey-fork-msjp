@@ -103,8 +103,14 @@ function stripExtension(fileName: string): string {
 export async function misskeyTrackToNowPlaying(track: AudioTrack): Promise<NowPlayingTrack> {
 	const title = track.file.comment || stripExtension(track.file.name);
 	const artist = track.user != null ? (track.user.name || track.user.username) : null;
-	const trackUrl = track.noteId != null ? `${url}/notes/${track.noteId}` : track.file.url;
-	const serviceLabel = await fetchMisskeyLabel();
+	// リモートユーザーの楽曲は元サーバーのノート URL とサーバー名を from として示す
+	// (自インスタンスはリモートノートのキャッシュを表示しているだけなので)。
+	const remoteHost = track.user?.host ?? null;
+	const remoteNoteUrl = remoteHost != null && track.noteUrl != null && /^https?:\/\//.test(track.noteUrl) ? track.noteUrl : null;
+	const trackUrl = remoteNoteUrl ?? (track.noteId != null ? `${url}/notes/${track.noteId}` : track.file.url);
+	const serviceLabel = remoteHost != null
+		? (track.user?.instance?.name || remoteHost)
+		: await fetchMisskeyLabel();
 
 	return {
 		title,
