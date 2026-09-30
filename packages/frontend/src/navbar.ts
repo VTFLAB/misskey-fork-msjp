@@ -14,6 +14,7 @@ import { lookup } from '@/utility/lookup.js';
 import * as os from '@/os.js';
 import { i18n } from '@/i18n.js';
 import { unisonReload } from '@/utility/unison-reload.js';
+import { openAudioPlayerWindow } from '@/utility/audio-player-window.js';
 
 export const navbarItemDef = reactive<{
 	[key: string]: {
@@ -69,6 +70,13 @@ export const navbarItemDef = reactive<{
 		title: i18n.ts.updateInfo,
 		icon: 'ti ti-speakerphone',
 		to: '/updates',
+	},
+	audioPlayer: {
+		title: i18n.ts._audioPlayer.title,
+		icon: 'ti ti-headphones',
+		action: () => {
+			openAudioPlayerWindow();
+		},
 	},
 	feedback: {
 		title: i18n.ts._feedback.feedback,

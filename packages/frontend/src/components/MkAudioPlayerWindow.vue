@@ -62,43 +62,71 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</div>
 		</div>
 
-		<div :class="$style.queueHeader">
-			<span :class="$style.queueTitle"><i class="ti ti-playlist"></i> {{ i18n.ts._audioPlayer.queue }} ({{ audioPlayerState.queue.length }})</span>
-			<button class="_textButton" :disabled="audioPlayerState.queue.length === 0" @click="clear">{{ i18n.ts._audioPlayer.clearQueue }}</button>
-		</div>
+		<MkTab
+			v-if="canUsePlaylists()"
+			v-model="tab"
+			:tabs="[
+				{ key: 'queue', label: i18n.ts._audioPlayer.queue, icon: 'ti ti-list' },
+				{ key: 'playlists', label: i18n.ts._audioPlayer.playlists, icon: 'ti ti-playlist' },
+			]"
+			:class="$style.tabs"
+		/>
 
-		<div :class="$style.queue">
-			<div
-				v-for="(track, i) in audioPlayerState.queue"
-				:key="`${track.id}:${i}`"
-				:class="[$style.queueItem, { [$style.queueItemActive]: i === audioPlayerState.index }]"
-			>
-				<button class="_button" :class="$style.queueItemMain" @click="playAt(i)">
-					<img v-if="trackArtworkUrl(track)" :src="trackArtworkUrl(track) ?? undefined" :class="$style.queueItemArtwork" alt=""/>
-					<i v-else class="ti ti-music" :class="$style.queueItemArtworkIcon"></i>
-					<div :class="$style.queueItemMeta">
-						<div :class="$style.queueItemTitle">{{ track.file.comment || track.file.name }}</div>
-						<div :class="$style.queueItemArtist">{{ track.user ? (track.user.name || track.user.username) : '' }}</div>
-					</div>
-				</button>
-				<MkA v-if="track.noteId" :to="`/notes/${track.noteId}`" :class="$style.queueItemNoteLink" :aria-label="i18n.ts._audioPlayer.openNote">
-					{{ i18n.ts._audioPlayer.openNote }}
-				</MkA>
-				<button class="_button" :class="$style.queueItemRemove" :aria-label="i18n.ts._audioPlayer.removeFromQueue" @click="remove(i)">
-					<i class="ti ti-x"></i>
-				</button>
+		<MkAudioPlayerPlaylists v-if="tab === 'playlists'"/>
+
+		<template v-else>
+			<div :class="$style.queueHeader">
+				<span :class="$style.queueTitle"><i class="ti ti-list"></i> {{ i18n.ts._audioPlayer.queue }} ({{ audioPlayerState.queue.length }})</span>
+				<button v-if="canUsePlaylists()" class="_textButton" :disabled="audioPlayerState.queue.length === 0" @click="saveQueueToPlaylist">{{ i18n.ts._audioPlayer.saveQueueToPlaylist }}</button>
+				<button class="_textButton" :disabled="audioPlayerState.queue.length === 0" @click="clear">{{ i18n.ts._audioPlayer.clearQueue }}</button>
 			</div>
-		</div>
+
+			<div :class="$style.queue">
+				<div v-if="audioPlayerState.queue.length === 0" :class="$style.queueEmpty">{{ i18n.ts._audioPlayer.emptyQueue }}</div>
+				<MkDraggable
+					v-else
+					v-model="queueItems"
+					direction="vertical"
+					manualDragStart
+				>
+					<template #default="{ item, index, dragStart }">
+						<div :class="[$style.queueItem, { [$style.queueItemActive]: index === audioPlayerState.index }]">
+							<span :class="$style.queueItemHandle" :draggable="true" @dragstart.stop="dragStart"><i class="ti ti-grip-vertical"></i></span>
+							<button class="_button" :class="$style.queueItemMain" @click="playAt(index)">
+								<img v-if="trackArtworkUrl(item.track)" :src="trackArtworkUrl(item.track) ?? undefined" :class="$style.queueItemArtwork" alt=""/>
+								<i v-else class="ti ti-music" :class="$style.queueItemArtworkIcon"></i>
+								<div :class="$style.queueItemMeta">
+									<div :class="$style.queueItemTitle">{{ item.track.file.comment || item.track.file.name }}</div>
+									<div :class="$style.queueItemArtist">{{ item.track.user ? (item.track.user.name || item.track.user.username) : '' }}</div>
+								</div>
+							</button>
+							<button class="_button" :class="$style.queueItemButton" :aria-label="i18n.ts.menu" @click="openQueueItemMenu($event, index)">
+								<i class="ti ti-dots"></i>
+							</button>
+							<button class="_button" :class="$style.queueItemButton" :aria-label="i18n.ts._audioPlayer.removeFromQueue" @click="remove(index)">
+								<i class="ti ti-x"></i>
+							</button>
+						</div>
+					</template>
+				</MkDraggable>
+			</div>
+		</template>
 	</div>
 </MkWindow>
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import type { MenuItem } from '@/types/menu.js';
+import type { AudioTrack } from '@/utility/audio-player.js';
 import { hms } from '@/filters/hms.js';
 import { i18n } from '@/i18n.js';
 import MkWindow from '@/components/MkWindow.vue';
 import MkMediaRange from '@/components/MkMediaRange.vue';
+import MkTab from '@/components/MkTab.vue';
+import MkDraggable from '@/components/MkDraggable.vue';
+import MkAudioPlayerPlaylists from '@/components/MkAudioPlayerPlaylists.vue';
+import * as os from '@/os.js';
 import {
 	audioPlayerState,
 	currentTrack,
@@ -113,12 +141,65 @@ import {
 	playAt,
 	remove,
 	clear,
+	reorderQueue,
+	moveInQueue,
 } from '@/utility/audio-player.js';
+import { canUsePlaylists, pickPlaylistAndAdd } from '@/utility/audio-playlists.js';
 import { postNowPlayingForMisskeyTrack } from '@/utility/now-playing.js';
 
 const emit = defineEmits<{
 	(ev: 'closed'): void;
 }>();
+
+const tab = ref<'queue' | 'playlists'>('queue');
+
+// MkDraggable は要素に一意の id を要求する。キューは同じファイルを重複して積めるので qid を使う
+const queueItems = computed<{ id: string; track: AudioTrack }[]>({
+	get: () => audioPlayerState.queue.map((track, i) => ({ id: track.qid ?? `${track.id}:${i}`, track })),
+	set: (items) => {
+		reorderQueue(items.map(x => x.track));
+	},
+});
+
+function saveQueueToPlaylist() {
+	pickPlaylistAndAdd([...audioPlayerState.queue]);
+}
+
+function openQueueItemMenu(ev: PointerEvent, index: number) {
+	const track = audioPlayerState.queue[index];
+	if (track == null) return;
+	const menu: MenuItem[] = [
+		...(index > 0 ? [{
+			text: i18n.ts._audioPlayer.moveUp,
+			icon: 'ti ti-arrow-up',
+			action: () => moveInQueue(index, index - 1),
+		}] : []),
+		...(index < audioPlayerState.queue.length - 1 ? [{
+			text: i18n.ts._audioPlayer.moveDown,
+			icon: 'ti ti-arrow-down',
+			action: () => moveInQueue(index, index + 1),
+		}] : []),
+		...(track.noteId != null ? [{
+			type: 'link' as const,
+			text: i18n.ts._audioPlayer.openNote,
+			icon: 'ti ti-note',
+			to: `/notes/${track.noteId}`,
+		}] : []),
+		...(canUsePlaylists() ? [{
+			text: i18n.ts._audioPlayer.addToPlaylist,
+			icon: 'ti ti-playlist-add',
+			action: () => pickPlaylistAndAdd([track]),
+		}] : []),
+		{ type: 'divider' },
+		{
+			text: i18n.ts._audioPlayer.removeFromQueue,
+			icon: 'ti ti-trash',
+			danger: true,
+			action: () => remove(index),
+		},
+	];
+	os.popupMenu(menu, (ev.currentTarget ?? ev.target ?? undefined) as HTMLElement | undefined);
+}
 
 const trackTitle = computed(() => {
 	const track = currentTrack.value;
@@ -289,31 +370,41 @@ const loopLabel = computed(() => {
 	color: var(--MI_THEME-accent);
 }
 
-.queueHeader {
+.tabs {
 	flex-shrink: 0;
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
 	border-top: solid 0.5px var(--MI_THEME-divider);
 	padding-top: 8px;
 }
 
+.queueHeader {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
 .queueTitle {
+	flex: 1;
+	min-width: 0;
 	font-weight: bold;
+}
+
+.queueEmpty {
+	padding: 24px 8px;
+	text-align: center;
+	opacity: 0.7;
+	font-size: 0.9em;
 }
 
 .queue {
 	flex: 1;
 	overflow-y: auto;
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
 }
 
 .queueItem {
 	display: flex;
 	align-items: center;
-	gap: 4px;
+	gap: 2px;
 	border-radius: 6px;
 
 	&:hover {
@@ -326,13 +417,20 @@ const loopLabel = computed(() => {
 	color: var(--MI_THEME-accent);
 }
 
+.queueItemHandle {
+	flex-shrink: 0;
+	padding: 6px 2px;
+	cursor: grab;
+	opacity: 0.5;
+}
+
 .queueItemMain {
 	flex: 1;
 	min-width: 0;
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 6px;
+	padding: 6px 4px;
 	text-align: left;
 }
 
@@ -374,13 +472,7 @@ const loopLabel = computed(() => {
 	text-overflow: ellipsis;
 }
 
-.queueItemNoteLink {
-	flex-shrink: 0;
-	font-size: 0.8em;
-	padding: 4px 6px;
-}
-
-.queueItemRemove {
+.queueItemButton {
 	flex-shrink: 0;
 	padding: 6px;
 	border-radius: 4px;
