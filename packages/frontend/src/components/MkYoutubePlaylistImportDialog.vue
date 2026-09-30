@@ -43,7 +43,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<i class="ti ti-ban"></i> {{ i18n.tsx._audioPlayer.includesUnplayable({ n: unplayableCount }) }}
 					</div>
 					<div v-if="truncated" :class="$style.summaryWarn">
-						<i class="ti ti-alert-triangle"></i> {{ i18n.tsx._audioPlayer.importTruncated({ max: PLAYLIST_MAX_TRACKS }) }}
+						<i class="ti ti-alert-triangle"></i> {{ i18n.tsx._audioPlayer.importTruncated({ max: EMBED_PLAYLIST_LIMIT }) }}
 					</div>
 				</div>
 
@@ -89,6 +89,9 @@ const emit = defineEmits<{
 
 // 埋め込みプレイヤーがプレイリストを読み込むのを待つ上限
 const READ_TIMEOUT_MS = 20 * 1000;
+// 埋め込みプレイヤーの getPlaylist が返すのは先頭 200 件まで (実測。開始位置 index や開始動画を
+// ずらしても同じ 200 件が返り、続きは取れない)。ちょうどこの件数なら続きがある可能性が高いので知らせる
+const EMBED_PLAYLIST_LIMIT = 200;
 
 const dialog = useTemplateRef('dialog');
 const playerHostEl = useTemplateRef('playerHostEl');
@@ -177,8 +180,8 @@ async function load() {
 	tracks.value = [];
 	try {
 		const allIds = await readPlaylist(parsed.id);
-		truncated.value = allIds.length > PLAYLIST_MAX_TRACKS;
-		videoIds.value = allIds.slice(0, PLAYLIST_MAX_TRACKS).filter(id => /^[A-Za-z0-9_-]{11}$/.test(id));
+		truncated.value = allIds.length >= EMBED_PLAYLIST_LIMIT;
+		videoIds.value = allIds.slice(0, Math.min(EMBED_PLAYLIST_LIMIT, PLAYLIST_MAX_TRACKS)).filter(id => /^[A-Za-z0-9_-]{11}$/.test(id));
 
 		phase.value = 'fetching';
 		fetchedCount.value = 0;

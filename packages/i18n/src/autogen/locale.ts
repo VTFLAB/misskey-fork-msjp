@@ -12771,7 +12771,7 @@ export interface Locale extends ILocale {
          */
         "includesUnplayable": ParameterizedString<"n">;
         /**
-         * {max}曲を超える分は取り込んでいません
+         * 先頭 {max}曲まで取り込みました。YouTube の埋め込みプレイヤーの制限により、それ以降の曲は取り込めません
          */
         "importTruncated": ParameterizedString<"max">;
         /**
@@ -12779,7 +12779,7 @@ export interface Locale extends ILocale {
          */
         "saveAsPlaylist": string;
         /**
-         * 公開・限定公開のプレイリストを取り込めます。非公開のプレイリストと、YouTube が自動で作るミックスは取り込めません。
+         * 公開・限定公開のプレイリストを、先頭から 200 曲まで取り込めます。非公開のプレイリストと、YouTube が自動で作るミックスは取り込めません。
          */
         "importYoutubePlaylistNote": string;
         /**
