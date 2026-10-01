@@ -138,8 +138,9 @@ const SEEK_STEP_SEC = 10;
 // YouTube の曲の連続再生失敗数 (下の onError ハンドラ参照)
 let youtubeErrorStreak = 0;
 
-// 再生セッション (キュー・再生中の曲・再生位置) の保存先 (bsky-fork 独自)。ページの再読み込みや
-// キャッシュクリア後に同じ状態へ戻すため。キューは大きくなりうるので、頻繁に更新する再生位置とはキーを分ける
+// 再生セッション (キュー・再生中の曲・再生位置) の保存先 (bsky-fork 独自)。ページの再読み込み・
+// キャッシュクリア後や、プレイヤーを閉じてから開き直したときに同じ状態へ戻すため。
+// キューは大きくなりうるので、頻繁に更新する再生位置とはキーを分ける。
 // アカウントを切り替えた際に別アカウントのキューが出ないよう、アカウントごとに分ける
 const SESSION_ACCOUNT = $i?.id ?? 'guest';
 const SESSION_QUEUE_KEY = `mkGlobalAudioPlayerQueue:${SESSION_ACCOUNT}`;
@@ -200,14 +201,18 @@ export const dockShown = computed(() => hasQueue.value || audioPlayerState.dockR
 // ナビゲーションから呼び出された回数。スマホ幅ではこれが増えるたびにプレイヤーを全面展開する
 export const dockOpenRequest = ref(0);
 
+// ナビゲーションの「オーディオプレイヤー」: 閉じたときに保存したキューがあれば、その状態で開き直す
 export function showDock(): void {
+	reopenSession();
 	audioPlayerState.dockRequested = true;
 	dockOpenRequest.value++;
 }
 
-// ミニプレイヤーの閉じるボタン: 再生を止めてキューを空にし、プレイヤーを隠す
+// ミニプレイヤーの閉じるボタン: キューと再生位置を保存したまま再生を止め、プレイヤーを隠す。
+// 再読み込みしても閉じたままにし、ナビゲーションから開くか「キューに追加」したときに復元する
 export function closeDock(): void {
-	clear();
+	flushSession(true);
+	resetPlayback();
 	audioPlayerState.dockRequested = false;
 }
 export const currentTrack = computed<AudioTrack | null>(() => audioPlayerState.queue[audioPlayerState.index] ?? null);
@@ -534,6 +539,8 @@ function playTracks(tracks: AudioTrack[], startIndex = 0): void {
 
 function enqueue(tracks: AudioTrack[]): void {
 	if (tracks.length === 0) return;
+	// 閉じたプレイヤーに追加するときは、保存しておいたキューの後ろに足す
+	reopenSession();
 	const wasEmpty = audioPlayerState.queue.length === 0;
 	audioPlayerState.queue.push(...toQueueEntries(tracks));
 	if (wasEmpty) {
@@ -584,13 +591,15 @@ function moveInQueue(from: number, to: number): void {
 	reorderQueue(newQueue);
 }
 
-function clear(): void {
+// 再生を止めてキューを空にする (保存した内容には触れない)。
+// 先にキューを空にして、停止に伴う pause イベントなどが再生位置を保存し直さないようにする
+function resetPlayback(): void {
+	audioPlayerState.queue.splice(0, audioPlayerState.queue.length);
+	audioPlayerState.index = -1;
 	youtubeStop();
 	audioEl.pause();
 	audioEl.removeAttribute('src');
 	audioEl.load();
-	audioPlayerState.queue.splice(0, audioPlayerState.queue.length);
-	audioPlayerState.index = -1;
 	audioPlayerState.playing = false;
 	audioPlayerState.currentTime = 0;
 	audioPlayerState.duration = 0;
@@ -601,6 +610,11 @@ function clear(): void {
 		navigator.mediaSession.playbackState = 'none';
 	}
 	resumeYoutubeOnVisible = false;
+}
+
+// キューの「クリア」・最後の曲の削除: 保存した内容も消す
+function clear(): void {
+	resetPlayback();
 	clearSession();
 }
 
@@ -687,7 +701,7 @@ setYoutubeHandlers({
 		const track = currentTrack.value;
 		if (reason != null && track?.kind === 'youtube') {
 			track.youtube = { ...track.youtube, unavailable: reason };
-			saveQueue();
+			writeQueue();
 			loadAt(audioPlayerState.index, true);
 			return;
 		}
@@ -714,6 +728,17 @@ setYoutubeHandlers({
 });
 
 // --- 再生セッションの保存と復元 ---
+// 保存は常に「いまのキュー」から一方向に行い、空のキューは書き込まない。保存内容を消すのは
+// clearSession() (キューのクリア) だけなので、閉じる・再読み込みでキューを空にしても保存内容は残る。
+// 再生位置には「閉じているか」も持たせ、閉じたまま再読み込みしたときは復元しない
+
+type StoredSession = {
+	tracks: AudioTrack[];
+	index: number;
+	currentTime: number;
+	loop: LoopMode;
+	closed: boolean;
+};
 
 function isRestorableTrack(value: unknown): value is AudioTrack {
 	if (value == null || typeof value !== 'object') return false;
@@ -723,12 +748,9 @@ function isRestorableTrack(value: unknown): value is AudioTrack {
 	return typeof track.file?.url === 'string';
 }
 
-function saveQueue(): void {
+function writeQueue(): void {
+	if (audioPlayerState.queue.length === 0) return;
 	try {
-		if (audioPlayerState.queue.length === 0) {
-			window.localStorage.removeItem(SESSION_QUEUE_KEY);
-			return;
-		}
 		const queue = audioPlayerState.queue.slice(0, SESSION_MAX_TRACKS).map(toPersistableTrack);
 		window.localStorage.setItem(SESSION_QUEUE_KEY, JSON.stringify(queue));
 	} catch {
@@ -738,17 +760,15 @@ function saveQueue(): void {
 
 let lastPositionSavedAt = 0;
 
-function savePosition(): void {
+function savePosition(closed = false): void {
+	if (audioPlayerState.queue.length === 0) return;
 	lastPositionSavedAt = Date.now();
 	try {
-		if (audioPlayerState.queue.length === 0) {
-			window.localStorage.removeItem(SESSION_POSITION_KEY);
-			return;
-		}
 		window.localStorage.setItem(SESSION_POSITION_KEY, JSON.stringify({
 			index: audioPlayerState.index,
 			currentTime: audioPlayerState.currentTime,
 			loop: audioPlayerState.loop,
+			closed,
 		}));
 	} catch {
 		// ignore
@@ -759,7 +779,36 @@ function savePositionThrottled(): void {
 	if (Date.now() - lastPositionSavedAt >= POSITION_SAVE_INTERVAL_MS) savePosition();
 }
 
+// キューの中身・並びの変更は連続しやすいのでまとめて保存する
+let queueSaveTimer: number | null = null;
+
+function scheduleQueueSave(): void {
+	if (queueSaveTimer != null) window.clearTimeout(queueSaveTimer);
+	queueSaveTimer = window.setTimeout(() => {
+		queueSaveTimer = null;
+		writeQueue();
+		savePosition();
+	}, 300);
+}
+
+// 保留中の保存も含めて、いまの状態をすぐに書き込む (閉じる・ページを離れる・裏に回るとき)。
+// 閉じるときは、この後キューを空にするので保留の有無にかかわらずキューも書き込む
+function flushSession(closed = false): void {
+	if (queueSaveTimer != null) {
+		window.clearTimeout(queueSaveTimer);
+		queueSaveTimer = null;
+		writeQueue();
+	} else if (closed) {
+		writeQueue();
+	}
+	savePosition(closed);
+}
+
 function clearSession(): void {
+	if (queueSaveTimer != null) {
+		window.clearTimeout(queueSaveTimer);
+		queueSaveTimer = null;
+	}
 	try {
 		window.localStorage.removeItem(SESSION_QUEUE_KEY);
 		window.localStorage.removeItem(SESSION_POSITION_KEY);
@@ -768,30 +817,49 @@ function clearSession(): void {
 	}
 }
 
-// 前回のキューと再生位置を読み込み、一時停止した状態で復元する (ブラウザの自動再生制限があるので再生はしない)
-function restoreSession(): void {
+function readSession(): StoredSession | null {
 	let queue: unknown;
-	let position: { index?: unknown; currentTime?: unknown; loop?: unknown } | null;
+	let position: { index?: unknown; currentTime?: unknown; loop?: unknown; closed?: unknown } | null;
 	try {
 		queue = JSON.parse(window.localStorage.getItem(SESSION_QUEUE_KEY) ?? 'null');
 		position = JSON.parse(window.localStorage.getItem(SESSION_POSITION_KEY) ?? 'null');
 	} catch {
-		return;
+		return null;
 	}
-	if (!Array.isArray(queue)) return;
+	if (!Array.isArray(queue)) return null;
 	const tracks = queue.filter(isRestorableTrack).slice(0, SESSION_MAX_TRACKS);
-	if (tracks.length === 0) return;
-
-	audioPlayerState.queue.splice(0, audioPlayerState.queue.length, ...toQueueEntries(tracks));
-	if (typeof position?.loop === 'string' && (LOOP_ORDER as string[]).includes(position.loop)) {
-		audioPlayerState.loop = position.loop as LoopMode;
-	}
-	const index = typeof position?.index === 'number' && position.index >= 0 && position.index < tracks.length ? position.index : 0;
-	const currentTime = typeof position?.currentTime === 'number' && Number.isFinite(position.currentTime) ? Math.max(0, position.currentTime) : 0;
-	loadAt(index, false, currentTime);
+	if (tracks.length === 0) return null;
+	return {
+		tracks,
+		index: typeof position?.index === 'number' && position.index >= 0 && position.index < tracks.length ? position.index : 0,
+		currentTime: typeof position?.currentTime === 'number' && Number.isFinite(position.currentTime) ? Math.max(0, position.currentTime) : 0,
+		loop: typeof position?.loop === 'string' && (LOOP_ORDER as string[]).includes(position.loop) ? position.loop as LoopMode : 'off',
+		closed: position?.closed === true,
+	};
 }
 
-restoreSession();
+// 保存したキューを一時停止した状態で読み込む (ブラウザの自動再生制限があるので再生はしない)
+function applySession(session: StoredSession): void {
+	audioPlayerState.queue.splice(0, audioPlayerState.queue.length, ...toQueueEntries(session.tracks));
+	audioPlayerState.loop = session.loop;
+	// loadAt() が再生位置を保存し直すので、閉じた印もここで外れる
+	loadAt(session.index, false, session.currentTime);
+	// 古い YouTube の曲情報を取得し直す (読み込み直後の処理と重ならないよう少し遅らせる)
+	if (session.tracks.some(track => track.kind === 'youtube')) {
+		window.setTimeout(() => {
+			refreshQueueYoutubeInfo().catch(() => {});
+		}, 10 * 1000);
+	}
+}
+
+// プレイヤーを閉じていたら、保存したキューで開き直す。開き直したら true
+function reopenSession(): boolean {
+	if (audioPlayerState.queue.length > 0) return false;
+	const session = readSession();
+	if (session == null) return false;
+	applySession(session);
+	return true;
+}
 
 // キュー内の YouTube の曲情報を差し替える (プレイリスト側で取得し直した結果の反映など)
 export function patchQueueYoutubeInfo(infos: Map<string, YoutubeTrackInfo>): void {
@@ -804,12 +872,12 @@ export function patchQueueYoutubeInfo(infos: Map<string, YoutubeTrackInfo>): voi
 		changed = true;
 	}
 	if (changed) {
-		saveQueue();
+		writeQueue();
 		updateMediaSessionMetadata();
 	}
 }
 
-// キュー内の古い YouTube の曲情報を取得し直す (起動直後の読み込みと重ならないよう少し遅らせる)
+// キュー内の古い YouTube の曲情報を取得し直す
 export async function refreshQueueYoutubeInfo(): Promise<void> {
 	const updated = await refreshStaleYoutubeTracks([...audioPlayerState.queue]);
 	if (updated == null) return;
@@ -820,37 +888,21 @@ export async function refreshQueueYoutubeInfo(): Promise<void> {
 	patchQueueYoutubeInfo(infos);
 }
 
-if (audioPlayerState.queue.some(track => track.kind === 'youtube')) {
-	window.setTimeout(() => {
-		refreshQueueYoutubeInfo().catch(() => {});
-	}, 10 * 1000);
+// 起動時: 前回開いたまま終わっていれば復元する (閉じていたらナビゲーションから開くまで待つ)
+{
+	const session = readSession();
+	if (session != null && !session.closed) applySession(session);
 }
 
-// キューの中身・並びが変わったら保存する (連続した変更はまとめる)
-let saveQueueTimer: number | null = null;
-watch(() => audioPlayerState.queue.map(track => track.qid).join(','), () => {
-	if (saveQueueTimer != null) window.clearTimeout(saveQueueTimer);
-	saveQueueTimer = window.setTimeout(() => {
-		saveQueueTimer = null;
-		saveQueue();
-		savePosition();
-	}, 300);
-});
+watch(() => audioPlayerState.queue.map(track => track.qid).join(','), scheduleQueueSave);
 
 watch(() => audioPlayerState.loop, () => savePosition());
 
-window.addEventListener('pagehide', () => {
-	if (saveQueueTimer != null) {
-		window.clearTimeout(saveQueueTimer);
-		saveQueueTimer = null;
-		saveQueue();
-	}
-	savePosition();
-});
+window.addEventListener('pagehide', () => flushSession());
 
 window.document.addEventListener('visibilitychange', () => {
 	if (window.document.visibilityState === 'hidden') {
-		savePosition();
+		flushSession();
 		return;
 	}
 	// 裏にいる間に止まった・進んだ状態を画面の表示に合わせる
