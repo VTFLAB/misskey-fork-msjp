@@ -88,6 +88,34 @@ describe('audio player dock on mobile width', () => {
 		expect(result.getByLabelText('プレイヤーをしまう')).toBeTruthy();
 	});
 
+	test('the back button collapses the expanded view', async () => {
+		const { result } = await renderDock(400);
+		await fireEvent.click(result.getAllByLabelText('プレイヤーを開く')[0]);
+		await nextTick();
+		expect(window.location.hash).toBe('#audio-player');
+
+		// 戻る操作で履歴が 1 つ前に戻った状態を再現する
+		window.history.replaceState(null, '', '#');
+		window.dispatchEvent(new PopStateEvent('popstate'));
+		await nextTick();
+		expect(result.queryByLabelText('プレイヤーをしまう')).toBeNull();
+	});
+
+	test('collapsing with the button pops the pushed history entry', async () => {
+		const back = vi.spyOn(window.history, 'back').mockImplementation(() => {});
+		try {
+			const { result } = await renderDock(400);
+			await fireEvent.click(result.getAllByLabelText('プレイヤーを開く')[0]);
+			await nextTick();
+			await fireEvent.click(result.getByLabelText('プレイヤーをしまう'));
+			await nextTick();
+			expect(back).toHaveBeenCalledTimes(1);
+		} finally {
+			back.mockRestore();
+			window.history.replaceState(null, '', '#');
+		}
+	});
+
 	test('keeps the existing mini player on desktop width', async () => {
 		const { result } = await renderDock(1280);
 		expect(result.queryByLabelText('プレイヤーを開く')).toBeNull();
