@@ -3344,6 +3344,7 @@ _audioPlayer:
   clearQueue: "キューをクリア"
   removeFromQueue: "キューから削除"
   expand: "プレイヤーを開く"
+  collapse: "プレイヤーをしまう"
   close: "プレイヤーを閉じる"
   play: "再生"
   pause: "一時停止"
