@@ -195,6 +195,7 @@ import { openAudioPlayerWindow } from '@/utility/audio-player-window.js';
 import { attachYoutubeHost, detachYoutubeHost } from '@/utility/audio-player-youtube.js';
 import { schedulePlaylistMaintenance } from '@/utility/audio-playlists.js';
 import { deviceKind } from '@/utility/device-kind.js';
+import { mainRouter } from '@/router.js';
 
 defineProps<{
 	// スマホ幅でサイドメニュー・ウィジェットのドロワーを開いている間は隠す (プレイヤーの方が前面に来て
@@ -217,6 +218,33 @@ const expanded = ref(false);
 const mode = computed<'normal' | 'expanded' | 'collapsed'>(() => {
 	if (!isMobile.value) return 'normal';
 	return expanded.value ? 'expanded' : 'collapsed';
+});
+
+// 全面展開中は履歴を 1 つ積み、Android の戻るボタン (ブラウザの戻る) で収納できるようにする (MkLightbox と同じ方式)
+const HISTORY_HASH = '#audio-player';
+let historyPushed = false;
+
+watch(() => mode.value === 'expanded', (isExpanded) => {
+	if (isExpanded) {
+		if (historyPushed) return;
+		window.history.pushState(null, '', HISTORY_HASH);
+		historyPushed = true;
+	} else if (historyPushed) {
+		historyPushed = false;
+		// 戻る操作やページ遷移で既に別の履歴に移っているときは戻さない
+		if (window.location.hash === HISTORY_HASH) window.history.back();
+	}
+});
+
+function onPopState() {
+	if (!historyPushed || window.location.hash === HISTORY_HASH) return;
+	historyPushed = false;
+	expanded.value = false;
+}
+
+// キューの「投稿を表示」などでページを移動したら、移動先が見えるよう収納する
+mainRouter.useListener('push', () => {
+	expanded.value = false;
 });
 
 function onKeydown(ev: KeyboardEvent) {
@@ -243,6 +271,7 @@ watch(youtubeHostEl, (el, oldEl) => {
 onMounted(() => {
 	window.addEventListener('resize', onResize, { passive: true });
 	window.addEventListener('keydown', onKeydown);
+	window.addEventListener('popstate', onPopState);
 	// YouTube の曲情報の定期更新 (1 日 1 回、起動からしばらく後に少しずつ)
 	schedulePlaylistMaintenance();
 });
@@ -250,6 +279,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
 	window.removeEventListener('resize', onResize);
 	window.removeEventListener('keydown', onKeydown);
+	window.removeEventListener('popstate', onPopState);
 	if (youtubeHostEl.value != null) detachYoutubeHost(youtubeHostEl.value);
 });
 
