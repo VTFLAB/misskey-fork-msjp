@@ -8,7 +8,7 @@
 // YouTube の曲 (bsky-fork 独自) は audio-player-youtube.ts の IFrame Player で再生し、再生位置・状態は
 // どちらの再生方式でも audioPlayerState に集約する。
 
-import { computed, reactive, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import * as Misskey from 'misskey-js';
 import { genId } from '@/utility/id.js';
 import { i18n } from '@/i18n.js';
@@ -197,8 +197,12 @@ youtubeSetVolume(audioPlayerState.volume);
 export const hasQueue = computed(() => audioPlayerState.queue.length > 0);
 export const dockShown = computed(() => hasQueue.value || audioPlayerState.dockRequested);
 
+// ナビゲーションから呼び出された回数。スマホ幅ではこれが増えるたびにプレイヤーを全面展開する
+export const dockOpenRequest = ref(0);
+
 export function showDock(): void {
 	audioPlayerState.dockRequested = true;
+	dockOpenRequest.value++;
 }
 
 // ミニプレイヤーの閉じるボタン: 再生を止めてキューを空にし、プレイヤーを隠す
