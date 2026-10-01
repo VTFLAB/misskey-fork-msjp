@@ -45,13 +45,14 @@ async function renderDock(width: number) {
 }
 
 describe('audio player dock on mobile width', () => {
-	// happy-dom の history.back() は非同期に完了し、後のテストで popstate が届いてしまうので、同期的に戻すだけにする
+	// happy-dom の history.back() は非同期に完了し、後のテストで popstate が届いてしまうので、同期的に戻して popstate を送る
 	let back: MockInstance<() => void>;
 
 	beforeEach(() => {
 		window.localStorage.clear();
 		back = vi.spyOn(window.history, 'back').mockImplementation(() => {
 			window.history.replaceState(null, '', '#');
+			window.dispatchEvent(new PopStateEvent('popstate'));
 		});
 	});
 
