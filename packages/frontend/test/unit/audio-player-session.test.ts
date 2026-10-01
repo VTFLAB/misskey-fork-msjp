@@ -65,6 +65,50 @@ describe('audio player session', () => {
 		vi.useRealTimers();
 	});
 
+	test('closeDock keeps the session, a reload does not reopen it, showDock restores it paused', async () => {
+		const m = await import('@/utility/audio-player.js');
+		m.playTracks([file('a') as never, file('b') as never], 1);
+		m.audioPlayerState.currentTime = 33;
+		m.closeDock();
+		expect(m.audioPlayerState.queue.length).toBe(0);
+		expect(m.dockShown.value).toBe(false);
+		const pos = JSON.parse(window.localStorage.getItem('mkGlobalAudioPlayerPosition:guest')!);
+		expect(pos).toMatchObject({ index: 1, currentTime: 33, closed: true });
+		expect(JSON.parse(window.localStorage.getItem('mkGlobalAudioPlayerQueue:guest')!).length).toBe(2);
+
+		vi.resetModules();
+		const reloaded = await import('@/utility/audio-player.js');
+		expect(reloaded.audioPlayerState.queue.length).toBe(0);
+
+		reloaded.showDock();
+		expect(reloaded.audioPlayerState.queue.length).toBe(2);
+		expect(reloaded.audioPlayerState.index).toBe(1);
+		expect(reloaded.audioPlayerState.currentTime).toBe(33);
+		expect(reloaded.audioPlayerState.playing).toBe(false);
+		expect(JSON.parse(window.localStorage.getItem('mkGlobalAudioPlayerPosition:guest')!).closed).toBe(false);
+	});
+
+	test('enqueue after closing appends to the saved queue', async () => {
+		const m = await import('@/utility/audio-player.js');
+		m.playTracks([file('a') as never], 0);
+		m.closeDock();
+		m.enqueue([file('b') as never]);
+		expect(m.audioPlayerState.queue.map(t => t.id)).toEqual(['a', 'b']);
+		expect(m.audioPlayerState.index).toBe(0);
+	});
+
+	test('playTracks after closing replaces the saved queue', async () => {
+		vi.useFakeTimers();
+		const m = await import('@/utility/audio-player.js');
+		m.playTracks([file('a') as never], 0);
+		m.closeDock();
+		m.playTracks([file('c') as never], 0);
+		await Promise.resolve();
+		vi.advanceTimersByTime(400);
+		expect(JSON.parse(window.localStorage.getItem('mkGlobalAudioPlayerQueue:guest')!).map((t: { id: string }) => t.id)).toEqual(['c']);
+		vi.useRealTimers();
+	});
+
 	test('youtube track reached while hidden is cued, resumed on visible', async () => {
 		const m = await import('@/utility/audio-player.js');
 		Object.defineProperty(window.document, 'visibilityState', { configurable: true, get: () => 'hidden' });
