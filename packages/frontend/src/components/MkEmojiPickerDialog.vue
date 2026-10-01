@@ -16,7 +16,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	@click="modal?.close()"
 	@esc="modal?.close()"
 	@opening="opening"
-	@close="emit('close')"
+	@close="onClose"
 	@closed="emit('closed')"
 >
 	<MkEmojiPicker
@@ -37,10 +37,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <script lang="ts" setup>
 import * as Misskey from 'misskey-js';
-import { useTemplateRef } from 'vue';
+import { ref, useTemplateRef, watch } from 'vue';
 import MkModal from '@/components/MkModal.vue';
 import MkEmojiPicker from '@/components/MkEmojiPicker.vue';
 import { prefer } from '@/preferences.js';
+import { useBackToClose } from '@/composables/use-back-to-close.js';
 
 const props = withDefaults(defineProps<{
 	manualShowing?: boolean | null;
@@ -66,6 +67,26 @@ const emit = defineEmits<{
 
 const modal = useTemplateRef('modal');
 const picker = useTemplateRef('picker');
+
+// 閉じ始めたら true (bsky-fork 独自)。Android の戻るボタン (ブラウザの戻る) でも閉じられるようにする。
+// 投稿フォームの上に開いているときは、戻る操作でこちらだけを先に閉じる。
+// リアクションピッカーは同じダイアログを manualShowing で出し入れするので、表示し直したら戻す
+const closing = ref(false);
+
+watch(() => props.manualShowing, (showing) => {
+	if (showing === true) closing.value = false;
+});
+
+useBackToClose({
+	hash: '#emoji-picker',
+	isOpen: () => !closing.value && props.manualShowing !== false,
+	onBack: () => modal.value?.close(),
+});
+
+function onClose() {
+	closing.value = true;
+	emit('close');
+}
 
 function chosen(emoji: string) {
 	emit('done', emoji);
