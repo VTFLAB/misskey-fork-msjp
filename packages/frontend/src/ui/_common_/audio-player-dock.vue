@@ -7,10 +7,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 <div
 	v-if="dockShown"
 	v-show="!hidden"
+	ref="rootEl"
 	:class="[$style.root, { [$style.expanded]: mode === 'expanded', [$style.collapsed]: mode === 'collapsed', [$style.collapsedWithVideo]: mode === 'collapsed' && isYoutubeCurrent, _shadow: mode !== 'expanded' }]"
 	class="_panel"
+	:style="collapsedStyle"
 	role="region"
 	:aria-label="i18n.ts._audioPlayer.title"
+	@pointerdown="onDragStart"
+	@click.capture="onClickCapture"
 >
 	<div v-if="mode === 'expanded'" :class="$style.exHeader">
 		<button class="_button" :class="$style.controlButton" :aria-label="i18n.ts._audioPlayer.collapse" @click="expanded = false">
@@ -196,6 +200,7 @@ import { attachYoutubeHost, detachYoutubeHost } from '@/utility/audio-player-you
 import { schedulePlaylistMaintenance } from '@/utility/audio-playlists.js';
 import { deviceKind } from '@/utility/device-kind.js';
 import { mainRouter } from '@/router.js';
+import { useBackToClose } from '@/composables/use-back-to-close.js';
 
 defineProps<{
 	// スマホ幅でサイドメニュー・ウィジェットのドロワーを開いている間は隠す (プレイヤーの方が前面に来て
@@ -222,27 +227,14 @@ const mode = computed<'normal' | 'expanded' | 'collapsed'>(() => {
 	return expanded.value ? 'expanded' : 'collapsed';
 });
 
-// 全面展開中は履歴を 1 つ積み、Android の戻るボタン (ブラウザの戻る) で収納できるようにする (MkLightbox と同じ方式)
-const HISTORY_HASH = '#audio-player';
-let historyPushed = false;
-
-watch(() => mode.value === 'expanded', (isExpanded) => {
-	if (isExpanded) {
-		if (historyPushed) return;
-		window.history.pushState(null, '', HISTORY_HASH);
-		historyPushed = true;
-	} else if (historyPushed) {
-		historyPushed = false;
-		// 戻る操作やページ遷移で既に別の履歴に移っているときは戻さない
-		if (window.location.hash === HISTORY_HASH) window.history.back();
-	}
+// 全面展開中は Android の戻るボタン (ブラウザの戻る) で収納する
+useBackToClose({
+	hash: '#audio-player',
+	isOpen: () => mode.value === 'expanded',
+	onBack: () => {
+		expanded.value = false;
+	},
 });
-
-function onPopState() {
-	if (!historyPushed || window.location.hash === HISTORY_HASH) return;
-	historyPushed = false;
-	expanded.value = false;
-}
 
 // キューの「投稿を表示」などでページを移動したら、移動先が見えるよう収納する
 mainRouter.useListener('push', () => {
@@ -251,6 +243,121 @@ mainRouter.useListener('push', () => {
 
 function onKeydown(ev: KeyboardEvent) {
 	if (ev.key === 'Escape' && mode.value === 'expanded') expanded.value = false;
+}
+
+// 収納中のボタンはドラッグで移動できる (メッセージ画面など、下端の内容が隠れる画面のため)。
+// 離した位置の高さはそのまま、左右は近い方の端に寄せる。位置は端末ごとに保存する
+const DOCK_POSITION_KEY = 'mkGlobalAudioPlayerDockPosition';
+const DRAG_THRESHOLD_PX = 8;
+const EDGE_GAP_PX = 8;
+
+type DockPosition = { side: 'left' | 'right'; bottom: number };
+
+function loadDockPosition(): DockPosition | null {
+	try {
+		const parsed = JSON.parse(window.localStorage.getItem(DOCK_POSITION_KEY) ?? 'null') as Partial<DockPosition> | null;
+		if ((parsed?.side === 'left' || parsed?.side === 'right') && typeof parsed.bottom === 'number' && Number.isFinite(parsed.bottom)) {
+			return { side: parsed.side, bottom: parsed.bottom };
+		}
+	} catch {
+		// ignore
+	}
+	return null;
+}
+
+const rootEl = useTemplateRef('rootEl');
+const dockPosition = ref<DockPosition | null>(loadDockPosition());
+const dragOffset = ref<{ x: number; y: number } | null>(null);
+// 画面外にはみ出さないよう、上端の制限に使う (YouTube の曲では動画枠のぶん高くなる)
+const rootHeight = ref(0);
+
+let resizeObserver: ResizeObserver | null = null;
+watch(rootEl, (el) => {
+	resizeObserver?.disconnect();
+	resizeObserver = null;
+	if (el == null || typeof ResizeObserver === 'undefined') return;
+	resizeObserver = new ResizeObserver(() => {
+		rootHeight.value = el.offsetHeight;
+	});
+	resizeObserver.observe(el);
+}, { immediate: true });
+
+const collapsedStyle = computed(() => {
+	if (mode.value !== 'collapsed') return undefined;
+	const style: Record<string, string> = {};
+	const pos = dockPosition.value;
+	if (pos != null) {
+		style.bottom = `clamp(max(${EDGE_GAP_PX}px, env(safe-area-inset-bottom, 0px)), ${pos.bottom}px, calc(100dvh - ${rootHeight.value + EDGE_GAP_PX}px))`;
+		style.left = pos.side === 'left' ? 'var(--MI-margin)' : 'auto';
+		style.right = pos.side === 'right' ? 'var(--MI-margin)' : 'auto';
+	}
+	if (dragOffset.value != null) {
+		style.transform = `translate(${dragOffset.value.x}px, ${dragOffset.value.y}px)`;
+	}
+	return style;
+});
+
+let drag: { pointerId: number; startX: number; startY: number; moved: boolean } | null = null;
+// ドラッグを終えた直後のクリックでボタンが反応しないようにする
+let suppressClick = false;
+
+function onDragStart(ev: PointerEvent) {
+	suppressClick = false;
+	if (mode.value !== 'collapsed' || !ev.isPrimary || ev.button !== 0) return;
+	drag = { pointerId: ev.pointerId, startX: ev.clientX, startY: ev.clientY, moved: false };
+	window.addEventListener('pointermove', onDragMove);
+	window.addEventListener('pointerup', onDragEnd);
+	window.addEventListener('pointercancel', onDragEnd);
+}
+
+function onDragMove(ev: PointerEvent) {
+	if (drag == null || ev.pointerId !== drag.pointerId) return;
+	const x = ev.clientX - drag.startX;
+	const y = ev.clientY - drag.startY;
+	if (!drag.moved) {
+		if (Math.hypot(x, y) < DRAG_THRESHOLD_PX) return;
+		drag.moved = true;
+	}
+	dragOffset.value = { x, y };
+}
+
+function stopDrag() {
+	drag = null;
+	dragOffset.value = null;
+	window.removeEventListener('pointermove', onDragMove);
+	window.removeEventListener('pointerup', onDragEnd);
+	window.removeEventListener('pointercancel', onDragEnd);
+}
+
+function onDragEnd(ev: PointerEvent) {
+	if (drag == null || ev.pointerId !== drag.pointerId) return;
+	if (drag.moved && ev.type === 'pointerup' && rootEl.value != null) {
+		// transform で指に追従させた後の位置から、保存する位置を求める
+		const rect = rootEl.value.getBoundingClientRect();
+		const maxBottom = window.innerHeight - rect.height - EDGE_GAP_PX;
+		dockPosition.value = {
+			side: rect.left + rect.width / 2 < window.innerWidth / 2 ? 'left' : 'right',
+			bottom: Math.round(Math.max(EDGE_GAP_PX, Math.min(window.innerHeight - rect.bottom, maxBottom))),
+		};
+		try {
+			window.localStorage.setItem(DOCK_POSITION_KEY, JSON.stringify(dockPosition.value));
+		} catch {
+			// ignore
+		}
+		suppressClick = true;
+		// 指が外に出て離れたなどでクリックが来なかったときに、次の操作のクリックまで止めないようにする
+		window.setTimeout(() => {
+			suppressClick = false;
+		}, 0);
+	}
+	stopDrag();
+}
+
+function onClickCapture(ev: MouseEvent) {
+	if (!suppressClick) return;
+	suppressClick = false;
+	ev.stopPropagation();
+	ev.preventDefault();
 }
 
 // ナビゲーションから呼び出されたときは、空のキューでも操作できるよう全面展開する
@@ -273,7 +380,6 @@ watch(youtubeHostEl, (el, oldEl) => {
 onMounted(() => {
 	window.addEventListener('resize', onResize, { passive: true });
 	window.addEventListener('keydown', onKeydown);
-	window.addEventListener('popstate', onPopState);
 	// YouTube の曲情報の定期更新 (1 日 1 回、起動からしばらく後に少しずつ)
 	schedulePlaylistMaintenance();
 });
@@ -281,7 +387,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
 	window.removeEventListener('resize', onResize);
 	window.removeEventListener('keydown', onKeydown);
-	window.removeEventListener('popstate', onPopState);
+	resizeObserver?.disconnect();
+	stopDrag();
 	if (youtubeHostEl.value != null) detachYoutubeHost(youtubeHostEl.value);
 });
 
@@ -348,6 +455,9 @@ function openWindow() {
 	width: auto;
 	padding: 6px;
 	border-radius: 999px;
+	// ドラッグで動かすとき、ページのスクロールとして扱わせない
+	touch-action: none;
+	user-select: none;
 
 	.artwork {
 		width: 40px;

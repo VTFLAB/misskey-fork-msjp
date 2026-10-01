@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, test, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/vue';
 import { nextTick } from 'vue';
 import { components } from '@/components/index.js';
@@ -39,18 +39,29 @@ async function renderDock(width: number) {
 	window.innerWidth = width;
 	player.playTracks([ytTrack as never], 0);
 	const result = render(Dock, { global: { directives, components } });
-	await nextTick();
+	// 描画直後の非同期の更新 (ResizeObserver など) が終わってから操作する
+	await new Promise(resolve => window.setTimeout(resolve, 0));
 	return { result };
 }
 
 describe('audio player dock on mobile width', () => {
+	// happy-dom の history.back() は非同期に完了し、後のテストで popstate が届いてしまうので、同期的に戻すだけにする
+	let back: MockInstance<() => void>;
+
 	beforeEach(() => {
 		window.localStorage.clear();
+		back = vi.spyOn(window.history, 'back').mockImplementation(() => {
+			window.history.replaceState(null, '', '#');
+		});
 	});
 
 	afterEach(() => {
 		cleanup();
-		player.closeDock();
+		// 別のテストで描画した要素がクエリに引っかからないよう、残ったものも取り除く
+		document.body.innerHTML = '';
+		back.mockRestore();
+		window.history.replaceState(null, '', '#');
+		player.clear();
 		attachYoutubeHost.mockClear();
 		detachYoutubeHost.mockClear();
 	});
@@ -102,18 +113,31 @@ describe('audio player dock on mobile width', () => {
 	});
 
 	test('collapsing with the button pops the pushed history entry', async () => {
-		const back = vi.spyOn(window.history, 'back').mockImplementation(() => {});
-		try {
-			const { result } = await renderDock(400);
-			await fireEvent.click(result.getAllByLabelText('プレイヤーを開く')[0]);
-			await nextTick();
-			await fireEvent.click(result.getByLabelText('プレイヤーをしまう'));
-			await nextTick();
-			expect(back).toHaveBeenCalledTimes(1);
-		} finally {
-			back.mockRestore();
-			window.history.replaceState(null, '', '#');
-		}
+		const { result } = await renderDock(400);
+		await fireEvent.click(result.getAllByLabelText('プレイヤーを開く')[0]);
+		await nextTick();
+		await fireEvent.click(result.getByLabelText('プレイヤーをしまう'));
+		await nextTick();
+		expect(back).toHaveBeenCalledTimes(1);
+	});
+
+	test('dragging the collapsed button saves its position and does not trigger a click', async () => {
+		const { result } = await renderDock(400);
+		const root = result.getByRole('region');
+		const playing = player.audioPlayerState.playing;
+		const playButton = result.getByLabelText(playing ? '一時停止' : '再生');
+		await fireEvent.pointerDown(playButton, { pointerId: 1, isPrimary: true, button: 0, clientX: 300, clientY: 600 });
+		window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: 100, clientY: 200 }));
+		await nextTick();
+		expect(root.style.transform).toContain('translate(');
+		window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, clientX: 100, clientY: 200 }));
+		await fireEvent.click(playButton);
+		await nextTick();
+		expect(player.audioPlayerState.playing).toBe(playing);
+		const saved = JSON.parse(window.localStorage.getItem('mkGlobalAudioPlayerDockPosition')!);
+		expect(saved.side === 'left' || saved.side === 'right').toBe(true);
+		expect(typeof saved.bottom).toBe('number');
+		expect(root.style.transform).toBe('');
 	});
 
 	test('keeps the existing mini player on desktop width', async () => {
