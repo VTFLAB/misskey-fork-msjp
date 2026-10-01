@@ -12662,6 +12662,10 @@ export interface Locale extends ILocale {
          */
         "expand": string;
         /**
+         * プレイヤーをしまう
+         */
+        "collapse": string;
+        /**
          * プレイヤーを閉じる
          */
         "close": string;
