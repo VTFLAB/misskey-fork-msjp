@@ -203,7 +203,9 @@ defineProps<{
 	hidden?: boolean;
 }>();
 
-const zIndex = os.claimZIndex('high');
+// 投稿フォーム・絵文字ピッカー・ダイアログなどのポップアップ (いずれも low 以上) より下に置く。
+// ページ本体 (z-index は小さい値) よりは上に来る
+const zIndex = os.claimZIndex('veryLow');
 
 // スマホ幅では画面下部に常駐させると邪魔になるので、全面展開 (プレイヤー + キュー・プレイリスト) と
 // 右下の小さなボタンへの収納を切り替える。PC 幅では従来どおりのミニプレイヤー
