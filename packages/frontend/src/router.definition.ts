@@ -167,10 +167,10 @@ export const ROUTE_DEF = [{
 		path: '/live-channel',
 		redirect: '/settings/streaming',
 	}, {
+		// bsky-fork: streaming settings moved to MSJP Live (2026-10-02).
 		path: '/streaming',
 		name: 'streaming',
-		component: page(() => import('@/pages/settings/streaming.vue')),
-		loginRequired: true,
+		component: page(() => import('@/pages/msjp-live-moved.vue')),
 	}, {
 		path: '/apps',
 		name: 'connect',
@@ -243,24 +243,25 @@ export const ROUTE_DEF = [{
 	path: '/updates/:updateInfoId',
 	component: page(() => import('@/pages/update-info.vue')),
 }, {
+	// bsky-fork: the streaming pages moved to MSJP Live (2026-10-02); these routes only forward.
 	path: '/live',
-	component: page(() => import('@/pages/live-streams.vue')),
+	component: page(() => import('@/pages/msjp-live-moved.vue')),
 }, {
 	path: '/live/:acct/overlay',
-	component: page(() => import('@/pages/live-stream.overlay.vue')),
+	component: page(() => import('@/pages/msjp-live-moved.vue')),
 }, {
 	path: '/live/:acct/stream',
 	name: 'live-stream-watch',
-	component: page(() => import('@/pages/live-stream.watch.vue')),
+	component: page(() => import('@/pages/msjp-live-moved.vue')),
 }, {
 	// 配信アーカイブ専用視聴ページ (bsky-fork 独自)。1 アーカイブ = 1 URL で直接共有できるようにする
 	path: '/live/:acct/archive/:streamId',
 	name: 'live-stream-archive-watch',
-	component: page(() => import('@/pages/live-stream.archive-watch.vue')),
+	component: page(() => import('@/pages/msjp-live-moved.vue')),
 }, {
 	path: '/live/:acct',
 	name: 'live-stream',
-	component: page(() => import('@/pages/live-stream.vue')),
+	component: page(() => import('@/pages/msjp-live-moved.vue')),
 }, {
 	path: '/about',
 	component: page(() => import('@/pages/about.vue')),
