@@ -4125,6 +4125,8 @@ _feedback:
 
 _liveChannel:
   liveChannels: "配信チャンネル"
+  movedToMsjpLive: "配信機能は MSJP Live に移りました。自動で移動しない場合は、下のリンクを開いてください。"
+  openMsjpLive: "MSJP Live を開く"
   noLiveChannels: "開設されている配信チャンネルはまだありません。"
   liveChannelSettings: "ライブチャンネル設定"
   enableStreaming: "配信機能を利用する"
