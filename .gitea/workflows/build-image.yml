@@ -149,8 +149,33 @@ jobs:
           echo "::error::failed to push immutable tag after 5 attempts"
           exit 1
 
-      - name: Promote to bsky-latest
+      # 近い時刻の push が並行でビルドされると、古いビルドが後に終わって bsky-latest を
+      # 上書きし、本番が古い版に戻る (msjp-live で 2026-10-02 に発生)。ブランチは毎日 rebase と
+      # force-push を受けるため「今の latest の子孫か」では判定できない。そこで、このコミットが
+      # ブランチ先端と同じか、先端までの差分が paths-ignore 対象 (ビルドされない) だけのとき
+      # に限って bsky-latest を進める。それ以外は、より新しいビルドに任せる。
+      - name: Check this build is the newest
+        id: newest
         if: github.event_name != 'workflow_dispatch' || inputs.push != 'false'
+        working-directory: src
+        run: |
+          THIS="${{ steps.tags.outputs.sha_full }}"
+          git fetch -q --depth 200 origin "$GITHUB_REF_NAME"
+          TIP=$(git rev-parse FETCH_HEAD)
+          promote=false
+          if [ "$THIS" = "$TIP" ]; then
+            promote=true
+          elif git merge-base --is-ancestor "$THIS" "$TIP" 2>/dev/null; then
+            rest=$(git diff --name-only "$THIS" "$TIP" | grep -vE '\.md$|^\.claude/|^\.agents/|^\.gitea/|^\.github/|^\.vscode/' || true)
+            [ -z "$rest" ] && promote=true
+          fi
+          echo "promote=$promote" >> "$GITHUB_OUTPUT"
+          if [ "$promote" != true ]; then
+            echo "::notice::$THIS is not the newest buildable commit (branch tip $TIP): bsky-latest is left as is"
+          fi
+
+      - name: Promote to bsky-latest
+        if: (github.event_name != 'workflow_dispatch' || inputs.push != 'false') && steps.newest.outputs.promote == 'true'
         run: |
           docker tag "${{ steps.tags.outputs.image_sha }}" "${{ steps.tags.outputs.image_latest }}"
           for i in 1 2 3 4 5; do
