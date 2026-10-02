@@ -15599,6 +15599,14 @@ export interface Locale extends ILocale {
          */
         "liveChannels": string;
         /**
+         * 配信機能は MSJP Live に移りました。自動で移動しない場合は、下のリンクを開いてください。
+         */
+        "movedToMsjpLive": string;
+        /**
+         * MSJP Live を開く
+         */
+        "openMsjpLive": string;
+        /**
          * 開設されている配信チャンネルはまだありません。
          */
         "noLiveChannels": string;
