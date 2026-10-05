@@ -1,6 +1,7 @@
 # Upstream (github.com/misskey-dev/misskey) → bsky-integration 自動 rebase。
 # 毎日 18:00 UTC = 03:00 JST に schedule で走る。手動でも workflow_dispatch から走らせられる。
 # conflict 発生時は rebase --abort して Gitea Issue を立てて exit 1 (人間が手動 rebase)。
+# open な conflict Issue が既にあれば新規起票せず、その Issue を使い回す (重複防止)。
 name: Upstream Sync
 
 # 2026-07-31: base を stable tag 2026.7.0 (master 系列) に載せ替えたため schedule を復活。
@@ -148,11 +149,50 @@ jobs:
           Run: ${{ gitea.server_url }}/${{ gitea.repository }}/actions/runs/${{ gitea.run_id }}
           EOF
           )
-          jq -n --arg title "Upstream rebase conflict ($UP_SHORT)" --arg body "$BODY" \
-            '{title: $title, body: $body, labels: []}' \
-            | curl -fsS -X POST \
-                -H "Authorization: token $GITEA_TOKEN" \
-                -H "Content-Type: application/json" \
-                --data @- \
-                "${{ gitea.server_url }}/api/v1/repos/${{ gitea.repository }}/issues"
+          API="${{ gitea.server_url }}/api/v1/repos/${{ gitea.repository }}"
+          RUN_URL="${{ gitea.server_url }}/${{ gitea.repository }}/actions/runs/${{ gitea.run_id }}"
+          TITLE_PREFIX="Upstream rebase conflict ("
+          TITLE="Upstream rebase conflict ($UP_SHORT)"
+
+          # 重複防止: open な conflict Issue は常に 1 件だけにする (2026-10-06、#4-#8 が同一
+          # upstream head で毎晩重複起票された反省)。
+          #   - 同じ upstream head の Issue が open → 何もしない (前回の起票内容のまま)
+          #   - 別 head の Issue が open → その Issue の title/body を最新に差し替えてコメント
+          #   - open が無い → 新規起票
+          EXISTING=$(curl -fsS -H "Authorization: token $GITEA_TOKEN" \
+              "$API/issues?state=open&type=issues&limit=50" \
+            | jq -c --arg p "$TITLE_PREFIX" \
+                '[.[] | select(.title | startswith($p))] | sort_by(.number) | last // empty')
+
+          if [ -z "$EXISTING" ]; then
+            jq -n --arg title "$TITLE" --arg body "$BODY" \
+              '{title: $title, body: $body, labels: []}' \
+              | curl -fsS -X POST \
+                  -H "Authorization: token $GITEA_TOKEN" \
+                  -H "Content-Type: application/json" \
+                  --data @- \
+                  "$API/issues" > /dev/null
+            echo "::notice::Opened a new conflict issue: $TITLE"
+          else
+            NUM=$(jq -r '.number' <<<"$EXISTING")
+            OLD_TITLE=$(jq -r '.title' <<<"$EXISTING")
+            if [ "$OLD_TITLE" = "$TITLE" ]; then
+              echo "::notice::Conflict issue #$NUM already open for upstream $UP_SHORT. Not opening another one."
+            else
+              jq -n --arg title "$TITLE" --arg body "$BODY" '{title: $title, body: $body}' \
+                | curl -fsS -X PATCH \
+                    -H "Authorization: token $GITEA_TOKEN" \
+                    -H "Content-Type: application/json" \
+                    --data @- \
+                    "$API/issues/$NUM" > /dev/null
+              COMMENT="upstream/master が \`$UP_SHORT\` に進みましたが、rebase の conflict は続いています。本文を最新の結果に差し替えました (更新前のタイトル: $OLD_TITLE)。 Run: $RUN_URL"
+              jq -n --arg body "$COMMENT" '{body: $body}' \
+                | curl -fsS -X POST \
+                    -H "Authorization: token $GITEA_TOKEN" \
+                    -H "Content-Type: application/json" \
+                    --data @- \
+                    "$API/issues/$NUM/comments" > /dev/null
+              echo "::notice::Updated conflict issue #$NUM for upstream $UP_SHORT."
+            fi
+          fi
           exit 1
