@@ -2,6 +2,7 @@
 # 毎日 18:00 UTC = 03:00 JST に schedule で走る。手動でも workflow_dispatch から走らせられる。
 # conflict 発生時は rebase --abort して Gitea Issue を立てて exit 1 (人間が手動 rebase)。
 # open な conflict Issue が既にあれば新規起票せず、その Issue を使い回す (重複防止)。
+# pnpm-lock.yaml だけの conflict は upstream 側で進め、rebase 後に lockfile を再生成して commit する。
 name: Upstream Sync
 
 # 2026-07-31: base を stable tag 2026.7.0 (master 系列) に載せ替えたため schedule を復活。
@@ -81,7 +82,28 @@ jobs:
           set +e
           git rebase upstream/master >/tmp/rebase.log 2>&1
           RC=$?
+          # pnpm-lock.yaml だけの conflict は自動で進める (2026-10-06、Dependabot 対応の
+          # overrides で fork が lockfile を広く書き換えたため)。rebase 中の --ours は
+          # upstream 側 (rebase 先) を指す。その commit の lockfile 変更は捨て、全 commit を
+          # 載せ終えたあとの Regenerate step で package.json + overrides から作り直す。
+          LOCK_RESOLVED=0
+          for _ in $(seq 1 2000); do
+            [ "$RC" = "0" ] && break
+            [ -d "$(git rev-parse --git-path rebase-merge)" ] || break
+            [ "$(git diff --name-only --diff-filter=U)" = "pnpm-lock.yaml" ] || break
+            git checkout --ours -- pnpm-lock.yaml && git add pnpm-lock.yaml
+            LOCK_RESOLVED=$((LOCK_RESOLVED + 1))
+            echo "--- auto-resolved pnpm-lock.yaml conflict ($LOCK_RESOLVED)" >> /tmp/rebase.log
+            if git diff --cached --quiet; then
+              # lockfile だけを変える commit は空になるので飛ばす
+              git rebase --skip >>/tmp/rebase.log 2>&1
+            else
+              GIT_EDITOR=true git rebase --continue >>/tmp/rebase.log 2>&1
+            fi
+            RC=$?
+          done
           set -e
+          echo "lock_resolved=$LOCK_RESOLVED" >> "$GITHUB_OUTPUT"
           if [ "$RC" = "0" ]; then
             echo "result=success" >> "$GITHUB_OUTPUT"
           else
@@ -99,20 +121,59 @@ jobs:
             git rebase --abort
           fi
 
+      # lockfile の conflict を upstream 側で進めた場合だけ、Node + pnpm を入れて lockfile を
+      # 作り直す (版は Dockerfile と同じく .node-version と package.json の packageManager)。
+      # 失敗したら push せず、conflict と同じ Issue 経路に回す。
+      - name: Regenerate pnpm-lock.yaml
+        id: regen
+        if: steps.rebase.outputs.result == 'success' && steps.rebase.outputs.lock_resolved != '0'
+        working-directory: src
+        run: |
+          set +e
+          (
+            set -e
+            case "$(uname -m)" in x86_64) ARCH=x64 ;; aarch64) ARCH=arm64 ;; *) ARCH=$(uname -m) ;; esac
+            NODE_VERSION=$(cat .node-version)
+            curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${ARCH}.tar.gz" \
+              | tar -xz -C /usr/local --strip-components=1
+            npm install -g --silent "$(node -p "require('./package.json').packageManager")"
+            pnpm install --lockfile-only --ignore-scripts
+            pnpm install --lockfile-only --frozen-lockfile --ignore-scripts
+            git add pnpm-lock.yaml
+            if ! git diff --cached --quiet; then
+              git commit -q -m "chore(lockfile): upstream rebase 後に pnpm-lock.yaml を再生成" \
+                -m "upstream-sync が pnpm-lock.yaml の conflict を upstream 側で進めたため (${{ steps.rebase.outputs.lock_resolved }} 回)、package.json と overrides から作り直した。"
+            fi
+          ) >/tmp/regen.log 2>&1
+          RC=$?
+          set -e
+          if [ "$RC" = "0" ]; then
+            echo "result=ok" >> "$GITHUB_OUTPUT"
+            tail -n 5 /tmp/regen.log
+          else
+            echo "result=failed" >> "$GITHUB_OUTPUT"
+            echo "conflict_files=pnpm-lock.yaml (rebase は通ったが lockfile の再生成に失敗)" >> "$GITHUB_OUTPUT"
+            {
+              echo 'regen_log<<EOF'
+              tail -n 80 /tmp/regen.log
+              echo 'EOF'
+            } >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Push rebased branch
-        if: steps.rebase.outputs.result == 'success'
+        if: steps.rebase.outputs.result == 'success' && steps.regen.outputs.result != 'failed'
         working-directory: src
         run: |
           git push --force-with-lease origin bsky-integration
 
       - name: Open issue on conflict
-        if: steps.rebase.outputs.result == 'conflict'
+        if: steps.rebase.outputs.result == 'conflict' || steps.regen.outputs.result == 'failed'
         env:
           GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
           UP_SHORT: ${{ steps.fetch.outputs.upstream_short }}
           UP_HEAD: ${{ steps.fetch.outputs.upstream_head }}
-          CONFLICT_FILES: ${{ steps.rebase.outputs.conflict_files }}
-          REBASE_LOG: ${{ steps.rebase.outputs.rebase_log }}
+          CONFLICT_FILES: ${{ steps.rebase.outputs.conflict_files || steps.regen.outputs.conflict_files }}
+          REBASE_LOG: ${{ steps.rebase.outputs.rebase_log || steps.regen.outputs.regen_log }}
         run: |
           set -e
           BODY=$(cat <<EOF
