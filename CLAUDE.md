@@ -31,6 +31,8 @@ Gitea は LAN 限定だが、git 管理したものはすべて GitHub の公開
 
 これらは非公開の homelab-ops リポジトリの `misskey/docs/` に書く。運用メモ (`OPS.md`)、
 セッション引き継ぎ (`HANDOFF.md`)、配信機能の設計資料 (`live-streaming/`) はそこにある。
+push 前の検査として、homelab-ops の `misskey/public-mirror-guard/pre-push` を clone ごとに
+`.git/hooks/pre-push` へリンクする (gitleaks で上の項目を検出して push を止める)。
 運用メモは次の行で読み込む (homelab-ops が隣に clone されていない環境では読み込まれない):
 
 @../homelab-ops/misskey/docs/OPS.md
