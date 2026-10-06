@@ -13,12 +13,20 @@
 #   - セッションの全出力はログへ (~/.claude/logs/feedback-autotriage/YYYYMMDD.log)
 #
 # 導入: crontab に以下を登録 (03:00 JST の upstream-sync rebase 窓を避けた配置)
-#   17 1,4,7,10,13,16,19,22 * * * /home/coder/projects/misskey/misskey-repo/.claude/skills/handling-user-feedback/scripts/auto-triage.sh
+#   17 1,4,7,10,13,16,19,22 * * * <repo>/.claude/skills/handling-user-feedback/scripts/auto-triage.sh
 
 set -u
 
-REPO="/home/coder/projects/misskey/misskey-repo"
-API_BASE="${FEEDBACK_API_BASE:-http://mi-host.msjp-local.org:3000/api}"
+# 任意の private env ファイルを読む (FEEDBACK_API_BASE / FEEDBACK_ALLOWED_IMAGE_HOSTS / MISSKEY_LOCAL_TOKEN)
+ENV_FILE="${MISSKEY_LOCAL_AUTOMATION_ENV:-$HOME/.config/misskey-local-automation.env}"
+if [ -f "$ENV_FILE" ]; then
+	set -a
+	# shellcheck disable=SC1090
+	. "$ENV_FILE"
+	set +a
+fi
+
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 LOG_DIR="$HOME/.claude/logs/feedback-autotriage"
 LOCK_FILE="/tmp/feedback-autotriage.lock"
 PROMPT_FILE="$REPO/.claude/skills/handling-user-feedback/references/auto-triage-prompt.md"
@@ -29,13 +37,28 @@ mkdir -p "$LOG_DIR"
 LOG="$LOG_DIR/$(date +%Y%m%d).log"
 log() { echo "[$(date '+%F %T')] $*" >> "$LOG"; }
 
+if [ -z "${FEEDBACK_API_BASE:-}" ]; then
+	log "error: FEEDBACK_API_BASE is not set. Define it in $ENV_FILE"
+	exit 1
+fi
+API_BASE="$FEEDBACK_API_BASE"
+
+# *-local endpoint 用 curl。トークンは argv (ps) に出さないよう、ヘッダーをプロセス置換で渡す。
+curl_local() {
+	if [ -n "${MISSKEY_LOCAL_TOKEN:-}" ]; then
+		curl -H @<(printf 'x-misskey-local-token: %s\n' "$MISSKEY_LOCAL_TOKEN") "$@"
+	else
+		curl "$@"
+	fi
+}
+
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
 	log "skip: another run in progress"
 	exit 0
 fi
 
-COUNT=$(curl -sS --max-time 20 -X POST "$API_BASE/feedback/list-local" \
+COUNT=$(curl_local -sS --max-time 20 -X POST "$API_BASE/feedback/list-local" \
 	-H 'Content-Type: application/json' \
 	-d '{"status":"open","limit":100}' | jq 'length' 2>/dev/null || echo err)
 if [ "$COUNT" = "err" ] || [ -z "$COUNT" ]; then

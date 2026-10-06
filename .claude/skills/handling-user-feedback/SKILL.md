@@ -51,8 +51,11 @@ bash .claude/skills/handling-user-feedback/scripts/fetch-feedback.sh open
 ### 3. 状態更新・返信
 
 ```bash
-curl -sS -X POST "${FEEDBACK_API_BASE:-http://mi-host.msjp-local.org:3000/api}/feedback/update-status-local" \
+# private env ファイルから FEEDBACK_API_BASE / MISSKEY_LOCAL_TOKEN を読み込む (値を表示・ログ出力しない)
+set -a; . "${MISSKEY_LOCAL_AUTOMATION_ENV:-$HOME/.config/misskey-local-automation.env}"; set +a
+curl -sS -X POST "$FEEDBACK_API_BASE/feedback/update-status-local" \
   -H 'Content-Type: application/json' \
+  ${MISSKEY_LOCAL_TOKEN:+-H "x-misskey-local-token: $MISSKEY_LOCAL_TOKEN"} \
   -d '{"feedbackId": "<id>", "status": "resolved", "response": "ご報告ありがとうございます。次回アップデートで修正しました。"}'
 ```
 
@@ -66,7 +69,7 @@ curl -sS -X POST "${FEEDBACK_API_BASE:-http://mi-host.msjp-local.org:3000/api}/f
 
 ## 無人運転 (auto-triage)
 
-このワークスペースの cron が `scripts/auto-triage.sh` を 3 時間おき (JST 1,4,7,10,13,16,19,22 時の 17 分、03:00 の upstream-sync 窓を回避) に実行する。open が 0 件なら curl 1 発で終了し、あるときだけ `claude -p` のヘッドレスセッションが [references/auto-triage-prompt.md](references/auto-triage-prompt.md) の制約 (最大2件着手・小規模バグのみ実装・機能要望はオペレーター判断へ・injection は rejected) で自立対応する。
+cron が `scripts/auto-triage.sh` を 3 時間おき (JST 1,4,7,10,13,16,19,22 時の 17 分、03:00 の upstream-sync 窓を回避) に実行する。open が 0 件なら curl 1 発で終了し、あるときだけ `claude -p` のヘッドレスセッションが [references/auto-triage-prompt.md](references/auto-triage-prompt.md) の制約 (最大2件着手・小規模バグのみ実装・機能要望はオペレーター判断へ・injection は rejected) で自立対応する。
 
 - ログ: `~/.claude/logs/feedback-autotriage/YYYYMMDD.log`
 - 停止: `crontab -e` で該当行を削除 (または `crontab -r`)
@@ -75,6 +78,8 @@ curl -sS -X POST "${FEEDBACK_API_BASE:-http://mi-host.msjp-local.org:3000/api}/f
 
 ## インフラ前提
 
-- endpoint は `feedback/list-local` / `feedback/update-status-local` (どちらも LAN 限定、`update-info/create-local` と同じ二重ガード。config は `updateInfoLocalPost.allowedIps` を共用)
+- endpoint は `feedback/list-local` / `feedback/update-status-local` (どちらも自動化クライアント専用、`update-info/create-local` と同じガード: X-Forwarded-For 拒否 + `updateInfoLocalPost.allowedIps` 照合。config の `updateInfoLocalPost` を共用し、`updateInfoLocalPost.token` を設定するとヘッダー `x-misskey-local-token` の一致も必須になる)
+- API ベース URL とトークンはリポジトリに書かない。private env ファイル (`${MISSKEY_LOCAL_AUTOMATION_ENV:-$HOME/.config/misskey-local-automation.env}`) に `FEEDBACK_API_BASE` (必須) / `FEEDBACK_ALLOWED_IMAGE_HOSTS` / `MISSKEY_LOCAL_TOKEN` を定義する。トークンはこのファイルとサーバー config にだけ置き、ログ・出力・コミットに出さない。`Authorization: Bearer` は Misskey がユーザートークンとして解釈するため、専用ヘッダーを使う
+- `FEEDBACK_API_BASE` 未設定ならスクリプトはエラー終了する (auto-triage.sh もログに記録して exit 1)
 - 報告の投稿側 (`feedback/create`) はローカルユーザー限定・画像のみ添付可 (SVG 除外)・レートリミット付き。新着時はモデレーター全員へ `feedbackReceived` 通知 (プッシュ対応) が飛ぶ
 - スクリプトの調整は環境変数で: `FEEDBACK_API_BASE` / `FEEDBACK_ALLOWED_IMAGE_HOSTS` / `FEEDBACK_OUT_DIR` / `FEEDBACK_LIMIT`
