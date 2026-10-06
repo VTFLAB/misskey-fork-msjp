@@ -67,13 +67,12 @@ nix build --no-link nixpkgs#chromium && nix path-info nixpkgs#chromium  # パス
 
 ## 本番デプロイ (mi.msjp.pro)
 
-手動デプロイはしない。`bsky-integration` ブランチへ push すると Gitea Actions がイメージをビルドし、本番 (mi-host) の podman auto-update (5 分間隔) が反映する。**push から反映まで約 70 分。**
+手動デプロイはしない。`bsky-integration` ブランチへ push すると Gitea Actions がイメージをビルドし、本番の podman auto-update (5 分間隔) が反映する。**push から反映まで約 70 分。**
 
 ```bash
-# 反映の監視 (StartedAt が変わったら新イメージ)
-ssh root@mi-host.msjp-local.org -- 'sudo -iu misskey bash -c "export XDG_RUNTIME_DIR=/run/user/\$(id -u); podman inspect misskey-web --format \"{{.State.StartedAt}}\""'
+# 反映の監視: 本番コンテナの起動時刻が変わったら新イメージ (確認コマンドは非公開の運用メモ OPS.md を参照)
 # 反映後の疎通確認
-curl -s -o /dev/null -w '%{http_code}\n' https://mi.msjp.pro/live/@VTF/comment-generator
+curl -s -o /dev/null -w '%{http_code}\n' https://mi.msjp.pro/live/@<acct>/comment-generator
 curl -s https://mi.msjp.pro/static-assets/misc/comment-generator.js | grep -c '<変更した識別子>'
 ```
 
