@@ -30,6 +30,23 @@ CHANGELOG と同様に、**一般ユーザーが知るべき変更** はイン�
 
 ## 掲載方法
 
+**MCP `misskey_updates` を使う** (2026-10-07 から)。配置とトークンの扱いは非公開の運用メモ
+(homelab-ops `misskey/docs/OPS.md`) にある。
+
+1. `list` で最近の掲載を読み、書き方を合わせる
+2. `preview` に title / text を渡す。絵文字・文字数上限などの違反は errors で返り、
+   draftId は出ない。内部用語らしき文字列・ダッシュ・日本語と英数字の間の空白・見出し無しは
+   warnings で返る
+3. **preview が返したタイトルと本文をそのままユーザーに見せ、掲載の了承を得る**
+   (公開すると全ローカルユーザーに通知が届き、取り消せない)
+4. 了承されたら `publish` に draftId を渡す。文面を直したら preview からやり直す
+   (draftId は文面ごとに変わる)。同じ下書きの二重公開と、15 分以内の同じタイトルの公開は拒否される
+5. 公開後の誤字は `edit` で直す (通知は再送されない。省いた項目と画像は今の値を引き継ぐ)
+
+削除は MCP に無い。管理画面から行う。
+
+### MCP が使えないとき
+
 自動化クライアント向けの認証不要エンドポイント `update-info/create-local` を使う (X-Forwarded-For 付きのリクエストは拒否される。config `updateInfoLocalPost.allowedIps` で送信元を制限し、`updateInfoLocalPost.token` を設定するとヘッダー `x-misskey-local-token` の一致も必須)。API ベース URL とトークンは private env ファイル (`${MISSKEY_LOCAL_AUTOMATION_ENV:-$HOME/.config/misskey-local-automation.env}`、キー `FEEDBACK_API_BASE` / `MISSKEY_LOCAL_TOKEN`) にだけ置き、リポジトリ・ログ・出力に書かない:
 
 ```bash
@@ -37,14 +54,14 @@ set -a; . "${MISSKEY_LOCAL_AUTOMATION_ENV:-$HOME/.config/misskey-local-automatio
 curl -X POST "$FEEDBACK_API_BASE/update-info/create-local" \
   -H 'Content-Type: application/json' \
   ${MISSKEY_LOCAL_TOKEN:+-H "x-misskey-local-token: $MISSKEY_LOCAL_TOKEN"} \
-  -d '{"title": "🔧 ◯◯アップデート: ...", "text": "本文"}'
+  -d '{"title": "◯◯アップデート: ...", "text": "本文"}'
 ```
 
 管理画面 (admin/update-info/create、要モデレーター権限) からも投稿できる。
 
 ## 文面の流儀 (既存エントリに合わせる)
 
-- タイトル: 絵文字 + 「◯◯アップデート: 概要」または「◯◯を追加しました」。既存例: 「🎞️ 配信機能アップデート: 配信アーカイブを追加しました」
+- タイトル: 「◯◯アップデート: 概要」または「◯◯を追加しました」。**絵文字は使わない** (2026-10 以降の掲載に合わせる。MCP の preview は絵文字をエラーにする)。既存例: 「配信機能アップデート: 過去の配信の表示とアーカイブの再生を改善しました」
 - 本文: `**■ 見出し**` + 箇条書き。ユーザーの言葉で書く (クラス名・内部用語・コミットハッシュを出さない)
 - 注意事項は本文末尾に `※` または `**■ 注意事項**` でまとめる
 - 過去分の後追い掲載なら「(7月19日から提供中のお知らせです)」のように提供開始時期を明記する
