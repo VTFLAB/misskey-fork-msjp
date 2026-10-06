@@ -111,10 +111,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		super(meta, paramDef, async (ps, me, token, file, cleanup, ip, headers) => {
 			if (!isAllowedLocalAutomationRequest({
 				allowedIps: this.config.updateInfoLocalPost?.allowedIps ?? [],
+				token: this.config.updateInfoLocalPost?.token,
 				ip,
 				headers,
 			})) {
-				throw new ApiError(meta.errors.accessDenied, { ip: ip ?? null });
+				throw new ApiError(meta.errors.accessDenied);
 			}
 
 			const query = this.queryService.makePaginationQuery(this.userFeedbacksRepository.createQueryBuilder('feedback'), ps.sinceId, ps.untilId)

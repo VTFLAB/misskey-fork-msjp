@@ -30,11 +30,13 @@ CHANGELOG と同様に、**一般ユーザーが知るべき変更** はイン�
 
 ## 掲載方法
 
-LAN 内からは認証不要エンドポイント `update-info/create-local` を使う (X-Forwarded-For 付き = 公開経路からのリクエストは拒否される。config `updateInfoLocalPost.allowedIps` で制御):
+自動化クライアント向けの認証不要エンドポイント `update-info/create-local` を使う (X-Forwarded-For 付きのリクエストは拒否される。config `updateInfoLocalPost.allowedIps` で送信元を制限し、`updateInfoLocalPost.token` を設定するとヘッダー `x-misskey-local-token` の一致も必須)。API ベース URL とトークンは private env ファイル (`${MISSKEY_LOCAL_AUTOMATION_ENV:-$HOME/.config/misskey-local-automation.env}`、キー `FEEDBACK_API_BASE` / `MISSKEY_LOCAL_TOKEN`) にだけ置き、リポジトリ・ログ・出力に書かない:
 
 ```bash
-curl -X POST 'http://mi-host.msjp-local.org:3000/api/update-info/create-local' \
+set -a; . "${MISSKEY_LOCAL_AUTOMATION_ENV:-$HOME/.config/misskey-local-automation.env}"; set +a
+curl -X POST "$FEEDBACK_API_BASE/update-info/create-local" \
   -H 'Content-Type: application/json' \
+  ${MISSKEY_LOCAL_TOKEN:+-H "x-misskey-local-token: $MISSKEY_LOCAL_TOKEN"} \
   -d '{"title": "🔧 ◯◯アップデート: ...", "text": "本文"}'
 ```
 

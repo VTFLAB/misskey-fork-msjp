@@ -97,6 +97,9 @@ type Source = {
 	// 未設定なら機能オフ (常に拒否)。
 	updateInfoLocalPost?: {
 		allowedIps?: string[];
+		// 設定すると、リクエストヘッダー x-misskey-local-token が同じ値であることも要求する
+		// (共有シークレット)。未設定なら allowedIps のみで判定する。
+		token?: string;
 	};
 
 	maxFileSize?: number;
@@ -210,7 +213,7 @@ export type Config = {
 	proxySmtp: string | undefined;
 	proxyBypassHosts: string[] | undefined;
 	allowedPrivateNetworks: string[] | undefined;
-	updateInfoLocalPost: { allowedIps: string[] } | undefined;
+	updateInfoLocalPost: { allowedIps: string[]; token?: string } | undefined;
 	maxFileSize: number;
 	clusterLimit: number | undefined;
 	threadPoolSize: number;
@@ -411,7 +414,7 @@ export function loadConfig(): Config {
 		proxyBypassHosts: config.proxyBypassHosts,
 		allowedPrivateNetworks: config.allowedPrivateNetworks,
 		updateInfoLocalPost: config.updateInfoLocalPost?.allowedIps != null && config.updateInfoLocalPost.allowedIps.length > 0
-			? { allowedIps: config.updateInfoLocalPost.allowedIps }
+			? { allowedIps: config.updateInfoLocalPost.allowedIps, token: config.updateInfoLocalPost.token != null && config.updateInfoLocalPost.token !== '' ? config.updateInfoLocalPost.token : undefined }
 			: undefined,
 		maxFileSize: config.maxFileSize ?? 262144000,
 		clusterLimit: config.clusterLimit,
