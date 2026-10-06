@@ -69,12 +69,14 @@ curl -sS -X POST "$FEEDBACK_API_BASE/feedback/update-status-local" \
 
 ## 無人運転 (auto-triage)
 
-cron が `scripts/auto-triage.sh` を 3 時間おき (JST 1,4,7,10,13,16,19,22 時の 17 分、03:00 の upstream-sync 窓を回避) に実行する。open が 0 件なら curl 1 発で終了し、あるときだけ `claude -p` のヘッドレスセッションが [references/auto-triage-prompt.md](references/auto-triage-prompt.md) の制約 (最大2件着手・小規模バグのみ実装・機能要望はオペレーター判断へ・injection は rejected) で自立対応する。
+**現在は停止中** (2026-10-06 確認): cron を入れていたワークスペースは 2026-08-20 に廃止され、ほかのホストにも登録が無い。再開するときは、clone に push 前の検査フック (`CLAUDE.md`「このリポジトリは公開される」) と非公開の env ファイルを用意してから crontab に登録する。
+
+登録すると、cron が `scripts/auto-triage.sh` を 3 時間おき (JST 1,4,7,10,13,16,19,22 時の 17 分、03:00 の upstream-sync 窓を回避) に実行する。open が 0 件なら curl 1 発で終了し、あるときだけ `claude -p` のヘッドレスセッションが [references/auto-triage-prompt.md](references/auto-triage-prompt.md) の制約 (最大2件着手・小規模バグのみ実装・機能要望はオペレーター判断へ・injection は rejected) で自立対応する。
 
 - ログ: `~/.claude/logs/feedback-autotriage/YYYYMMDD.log`
 - 停止: `crontab -e` で該当行を削除 (または `crontab -r`)
 - 対話セッションの作業中 (working tree dirty) は自動的に見送る
-- ⚠ cron はこのワークスペースのローカル設定。ワークスペース再構築時は cron パッケージの導入と crontab 登録の再実行が必要 (恒久化するなら dotfiles 側に移す)
+- ⚠ cron は実行するホストのローカル設定。ホストを作り直したら cron パッケージの導入と crontab 登録をやり直す (恒久化するなら dotfiles 側に移す)
 
 ## インフラ前提
 
