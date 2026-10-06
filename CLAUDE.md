@@ -25,7 +25,7 @@ Claude Code 固有の補助 (skills / agents / slash commands / docs) は `.clau
   - 新規登録: 完全オープン登録 (招待コード不要)
   - ActivityPub 連合: オープン (許可/拒否リスト運用は現状無し)
   - コードリポジトリ (`git.msjp.pro/VTF/misskey-bsky-fork`) は非公開のまま
-  - **要検討**: AGPL-3.0 §13 (Remote Network Interaction) はネットワーク経由でソフトウェアを利用可能にした場合の corresponding source 提供義務を課す。稼働インスタンスを公開した時点でこの条項が発火している可能性が高く、リポジトリ非公開のままで良いか法務的に未整理 (2026-07-01 時点で結論保留、要検討事項として記録)
+  - ソースコード開示用に GitHub の公開ミラー [`VTFLAB/misskey-fork-msjp`](https://github.com/VTFLAB/misskey-fork-msjp) を用意している (AGPL-3.0 §13 の corresponding source 提供のため)。Gitea のミラー設定で自動 push される。運用は下の「GitHub 公開ミラーと Dependabot」を参照
 
 ### 非スコープ (明確に「やらない」もの)
 
@@ -64,7 +64,7 @@ Claude Code 固有の補助 (skills / agents / slash commands / docs) は `.clau
 
 - upstream: `github.com/misskey-dev/misskey` **v2026.5.3** (現運用 VM 200 mi-host と同 version)
 - branch: `bsky-integration`
-- コードリポジトリは非公開のまま: private repo on Gitea (`git.msjp.pro`)。稼働インスタンス自体は公開運用 (上記プロジェクト目的を参照)
+- コードリポジトリは非公開のまま: private repo on Gitea (`git.msjp.pro`)。ソース開示は GitHub の公開ミラー (`VTFLAB/misskey-fork-msjp`) で行う。稼働インスタンス自体は公開運用 (上記プロジェクト目的を参照)
 
 ### 認証 / 取得経路
 
@@ -188,6 +188,15 @@ git push -u origin bsky-integration
 - HAProxy で `git.msjp.pro` を待受、WAN port-forward 無し (homelab-ops/CLAUDE.md と同じ規律)
 - push / fetch / clone は **LAN または WireGuard VPN 経由でのみ可能**
 - §3 上は WAN host 名のため confirmation 対象だが、実体は LAN 限定
+
+### GitHub 公開ミラーと Dependabot
+
+- GitHub `VTFLAB/misskey-fork-msjp` (public) は Gitea からの push ミラー。**GitHub へ直接 commit / PR merge しない**。修正は常に Gitea に commit + push し、ミラーで反映させる
+- Dependabot alerts はミラー側で確認する: `gh api --paginate "repos/VTFLAB/misskey-fork-msjp/dependabot/alerts?state=open&per_page=100"`
+- 間接依存の修正は `pnpm-workspace.yaml` の `overrides` 先頭にある bsky-fork ブロックへ `'pkg@^N': ^<修正版>` の形で足す (値も範囲にして、upstream の新しい版を戻さない)。版は `minimumReleaseAge` (7 日) を満たすものを選ぶ。upstream が追いついた行は消す
+- 修正版が無い、または誤報のアラートは、理由を書いて GitHub 上で dismiss する (2026-10-06: braces #202、http-cache-semantics #203)
+- Dependabot のセキュリティ更新 PR は GitHub 上に作られるが、ミラーの push でブランチが消える。merge しない
+- 2026-10-06 の一括対応 (121 件) の経緯は commit `2af614221` / `5db86eaf8` を参照
 
 ### 上流追従
 
@@ -323,7 +332,7 @@ setTimeout(()=>process.exit(0), 10000);
   - 日本語応答、§3 WAN 確認、§4 destructive 確認、secrets-guard、etc.
 - 上の `@AGENTS.md` で Misskey upstream の codex/copilot 共有ルールも継承
 - このプロジェクト固有:
-  - **AGPL-3.0-only** 維持 (Misskey upstream に倣う、ファイル冒頭の SPDX 行を踏襲)。稼働インスタンス公開に伴う §13 source-offer 義務の扱いは未整理 (上記プロジェクト目的の「要検討」参照)
+  - **AGPL-3.0-only** 維持 (Misskey upstream に倣う、ファイル冒頭の SPDX 行を踏襲)。§13 のソース開示は GitHub の公開ミラーで行う (上記プロジェクト目的を参照)
   - **upstream に PR を送らない** (fork 固有の atproto 統合コードのため、upstream の関心事と無関係)
   - **`core/activitypub/` の AP 関連 file は touch しない** (upstream rebase コスト爆発防止)
   - **既存 timeline query は touch しない** (LTL の Bsky 自動除外を維持)
