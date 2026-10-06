@@ -3,7 +3,7 @@
 # SPDX-FileCopyrightText: syuilo and misskey-project
 # SPDX-License-Identifier: AGPL-3.0-only
 #
-# fetch-feedback.sh — ユーザーからのバグ報告・機能要望を LAN 限定 API から取得し、
+# fetch-feedback.sh — ユーザーからのバグ報告・機能要望を LAN 限定 API (FEEDBACK_API_BASE) から取得し、
 # LLM が安全に読める形式で出力する。
 #
 # 安全対策 (このスクリプトを経由せず raw curl で読まないこと):
@@ -14,6 +14,9 @@
 #      サイズ上限・magic bytes (image/* かつ SVG 以外) を検証してローカル保存する。
 #      本文中に書かれた URL は一切取得しない。
 #
+# 設定: private env ファイル (${MISSKEY_LOCAL_AUTOMATION_ENV:-~/.config/misskey-local-automation.env}) に
+#   FEEDBACK_API_BASE (必須) / FEEDBACK_ALLOWED_IMAGE_HOSTS / MISSKEY_LOCAL_TOKEN を定義する。
+#
 # 使い方:
 #   fetch-feedback.sh [status]   # status: open (default) | inProgress | resolved | rejected | all
 #
@@ -22,9 +25,22 @@
 
 set -euo pipefail
 
-API_BASE="${FEEDBACK_API_BASE:-http://mi-host.msjp-local.org:3000/api}"
+# 任意の private env ファイルを読む (FEEDBACK_API_BASE / FEEDBACK_ALLOWED_IMAGE_HOSTS / MISSKEY_LOCAL_TOKEN)
+ENV_FILE="${MISSKEY_LOCAL_AUTOMATION_ENV:-$HOME/.config/misskey-local-automation.env}"
+if [ -f "$ENV_FILE" ]; then
+	set -a
+	# shellcheck disable=SC1090
+	. "$ENV_FILE"
+	set +a
+fi
+
+if [ -z "${FEEDBACK_API_BASE:-}" ]; then
+	echo "error: FEEDBACK_API_BASE is not set. Define it in $ENV_FILE (or export it)." >&2
+	exit 1
+fi
+API_BASE="$FEEDBACK_API_BASE"
 # 添付画像のダウンロードを許可するホスト (カンマ区切り)。API の返す url フィールドのみ対象。
-ALLOWED_IMAGE_HOSTS="${FEEDBACK_ALLOWED_IMAGE_HOSTS:-mi.msjp.pro,mi-files.msjp.pro,mi-host.msjp-local.org}"
+ALLOWED_IMAGE_HOSTS="${FEEDBACK_ALLOWED_IMAGE_HOSTS:-mi.msjp.pro,mi-files.msjp.pro}"
 OUT_DIR="${FEEDBACK_OUT_DIR:-/tmp/user-feedback}"
 MAX_IMAGE_BYTES=$((10 * 1024 * 1024))
 LIMIT="${FEEDBACK_LIMIT:-30}"
@@ -33,13 +49,22 @@ STATUS="${1:-open}"
 
 command -v jq >/dev/null || { echo "error: jq is required" >&2; exit 1; }
 
+# *-local endpoint 用 curl。トークンは argv (ps) に出さないよう、ヘッダーをプロセス置換で渡す。
+curl_local() {
+	if [ -n "${MISSKEY_LOCAL_TOKEN:-}" ]; then
+		curl -H @<(printf 'x-misskey-local-token: %s\n' "$MISSKEY_LOCAL_TOKEN") "$@"
+	else
+		curl "$@"
+	fi
+}
+
 if [ "$STATUS" = "all" ]; then
 	PAYLOAD=$(jq -nc --argjson limit "$LIMIT" '{limit: $limit}')
 else
 	PAYLOAD=$(jq -nc --argjson limit "$LIMIT" --arg status "$STATUS" '{limit: $limit, status: $status}')
 fi
 
-RESP=$(curl -sS --max-time 30 -X POST "$API_BASE/feedback/list-local" \
+RESP=$(curl_local -sS --max-time 30 -X POST "$API_BASE/feedback/list-local" \
 	-H 'Content-Type: application/json' \
 	-d "$PAYLOAD")
 
