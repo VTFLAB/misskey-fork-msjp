@@ -16,16 +16,33 @@ Claude Code 固有の補助 (skills / agents / slash commands / docs) は `.clau
 
 ここから下は **fork オリジナル**。Upstream には絶対送らない。Upstream CLAUDE.md (上の `@AGENTS.md` まで) は最小 diff で維持し、rebase 時の conflict を避ける。
 
+## このリポジトリは公開される
+
+Gitea は LAN 限定だが、git 管理したものはすべて GitHub の公開ミラー
+[`VTFLAB/misskey-fork-msjp`](https://github.com/VTFLAB/misskey-fork-msjp) に自動で push される。
+コミットの差分とコミットメッセージも公開され、rebase 前の古いコミットも GitHub 上に残る。
+ファイル・コメント・コミットメッセージに次のものを書かない:
+
+- 秘密情報 (token、パスワード、鍵、client secret)。値だけでなく、置き場所のパスも書かない
+- 個人情報 (個人のメールアドレス、実在ユーザーのハンドルや ID、ユーザーの報告内容)
+- 自宅や LAN の構成 (WAN/LAN の IP、内部ホスト名、ssh 手順、ルーターやプロキシの設定、バックアップ手順)
+- 防御の状態 (どこが無認証か、どの許可リストに頼っているか)
+- Claude のセッション URL
+
+これらは非公開の homelab-ops リポジトリの `misskey/docs/` に書く。運用メモ (`OPS.md`)、
+セッション引き継ぎ (`HANDOFF.md`)、配信機能の設計資料 (`live-streaming/`) はそこにある。
+運用メモは次の行で読み込む (homelab-ops が隣に clone されていない環境では読み込まれない):
+
+@../homelab-ops/misskey/docs/OPS.md
+
 ## プロジェクト目的
 
 - Misskey 1 画面で Twitter 移行組の Bluesky 公式アカウント等を購読表示
 - **inbound only** (Bsky → Misskey 表示のみ、Misskey → Bsky 投稿は実装しない)
 - **anonymous** (自前 Bsky account / OAuth / app password 不要、public AppView API のみ使う)
 - **稼働インスタンス (`mi.msjp.pro`) は小規模公開インスタンスとして運用中** (2026-07-01 時点)
-  - 新規登録: 完全オープン登録 (招待コード不要)
-  - ActivityPub 連合: オープン (許可/拒否リスト運用は現状無し)
   - コードリポジトリ (`git.msjp.pro/VTF/misskey-bsky-fork`) は非公開のまま
-  - ソースコード開示用に GitHub の公開ミラー [`VTFLAB/misskey-fork-msjp`](https://github.com/VTFLAB/misskey-fork-msjp) を用意している (AGPL-3.0 §13 の corresponding source 提供のため)。Gitea のミラー設定で自動 push される。運用は下の「GitHub 公開ミラーと Dependabot」を参照
+  - ソースコード開示用に GitHub の公開ミラー [`VTFLAB/misskey-fork-msjp`](https://github.com/VTFLAB/misskey-fork-msjp) を用意している (AGPL-3.0 §13 の corresponding source 提供のため)。Gitea のミラー設定で自動 push される。運用は上の「このリポジトリは公開される」と下の「GitHub 公開ミラーと Dependabot」を参照
 
 ### 非スコープ (明確に「やらない」もの)
 
@@ -62,7 +79,7 @@ Claude Code 固有の補助 (skills / agents / slash commands / docs) は `.clau
 
 ### Fork base
 
-- upstream: `github.com/misskey-dev/misskey` **v2026.5.3** (現運用 VM 200 mi-host と同 version)
+- upstream: `github.com/misskey-dev/misskey` **v2026.5.3** (本番と同 version で fork を開始。現在の base は `.gitea/workflows/build-image.yml` の `BASE_VERSION`)
 - branch: `bsky-integration`
 - コードリポジトリは非公開のまま: private repo on Gitea (`git.msjp.pro`)。ソース開示は GitHub の公開ミラー (`VTFLAB/misskey-fork-msjp`) で行う。稼働インスタンス自体は公開運用 (上記プロジェクト目的を参照)
 
@@ -104,7 +121,7 @@ packages/frontend/src/
 
 ## 進捗
 
-**本番運用中** (2026-05-19 デプロイ済、`mi.msjp.pro`)。次セッションへの引き継ぎは [HANDOFF.md](HANDOFF.md) を参照。
+**本番運用中** (2026-05-19 デプロイ済、`mi.msjp.pro`)。次セッションへの引き継ぎは非公開の homelab-ops `misskey/docs/HANDOFF.md` を参照。
 
 完了:
 
@@ -121,7 +138,7 @@ packages/frontend/src/
 - [x] **Phase 7**: Backfill (新規 follow 時 30 日 + `/api/atproto/backfill` endpoint)
 - [x] **Phase 8**: Avatar/Banner を DriveService.uploadFromUrl で取り込み
 - [x] **本番デプロイ**: image `2026.5.3-bsky-d3e620f` 稼働中、6 アカウント follow + 3,266 note + avatar 全件取り込み済
-- [x] **Phase 9**: CI/CD 化 — Gitea Actions (upstream-sync 毎日 03:00 JST + build-image on push) + mi-host podman auto-update (5 分間隔) で完全自動化
+- [x] **Phase 9**: CI/CD 化 — Gitea Actions (upstream-sync 毎日 03:00 JST + build-image on push) + 本番の podman auto-update (5 分間隔) で完全自動化
 
 検証コマンド (deploy 後):
 
@@ -152,13 +169,6 @@ curl -s "https://mi.msjp.pro/api/notes/local-timeline" \
 # → 0 が出れば OK
 ```
 
-## 次セッション開始
-
-```fish
-cd ~/Document/misskey-bsky-fork
-# claude 起動 → 「Task #5 から再開」と伝えれば続行できる
-```
-
 ## Git 運用 — Gitea
 
 ### Remote 設定方針
@@ -166,28 +176,7 @@ cd ~/Document/misskey-bsky-fork
 - **origin**: `https://git.msjp.pro/VTF/misskey-bsky-fork` (**private** repo、未作成なら次 session 冒頭で gitea-mcp 経由で作成)
 - **upstream**: `https://github.com/misskey-dev/misskey.git` (read-only fetch、月 1 で rebase 取り込み)
 
-### 初期 setup (完了済 2026-05-19)
-
-```fish
-# 実施済 — 参考として残す
-cd ~/Document/misskey-bsky-fork
-git remote rename origin upstream
-git remote add origin https://git.msjp.pro/VTF/misskey-bsky-fork.git
-git config remote.upstream.fetch "+refs/heads/*:refs/remotes/upstream/*"
-git push -u origin bsky-integration
-```
-
-### Gitea credential
-
-- token は `~/.config/opencode/secrets/gitea.env` から credential helper 経由で読まれる (homelab-ops と同じ pattern)
-- 不足時は **`fetch-gitea-token`** helper (Bitwarden Desktop agent 経由) で取得
-- MCP `gitea-mcp` も `GITEA_ACCESS_TOKEN` env が必要、同じ token を使う
-
-### git.msjp.pro = LAN-only
-
-- HAProxy で `git.msjp.pro` を待受、WAN port-forward 無し (homelab-ops/CLAUDE.md と同じ規律)
-- push / fetch / clone は **LAN または WireGuard VPN 経由でのみ可能**
-- §3 上は WAN host 名のため confirmation 対象だが、実体は LAN 限定
+Gitea の認証と到達経路は非公開の運用メモ (`OPS.md`) を参照。
 
 ### GitHub 公開ミラーと Dependabot
 
@@ -196,7 +185,7 @@ git push -u origin bsky-integration
 - 間接依存の修正は `pnpm-workspace.yaml` の `overrides` 先頭にある bsky-fork ブロックへ `'pkg@^N': ^<修正版>` の形で足す (値も範囲にして、upstream の新しい版を戻さない)。版は `minimumReleaseAge` (7 日) を満たすものを選ぶ。upstream が追いついた行は消す
 - 修正版が無い、または誤報のアラートは、理由を書いて GitHub 上で dismiss する (2026-10-06: braces #202、http-cache-semantics #203)
 - Dependabot のセキュリティ更新 PR は GitHub 上に作られるが、ミラーの push でブランチが消える。merge しない
-- 2026-10-06 の一括対応 (121 件) の経緯は commit `2af614221` / `5db86eaf8` を参照
+- 2026-10-06 の一括対応 (121 件) の経緯は commit「fix(deps): Dependabot のセキュリティアラートに対応する」と「fix(deps): セキュリティ用 overrides の値を範囲指定にする」を参照
 
 ### 上流追従
 
@@ -226,62 +215,12 @@ git push --force-with-lease origin bsky-integration  # ※force push は §4 des
 
 ## Deploy 方法
 
-### 構成
-
-- ホスト: VM 200 mi-host (pve2 = 192.168.1.3、`mi-host.msjp-local.org`)
-- 公開: HAProxy 経由 `mi.msjp.pro` (Cloudflare → OPNsense → VM 200)
-- 構成: **Podman Quadlet** (rootless under `misskey` user) + 自前 fork image
-- Quadlet ソース: `/mnt/data/seafile/documents/homelab-ops/misskey/quadlet/`
-- Postgres / Redis / Object storage (Versity S3 on TNAS) は別 service
-
-### CI/CD パイプライン (2026-05-19 以降)
-
-```
-1. workstation: git commit + push to git.msjp.pro/VTF/misskey-bsky-fork (bsky-integration)
-2. Gitea Actions (.gitea/workflows/build-image.yml) が走る:
-   - Dockerfile から image を build
-   - tag 2 種を git.msjp.pro registry に push:
-       - git.msjp.pro/vtf/misskey-bsky-fork:2026.5.3-bsky-<short_sha>  (immutable)
-       - git.msjp.pro/vtf/misskey-bsky-fork:bsky-latest                 (rolling)
-3. mi-host VM 200 上の misskey user で動く podman-auto-update.timer (5 分間隔) が
-   bsky-latest の digest 変化を検出 → podman auto-update が pull + restart
-4. container entrypoint `pnpm migrate && pnpm start` が migration を自動適用
-```
-
-upstream rebase も別 workflow (`upstream-sync.yml`) が毎日 03:00 JST に試行する。
-conflict 時は Gitea Issue が立つので、それを見て手動 rebase + push。
-
-### 通常運用フロー
-
-```fish
-cd ~/Document/misskey-bsky-fork
-# 修正
-git add <files>
-git commit -m "..."
-git push origin bsky-integration
-# 以降は Gitea Actions が build → registry push、mi-host が 5 分以内に
-# pull + restart まで自動で完了する。Gitea UI で workflow を見て確認。
-```
-
-### Rollback
-
-最も早い順:
-
-```fish
-# 即時: bsky-latest を 1 つ前の sha tag に戻す (registry 操作)
-# mi-host 側で immutable な sha tag を一時的に Quadlet に固定するのが安全:
-ssh root@mi-host.msjp-local.org "su - misskey -c \"sed -i 's|^Image=.*misskey-bsky-fork:.*|Image=git.msjp.pro/vtf/misskey-bsky-fork:2026.5.3-bsky-<old_sha>|; s|^AutoUpdate=registry|AutoUpdate=disabled|' ~/.config/containers/systemd/misskey-web.container\" && systemctl --user --machine=misskey@.host daemon-reload && systemctl --user --machine=misskey@.host restart misskey-web.service"
-
-# 最重: PBS full restore (atDid column が壊れた、DB が壊れた場合のみ)
-ssh root@192.168.1.3 'pvesm list tnas-pbs | grep -i 200'
-# pve UI からの復元が安全
-```
-
-### 重要な注意
-
-- **homelab-ops/misskey/quadlet/misskey-web.container** は `Image=...:bsky-latest` + `AutoUpdate=registry` に切り替え済 (homelab-ops 側にも commit)
-- fork branch 独自 migration `1779174024562-*` は **upstream には絶対送らない** (private fork)
-- Misskey DB は VM 200 内 Postgres、auto-update での migration 失敗時は restart loop に入る前に systemd の StartLimit (default 5 trials / 10s) で止まる → 手動 rollback の出番
+- 本番は Podman Quadlet (rootless) で fork の image を動かす。Quadlet などの deploy 側の定義は非公開の homelab-ops `misskey/` にある
+- `bsky-integration` に push すると、Gitea Actions の `build-image.yml` が image を build して registry に push する (`<base_version>-bsky-<short_sha>` と `bsky-latest`)
+- 本番は `bsky-latest` の digest 変化を 5 分間隔で検出し、pull + restart する。container の entrypoint (`pnpm migrate && pnpm start`) が migration を自動適用する
+- `.md`、`.claude/`、`.gitea/` などだけの push では build しない (`build-image.yml` の `paths-ignore`)
+- fork 独自 migration `1779174024562-*` などは upstream に送らない
+- ホスト構成、確認コマンド、rollback 手順は非公開の運用メモ (`OPS.md`) を参照
 
 ## 動作確認 / 検証コマンド
 
@@ -295,7 +234,7 @@ curl -s 'https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor=jay.
 
 ### Jetstream subscribe (anonymous WS)
 
-Node 24 built-in `WebSocket` で OK (`/tmp/jetstream-test.js` に動作サンプル残ってる、前 session 作成):
+Node 24 built-in `WebSocket` で OK:
 
 ```fish
 node -e '
@@ -328,7 +267,7 @@ setTimeout(()=>process.exit(0), 10000);
 
 ## 規律 (継承)
 
-- `~/.claude/CLAUDE.md` (global) と `/mnt/data/seafile/documents/homelab-ops/CLAUDE.md` の規律は継承
+- `~/.claude/CLAUDE.md` (global) と homelab-ops の `CLAUDE.md` の規律は継承
   - 日本語応答、§3 WAN 確認、§4 destructive 確認、secrets-guard、etc.
 - 上の `@AGENTS.md` で Misskey upstream の codex/copilot 共有ルールも継承
 - このプロジェクト固有:
