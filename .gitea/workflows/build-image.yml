@@ -1,6 +1,6 @@
 # bsky-integration への push を trigger に container image を build + Gitea registry へ push。
 # tag は 2 種類: immutable な `<upstream-version>-bsky-<short_sha>` と rolling な `bsky-latest`。
-# Quadlet 側 (mi-host CT 200) は `bsky-latest` を AutoUpdate=registry で見る。
+# 本番の Quadlet は `bsky-latest` を AutoUpdate=registry で見る。
 #
 # Job container: debian:trixie-slim。Harbor proxy の "no Critical CVEs" pull policy が
 # gitea/runner-images:ubuntu-latest を拒否するようになり (2026-09、job が起動前に cancelled)、
@@ -109,13 +109,13 @@ jobs:
       # push は buildkit (containerd resolver) ではなく docker CLI で行う。
       # buildkit の token 取得は Gitea 相手に不安定で、runs #931-#942 が
       # "authorization server did not include a token in the response" で失敗し続けた
-      # (docker login や mi-host 側 podman pull の GET /v2/token 経路は安定)。
+      # (docker login や 本番側の podman pull の GET /v2/token 経路は安定)。
       # registry buildcache も buildkit 認証依存で毎回 import に失敗して
       # 実質無効だったため撤去済 (フルビルドは実測 ~5 分)。
-      # Misskey 公式 image は linux/amd64 のみ。Misskey-bsky-fork も pve2 上の
-      # CT 200 (x86_64) のみで動かすので amd64 単一で OK。
+      # Misskey 公式 image は linux/amd64 のみ。Misskey-bsky-fork も本番は
+      # x86_64 のホストだけで動かすので amd64 単一で OK。
       # Image label として io.containers.autoupdate=registry を付与すると、
-      # mi-host 側で podman auto-update が registry 上の :bsky-latest を見て
+      # 本番側で podman auto-update が registry 上の :bsky-latest を見て
       # digest 差分があるときだけ pull + restart する。
       - name: Build image
         working-directory: src
@@ -206,6 +206,6 @@ jobs:
             echo "- \`${{ steps.tags.outputs.image_sha }}\`"
             echo "- \`${{ steps.tags.outputs.image_latest }}\` (rolling)"
             echo ""
-            echo "mi-host (CT 200) is configured with \`AutoUpdate=registry\` on bsky-latest;"
+            echo "Production is configured with \`AutoUpdate=registry\` on bsky-latest;"
             echo "the 5-minute podman-auto-update.timer will pull and restart within ~5 min."
           } >> "$GITHUB_STEP_SUMMARY"
