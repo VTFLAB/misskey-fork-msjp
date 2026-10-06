@@ -39,6 +39,8 @@ allowBuilds:
   pnpm: true
 minimumReleaseAge: 10080 # delay 7days to mitigate supply-chain attack
 minimumReleaseAgeExclude:
+  # bsky-fork security update (GHSA-68fv-2mgg-jv7q): drop once 1.2.2 is older than 7 days or upstream bumps it
+  - source-map-js@1.2.2
   - '@misskey-dev/*'
   - '@syuilo/aiscript'
   - buraha
@@ -90,7 +92,10 @@ overrides:
   js-cookie@^3: ^3.0.8
   js-yaml@^4: ^4.3.2
   multer@^2: ^2.4.0
+  postcss-selector-parser@^7: ^7.1.6
+  proxy-addr@^2: ^2.0.8
   qs@^6: ^6.16.0
+  source-map-js@^1: ^1.2.2
   undici@^8: ^8.11.2
   uuid@<11.1.1: ^11.1.1
   # end bsky-fork
