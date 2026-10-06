@@ -17,8 +17,8 @@ import { isAllowedLocalAutomationRequest } from '@/misc/local-automation-guard.j
 // 認証の代わりに二重の到達経路ガード (XFF 拒否 + allowedIps 照合) で LAN 直アクセスのみに
 // 限定する。ガードの詳細と根拠は @/misc/local-automation-guard.js (共有実装) を参照。
 // rootless podman では published port の送信元が rootlessport の gateway IP に
-// 書き換わるため、実際に観測される IP を config に列挙する運用
-// (accessDenied の応答に観測 IP を含める)。allowedIps 未設定 (デフォルト) では常に拒否 = 機能オフ。
+// 書き換わるため、その gateway IP を config に列挙する運用。
+// 観測値 (IP / XFF) は応答に含めない。token 設定時は x-misskey-local-token ヘッダーも必須。allowedIps 未設定 (デフォルト) では常に拒否 = 機能オフ。
 export const meta = {
 	tags: ['meta'],
 
@@ -67,10 +67,11 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			// (呼び出し元自身の情報を返すだけなので漏洩にはならない)。
 			if (!isAllowedLocalAutomationRequest({
 				allowedIps: this.config.updateInfoLocalPost?.allowedIps ?? [],
+				token: this.config.updateInfoLocalPost?.token,
 				ip,
 				headers,
 			})) {
-				throw new ApiError(meta.errors.accessDenied, { ip: ip ?? null, forwarded: (headers?.['x-forwarded-for'] ?? null) != null });
+				throw new ApiError(meta.errors.accessDenied);
 			}
 
 			const { packed } = await this.updateInfoService.create({
