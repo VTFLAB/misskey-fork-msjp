@@ -23,6 +23,7 @@ import type { OnModuleInit } from '@nestjs/common';
 import type { CustomEmojiService } from '../CustomEmojiService.js';
 import type { ReactionService } from '../ReactionService.js';
 import type { RemoteReactionService } from '../RemoteReactionService.js'; // bsky-fork
+import type { EmojiImageIdentityService } from '../EmojiImageIdentityService.js'; // bsky-fork
 import type { UserEntityService } from './UserEntityService.js';
 import type { DriveFileEntityService } from './DriveFileEntityService.js';
 
@@ -69,6 +70,7 @@ export class NoteEntityService implements OnModuleInit {
 	private reactionService: ReactionService;
 	private reactionsBufferingService: ReactionsBufferingService;
 	private remoteReactionService: RemoteReactionService; // bsky-fork
+	private emojiImageIdentityService: EmojiImageIdentityService; // bsky-fork
 	private idService: IdService;
 	private cacheService: CacheService;
 	private noteLoader = new DebounceLoader(this.findNoteOrFail);
@@ -117,6 +119,7 @@ export class NoteEntityService implements OnModuleInit {
 		this.reactionService = this.moduleRef.get('ReactionService');
 		this.reactionsBufferingService = this.moduleRef.get('ReactionsBufferingService');
 		this.remoteReactionService = this.moduleRef.get('RemoteReactionService'); // bsky-fork
+		this.emojiImageIdentityService = this.moduleRef.get('EmojiImageIdentityService'); // bsky-fork
 		this.idService = this.moduleRef.get('IdService');
 		this.cacheService = this.moduleRef.get('CacheService');
 	}
@@ -396,6 +399,11 @@ export class NoteEntityService implements OnModuleInit {
 		const reactionEmojiNames = Object.keys(reactions)
 			.filter(x => x.startsWith(':') && x.includes('@') && !x.includes('@.')) // リモートカスタム絵文字のみ
 			.map(x => this.reactionService.decodeReaction(x).reaction.replaceAll(':', ''));
+		// bsky-fork: 同じ画像の絵文字リアクションをホストをまたいでまとめる (取得済みの同一性だけを使い、未取得分は裏で取る)
+		const groupedReactions = await this.emojiImageIdentityService.group(reactions, {
+			noteUserHost: host,
+			reactionEmojis: await this.customEmojiService.populateEmojis(reactionEmojiNames, host),
+		});
 		const packedFiles = options?._hint_?.packedFiles;
 		const packedUsers = options?._hint_?.packedUsers;
 
@@ -413,9 +421,9 @@ export class NoteEntityService implements OnModuleInit {
 			visibleUserIds: note.visibility === 'specified' ? note.visibleUserIds : undefined,
 			renoteCount: note.renoteCount,
 			repliesCount: note.repliesCount,
-			reactionCount: Object.values(reactions).reduce((a, b) => a + b, 0),
-			reactions: reactions,
-			reactionEmojis: this.customEmojiService.populateEmojis(reactionEmojiNames, host),
+			reactionCount: Object.values(groupedReactions.reactions).reduce((a, b) => a + b, 0), // bsky-fork
+			reactions: groupedReactions.reactions, // bsky-fork
+			reactionEmojis: groupedReactions.reactionEmojis, // bsky-fork
 			reactionAndUserPairCache: opts.withReactionAndUserPairCache ? reactionAndUserPairCache : undefined,
 			emojis: host != null ? this.customEmojiService.populateEmojis(note.emojis, host) : undefined,
 			tags: note.tags.length > 0 ? note.tags : undefined,
@@ -463,7 +471,7 @@ export class NoteEntityService implements OnModuleInit {
 						id: note.id,
 						reactions: reactions,
 						reactionAndUserPairCache: reactionAndUserPairCache,
-					}, meId, options?._hint_),
+					}, meId, options?._hint_).then(reaction => reaction != null ? (groupedReactions.keyMap.get(reaction) ?? reaction) : reaction), // bsky-fork: まとめた代表のキーに寄せる
 				} : {}),
 			} : {}),
 		});
@@ -650,10 +658,15 @@ export class NoteEntityService implements OnModuleInit {
 				.filter(x => x.startsWith(':') && x.includes('@') && !x.includes('@.')) // リモートカスタム絵文字のみ
 				.map(x => this.reactionService.decodeReaction(x).reaction.replaceAll(':', ''));
 
-			return this.customEmojiService.populateEmojis(reactionEmojiNames, note.userHost).then(reactionEmojis => ({
-				id: note.id,
-				...mergeRemoteReactions({ reactions, reactionEmojis }, remoteReactionsMap.get(note.id)), // bsky-fork
-			}));
+			// bsky-fork: 元サーバーの取得分を合わせ、同じ画像の絵文字をまとめる
+			return this.customEmojiService.populateEmojis(reactionEmojiNames, note.userHost)
+				.then(reactionEmojis => mergeRemoteReactions({ reactions, reactionEmojis }, remoteReactionsMap.get(note.id)))
+				.then(merged => this.emojiImageIdentityService.group(merged.reactions, { noteUserHost: note.userHost, reactionEmojis: merged.reactionEmojis }))
+				.then(grouped => ({
+					id: note.id,
+					reactions: grouped.reactions,
+					reactionEmojis: grouped.reactionEmojis,
+				}));
 		});
 
 		return await Promise.all(packings);

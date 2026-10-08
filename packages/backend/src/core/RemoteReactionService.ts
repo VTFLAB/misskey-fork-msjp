@@ -16,6 +16,7 @@ import { UtilityService } from '@/core/UtilityService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { bindThis } from '@/decorators.js';
 import { pickReactionEntries } from '@/misc/remote-reactions.js';
+import { Semaphore } from '@/misc/semaphore.js';
 import type Logger from '@/logger.js';
 import type { RemoteReactionsSnapshot, RemoteReactionsDiff } from '@/misc/remote-reactions.js';
 
@@ -68,36 +69,6 @@ const CUSTOM_EMOJI_REACTION = /^:([-\w]+)@([\w.-]+):$/;
 const EMOJI_NAME = /^[-\w]+$/;
 
 const RELEASE_LOCK_SCRIPT = 'if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) else return 0 end';
-
-class Semaphore {
-	private running = 0;
-	private waiters: (() => void)[] = [];
-
-	constructor(private readonly limit: number) {}
-
-	public get idle(): boolean {
-		return this.running === 0 && this.waiters.length === 0;
-	}
-
-	public async run<T>(fn: () => Promise<T>): Promise<T> {
-		if (this.running >= this.limit) {
-			// 解放側がスロットを譲ってくれる (running は減らさない) ので、ここでは増やさない
-			await new Promise<void>(resolve => this.waiters.push(resolve));
-		} else {
-			this.running++;
-		}
-		try {
-			return await fn();
-		} finally {
-			const next = this.waiters.shift();
-			if (next) {
-				next();
-			} else {
-				this.running--;
-			}
-		}
-	}
-}
 
 @Injectable()
 export class RemoteReactionService {

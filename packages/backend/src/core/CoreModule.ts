@@ -163,6 +163,7 @@ import { AtpNoteService } from './atproto/AtpNoteService.js';
 import { AtpJetstreamService } from './atproto/AtpJetstreamService.js';
 import { JuiceSettingsService } from './JuiceSettingsService.js';
 import { RemoteReactionService } from './RemoteReactionService.js';
+import { EmojiImageIdentityService } from './EmojiImageIdentityService.js';
 import { TwitchLoggerService } from './twitch/TwitchLoggerService.js';
 import { TwitchApiService } from './twitch/TwitchApiService.js';
 import { TwitchOAuthService } from './twitch/TwitchOAuthService.js';
@@ -360,6 +361,7 @@ const $AtpJetstreamService: Provider = { provide: 'AtpJetstreamService', useExis
 
 const $JuiceSettingsService: Provider = { provide: 'JuiceSettingsService', useExisting: JuiceSettingsService };
 const $RemoteReactionService: Provider = { provide: 'RemoteReactionService', useExisting: RemoteReactionService };
+const $EmojiImageIdentityService: Provider = { provide: 'EmojiImageIdentityService', useExisting: EmojiImageIdentityService };
 
 const $TwitchLoggerService: Provider = { provide: 'TwitchLoggerService', useExisting: TwitchLoggerService };
 const $TwitchApiService: Provider = { provide: 'TwitchApiService', useExisting: TwitchApiService };
@@ -559,6 +561,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		AtpJetstreamService,
 		JuiceSettingsService,
 		RemoteReactionService,
+		EmojiImageIdentityService,
 		TwitchLoggerService,
 		TwitchApiService,
 		TwitchOAuthService,
@@ -754,6 +757,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 
 		$JuiceSettingsService,
 		$RemoteReactionService,
+		$EmojiImageIdentityService,
 
 		$TwitchLoggerService,
 		$TwitchApiService,
@@ -945,6 +949,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		AtpJetstreamService,
 		JuiceSettingsService,
 		RemoteReactionService,
+		EmojiImageIdentityService,
 		TwitchLoggerService,
 		TwitchApiService,
 		TwitchOAuthService,
@@ -1138,6 +1143,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 
 		$JuiceSettingsService,
 		$RemoteReactionService,
+		$EmojiImageIdentityService,
 
 		$TwitchLoggerService,
 		$TwitchApiService,

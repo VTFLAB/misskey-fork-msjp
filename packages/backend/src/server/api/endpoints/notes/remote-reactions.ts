@@ -11,6 +11,7 @@ import { Endpoint } from '@/server/api/endpoint-base.js';
 import { DI } from '@/di-symbols.js';
 import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { RemoteReactionService } from '@/core/RemoteReactionService.js';
+import { EmojiImageIdentityService } from '@/core/EmojiImageIdentityService.js';
 import { mergeRemoteReactions } from '@/misc/remote-reactions.js';
 
 // bsky-fork 独自: リモートノートのリアクションを元サーバーから取得し、自サーバーの集計と合わせて返す。
@@ -81,6 +82,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		private noteEntityService: NoteEntityService,
 		private remoteReactionService: RemoteReactionService,
+		private emojiImageIdentityService: EmojiImageIdentityService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			// 自サーバーの集計 (閲覧可否の判定込み)
@@ -92,17 +94,24 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				select: { id: true, uri: true, userHost: true },
 			});
 			const snapshots = await this.remoteReactionService.getMany(notes);
+			const userHosts = new Map(notes.map(note => [note.id, note.userHost]));
 
-			return diffs.map(diff => {
+			return await Promise.all(diffs.map(async diff => {
 				const snapshot = snapshots.get(diff.id) ?? null;
 				const merged = mergeRemoteReactions(diff, snapshot);
+				// 同じ画像の絵文字 (ホスト違い) をまとめる。ここでは同一性の取得を少し待つ
+				const grouped = await this.emojiImageIdentityService.group(merged.reactions, {
+					noteUserHost: userHosts.get(diff.id) ?? null,
+					reactionEmojis: merged.reactionEmojis,
+					wait: true,
+				});
 				return {
 					id: diff.id,
-					reactions: merged.reactions,
-					reactionEmojis: merged.reactionEmojis,
+					reactions: grouped.reactions,
+					reactionEmojis: grouped.reactionEmojis,
 					remoteFetchedAt: snapshot ? new Date(snapshot.fetchedAt).toISOString() : null,
 				};
-			});
+			}));
 		});
 	}
 }

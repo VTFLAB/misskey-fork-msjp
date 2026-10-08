@@ -13,6 +13,7 @@ import { NoteEntityService } from '@/core/entities/NoteEntityService.js';
 import { DI } from '@/di-symbols.js';
 import { QueryService } from '@/core/QueryService.js';
 import { GetterService } from '@/server/api/GetterService.js';
+import { EmojiImageIdentityService } from '@/core/EmojiImageIdentityService.js'; // bsky-fork
 import { ApiError } from '../../error.js';
 
 export const meta = {
@@ -63,6 +64,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private noteEntityService: NoteEntityService,
 		private queryService: QueryService,
 		private getterService: GetterService,
+		private emojiImageIdentityService: EmojiImageIdentityService, // bsky-fork
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const note = await this.getterService.getNote(ps.noteId).catch(err => {
@@ -84,12 +86,35 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				// DB 上ではそうではないので、必要に応じて変換
 				const suffix = '@.:';
 				const type = ps.type.endsWith(suffix) ? ps.type.slice(0, ps.type.length - suffix.length) + ':' : ps.type;
-				query.andWhere('reaction.reaction = :type', { type });
+				// bsky-fork: 同じ画像の絵文字 (ホスト違い) を 1 つにまとめて表示しているので、
+				// まとめた代表のキーで聞かれたら、まとめられた側のリアクションも一緒に返す
+				const types = await this.siblingReactionTypes(note, type);
+				query.andWhere('reaction.reaction IN (:...types)', { types });
 			}
 
 			const reactions = await query.limit(ps.limit).getMany();
 
 			return await this.noteReactionEntityService.packMany(reactions, me);
 		});
+	}
+
+	// bsky-fork: DB 表記のキー (ローカルは `:name:`) を受け取り、同じ画像としてまとめられるキー一覧を DB 表記で返す。
+	// 要求されたキーが代表かどうかに関わらず、同じ画像のキーをすべて集める
+	private async siblingReactionTypes(note: { reactions: Record<string, number>; userHost: string | null }, dbType: string): Promise<string[]> {
+		const toPacked = (key: string) => key.replace(/^:([-\w]+):$/, ':$1@.:');
+		const toDb = (key: string) => key.replace(/^:([-\w]+)@\.:$/, ':$1:');
+		const packedReactions: Record<string, number> = {};
+		for (const [key, count] of Object.entries(note.reactions)) {
+			if (count > 0) packedReactions[toPacked(key)] = count;
+		}
+		const requested = toPacked(dbType);
+		packedReactions[requested] ??= 1; // 元サーバーの取得分で表示されたキーが DB に無くても仲間を引けるように
+		const grouped = await this.emojiImageIdentityService.group(packedReactions, { noteUserHost: note.userHost });
+		const representative = grouped.keyMap.get(requested) ?? requested;
+		const types = new Set([dbType]);
+		for (const key of Object.keys(packedReactions)) {
+			if (key === representative || grouped.keyMap.get(key) === representative) types.add(toDb(key));
+		}
+		return [...types];
 	}
 }
