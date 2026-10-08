@@ -21,6 +21,7 @@ import { reactionPicker } from '@/utility/reaction-picker.js';
 import { extractUrlFromMfm } from '@/utility/extract-url-from-mfm.js';
 import { getNoteClipMenu, getNoteMenu, getRenoteMenu, getAbuseNoteMenu, getCopyNoteLinkMenu } from '@/utility/get-note-menu.js';
 import { noteEvents, useNoteCapture } from '@/composables/use-note-capture.js';
+import { useRemoteReactions } from '@/composables/use-remote-reactions.js';
 import { deepClone } from '@/utility/clone.js';
 import { useTooltip } from '@/composables/use-tooltip.js';
 import { claimAchievement } from '@/utility/achievements.js';
@@ -140,6 +141,13 @@ export function useNote(
 	const { $note: $appearNote, subscribe: subscribeManuallyToNoteCapture } = useNoteCapture({
 		note: appearNote,
 		parentNote: rawNote,
+		mock: props.mock,
+	});
+
+	// bsky-fork: リモートノートは元サーバーのリアクションを取得して $appearNote に反映する
+	useRemoteReactions({
+		note: appearNote,
+		$note: $appearNote,
 		mock: props.mock,
 	});
 

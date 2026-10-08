@@ -2153,6 +2153,14 @@ export interface Locale extends ILocale {
      */
     "showReactionsCount": string;
     /**
+     * リモートノートのリアクションを元のサーバーから取得する
+     */
+    "fetchRemoteReactions": string;
+    /**
+     * 他のサーバーのノートを表示するときに、元のサーバーに付いているリアクションを取得して、このサーバーに届いていない分も表示します。リアクションしたユーザーの一覧には、このサーバーが知っているユーザーだけが表示されます。
+     */
+    "fetchRemoteReactionsDescription": string;
+    /**
      * 履歴はありません
      */
     "noHistory": string;

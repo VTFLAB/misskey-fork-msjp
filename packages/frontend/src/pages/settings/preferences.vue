@@ -213,6 +213,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 									</MkPreferenceContainer>
 								</SearchMarker>
 
+								<!-- bsky-fork: リモートノートのリアクションを元サーバーから取得する -->
+								<SearchMarker :keywords="['reaction', 'remote', 'fetch']">
+									<MkPreferenceContainer k="fetchRemoteReactions">
+										<MkSwitch v-model="fetchRemoteReactions">
+											<template #label><SearchLabel>{{ i18n.ts.fetchRemoteReactions }}</SearchLabel></template>
+											<template #caption><SearchText>{{ i18n.ts.fetchRemoteReactionsDescription }}</SearchText></template>
+										</MkSwitch>
+									</MkPreferenceContainer>
+								</SearchMarker>
+
 								<SearchMarker :keywords="['reaction', 'confirm']">
 									<MkPreferenceContainer k="confirmOnReact">
 										<MkSwitch v-model="confirmOnReact">
@@ -918,6 +928,7 @@ const showClipButtonInNoteFooter = prefer.model('showClipButtonInNoteFooter');
 const collapseRenotes = prefer.model('collapseRenotes');
 const advancedMfm = prefer.model('advancedMfm');
 const showReactionsCount = prefer.model('showReactionsCount');
+const fetchRemoteReactions = prefer.model('fetchRemoteReactions'); // bsky-fork
 const enableQuickAddMfmFunction = prefer.model('enableQuickAddMfmFunction');
 const forceShowAds = prefer.model('forceShowAds');
 const loadRawImages = prefer.model('loadRawImages');

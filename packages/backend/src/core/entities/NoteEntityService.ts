@@ -18,9 +18,11 @@ import { IdService } from '@/core/IdService.js';
 import { shouldHideNoteByTime } from '@/misc/should-hide-note-by-time.js';
 import { ReactionsBufferingService } from '@/core/ReactionsBufferingService.js';
 import { CacheService } from '@/core/CacheService.js';
+import { mergeRemoteReactions } from '@/misc/remote-reactions.js'; // bsky-fork
 import type { OnModuleInit } from '@nestjs/common';
 import type { CustomEmojiService } from '../CustomEmojiService.js';
 import type { ReactionService } from '../ReactionService.js';
+import type { RemoteReactionService } from '../RemoteReactionService.js'; // bsky-fork
 import type { UserEntityService } from './UserEntityService.js';
 import type { DriveFileEntityService } from './DriveFileEntityService.js';
 
@@ -66,6 +68,7 @@ export class NoteEntityService implements OnModuleInit {
 	private customEmojiService: CustomEmojiService;
 	private reactionService: ReactionService;
 	private reactionsBufferingService: ReactionsBufferingService;
+	private remoteReactionService: RemoteReactionService; // bsky-fork
 	private idService: IdService;
 	private cacheService: CacheService;
 	private noteLoader = new DebounceLoader(this.findNoteOrFail);
@@ -113,6 +116,7 @@ export class NoteEntityService implements OnModuleInit {
 		this.customEmojiService = this.moduleRef.get('CustomEmojiService');
 		this.reactionService = this.moduleRef.get('ReactionService');
 		this.reactionsBufferingService = this.moduleRef.get('ReactionsBufferingService');
+		this.remoteReactionService = this.moduleRef.get('RemoteReactionService'); // bsky-fork
 		this.idService = this.moduleRef.get('IdService');
 		this.cacheService = this.moduleRef.get('CacheService');
 	}
@@ -632,6 +636,9 @@ export class NoteEntityService implements OnModuleInit {
 		}
 
 		const bufferedReactionsMap = this.meta.enableReactionsBuffering ? await this.reactionsBufferingService.getMany(noteIds) : null;
+		// bsky-fork: 元サーバーから取得済みのリアクション (Redis にあるものだけ。ここでは取りに行かない) を合わせる。
+		// notes/remote-reactions で反映した表示を、定期取得 (notes/show-partial-bulk) が自サーバーの集計だけで上書きしないようにするため
+		const remoteReactionsMap = await this.remoteReactionService.getCachedMany(notes.filter(note => note.userHost != null).map(note => note.id));
 
 		const packings = notes.map(note => {
 			const bufferedReactions = bufferedReactionsMap?.get(note.id);
@@ -645,8 +652,7 @@ export class NoteEntityService implements OnModuleInit {
 
 			return this.customEmojiService.populateEmojis(reactionEmojiNames, note.userHost).then(reactionEmojis => ({
 				id: note.id,
-				reactions,
-				reactionEmojis,
+				...mergeRemoteReactions({ reactions, reactionEmojis }, remoteReactionsMap.get(note.id)), // bsky-fork
 			}));
 		});
 

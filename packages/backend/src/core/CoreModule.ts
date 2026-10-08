@@ -162,6 +162,7 @@ import { AtpSearchService } from './atproto/AtpSearchService.js';
 import { AtpNoteService } from './atproto/AtpNoteService.js';
 import { AtpJetstreamService } from './atproto/AtpJetstreamService.js';
 import { JuiceSettingsService } from './JuiceSettingsService.js';
+import { RemoteReactionService } from './RemoteReactionService.js';
 import { TwitchLoggerService } from './twitch/TwitchLoggerService.js';
 import { TwitchApiService } from './twitch/TwitchApiService.js';
 import { TwitchOAuthService } from './twitch/TwitchOAuthService.js';
@@ -358,6 +359,7 @@ const $AtpNoteService: Provider = { provide: 'AtpNoteService', useExisting: AtpN
 const $AtpJetstreamService: Provider = { provide: 'AtpJetstreamService', useExisting: AtpJetstreamService };
 
 const $JuiceSettingsService: Provider = { provide: 'JuiceSettingsService', useExisting: JuiceSettingsService };
+const $RemoteReactionService: Provider = { provide: 'RemoteReactionService', useExisting: RemoteReactionService };
 
 const $TwitchLoggerService: Provider = { provide: 'TwitchLoggerService', useExisting: TwitchLoggerService };
 const $TwitchApiService: Provider = { provide: 'TwitchApiService', useExisting: TwitchApiService };
@@ -556,6 +558,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		AtpNoteService,
 		AtpJetstreamService,
 		JuiceSettingsService,
+		RemoteReactionService,
 		TwitchLoggerService,
 		TwitchApiService,
 		TwitchOAuthService,
@@ -750,6 +753,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$AtpJetstreamService,
 
 		$JuiceSettingsService,
+		$RemoteReactionService,
 
 		$TwitchLoggerService,
 		$TwitchApiService,
@@ -940,6 +944,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		AtpNoteService,
 		AtpJetstreamService,
 		JuiceSettingsService,
+		RemoteReactionService,
 		TwitchLoggerService,
 		TwitchApiService,
 		TwitchOAuthService,
@@ -1132,6 +1137,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$AtpJetstreamService,
 
 		$JuiceSettingsService,
+		$RemoteReactionService,
 
 		$TwitchLoggerService,
 		$TwitchApiService,
