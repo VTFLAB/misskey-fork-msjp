@@ -314,6 +314,10 @@ export const PREF_DEF = definePreferences({
 	limitWidthOfReaction: {
 		default: true,
 	},
+	// bsky-fork: リモートノートのリアクションを元サーバーから取得して表示する
+	fetchRemoteReactions: {
+		default: true,
+	},
 	forceShowAds: {
 		default: false,
 	},
