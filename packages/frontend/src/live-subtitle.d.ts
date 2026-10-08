@@ -9,11 +9,8 @@
 
 // SpeechRecognitionAlternative / SpeechRecognitionResult / SpeechRecognitionResultList は
 // TypeScript 5.9 の lib.dom.d.ts に取り込まれたため、ここでは宣言しない (二重定義になる)。
-
-interface SpeechRecognitionErrorEvent extends Event {
-	readonly error: string;
-	readonly message: string;
-}
+// SpeechRecognitionErrorEvent も TypeScript 6.0 の lib.dom.d.ts に取り込まれた (error は
+// SpeechRecognitionErrorCode 型) ため、同じく宣言しない。
 
 interface SpeechRecognitionEvent extends Event {
 	readonly resultIndex: number;
