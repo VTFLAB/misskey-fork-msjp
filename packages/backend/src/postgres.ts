@@ -98,6 +98,7 @@ import { MiBubbleGameRecord } from '@/models/BubbleGameRecord.js';
 import { MiReversiGame } from '@/models/ReversiGame.js';
 import { MiCraftWorld } from '@/models/CraftWorld.js';
 import { MiCraftBlock } from '@/models/CraftBlock.js';
+import { MiCraftSkin } from '@/models/CraftSkin.js';
 import { MiChatApproval } from '@/models/ChatApproval.js';
 import { MiSystemAccount } from '@/models/SystemAccount.js';
 
@@ -279,6 +280,7 @@ export const entities = [
 	MiReversiGame,
 	MiCraftWorld,
 	MiCraftBlock,
+	MiCraftSkin,
 	MiJuiceSettings,
 	...charts,
 ];

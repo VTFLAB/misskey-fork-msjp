@@ -70,6 +70,7 @@ import { MiRetentionAggregation } from '@/models/RetentionAggregation.js';
 import { MiReversiGame } from '@/models/ReversiGame.js';
 import { MiCraftWorld } from '@/models/CraftWorld.js';
 import { MiCraftBlock } from '@/models/CraftBlock.js';
+import { MiCraftSkin } from '@/models/CraftSkin.js';
 import { MiRole } from '@/models/Role.js';
 import { MiRoleAssignment } from '@/models/RoleAssignment.js';
 import { MiSignin } from '@/models/Signin.js';
@@ -197,6 +198,7 @@ export {
 	MiReversiGame,
 	MiCraftWorld,
 	MiCraftBlock,
+	MiCraftSkin,
 };
 
 export type AbuseUserReportsRepository = Repository<MiAbuseUserReport> & MiRepository<MiAbuseUserReport>;
@@ -289,3 +291,4 @@ export type BubbleGameRecordsRepository = Repository<MiBubbleGameRecord> & MiRep
 export type ReversiGamesRepository = Repository<MiReversiGame> & MiRepository<MiReversiGame>;
 export type CraftWorldsRepository = Repository<MiCraftWorld> & MiRepository<MiCraftWorld>;
 export type CraftBlocksRepository = Repository<MiCraftBlock> & MiRepository<MiCraftBlock>;
+export type CraftSkinsRepository = Repository<MiCraftSkin> & MiRepository<MiCraftSkin>;

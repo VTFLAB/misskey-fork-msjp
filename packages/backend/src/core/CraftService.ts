@@ -5,7 +5,7 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import { DI } from '@/di-symbols.js';
-import type { CraftBlocksRepository, CraftWorldsRepository, MiCraftWorld, MiUser } from '@/models/_.js';
+import type { CraftBlocksRepository, CraftSkinsRepository, CraftWorldsRepository, DriveFilesRepository, MiCraftWorld, MiDriveFile, MiUser } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { IdService } from '@/core/IdService.js';
@@ -16,15 +16,17 @@ import { RoleService } from '@/core/RoleService.js';
  * frontend の `utility/craft/constants.ts` と同じ値を持つ。
  */
 export const CRAFT_WORLD = {
-	minX: -128,
-	maxX: 127,
+	/** x / z の絶対値の上限 (ワールドは事実上無限) */
+	maxCoord: 1000000,
 	minY: 0,
-	maxY: 63,
-	minZ: -128,
-	maxZ: 127,
-	maxBlockType: 12,
+	maxY: 95,
+	maxBlockType: 19,
+	/** 岩盤。置けないし壊せない */
+	bedrockType: 17,
 	maxWorldsPerUser: 20,
 	maxBlocksPerWorld: 200000,
+	/** スキン画像の上限 (byte) */
+	maxSkinFileSize: 1024 * 256,
 } as const;
 
 @Injectable()
@@ -36,6 +38,12 @@ export class CraftService {
 		@Inject(DI.craftBlocksRepository)
 		private craftBlocksRepository: CraftBlocksRepository,
 
+		@Inject(DI.craftSkinsRepository)
+		private craftSkinsRepository: CraftSkinsRepository,
+
+		@Inject(DI.driveFilesRepository)
+		private driveFilesRepository: DriveFilesRepository,
+
 		private globalEventService: GlobalEventService,
 		private idService: IdService,
 		private roleService: RoleService,
@@ -45,9 +53,9 @@ export class CraftService {
 	@bindThis
 	public isValidPosition(x: number, y: number, z: number): boolean {
 		return Number.isInteger(x) && Number.isInteger(y) && Number.isInteger(z) &&
-			x >= CRAFT_WORLD.minX && x <= CRAFT_WORLD.maxX &&
+			Math.abs(x) <= CRAFT_WORLD.maxCoord &&
 			y >= CRAFT_WORLD.minY && y <= CRAFT_WORLD.maxY &&
-			z >= CRAFT_WORLD.minZ && z <= CRAFT_WORLD.maxZ;
+			Math.abs(z) <= CRAFT_WORLD.maxCoord;
 	}
 
 	@bindThis
@@ -99,8 +107,9 @@ export class CraftService {
 	@bindThis
 	public async setBlock(worldId: MiCraftWorld['id'], user: MiUser, x: number, y: number, z: number, type: number): Promise<boolean> {
 		if (!this.isValidPosition(x, y, z) || !this.isValidBlockType(type)) return false;
-		// 最下層は壊せない (クライアントと同じ規則)
-		if (type === 0 && y === CRAFT_WORLD.minY) return false;
+		// 岩盤 (最下層) は置けないし壊せない (クライアントと同じ規則)
+		if (type === CRAFT_WORLD.bedrockType) return false;
+		if (y === CRAFT_WORLD.minY) return false;
 
 		const world = await this.craftWorldsRepository.findOneBy({ id: worldId });
 		if (world == null) return false;
@@ -134,6 +143,45 @@ export class CraftService {
 		});
 
 		return true;
+	}
+
+	// ----- スキン -----
+
+	@bindThis
+	public skinUrlOf(file: MiDriveFile): string {
+		return file.webpublicUrl ?? file.url;
+	}
+
+	@bindThis
+	public async getSkinUrl(userId: MiUser['id']): Promise<string | null> {
+		const skin = await this.craftSkinsRepository.findOne({ where: { userId }, relations: { file: true } });
+		if (skin?.file == null) return null;
+		return this.skinUrlOf(skin.file);
+	}
+
+	/**
+	 * スキンを設定する。fileId が null なら解除。
+	 * @returns 'noSuchFile' | 'invalidFile' | URL (null は解除)
+	 */
+	@bindThis
+	public async setSkin(user: MiUser, fileId: MiDriveFile['id'] | null): Promise<{ ok: true; url: string | null } | { ok: false; reason: 'noSuchFile' | 'invalidFile' }> {
+		if (fileId == null) {
+			await this.craftSkinsRepository.delete({ userId: user.id });
+			return { ok: true, url: null };
+		}
+		const file = await this.driveFilesRepository.findOneBy({ id: fileId, userId: user.id });
+		if (file == null) return { ok: false, reason: 'noSuchFile' };
+		if (!['image/png', 'image/webp'].includes(file.type) || file.isLink || file.isSensitive || file.size > CRAFT_WORLD.maxSkinFileSize) return { ok: false, reason: 'invalidFile' };
+		const w = file.properties.width;
+		const h = file.properties.height;
+		if (!(w === 64 && (h === 64 || h === 32))) return { ok: false, reason: 'invalidFile' };
+
+		await this.craftSkinsRepository.upsert({
+			userId: user.id,
+			fileId: file.id,
+			updatedAt: new Date(),
+		}, ['userId']);
+		return { ok: true, url: this.skinUrlOf(file) };
 	}
 
 	/**
