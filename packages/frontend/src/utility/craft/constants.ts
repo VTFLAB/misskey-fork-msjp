@@ -713,9 +713,9 @@ export type ToolMaterial = {
 export const TOOL_MATERIALS: ToolMaterial[] = [
 	{ key: 'wood', index: 0, tier: 1, durability: 59, speed: 2, swordAttack: 4, axeAttack: 7, pickaxeAttack: 2, shovelAttack: 2.5, enchantability: 15, color: '#b48c5a', ingredient: BLOCK.planks, axeSpeed: 0.8, hoeSpeed: 1 },
 	{ key: 'stone', index: 1, tier: 2, durability: 131, speed: 4, swordAttack: 5, axeAttack: 9, pickaxeAttack: 3, shovelAttack: 3.5, enchantability: 5, color: '#8a8a8a', ingredient: BLOCK.cobblestone, axeSpeed: 0.8, hoeSpeed: 2 },
-	{ key: 'iron', index: 2, tier: 3, durability: 250, speed: 6, swordAttack: 6, axeAttack: 9, pickaxeAttack: 4, shovelAttack: 4.5, enchantability: 14, color: '#d8d8d8', ingredient: 103, axeSpeed: 0.9, hoeSpeed: 3 },
-	{ key: 'gold', index: 3, tier: 1, durability: 32, speed: 12, swordAttack: 4, axeAttack: 7, pickaxeAttack: 2, shovelAttack: 2.5, enchantability: 22, color: '#f1d04a', ingredient: 108, axeSpeed: 1.0, hoeSpeed: 1 },
-	{ key: 'diamond', index: 4, tier: 4, durability: 1561, speed: 8, swordAttack: 7, axeAttack: 9, pickaxeAttack: 5, shovelAttack: 5.5, enchantability: 10, color: '#6fe3e0', ingredient: 109, axeSpeed: 1.0, hoeSpeed: 4 },
+	{ key: 'iron', index: 2, tier: 3, durability: 250, speed: 6, swordAttack: 6, axeAttack: 9, pickaxeAttack: 4, shovelAttack: 4.5, enchantability: 14, color: '#d8d8d8', ingredient: ITEM.ironIngot, axeSpeed: 0.9, hoeSpeed: 3 },
+	{ key: 'gold', index: 3, tier: 1, durability: 32, speed: 12, swordAttack: 4, axeAttack: 7, pickaxeAttack: 2, shovelAttack: 2.5, enchantability: 22, color: '#f1d04a', ingredient: ITEM.goldIngot, axeSpeed: 1.0, hoeSpeed: 1 },
+	{ key: 'diamond', index: 4, tier: 4, durability: 1561, speed: 8, swordAttack: 7, axeAttack: 9, pickaxeAttack: 5, shovelAttack: 5.5, enchantability: 10, color: '#6fe3e0', ingredient: ITEM.diamond, axeSpeed: 1.0, hoeSpeed: 4 },
 ];
 
 export type ToolTypeKey = 'pickaxe' | 'axe' | 'shovel' | 'sword' | 'hoe';
@@ -743,10 +743,10 @@ export type ArmorMaterial = {
 };
 
 export const ARMOR_MATERIALS: ArmorMaterial[] = [
-	{ key: 'leather', index: 0, durability: [55, 80, 75, 65], points: [1, 3, 2, 1], toughness: 0, enchantability: 15, color: '#a0683a', ingredient: 131 },
-	{ key: 'iron', index: 1, durability: [165, 240, 225, 195], points: [2, 6, 5, 2], toughness: 0, enchantability: 9, color: '#d8d8d8', ingredient: 103 },
-	{ key: 'gold', index: 2, durability: [77, 112, 105, 91], points: [2, 5, 3, 1], toughness: 0, enchantability: 25, color: '#f1d04a', ingredient: 108 },
-	{ key: 'diamond', index: 3, durability: [363, 528, 495, 429], points: [3, 8, 6, 3], toughness: 2, enchantability: 10, color: '#6fe3e0', ingredient: 109 },
+	{ key: 'leather', index: 0, durability: [55, 80, 75, 65], points: [1, 3, 2, 1], toughness: 0, enchantability: 15, color: '#a0683a', ingredient: ITEM.leather },
+	{ key: 'iron', index: 1, durability: [165, 240, 225, 195], points: [2, 6, 5, 2], toughness: 0, enchantability: 9, color: '#d8d8d8', ingredient: ITEM.ironIngot },
+	{ key: 'gold', index: 2, durability: [77, 112, 105, 91], points: [2, 5, 3, 1], toughness: 0, enchantability: 25, color: '#f1d04a', ingredient: ITEM.goldIngot },
+	{ key: 'diamond', index: 3, durability: [363, 528, 495, 429], points: [3, 8, 6, 3], toughness: 2, enchantability: 10, color: '#6fe3e0', ingredient: ITEM.diamond },
 ];
 
 export function toolItemId(material: number, type: number): number {
@@ -1019,9 +1019,9 @@ export type Recipe = {
 	xp?: number;
 };
 
-const FUEL_IDS = [ITEM.coal, ITEM.charcoal, BLOCK.planks, BLOCK.birchPlanks, BLOCK.log, BLOCK.birchLog, ITEM.stick];
-const PLANK_IDS = [BLOCK.planks, BLOCK.birchPlanks];
-const LOG_IDS = [BLOCK.log, BLOCK.birchLog];
+const FUEL_IDS = [ITEM.coal, ITEM.charcoal, BLOCK.planks, BLOCK.birchPlanks, BLOCK.sprucePlanks, BLOCK.log, BLOCK.birchLog, BLOCK.spruceLog, ITEM.stick];
+const PLANK_IDS = [BLOCK.planks, BLOCK.birchPlanks, BLOCK.sprucePlanks];
+const LOG_IDS = [BLOCK.log, BLOCK.birchLog, BLOCK.spruceLog];
 
 const one = (id: number, count = 1): Ingredient => ({ ids: [id], count });
 const any = (ids: number[], count = 1): Ingredient => ({ ids, count });
