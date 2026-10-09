@@ -38,6 +38,7 @@ import { ChatUserChannel } from '@/server/api/stream/channels/chat-user.js';
 import { ChatRoomChannel } from '@/server/api/stream/channels/chat-room.js';
 import { ReversiChannel } from '@/server/api/stream/channels/reversi.js';
 import { ReversiGameChannel } from '@/server/api/stream/channels/reversi-game.js';
+import { CraftWorldChannel } from '@/server/api/stream/channels/craft-world.js';
 import { TwitchLiveStreamChannel } from '@/server/api/stream/channels/twitch-live-stream.js';
 import { LiveSubtitleChannel } from '@/server/api/stream/channels/live-subtitle.js';
 import type { ChannelRequest } from './channel.js';
@@ -367,6 +368,7 @@ export default class Connection {
 			case 'chatRoom': return ChatRoomChannel;
 			case 'reversi': return ReversiChannel;
 			case 'reversiGame': return ReversiGameChannel;
+			case 'craftWorld': return CraftWorldChannel;
 			case 'twitchLiveStream': return TwitchLiveStreamChannel;
 			case 'liveSubtitle': return LiveSubtitleChannel;
 

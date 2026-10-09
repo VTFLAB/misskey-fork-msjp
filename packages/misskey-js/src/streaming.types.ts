@@ -251,6 +251,34 @@ export type Channels = {
 			claimTimeIsUp: null | Record<string, never>;
 		}
 	};
+	craftWorld: {
+		params: {
+			worldId: string;
+		};
+		events: {
+			blockUpdated: (payload: { x: number; y: number; z: number; type: number; userId: User['id']; }) => void;
+			playerMoved: (payload: {
+				userId: User['id'];
+				username: string;
+				name: string | null;
+				avatarUrl: string | null;
+				x: number;
+				y: number;
+				z: number;
+				yaw: number;
+				pitch: number;
+			}) => void;
+			playerLeft: (payload: { userId: User['id']; }) => void;
+			worldDeleted: (payload: { worldId: string; }) => void;
+			worldUpdated: (payload: { worldId: string; name: string; isPublic: boolean; }) => void;
+			// 送信元の接続にだけ返る (設置・破壊が受け付けられなかった)
+			setBlockRejected: (payload: { x: number; y: number; z: number; }) => void;
+		};
+		receives: {
+			setBlock: { x: number; y: number; z: number; type: number; };
+			move: { x: number; y: number; z: number; yaw: number; pitch: number; };
+		};
+	};
 	twitchLiveStream: {
 		params: {
 			streamId: string;

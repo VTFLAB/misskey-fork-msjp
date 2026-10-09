@@ -16436,4 +16436,152 @@ export interface Locale extends ILocale {
          */
         "muteAIGeneratedNotesHardMute": string;
     };
+    "_craft": {
+        /**
+         * Misskey Craft
+         */
+        "craft": string;
+        /**
+         * みんなで同じワールドにブロックを置いたり壊したりできる、箱庭づくりのゲームです。
+         */
+        "description": string;
+        /**
+         * ワールドを作る
+         */
+        "createWorld": string;
+        /**
+         * ワールド名
+         */
+        "worldName": string;
+        /**
+         * シード値
+         */
+        "seed": string;
+        /**
+         * 空欄ならランダムに決めます。同じシード値からは同じ地形が生成されます。
+         */
+        "seedDescription": string;
+        /**
+         * 誰でも建築できる
+         */
+        "anyoneCanBuild": string;
+        /**
+         * オフにすると、他の人は見学だけできます。
+         */
+        "anyoneCanBuildDescription": string;
+        /**
+         * オーナーだけが建築できます
+         */
+        "ownerOnly": string;
+        /**
+         * 自分のワールド
+         */
+        "myWorlds": string;
+        /**
+         * みんなのワールド
+         */
+        "publicWorlds": string;
+        /**
+         * ワールドはまだありません
+         */
+        "noWorlds": string;
+        /**
+         * {n}ブロック
+         */
+        "blocksCount": ParameterizedString<"n">;
+        /**
+         * 参加中: {n}人
+         */
+        "playersCount": ParameterizedString<"n">;
+        /**
+         * 見学中 (このワールドではオーナーだけが建築できます)
+         */
+        "spectating": string;
+        /**
+         * 建築するにはログインしてください
+         */
+        "loginToBuild": string;
+        /**
+         * クリックして操作を始める
+         */
+        "clickToPlay": string;
+        /**
+         * 移動: WASD / ジャンプ: Space / 飛行の切り替え: F / 壊す: 左クリック / 置く: 右クリック / ブロック選択: 数字キー・ホイール / 操作をやめる: Esc
+         */
+        "controls": string;
+        /**
+         * 飛行中
+         */
+        "flying": string;
+        /**
+         * ワールド「{name}」を削除しますか？ 置いたブロックもすべて消えます。
+         */
+        "deleteConfirm": ParameterizedString<"name">;
+        /**
+         * このワールドは削除されました
+         */
+        "worldDeleted": string;
+        /**
+         * この画面はキーボードとマウスでの操作にのみ対応しています
+         */
+        "keyboardRequired": string;
+        /**
+         * このブラウザでは WebGL2 が使えないため表示できません
+         */
+        "webglRequired": string;
+        /**
+         * ワールドの設定
+         */
+        "editWorld": string;
+        "_blocks": {
+            /**
+             * 草ブロック
+             */
+            "grass": string;
+            /**
+             * 土
+             */
+            "dirt": string;
+            /**
+             * 石
+             */
+            "stone": string;
+            /**
+             * 砂
+             */
+            "sand": string;
+            /**
+             * 水
+             */
+            "water": string;
+            /**
+             * 原木
+             */
+            "log": string;
+            /**
+             * 葉
+             */
+            "leaves": string;
+            /**
+             * 木材
+             */
+            "planks": string;
+            /**
+             * レンガ
+             */
+            "bricks": string;
+            /**
+             * 丸石
+             */
+            "cobblestone": string;
+            /**
+             * ガラス
+             */
+            "glass": string;
+            /**
+             * ランプ
+             */
+            "lamp": string;
+        };
+    };
 }

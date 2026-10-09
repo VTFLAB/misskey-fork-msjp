@@ -661,6 +661,14 @@ export const ROUTE_DEF = [{
 	component: page(() => import('@/pages/reversi/game.vue')),
 	loginRequired: false,
 }, {
+	path: '/craft',
+	component: page(() => import('@/pages/craft/index.vue')),
+	loginRequired: false,
+}, {
+	path: '/craft/w/:worldId',
+	component: page(() => import('@/pages/craft/world.vue')),
+	loginRequired: false,
+}, {
 	path: '/qr',
 	component: page(() => import('@/pages/qr.vue')),
 	loginRequired: true,

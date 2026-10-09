@@ -78,6 +78,7 @@ import { ChannelFollowingService } from './ChannelFollowingService.js';
 import { ChatService } from './ChatService.js';
 import { RegistryApiService } from './RegistryApiService.js';
 import { ReversiService } from './ReversiService.js';
+import { CraftService } from './CraftService.js';
 import { PageService } from './PageService.js';
 import { UpdateInfoService } from './UpdateInfoService.js';
 
@@ -132,6 +133,7 @@ import { FlashEntityService } from './entities/FlashEntityService.js';
 import { FlashLikeEntityService } from './entities/FlashLikeEntityService.js';
 import { RoleEntityService } from './entities/RoleEntityService.js';
 import { ReversiGameEntityService } from './entities/ReversiGameEntityService.js';
+import { CraftWorldEntityService } from './entities/CraftWorldEntityService.js';
 import { MetaEntityService } from './entities/MetaEntityService.js';
 import { UpdateInfoEntityService } from './entities/UpdateInfoEntityService.js';
 import { UserFeedbackEntityService } from './entities/UserFeedbackEntityService.js';
@@ -273,6 +275,7 @@ const $ChannelMutingService: Provider = { provide: 'ChannelMutingService', useEx
 const $ChatService: Provider = { provide: 'ChatService', useExisting: ChatService };
 const $RegistryApiService: Provider = { provide: 'RegistryApiService', useExisting: RegistryApiService };
 const $ReversiService: Provider = { provide: 'ReversiService', useExisting: ReversiService };
+const $CraftService: Provider = { provide: 'CraftService', useExisting: CraftService };
 const $PageService: Provider = { provide: 'PageService', useExisting: PageService };
 
 const $ChartLoggerService: Provider = { provide: 'ChartLoggerService', useExisting: ChartLoggerService };
@@ -327,6 +330,7 @@ const $FlashEntityService: Provider = { provide: 'FlashEntityService', useExisti
 const $FlashLikeEntityService: Provider = { provide: 'FlashLikeEntityService', useExisting: FlashLikeEntityService };
 const $RoleEntityService: Provider = { provide: 'RoleEntityService', useExisting: RoleEntityService };
 const $ReversiGameEntityService: Provider = { provide: 'ReversiGameEntityService', useExisting: ReversiGameEntityService };
+const $CraftWorldEntityService: Provider = { provide: 'CraftWorldEntityService', useExisting: CraftWorldEntityService };
 const $MetaEntityService: Provider = { provide: 'MetaEntityService', useExisting: MetaEntityService };
 const $SystemWebhookEntityService: Provider = { provide: 'SystemWebhookEntityService', useExisting: SystemWebhookEntityService };
 const $UpdateInfoEntityService: Provider = { provide: 'UpdateInfoEntityService', useExisting: UpdateInfoEntityService };
@@ -473,6 +477,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		ChatService,
 		RegistryApiService,
 		ReversiService,
+		CraftService,
 		PageService,
 
 		ChartLoggerService,
@@ -527,6 +532,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		FlashLikeEntityService,
 		RoleEntityService,
 		ReversiGameEntityService,
+		CraftWorldEntityService,
 		MetaEntityService,
 		SystemWebhookEntityService,
 		UpdateInfoEntityService,
@@ -668,6 +674,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$ChatService,
 		$RegistryApiService,
 		$ReversiService,
+		$CraftService,
 		$PageService,
 
 		$ChartLoggerService,
@@ -722,6 +729,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$FlashLikeEntityService,
 		$RoleEntityService,
 		$ReversiGameEntityService,
+		$CraftWorldEntityService,
 		$MetaEntityService,
 		$SystemWebhookEntityService,
 		$UpdateInfoEntityService,
@@ -862,6 +870,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		ChatService,
 		RegistryApiService,
 		ReversiService,
+		CraftService,
 		PageService,
 
 		FederationChart,
@@ -915,6 +924,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		FlashLikeEntityService,
 		RoleEntityService,
 		ReversiGameEntityService,
+		CraftWorldEntityService,
 		MetaEntityService,
 		SystemWebhookEntityService,
 		UpdateInfoEntityService,
@@ -1055,6 +1065,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$ChatService,
 		$RegistryApiService,
 		$ReversiService,
+		$CraftService,
 		$PageService,
 
 		$FederationChart,
@@ -1108,6 +1119,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$FlashLikeEntityService,
 		$RoleEntityService,
 		$ReversiGameEntityService,
+		$CraftWorldEntityService,
 		$MetaEntityService,
 		$SystemWebhookEntityService,
 		$UpdateInfoEntityService,

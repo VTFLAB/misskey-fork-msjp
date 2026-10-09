@@ -303,6 +303,17 @@ import type {
 	ClipsUnfavoriteRequest,
 	ClipsUpdateRequest,
 	ClipsUpdateResponse,
+	CraftBlocksRequest,
+	CraftBlocksResponse,
+	CraftCreateRequest,
+	CraftCreateResponse,
+	CraftDeleteRequest,
+	CraftShowRequest,
+	CraftShowResponse,
+	CraftUpdateRequest,
+	CraftUpdateResponse,
+	CraftWorldsRequest,
+	CraftWorldsResponse,
 	DriveResponse,
 	DriveFilesRequest,
 	DriveFilesResponse,
@@ -974,6 +985,12 @@ export type Endpoints = {
 	'clips/show': { req: ClipsShowRequest; res: ClipsShowResponse };
 	'clips/unfavorite': { req: ClipsUnfavoriteRequest; res: EmptyResponse };
 	'clips/update': { req: ClipsUpdateRequest; res: ClipsUpdateResponse };
+	'craft/blocks': { req: CraftBlocksRequest; res: CraftBlocksResponse };
+	'craft/create': { req: CraftCreateRequest; res: CraftCreateResponse };
+	'craft/delete': { req: CraftDeleteRequest; res: EmptyResponse };
+	'craft/show': { req: CraftShowRequest; res: CraftShowResponse };
+	'craft/update': { req: CraftUpdateRequest; res: CraftUpdateResponse };
+	'craft/worlds': { req: CraftWorldsRequest; res: CraftWorldsResponse };
 	'drive': { req: EmptyRequest; res: DriveResponse };
 	'drive/files': { req: DriveFilesRequest; res: DriveFilesResponse };
 	'drive/files/attached-chat-messages': { req: DriveFilesAttachedChatMessagesRequest; res: DriveFilesAttachedChatMessagesResponse };
