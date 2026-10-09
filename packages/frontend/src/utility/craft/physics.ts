@@ -3,37 +3,84 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { BLOCK, BLOCK_DEFS, PLAYER, WORLD, isSolid } from './constants.js';
+import { BLOCK, BLOCK_DEFS, PLAYER, WORLD } from './constants.js';
 import { lookDir } from './math.js';
+import { collisionBoxes, renderBoxes } from './shapes.js';
+import type { Box, NeighborFn } from './shapes.js';
 import type { BlockHit, Vec3 } from './types.js';
 import type { CraftWorld } from './world.js';
 
 export const GRAVITY = PLAYER.gravity;
 export const MAX_FALL_SPEED = PLAYER.maxFallSpeed;
 
-/** 幅 w、高さ h の箱 (足元中心が pos) がブロックと重なるか */
+const EPS = 1e-4;
+
+function neighborFn(world: CraftWorld, x: number, y: number, z: number): NeighborFn {
+	return (dx, dy, dz) => world.getBlock(x + dx, y + dy, z + dz);
+}
+
+/** (x, y, z) にあるブロック (id を渡せばそのブロックだったとして) の当たり判定の箱を、ワールド座標で返す */
+export function boxesAt(world: CraftWorld, x: number, y: number, z: number, id: number = world.getBlock(x, y, z)): Box[] {
+	const def = BLOCK_DEFS[id];
+	if (def == null || !def.solid) return [];
+	if (def.shape === 'cube') return [[x, y, z, x + 1, y + 1, z + 1]];
+	return collisionBoxes(id, neighborFn(world, x, y, z)).map(b => [x + b[0], y + b[1], z + b[2], x + b[3], y + b[4], z + b[5]] as Box);
+}
+
+/** 幅 w、高さ h の箱 (足元中心が pos) がブロックと重なるか。cube 以外は箱ごとに調べる */
 export function collides(world: CraftWorld, x: number, y: number, z: number, w: number, h: number): boolean {
 	const half = w / 2;
 	const minX = Math.floor(x - half), maxX = Math.floor(x + half - 0.0001);
 	const minY = Math.floor(y), maxY = Math.floor(y + h - 0.0001);
 	const minZ = Math.floor(z - half), maxZ = Math.floor(z + half - 0.0001);
+	const ex0 = x - half, ex1 = x + half, ez0 = z - half, ez1 = z + half, ey1 = y + h;
 	for (let bx = minX; bx <= maxX; bx++) {
-		for (let by = minY; by <= maxY; by++) {
+		// 1 段下は柵・塀 (高さ 1.5) のために調べる
+		for (let by = minY - 1; by <= maxY; by++) {
 			for (let bz = minZ; bz <= maxZ; bz++) {
-				if (by < WORLD.minY) return true;
-				if (isSolid(world.getBlock(bx, by, bz))) return true;
+				if (by < WORLD.minY) {
+					if (by >= minY) return true;
+					continue;
+				}
+				const id = world.getBlock(bx, by, bz);
+				if (id === BLOCK.air) continue;
+				const def = BLOCK_DEFS[id];
+				if (def == null || !def.solid) continue;
+				if (def.shape === 'cube') {
+					if (by >= minY) return true;
+					continue;
+				}
+				for (const b of collisionBoxes(id, neighborFn(world, bx, by, bz))) {
+					if (bx + b[3] > ex0 + EPS && bx + b[0] < ex1 - EPS &&
+						by + b[4] > y + EPS && by + b[1] < ey1 - EPS &&
+						bz + b[5] > ez0 + EPS && bz + b[2] < ez1 - EPS) return true;
+				}
 			}
 		}
 	}
 	return false;
 }
 
-/** ブロック (bx, by, bz) が箱と重なるか (設置の可否判定) */
+/** ブロック (bx, by, bz) のセル全体が箱と重なるか (設置の可否判定) */
 export function overlapsBlock(pos: Vec3, w: number, h: number, bx: number, by: number, bz: number): boolean {
 	const half = w / 2;
 	return bx + 1 > pos.x - half && bx < pos.x + half &&
 		by + 1 > pos.y && by < pos.y + h &&
 		bz + 1 > pos.z - half && bz < pos.z + half;
+}
+
+/**
+ * ブロック (bx, by, bz) の当たり判定の箱が、箱 (足元中心 pos) と重なるか。
+ * 半ブロックの空いている側には立てる。id を渡すと、そこに置くブロックとして調べる
+ */
+export function entityOverlapsBlock(pos: Vec3, w: number, h: number, world: CraftWorld, bx: number, by: number, bz: number, id?: number): boolean {
+	const half = w / 2;
+	for (const b of boxesAt(world, bx, by, bz, id)) {
+		if (b[3] > pos.x - half && b[0] < pos.x + half &&
+			b[4] > pos.y && b[1] < pos.y + h &&
+			b[5] > pos.z - half && b[2] < pos.z + half) return true;
+	}
+	return false;
 }
 
 export type MoveResult = {
@@ -157,6 +204,37 @@ export function isOnIce(world: CraftWorld, pos: Vec3, w: number): boolean {
 	return BLOCK_DEFS[blockBelow(world, pos, w)]?.slippery === true;
 }
 
+/** セル内の描画用の箱のうち、光線が [tEnter, tExit] の間に最初に当たるもの */
+function rayBoxesInCell(world: CraftWorld, id: number, x: number, y: number, z: number, ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, tEnter: number, tExit: number, pnx: number, pny: number, pnz: number): { nx: number; ny: number; nz: number; dist: number } | null {
+	let best: { nx: number; ny: number; nz: number; dist: number } | null = null;
+	const o = [ox, oy, oz], d = [dx, dy, dz], c = [x, y, z];
+	for (const b of renderBoxes(id, neighborFn(world, x, y, z))) {
+		let tNear = -Infinity, tFar = Infinity, axisN = -1, sign = 0, miss = false;
+		for (let a = 0; a < 3; a++) {
+			const lo = c[a] + b[a], hi = c[a] + b[a + 3];
+			if (Math.abs(d[a]) < 1e-9) {
+				if (o[a] < lo || o[a] > hi) { miss = true; break; }
+				continue;
+			}
+			let t1 = (lo - o[a]) / d[a], t2 = (hi - o[a]) / d[a];
+			if (t1 > t2) [t1, t2] = [t2, t1];
+			if (t1 > tNear) { tNear = t1; axisN = a; sign = d[a] > 0 ? -1 : 1; }
+			if (t2 < tFar) tFar = t2;
+		}
+		if (miss || tNear > tFar || tFar < tEnter - 1e-9 || tNear > tExit + 1e-9) continue;
+		let hx = 0, hy = 0, hz = 0, dist = tNear;
+		if (tNear >= tEnter - 1e-9) {
+			if (axisN === 0) hx = sign; else if (axisN === 1) hy = sign; else if (axisN === 2) hz = sign;
+		} else {
+			// 光線が箱の内側から始まった
+			dist = tEnter;
+			hx = pnx; hy = pny; hz = pnz;
+		}
+		if (best == null || dist < best.dist) best = { nx: hx, ny: hy, nz: hz, dist };
+	}
+	return best;
+}
+
 /**
  * 視線上のブロックを DDA で探す。空気以外 (十字型・松明・はしごを含む) に当たる。
  * 水は opts.fluids が true のときだけ当たる
@@ -177,7 +255,13 @@ export function raycastBlocks(world: CraftWorld, ox: number, oy: number, oz: num
 		const id = world.getBlock(x, y, z);
 		if (id !== BLOCK.air && (id !== BLOCK.water || opts.fluids === true)) {
 			const def = BLOCK_DEFS[id];
-			if (def != null && (def.shape !== 'cube' || def.solid || id === BLOCK.water)) return { x, y, z, nx, ny, nz, dist: t };
+			if (def != null && (def.shape === 'boxes' || def.shape === 'bed' || def.shape === 'farmland')) {
+				const tExit = Math.min(tMaxX, tMaxY, tMaxZ);
+				const hit = rayBoxesInCell(world, id, x, y, z, ox, oy, oz, dx, dy, dz, t, tExit, nx, ny, nz);
+				if (hit != null && hit.dist <= maxDist) return { x, y, z, ...hit };
+			} else if (def != null && (def.shape !== 'cube' || def.solid || id === BLOCK.water)) {
+				return { x, y, z, nx, ny, nz, dist: t };
+			}
 		}
 		if (tMaxX < tMaxY && tMaxX < tMaxZ) {
 			x += stepX; t = tMaxX; tMaxX += tDeltaX; nx = -stepX; ny = 0; nz = 0;

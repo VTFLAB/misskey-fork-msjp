@@ -380,6 +380,13 @@ export class CraftEngine {
 		return ok;
 	}
 
+	public sortInventory(): void {
+		if (this.player.inventory.sort()) {
+			this.audio.play('click');
+			this.listeners.inventoryChange?.();
+		}
+	}
+
 	public discardItem(index: number): void {
 		this.player.inventory.discard(index);
 		this.listeners.inventoryChange?.();
@@ -601,6 +608,40 @@ export class CraftEngine {
 		return false;
 	}
 
+	/** プレイヤーの向き (0: -z、1: +x、2: +z、3: -x) */
+	private facingFromYaw(): 0 | 1 | 2 | 3 {
+		return (((-Math.round(this.player.yaw / (Math.PI / 2))) % 4 + 4) % 4) as 0 | 1 | 2 | 3;
+	}
+
+	/** ドアの開閉: x 軸の板と z 軸の板を入れ替える */
+	private static doorToggled(id: number): number | null {
+		switch (id) {
+			case BLOCK.oakDoor: return BLOCK.oakDoorZ;
+			case BLOCK.oakDoorZ: return BLOCK.oakDoor;
+			case BLOCK.oakDoorUpper: return BLOCK.oakDoorZUpper;
+			case BLOCK.oakDoorZUpper: return BLOCK.oakDoorUpper;
+			default: return null;
+		}
+	}
+
+	/** ドアを開け閉めする (両方の半分を入れ替える) */
+	private toggleDoor(x: number, y: number, z: number): boolean {
+		const id = this.world.getBlock(x, y, z);
+		const def = BLOCK_DEFS[id];
+		if (def?.door == null) return false;
+		const lowerY = def.door.half === 'lower' ? y : y - 1;
+		const lower = this.world.getBlock(x, lowerY, z);
+		const upper = this.world.getBlock(x, lowerY + 1, z);
+		const newLower = CraftEngine.doorToggled(lower);
+		const newUpper = CraftEngine.doorToggled(upper);
+		if (newLower == null || newUpper == null) return false;
+		if (!this.canEditAt(x, lowerY, z) || !this.canEditAt(x, lowerY + 1, z)) return false;
+		this.localEdit(x, lowerY, z, newLower, null);
+		this.localEdit(x, lowerY + 1, z, newUpper, null);
+		this.audio.play('place', { material: 'wood', x: x + 0.5, y: y + 0.5, z: z + 0.5, pitch: 1.2 });
+		return true;
+	}
+
 	private tryPlace(hit: BlockHit, blockId: number, consume: boolean): boolean {
 		let x = hit.x + hit.nx;
 		let y = hit.y + hit.ny;
@@ -611,6 +652,15 @@ export class CraftEngine {
 		}
 		if (!this.world.inBounds(x, y, z) || y <= WORLD.minY) return false;
 		if (!canPlaceAt(this.world, blockId, x, y, z, hit.nx, hit.ny, hit.nz)) return false;
+		const itemDef = BLOCK_DEFS[blockId];
+		// 向きのあるブロック (階段・椅子) はプレイヤーの向きの変種を置く
+		const facing = this.facingFromYaw();
+		if (itemDef?.facingSet != null) blockId = itemDef.facingSet[facing];
+		// ドアは下半分と上半分の 2 ブロック。板の軸はプレイヤーの向きで決める
+		if (itemDef?.door != null) {
+			blockId = (facing === 0 || facing === 2) ? BLOCK.oakDoor : BLOCK.oakDoorZ;
+			if (!this.world.inBounds(x, y + 1, z) || this.world.getBlock(x, y + 1, z) !== BLOCK.air || !this.canEditAt(x, y + 1, z) || this.occupiedByEntity(x, y + 1, z)) return false;
+		}
 		const def = BLOCK_DEFS[blockId];
 		if (def?.solid && this.occupiedByEntity(x, y, z)) return false;
 		// 砂・砂利は空中なら落ちる。落下先がプレイヤーと重なるなら、その上で止める (自分を埋めない)
@@ -622,9 +672,13 @@ export class CraftEngine {
 		if (!this.canEditAt(x, destY ?? y, z)) return false;
 		if (consume && !this.player.inventory.take(this.player.hotbarIndex, 1)) return false;
 		if (consume) this.listeners.inventoryChange?.();
-		if (!this.localEdit(x, destY ?? y, z, blockId, consume ? blockId : null)) {
-			if (consume) this.player.inventory.add(blockId, 1);
+		const itemId = itemDef?.id ?? blockId;
+		if (!this.localEdit(x, destY ?? y, z, blockId, consume ? itemId : null)) {
+			if (consume) this.player.inventory.add(itemId, 1);
 			return false;
+		}
+		if (itemDef?.door != null) {
+			this.localEdit(x, y + 1, z, blockId === BLOCK.oakDoor ? BLOCK.oakDoorUpper : BLOCK.oakDoorZUpper, null);
 		}
 		this.audio.play('place', { material: def?.sound, x: x + 0.5, y: y + 0.5, z: z + 0.5 });
 		this.swing(performance.now());
@@ -651,6 +705,10 @@ export class CraftEngine {
 			if (id === BLOCK.craftingTable) { this.listeners.openPanel?.('crafting'); return; }
 			if (id === BLOCK.furnace) { this.listeners.openPanel?.('furnace'); return; }
 			if (id === BLOCK.enchantingTable) { this.listeners.openPanel?.('enchanting'); return; }
+			if (BLOCK_DEFS[id]?.door != null && this.canBuild) {
+				this.toggleDoor(this.target.x, this.target.y, this.target.z);
+				return;
+			}
 			if (id === BLOCK.bed && this.canBuild) {
 				this.spawnPoint = { x: this.target.x, y: this.target.y, z: this.target.z };
 				this.audio.play('click');

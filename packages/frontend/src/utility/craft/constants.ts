@@ -100,18 +100,111 @@ export const BLOCK = {
 	melon: 47,
 	birchLog: 48,
 	birchPlanks: 49,
+	// 建材 (立方体)
+	smoothStone: 50,
+	andesite: 51,
+	granite: 52,
+	diorite: 53,
+	polishedAndesite: 54,
+	polishedGranite: 55,
+	polishedDiorite: 56,
+	deepslate: 57,
+	deepslateBricks: 58,
+	terracotta: 59,
+	dandelion: 60,
+	chiseledStoneBricks: 61,
+	mossyStoneBricks: 62,
+	smoothSandstone: 63,
+	spruceLog: 64,
+	sprucePlanks: 65,
+	barrel: 66,
+	// 家具・小物 (箱形)
+	chest: 67,
+	lantern: 68,
+	ironBars: 69,
+	glassPane: 70,
+	// 色付き羊毛
+	redWool: 71,
+	yellowWool: 72,
+	blueWool: 73,
+	greenWool: 74,
+	blackWool: 75,
+	grayWool: 76,
+	orangeWool: 77,
+	purpleWool: 78,
+	pinkWool: 79,
+	lightBlueWool: 80,
+	limeWool: 81,
+	// コンクリート
+	whiteConcrete: 82,
+	grayConcrete: 83,
+	blackConcrete: 84,
+	redConcrete: 85,
+	blueConcrete: 86,
+	greenConcrete: 87,
+	yellowConcrete: 88,
+	orangeConcrete: 89,
+	// カーペット
+	whiteCarpet: 90,
+	redCarpet: 91,
+	blueCarpet: 92,
+	greenCarpet: 93,
+	// 半ブロック
+	oakSlab: 94,
+	birchSlab: 95,
+	spruceSlab: 96,
+	stoneSlab: 97,
+	cobblestoneSlab: 98,
+	stoneBrickSlab: 99,
+	sandstoneSlab: 100,
+	smoothStoneSlab: 101,
+	// 階段 (向き 4 種。0: -z、1: +x、2: +z、3: -x)
+	oakStairs: 102,
+	oakStairs1: 103,
+	oakStairs2: 104,
+	oakStairs3: 105,
+	cobblestoneStairs: 106,
+	cobblestoneStairs1: 107,
+	cobblestoneStairs2: 108,
+	cobblestoneStairs3: 109,
+	stoneBrickStairs: 110,
+	stoneBrickStairs1: 111,
+	stoneBrickStairs2: 112,
+	stoneBrickStairs3: 113,
+	// 柵・塀
+	oakFence: 114,
+	cobblestoneWall: 115,
+	// ドア (x 軸 / z 軸の板、下半分 / 上半分。開閉は軸の入れ替え。ドロップは下半分だけ)
+	oakDoor: 116,
+	oakDoorUpper: 117,
+	oakDoorZ: 118,
+	oakDoorZUpper: 119,
+	// 家具
+	oakTable: 120,
+	oakStool: 121,
+	oakChair: 122,
+	oakChair1: 123,
+	oakChair2: 124,
+	oakChair3: 125,
+	flowerPot: 126,
 } as const;
 
 export type BlockKey = keyof typeof BLOCK;
 export type BlockId = typeof BLOCK[keyof typeof BLOCK];
-export const MAX_BLOCK_TYPE = 49;
+export const MAX_BLOCK_TYPE = 126;
 
 export type ToolKind = 'none' | 'pickaxe' | 'axe' | 'shovel' | 'hoe' | 'sword';
 /** 0: 素手, 1: 木 (と金), 2: 石, 3: 鉄, 4: ダイヤ */
 export type ToolTier = 0 | 1 | 2 | 3 | 4;
 
 /** メッシュの形。cube 以外は当たり判定を持たない (solid: false) */
-export type BlockShape = 'cube' | 'cross' | 'torch' | 'ladder' | 'bed' | 'farmland';
+/**
+ * メッシュの形。cube 以外のうち boxes は 1/16 単位の箱の集まりで、描画と当たり判定の両方に使う
+ * (shapes.ts の blockBoxes が隣接による枝も含めて返す)
+ */
+export type BlockShape = 'cube' | 'cross' | 'torch' | 'ladder' | 'bed' | 'farmland' | 'boxes';
+/** 1/16 単位の箱 [x0, y0, z0, x1, y1, z1] */
+export type ShapeBox = [number, number, number, number, number, number];
 
 export type SoundMaterialId = 'stone' | 'wood' | 'gravel' | 'grass' | 'sand' | 'snow' | 'glass' | 'wool' | 'metal' | 'crop' | 'water' | 'none';
 
@@ -167,6 +260,19 @@ export type BlockDef = {
 	usable?: boolean;
 	/** 燃料として使えるとき、何回分 */
 	fuel?: number;
+	/** shape が boxes のときの固定の箱 (1/16 単位)。connect があるときは中心の柱だけ */
+	boxes?: ShapeBox[];
+	/** 隣接で枝を伸ばす (柵・塀・板)。shapes.ts が枝を足す */
+	connect?: 'fence' | 'wall' | 'pane';
+	/** 当たり判定の高さを描画より高くする (柵は 1.5) */
+	collisionHeight?: number;
+	/** 向きのある形 (階段・椅子)。facingSet[facing] が自分。設置時は向き 0 のアイテムからプレイヤーの向きで選ぶ */
+	facing?: 0 | 1 | 2 | 3;
+	facingSet?: [BlockId, BlockId, BlockId, BlockId];
+	/** ドアの半分と軸。使うと軸が入れ替わる (開閉) */
+	door?: { half: 'lower' | 'upper'; axis: 'x' | 'z' };
+	/** 表示名のキー (向き違いの変種が共有する)。省略時は key */
+	nameKey?: string;
 };
 
 const b = (def: BlockDef) => def;
@@ -176,6 +282,115 @@ const cube = (id: BlockId, key: Exclude<BlockKey, 'air'>, tiles: [number, number
 
 const plant = (id: BlockId, key: Exclude<BlockKey, 'air'>, tile: number, color: string, drops: BlockDef['drops'], extra: Partial<BlockDef> = {}): BlockDef =>
 	b({ id, key, shape: 'cross', transparent: true, translucent: false, solid: false, light: 0, opacity: 0, tiles: [tile, tile, tile], color, hardness: 0, tool: 'none', minTier: 0, drops, placeable: true, sound: 'grass', support: 'below', ...extra });
+
+/** 箱形 (半ブロック・家具など)。solid は当たり判定あり */
+const boxBlock = (id: BlockId, key: Exclude<BlockKey, 'air'>, tiles: [number, number, number], color: string, hardness: number, tool: ToolKind, minTier: ToolTier, drops: BlockDef['drops'], sound: SoundMaterialId, boxes: ShapeBox[], extra: Partial<BlockDef> = {}): BlockDef =>
+	b({ id, key, shape: 'boxes', transparent: true, translucent: false, solid: true, light: 0, opacity: 0, tiles, color, hardness, tool, minTier, drops, placeable: true, sound, boxes, ...extra });
+
+const SLAB: ShapeBox[] = [[0, 0, 0, 16, 8, 16]];
+const CARPET: ShapeBox[] = [[0, 0, 0, 16, 1, 16]];
+
+/** 階段。向き f の高い側: 0 は z 0..8、1 は x 8..16、2 は z 8..16、3 は x 0..8 */
+function stairBoxes(f: 0 | 1 | 2 | 3): ShapeBox[] {
+	const high: ShapeBox = f === 0 ? [0, 8, 0, 16, 16, 8] : f === 1 ? [8, 8, 0, 16, 16, 16] : f === 2 ? [0, 8, 8, 16, 16, 16] : [0, 8, 0, 8, 16, 16];
+	return [[0, 0, 0, 16, 8, 16], high];
+}
+
+/** 椅子。背もたれは向きの側 (置いた人の方を向いて座る形になる) */
+function chairBoxes(f: 0 | 1 | 2 | 3): ShapeBox[] {
+	const back: ShapeBox = f === 0 ? [2, 10, 2, 14, 16, 4] : f === 1 ? [12, 10, 2, 14, 16, 14] : f === 2 ? [2, 10, 12, 14, 16, 14] : [2, 10, 2, 4, 16, 14];
+	return [[2, 8, 2, 14, 10, 14], [2, 0, 2, 4, 8, 4], [12, 0, 2, 14, 8, 4], [2, 0, 12, 4, 8, 14], [12, 0, 12, 14, 8, 14], back];
+}
+
+const TABLE: ShapeBox[] = [[0, 12, 0, 16, 16, 16], [1, 0, 1, 3, 12, 3], [13, 0, 1, 15, 12, 3], [1, 0, 13, 3, 12, 15], [13, 0, 13, 15, 12, 15]];
+const STOOL: ShapeBox[] = [[3, 8, 3, 13, 10, 13], [4, 0, 4, 6, 8, 6], [10, 0, 4, 12, 8, 6], [4, 0, 10, 6, 8, 12], [10, 0, 10, 12, 8, 12]];
+const CHEST: ShapeBox[] = [[1, 0, 1, 15, 14, 15]];
+const LANTERN: ShapeBox[] = [[5, 0, 5, 11, 7, 11], [6, 7, 6, 10, 9, 10]];
+const FLOWER_POT: ShapeBox[] = [[5, 0, 5, 11, 6, 11]];
+const FENCE_POST: ShapeBox[] = [[6, 0, 6, 10, 16, 10]];
+const WALL_POST: ShapeBox[] = [[4, 0, 4, 12, 16, 12]];
+const PANE_POST: ShapeBox[] = [[7, 0, 7, 9, 16, 9]];
+const DOOR_X: ShapeBox[] = [[0, 0, 0, 16, 16, 3]];
+const DOOR_Z: ShapeBox[] = [[0, 0, 0, 3, 16, 16]];
+
+function buildBuildingBlocks(): Record<number, BlockDef> {
+	const out: Record<number, BlockDef> = {};
+	const add = (def: BlockDef) => { out[def.id] = def; };
+	// 石材
+	add(cube(BLOCK.smoothStone, 'smoothStone', [80, 80, 80], '#a0a0a0', 2, 'pickaxe', 1, { id: BLOCK.smoothStone }, 'stone'));
+	add(cube(BLOCK.andesite, 'andesite', [81, 81, 81], '#8a8a86', 1.5, 'pickaxe', 1, { id: BLOCK.andesite }, 'stone'));
+	add(cube(BLOCK.granite, 'granite', [82, 82, 82], '#a07060', 1.5, 'pickaxe', 1, { id: BLOCK.granite }, 'stone'));
+	add(cube(BLOCK.diorite, 'diorite', [83, 83, 83], '#c8c8c4', 1.5, 'pickaxe', 1, { id: BLOCK.diorite }, 'stone'));
+	add(cube(BLOCK.polishedAndesite, 'polishedAndesite', [84, 84, 84], '#94948f', 1.5, 'pickaxe', 1, { id: BLOCK.polishedAndesite }, 'stone'));
+	add(cube(BLOCK.polishedGranite, 'polishedGranite', [85, 85, 85], '#a87868', 1.5, 'pickaxe', 1, { id: BLOCK.polishedGranite }, 'stone'));
+	add(cube(BLOCK.polishedDiorite, 'polishedDiorite', [86, 86, 86], '#d2d2cf', 1.5, 'pickaxe', 1, { id: BLOCK.polishedDiorite }, 'stone'));
+	add(cube(BLOCK.deepslate, 'deepslate', [87, 88, 87], '#4b4b52', 3, 'pickaxe', 1, { id: BLOCK.deepslate }, 'stone'));
+	add(cube(BLOCK.deepslateBricks, 'deepslateBricks', [89, 89, 89], '#55555c', 3.5, 'pickaxe', 1, { id: BLOCK.deepslateBricks }, 'stone'));
+	add(cube(BLOCK.terracotta, 'terracotta', [90, 90, 90], '#9a5a3c', 1.25, 'pickaxe', 1, { id: BLOCK.terracotta }, 'stone'));
+	add(plant(BLOCK.dandelion, 'dandelion', 91, '#f0d040', { id: BLOCK.dandelion }, { replaceable: true }));
+	add(cube(BLOCK.chiseledStoneBricks, 'chiseledStoneBricks', [92, 92, 92], '#7d7d7d', 1.5, 'pickaxe', 1, { id: BLOCK.chiseledStoneBricks }, 'stone'));
+	add(cube(BLOCK.mossyStoneBricks, 'mossyStoneBricks', [93, 93, 93], '#6c7c5c', 1.5, 'pickaxe', 1, { id: BLOCK.mossyStoneBricks }, 'stone'));
+	add(cube(BLOCK.smoothSandstone, 'smoothSandstone', [94, 94, 94], '#e0d6a4', 2, 'pickaxe', 1, { id: BLOCK.smoothSandstone }, 'stone'));
+	add(cube(BLOCK.spruceLog, 'spruceLog', [95, 96, 95], '#5a3f24', 2, 'axe', 0, { id: BLOCK.spruceLog }, 'wood', { fuel: 1 }));
+	add(cube(BLOCK.sprucePlanks, 'sprucePlanks', [97, 97, 97], '#7a5a34', 2, 'axe', 0, { id: BLOCK.sprucePlanks }, 'wood', { fuel: 1 }));
+	add(cube(BLOCK.barrel, 'barrel', [98, 99, 98], '#7a5a34', 2.5, 'axe', 0, { id: BLOCK.barrel }, 'wood', { fuel: 1 }));
+	// 家具・小物
+	add(boxBlock(BLOCK.chest, 'chest', [100, 101, 100], '#9c6b3c', 2.5, 'axe', 0, { id: BLOCK.chest }, 'wood', CHEST, { fuel: 1 }));
+	add(boxBlock(BLOCK.lantern, 'lantern', [102, 102, 102], '#f0c060', 3.5, 'pickaxe', 0, { id: BLOCK.lantern }, 'metal', LANTERN, { light: 15, support: 'below' }));
+	add(boxBlock(BLOCK.ironBars, 'ironBars', [103, 103, 103], '#8a8a8a', 5, 'pickaxe', 1, { id: BLOCK.ironBars }, 'metal', PANE_POST, { connect: 'pane' }));
+	add(boxBlock(BLOCK.glassPane, 'glassPane', [12, 12, 12], '#c8e8f0', 0.3, 'none', 0, null, 'glass', PANE_POST, { connect: 'pane', translucent: true, silk: true }));
+	// 羊毛・コンクリート・カーペット
+	const wools: [BlockId, Exclude<BlockKey, 'air'>, number, string][] = [
+		[BLOCK.redWool, 'redWool', 105, '#b03a2e'], [BLOCK.yellowWool, 'yellowWool', 106, '#e6c43a'], [BLOCK.blueWool, 'blueWool', 107, '#35479b'],
+		[BLOCK.greenWool, 'greenWool', 108, '#4f7a2a'], [BLOCK.blackWool, 'blackWool', 109, '#202020'], [BLOCK.grayWool, 'grayWool', 110, '#6e6e6e'],
+		[BLOCK.orangeWool, 'orangeWool', 111, '#e0792a'], [BLOCK.purpleWool, 'purpleWool', 112, '#7a3aa0'], [BLOCK.pinkWool, 'pinkWool', 113, '#e8a0b8'],
+		[BLOCK.lightBlueWool, 'lightBlueWool', 114, '#74b6e0'], [BLOCK.limeWool, 'limeWool', 115, '#80c535'],
+	];
+	for (const [id, key, tile, color] of wools) add(cube(id, key, [tile, tile, tile], color, 0.8, 'none', 0, { id }, 'wool'));
+	const concretes: [BlockId, Exclude<BlockKey, 'air'>, number, string][] = [
+		[BLOCK.whiteConcrete, 'whiteConcrete', 116, '#d8d8d8'], [BLOCK.grayConcrete, 'grayConcrete', 117, '#5a5a5a'], [BLOCK.blackConcrete, 'blackConcrete', 118, '#141414'],
+		[BLOCK.redConcrete, 'redConcrete', 119, '#9c2a26'], [BLOCK.blueConcrete, 'blueConcrete', 120, '#2c3f8f'], [BLOCK.greenConcrete, 'greenConcrete', 121, '#4c6b23'],
+		[BLOCK.yellowConcrete, 'yellowConcrete', 122, '#e5b53a'], [BLOCK.orangeConcrete, 'orangeConcrete', 123, '#d9731e'],
+	];
+	for (const [id, key, tile, color] of concretes) add(cube(id, key, [tile, tile, tile], color, 1.8, 'pickaxe', 1, { id }, 'stone'));
+	const carpets: [BlockId, Exclude<BlockKey, 'air'>, number, string][] = [
+		[BLOCK.whiteCarpet, 'whiteCarpet', 30, '#e9e9e9'], [BLOCK.redCarpet, 'redCarpet', 105, '#b03a2e'], [BLOCK.blueCarpet, 'blueCarpet', 107, '#35479b'], [BLOCK.greenCarpet, 'greenCarpet', 108, '#4f7a2a'],
+	];
+	for (const [id, key, tile, color] of carpets) add(boxBlock(id, key, [tile, tile, tile], color, 0.1, 'none', 0, { id }, 'wool', CARPET, { support: 'below' }));
+	// 半ブロック
+	const slabs: [BlockId, Exclude<BlockKey, 'air'>, [number, number, number], string, ToolKind, number][] = [
+		[BLOCK.oakSlab, 'oakSlab', [9, 9, 9], '#b48c5a', 'axe', 2], [BLOCK.birchSlab, 'birchSlab', [64, 64, 64], '#d9c99a', 'axe', 2], [BLOCK.spruceSlab, 'spruceSlab', [97, 97, 97], '#7a5a34', 'axe', 2],
+		[BLOCK.stoneSlab, 'stoneSlab', [3, 3, 3], '#8a8a8a', 'pickaxe', 2], [BLOCK.cobblestoneSlab, 'cobblestoneSlab', [11, 11, 11], '#6f6f6f', 'pickaxe', 2], [BLOCK.stoneBrickSlab, 'stoneBrickSlab', [29, 29, 29], '#7d7d7d', 'pickaxe', 2],
+		[BLOCK.sandstoneSlab, 'sandstoneSlab', [54, 55, 54], '#d9cf9a', 'pickaxe', 2], [BLOCK.smoothStoneSlab, 'smoothStoneSlab', [80, 80, 80], '#a0a0a0', 'pickaxe', 2],
+	];
+	for (const [id, key, tiles, color, tool, hardness] of slabs) add(boxBlock(id, key, tiles, color, hardness, tool, tool === 'pickaxe' ? 1 : 0, { id }, tool === 'axe' ? 'wood' : 'stone', SLAB, tool === 'axe' ? { fuel: 1 } : {}));
+	// 階段 (向き 4 種)
+	const stairs: [BlockId, Exclude<BlockKey, 'air'>, [number, number, number], string, ToolKind][] = [
+		[BLOCK.oakStairs, 'oakStairs', [9, 9, 9], '#b48c5a', 'axe'], [BLOCK.cobblestoneStairs, 'cobblestoneStairs', [11, 11, 11], '#6f6f6f', 'pickaxe'], [BLOCK.stoneBrickStairs, 'stoneBrickStairs', [29, 29, 29], '#7d7d7d', 'pickaxe'],
+	];
+	for (const [base, key, tiles, color, tool] of stairs) {
+		const set: [BlockId, BlockId, BlockId, BlockId] = [base, (base + 1) as BlockId, (base + 2) as BlockId, (base + 3) as BlockId];
+		for (let f = 0; f < 4; f++) {
+			add(boxBlock(set[f], (f === 0 ? key : `${key}${f}`) as Exclude<BlockKey, 'air'>, tiles, color, 2, tool, tool === 'pickaxe' ? 1 : 0, { id: base }, tool === 'axe' ? 'wood' : 'stone', stairBoxes(f as 0 | 1 | 2 | 3), { facing: f as 0 | 1 | 2 | 3, facingSet: set, placeable: f === 0, nameKey: key, fuel: tool === 'axe' ? 1 : undefined }));
+		}
+	}
+	// 柵・塀・ドア
+	add(boxBlock(BLOCK.oakFence, 'oakFence', [9, 9, 9], '#b48c5a', 2, 'axe', 0, { id: BLOCK.oakFence }, 'wood', FENCE_POST, { connect: 'fence', collisionHeight: 1.5, fuel: 1 }));
+	add(boxBlock(BLOCK.cobblestoneWall, 'cobblestoneWall', [11, 11, 11], '#6f6f6f', 2, 'pickaxe', 1, { id: BLOCK.cobblestoneWall }, 'stone', WALL_POST, { connect: 'wall', collisionHeight: 1.5 }));
+	add(boxBlock(BLOCK.oakDoor, 'oakDoor', [124, 124, 124], '#b48c5a', 3, 'axe', 0, { id: BLOCK.oakDoor }, 'wood', DOOR_X, { door: { half: 'lower', axis: 'x' }, support: 'below', usable: true, nameKey: 'oakDoor' }));
+	add(boxBlock(BLOCK.oakDoorUpper, 'oakDoorUpper', [125, 125, 125], '#b48c5a', 3, 'axe', 0, null, 'wood', DOOR_X, { door: { half: 'upper', axis: 'x' }, placeable: false, usable: true, nameKey: 'oakDoor' }));
+	add(boxBlock(BLOCK.oakDoorZ, 'oakDoorZ', [124, 124, 124], '#b48c5a', 3, 'axe', 0, { id: BLOCK.oakDoor }, 'wood', DOOR_Z, { door: { half: 'lower', axis: 'z' }, placeable: false, usable: true, nameKey: 'oakDoor' }));
+	add(boxBlock(BLOCK.oakDoorZUpper, 'oakDoorZUpper', [125, 125, 125], '#b48c5a', 3, 'axe', 0, null, 'wood', DOOR_Z, { door: { half: 'upper', axis: 'z' }, placeable: false, usable: true, nameKey: 'oakDoor' }));
+	// 家具
+	add(boxBlock(BLOCK.oakTable, 'oakTable', [9, 9, 9], '#b48c5a', 2, 'axe', 0, { id: BLOCK.oakTable }, 'wood', TABLE, { fuel: 1 }));
+	add(boxBlock(BLOCK.oakStool, 'oakStool', [9, 9, 9], '#b48c5a', 2, 'axe', 0, { id: BLOCK.oakStool }, 'wood', STOOL, { fuel: 1 }));
+	const chairSet: [BlockId, BlockId, BlockId, BlockId] = [BLOCK.oakChair, BLOCK.oakChair1, BLOCK.oakChair2, BLOCK.oakChair3];
+	for (let f = 0; f < 4; f++) {
+		add(boxBlock(chairSet[f], (f === 0 ? 'oakChair' : `oakChair${f}`) as Exclude<BlockKey, 'air'>, [9, 9, 9], '#b48c5a', 2, 'axe', 0, { id: BLOCK.oakChair }, 'wood', chairBoxes(f as 0 | 1 | 2 | 3), { facing: f as 0 | 1 | 2 | 3, facingSet: chairSet, placeable: f === 0, nameKey: 'oakChair', fuel: 1 }));
+	}
+	add(boxBlock(BLOCK.flowerPot, 'flowerPot', [126, 126, 126], '#a04b3a', 0.2, 'none', 0, { id: BLOCK.flowerPot }, 'stone', FLOWER_POT, { support: 'below' }));
+	return out;
+}
 
 export const BLOCK_DEFS: Record<number, BlockDef> = {
 	[BLOCK.grass]: cube(BLOCK.grass, 'grass', [0, 1, 2], '#6cae3e', 0.6, 'shovel', 0, { id: BLOCK.dirt }, 'grass', { silk: true }),
@@ -227,9 +442,10 @@ export const BLOCK_DEFS: Record<number, BlockDef> = {
 	[BLOCK.melon]: cube(BLOCK.melon, 'melon', [60, 61, 60], '#8bbf3a', 1, 'axe', 0, { id: BLOCK.melon }, 'wood'),
 	[BLOCK.birchLog]: cube(BLOCK.birchLog, 'birchLog', [62, 63, 62], '#d8d2b8', 2, 'axe', 0, { id: BLOCK.birchLog }, 'wood', { fuel: 1 }),
 	[BLOCK.birchPlanks]: cube(BLOCK.birchPlanks, 'birchPlanks', [64, 64, 64], '#d9c99a', 2, 'axe', 0, { id: BLOCK.birchPlanks }, 'wood', { fuel: 1 }),
+	...buildBuildingBlocks(),
 };
 
-export const ATLAS_TILE_COUNT = 80;
+export const ATLAS_TILE_COUNT = 128;
 export const ATLAS_TILE_PX = 16;
 /** 破壊の進み具合のひび割れ (10 段階) はアトラスの末尾 10 タイルに置く */
 export const ATLAS_CRACK_TILE = 70;
@@ -365,6 +581,19 @@ export const ITEM = {
 	paper: 154,
 	melonSlice: 155,
 	pumpkinPie: 156,
+	// 染料
+	redDye: 157,
+	yellowDye: 158,
+	blueDye: 159,
+	greenDye: 160,
+	whiteDye: 161,
+	blackDye: 162,
+	grayDye: 163,
+	orangeDye: 164,
+	purpleDye: 165,
+	pinkDye: 166,
+	lightBlueDye: 167,
+	limeDye: 168,
 	// 道具 (200 + 素材 * 10 + 種類)
 	woodenPickaxe: 200, woodenAxe: 201, woodenShovel: 202, woodenSword: 203, woodenHoe: 204,
 	stonePickaxe: 210, stoneAxe: 211, stoneShovel: 212, stoneSword: 213, stoneHoe: 214,
@@ -519,6 +748,18 @@ export const ITEM_DEFS: Record<number, ItemDef> = {
 	[ITEM.paper]: materialItem(ITEM.paper, 'paper', '#f4f1e6'),
 	[ITEM.melonSlice]: foodItem(ITEM.melonSlice, 'melonSlice', '#e05a4a', 2, 1.2),
 	[ITEM.pumpkinPie]: foodItem(ITEM.pumpkinPie, 'pumpkinPie', '#d9a05a', 8, 4.8),
+	[ITEM.redDye]: materialItem(ITEM.redDye, 'redDye', '#b03a2e'),
+	[ITEM.yellowDye]: materialItem(ITEM.yellowDye, 'yellowDye', '#e6c43a'),
+	[ITEM.blueDye]: materialItem(ITEM.blueDye, 'blueDye', '#35479b'),
+	[ITEM.greenDye]: materialItem(ITEM.greenDye, 'greenDye', '#4f7a2a'),
+	[ITEM.whiteDye]: materialItem(ITEM.whiteDye, 'whiteDye', '#f0f0f0'),
+	[ITEM.blackDye]: materialItem(ITEM.blackDye, 'blackDye', '#202020'),
+	[ITEM.grayDye]: materialItem(ITEM.grayDye, 'grayDye', '#6e6e6e'),
+	[ITEM.orangeDye]: materialItem(ITEM.orangeDye, 'orangeDye', '#e0792a'),
+	[ITEM.purpleDye]: materialItem(ITEM.purpleDye, 'purpleDye', '#7a3aa0'),
+	[ITEM.pinkDye]: materialItem(ITEM.pinkDye, 'pinkDye', '#e8a0b8'),
+	[ITEM.lightBlueDye]: materialItem(ITEM.lightBlueDye, 'lightBlueDye', '#74b6e0'),
+	[ITEM.limeDye]: materialItem(ITEM.limeDye, 'limeDye', '#80c535'),
 	...buildToolDefs(),
 };
 
@@ -615,7 +856,7 @@ export type Recipe = {
 	ingredients: Ingredient[];
 	needs: RecipeNeeds;
 	/** 一覧の分類 */
-	category: 'basic' | 'tools' | 'weapons' | 'armor' | 'blocks' | 'food' | 'smelting';
+	category: 'basic' | 'tools' | 'weapons' | 'armor' | 'blocks' | 'food' | 'smelting' | 'building' | 'furniture' | 'dyes';
 	/** かまどで得る経験値 */
 	xp?: number;
 };
@@ -646,6 +887,78 @@ function toolRecipes(): Recipe[] {
 			out.push(r(ITEM_DEFS[id].key, { id, count: 1 }, [one(m.ingredient, pieces[si])], 'table', 'armor'));
 		});
 	}
+	return out;
+}
+
+const ALL_PLANK_IDS = [BLOCK.planks, BLOCK.birchPlanks, BLOCK.sprucePlanks];
+const ANY_SLAB_IDS = [BLOCK.oakSlab, BLOCK.birchSlab, BLOCK.spruceSlab];
+
+function buildingRecipes(): Recipe[] {
+	const out: Recipe[] = [];
+	// 染料
+	out.push(r('redDye', { id: ITEM.redDye, count: 2 }, [one(BLOCK.flower)], 'none', 'dyes'));
+	out.push(r('yellowDye', { id: ITEM.yellowDye, count: 2 }, [one(BLOCK.dandelion)], 'none', 'dyes'));
+	out.push(r('blueDye', { id: ITEM.blueDye, count: 1 }, [one(ITEM.lapis)], 'none', 'dyes'));
+	out.push(r('greenDye', { id: ITEM.greenDye, count: 1 }, [one(BLOCK.cactus), any(FUEL_IDS)], 'furnace', 'smelting', 0.2));
+	out.push(r('whiteDye', { id: ITEM.whiteDye, count: 3 }, [one(ITEM.bone)], 'none', 'dyes'));
+	out.push(r('blackDye', { id: ITEM.blackDye, count: 1 }, [any([ITEM.coal, ITEM.charcoal])], 'none', 'dyes'));
+	out.push(r('grayDye', { id: ITEM.grayDye, count: 2 }, [one(ITEM.blackDye), one(ITEM.whiteDye)], 'none', 'dyes'));
+	out.push(r('orangeDye', { id: ITEM.orangeDye, count: 2 }, [one(ITEM.redDye), one(ITEM.yellowDye)], 'none', 'dyes'));
+	out.push(r('purpleDye', { id: ITEM.purpleDye, count: 2 }, [one(ITEM.redDye), one(ITEM.blueDye)], 'none', 'dyes'));
+	out.push(r('pinkDye', { id: ITEM.pinkDye, count: 2 }, [one(ITEM.redDye), one(ITEM.whiteDye)], 'none', 'dyes'));
+	out.push(r('lightBlueDye', { id: ITEM.lightBlueDye, count: 2 }, [one(ITEM.blueDye), one(ITEM.whiteDye)], 'none', 'dyes'));
+	out.push(r('limeDye', { id: ITEM.limeDye, count: 2 }, [one(ITEM.greenDye), one(ITEM.whiteDye)], 'none', 'dyes'));
+	// 色付き羊毛・コンクリート
+	const colors: [string, number, BlockId, BlockId | null][] = [
+		['red', ITEM.redDye, BLOCK.redWool, BLOCK.redConcrete], ['yellow', ITEM.yellowDye, BLOCK.yellowWool, BLOCK.yellowConcrete], ['blue', ITEM.blueDye, BLOCK.blueWool, BLOCK.blueConcrete],
+		['green', ITEM.greenDye, BLOCK.greenWool, BLOCK.greenConcrete], ['black', ITEM.blackDye, BLOCK.blackWool, BLOCK.blackConcrete], ['gray', ITEM.grayDye, BLOCK.grayWool, BLOCK.grayConcrete],
+		['orange', ITEM.orangeDye, BLOCK.orangeWool, BLOCK.orangeConcrete], ['purple', ITEM.purpleDye, BLOCK.purpleWool, null], ['pink', ITEM.pinkDye, BLOCK.pinkWool, null],
+		['lightBlue', ITEM.lightBlueDye, BLOCK.lightBlueWool, null], ['lime', ITEM.limeDye, BLOCK.limeWool, null],
+	];
+	for (const [name, dye, wool, concrete] of colors) {
+		out.push(r(`${name}Wool`, { id: wool, count: 1 }, [one(BLOCK.wool), one(dye)], 'none', 'building'));
+		if (concrete != null) out.push(r(`${name}Concrete`, { id: concrete, count: 8 }, [one(BLOCK.sand, 4), one(BLOCK.gravel, 4), one(dye)], 'table', 'building'));
+	}
+	out.push(r('whiteConcrete', { id: BLOCK.whiteConcrete, count: 8 }, [one(BLOCK.sand, 4), one(BLOCK.gravel, 4), one(ITEM.whiteDye)], 'table', 'building'));
+	out.push(r('whiteCarpet', { id: BLOCK.whiteCarpet, count: 3 }, [one(BLOCK.wool, 2)], 'none', 'furniture'));
+	out.push(r('redCarpet', { id: BLOCK.redCarpet, count: 3 }, [one(BLOCK.redWool, 2)], 'none', 'furniture'));
+	out.push(r('blueCarpet', { id: BLOCK.blueCarpet, count: 3 }, [one(BLOCK.blueWool, 2)], 'none', 'furniture'));
+	out.push(r('greenCarpet', { id: BLOCK.greenCarpet, count: 3 }, [one(BLOCK.greenWool, 2)], 'none', 'furniture'));
+	// 石材
+	out.push(r('smoothStone', { id: BLOCK.smoothStone, count: 1 }, [one(BLOCK.stone), any(FUEL_IDS)], 'furnace', 'smelting', 0.1));
+	out.push(r('smoothSandstone', { id: BLOCK.smoothSandstone, count: 1 }, [one(BLOCK.sandstone), any(FUEL_IDS)], 'furnace', 'smelting', 0.1));
+	out.push(r('terracotta', { id: BLOCK.terracotta, count: 1 }, [one(BLOCK.clay), any(FUEL_IDS)], 'furnace', 'smelting', 0.35));
+	out.push(r('polishedAndesite', { id: BLOCK.polishedAndesite, count: 4 }, [one(BLOCK.andesite, 4)], 'table', 'building'));
+	out.push(r('polishedGranite', { id: BLOCK.polishedGranite, count: 4 }, [one(BLOCK.granite, 4)], 'table', 'building'));
+	out.push(r('polishedDiorite', { id: BLOCK.polishedDiorite, count: 4 }, [one(BLOCK.diorite, 4)], 'table', 'building'));
+	out.push(r('deepslateBricks', { id: BLOCK.deepslateBricks, count: 4 }, [one(BLOCK.deepslate, 4)], 'table', 'building'));
+	out.push(r('chiseledStoneBricks', { id: BLOCK.chiseledStoneBricks, count: 1 }, [one(BLOCK.stoneBrickSlab, 2)], 'table', 'building'));
+	out.push(r('mossyStoneBricks', { id: BLOCK.mossyStoneBricks, count: 1 }, [one(BLOCK.stoneBricks), one(BLOCK.tallGrass)], 'none', 'building'));
+	out.push(r('sprucePlanks', { id: BLOCK.sprucePlanks, count: 4 }, [one(BLOCK.spruceLog)], 'none', 'basic'));
+	// 半ブロック・階段
+	const slabs: [string, BlockId, number][] = [
+		['oakSlab', BLOCK.oakSlab, BLOCK.planks], ['birchSlab', BLOCK.birchSlab, BLOCK.birchPlanks], ['spruceSlab', BLOCK.spruceSlab, BLOCK.sprucePlanks],
+		['stoneSlab', BLOCK.stoneSlab, BLOCK.stone], ['cobblestoneSlab', BLOCK.cobblestoneSlab, BLOCK.cobblestone], ['stoneBrickSlab', BLOCK.stoneBrickSlab, BLOCK.stoneBricks],
+		['sandstoneSlab', BLOCK.sandstoneSlab, BLOCK.sandstone], ['smoothStoneSlab', BLOCK.smoothStoneSlab, BLOCK.smoothStone],
+	];
+	for (const [key, id, from] of slabs) out.push(r(key, { id, count: 6 }, [one(from, 3)], 'table', 'building'));
+	out.push(r('oakStairs', { id: BLOCK.oakStairs, count: 4 }, [one(BLOCK.planks, 6)], 'table', 'building'));
+	out.push(r('cobblestoneStairs', { id: BLOCK.cobblestoneStairs, count: 4 }, [one(BLOCK.cobblestone, 6)], 'table', 'building'));
+	out.push(r('stoneBrickStairs', { id: BLOCK.stoneBrickStairs, count: 4 }, [one(BLOCK.stoneBricks, 6)], 'table', 'building'));
+	// 柵・塀・ガラス・ドア
+	out.push(r('oakFence', { id: BLOCK.oakFence, count: 3 }, [any(ALL_PLANK_IDS, 4), one(ITEM.stick, 2)], 'table', 'building'));
+	out.push(r('cobblestoneWall', { id: BLOCK.cobblestoneWall, count: 6 }, [one(BLOCK.cobblestone, 6)], 'table', 'building'));
+	out.push(r('glassPane', { id: BLOCK.glassPane, count: 16 }, [one(BLOCK.glass, 6)], 'table', 'building'));
+	out.push(r('ironBars', { id: BLOCK.ironBars, count: 16 }, [one(ITEM.ironIngot, 6)], 'table', 'building'));
+	out.push(r('oakDoor', { id: BLOCK.oakDoor, count: 3 }, [any(ALL_PLANK_IDS, 6)], 'table', 'building'));
+	// 家具
+	out.push(r('oakTable', { id: BLOCK.oakTable, count: 1 }, [any(ANY_SLAB_IDS), one(ITEM.stick, 4)], 'table', 'furniture'));
+	out.push(r('oakStool', { id: BLOCK.oakStool, count: 1 }, [any(ANY_SLAB_IDS), one(ITEM.stick, 3)], 'table', 'furniture'));
+	out.push(r('oakChair', { id: BLOCK.oakChair, count: 2 }, [any(ALL_PLANK_IDS, 3), one(ITEM.stick, 4)], 'table', 'furniture'));
+	out.push(r('chest', { id: BLOCK.chest, count: 1 }, [any(ALL_PLANK_IDS, 8)], 'table', 'furniture'));
+	out.push(r('barrel', { id: BLOCK.barrel, count: 1 }, [any(ALL_PLANK_IDS, 6), any(ANY_SLAB_IDS, 2)], 'table', 'furniture'));
+	out.push(r('lantern', { id: BLOCK.lantern, count: 1 }, [one(ITEM.ironIngot), one(BLOCK.torch)], 'table', 'furniture'));
+	out.push(r('flowerPot', { id: BLOCK.flowerPot, count: 1 }, [one(ITEM.brick, 3), one(BLOCK.flower)], 'table', 'furniture'));
 	return out;
 }
 
@@ -691,6 +1004,7 @@ export const RECIPES: Recipe[] = [
 	r('cookedChicken', { id: ITEM.cookedChicken, count: 1 }, [one(ITEM.rawChicken), any(FUEL_IDS)], 'furnace', 'smelting', 0.35),
 	r('cookedMutton', { id: ITEM.cookedMutton, count: 1 }, [one(ITEM.rawMutton), any(FUEL_IDS)], 'furnace', 'smelting', 0.35),
 	...toolRecipes(),
+	...buildingRecipes(),
 ];
 
 // ----- プレイヤー -----

@@ -21,6 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<div :class="$style.summary">
 			<div :class="$style.summaryRow"><i class="ti ti-shield"></i> {{ i18n.ts._craft.armor }}: {{ armorPoints }}</div>
 			<div :class="$style.summaryRow"><i class="ti ti-star"></i> {{ i18n.tsx._craft.levelsCount({ n: level }) }}</div>
+			<MkButton small @click="sortInventory"><i class="ti ti-sort-descending"></i> {{ i18n.ts._craft.sortInventory }}</MkButton>
 			<div v-if="detail" :class="$style.detail">
 				<div :class="$style.detailName" :style="{ color: detail.color }">{{ detail.name }}</div>
 				<div v-if="detail.rarity" :class="$style.detailRarity" :style="{ color: detail.color }">{{ detail.rarity }}</div>
@@ -144,6 +145,11 @@ function clickSlot(index: number) {
 		return;
 	}
 	props.engine.moveItem(picked.value, index);
+	picked.value = null;
+}
+
+function sortInventory() {
+	props.engine.sortInventory();
 	picked.value = null;
 }
 

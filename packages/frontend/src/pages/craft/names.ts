@@ -4,7 +4,7 @@
  */
 
 import { i18n } from '@/i18n.js';
-import { ITEM_DEFS } from '@/utility/craft/constants.js';
+import { BLOCK_DEFS, ITEM_DEFS } from '@/utility/craft/constants.js';
 import type { EnchantId, MobType } from '@/utility/craft/constants.js';
 import { enchantLabel, rarityOf } from '@/utility/craft/items.js';
 import type { Rarity } from '@/utility/craft/items.js';
@@ -18,7 +18,10 @@ const dict = (key: string): Record<string, string> => craftLocale[key] ?? {};
 export function itemName(id: number): string {
 	const def = ITEM_DEFS[id];
 	if (def == null) return '';
-	if (def.kind === 'block') return dict('_blocks')[def.key] ?? def.key;
+	if (def.kind === 'block') {
+		const key = BLOCK_DEFS[id]?.nameKey ?? def.key;
+		return dict('_blocks')[key] ?? key;
+	}
 	return dict('_items')[def.key] ?? def.key;
 }
 
