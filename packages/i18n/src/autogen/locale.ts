@@ -16442,7 +16442,7 @@ export interface Locale extends ILocale {
          */
         "craft": string;
         /**
-         * みんなで同じワールドにブロックを置いたり壊したりできる、箱庭づくりのゲームです。
+         * みんなで同じワールドを探検し、素材を集めて道具を作り、夜に湧く敵と戦いながら建築するサバイバルゲームです。
          */
         "description": string;
         /**
@@ -16506,13 +16506,17 @@ export interface Locale extends ILocale {
          */
         "clickToPlay": string;
         /**
-         * 移動: WASD / ジャンプ: Space / 飛行の切り替え: F / 壊す: 左クリック / 置く: 右クリック / ブロック選択: 数字キー・ホイール / 操作をやめる: Esc
+         * タップして操作を始める
+         */
+        "tapToPlay": string;
+        /**
+         * 移動: WASD / ジャンプ: Space / ダッシュ: W を 2 回 / しゃがみ: Shift / 壊す・攻撃: 左クリック長押し / 置く・食べる: 右クリック / インベントリ: E / ブロック選択: 数字キー・ホイール / 操作をやめる: Esc
          */
         "controls": string;
         /**
-         * 飛行中
+         * 左の丸で移動、右側をなぞって見回し、長押しで壊す、タップで置く
          */
-        "flying": string;
+        "touchControls": string;
         /**
          * ワールド「{name}」を削除しますか？ 置いたブロックもすべて消えます。
          */
@@ -16522,9 +16526,9 @@ export interface Locale extends ILocale {
          */
         "worldDeleted": string;
         /**
-         * この画面はキーボードとマウスでの操作にのみ対応しています
+         * キーボードとマウス、またはタッチ操作で遊べます
          */
-        "keyboardRequired": string;
+        "keyboardOrTouch": string;
         /**
          * このブラウザでは WebGL2 が使えないため表示できません
          */
@@ -16533,6 +16537,136 @@ export interface Locale extends ILocale {
          * ワールドの設定
          */
         "editWorld": string;
+        /**
+         * 全画面
+         */
+        "fullscreen": string;
+        /**
+         * 全画面をやめる
+         */
+        "exitFullscreen": string;
+        /**
+         * スマホ操作
+         */
+        "touchMode": string;
+        /**
+         * キーボード操作
+         */
+        "desktopMode": string;
+        /**
+         * ミニマップ
+         */
+        "minimap": string;
+        /**
+         * インベントリ
+         */
+        "inventory": string;
+        /**
+         * クラフト
+         */
+        "crafting": string;
+        /**
+         * 作業台の近くで作れます
+         */
+        "craftingTableRequired": string;
+        /**
+         * 作る
+         */
+        "craftButton": string;
+        /**
+         * 体力
+         */
+        "health": string;
+        /**
+         * 空腹度
+         */
+        "hunger": string;
+        /**
+         * 息
+         */
+        "air": string;
+        /**
+         * 夜
+         */
+        "night": string;
+        /**
+         * 昼
+         */
+        "day": string;
+        /**
+         * 死んでしまった
+         */
+        "youDied": string;
+        /**
+         * 復活する
+         */
+        "respawn": string;
+        /**
+         * 持ち物はそのまま残ります。最初の場所で復活します。
+         */
+        "deathNote": string;
+        /**
+         * あなたが敵の動きを計算しています
+         */
+        "hostingMobs": string;
+        /**
+         * 近くに敵がいます
+         */
+        "nearbyEnemy": string;
+        /**
+         * スキン
+         */
+        "skin": string;
+        /**
+         * Minecraft と同じ 64x64 (または 64x32) の PNG を使えます。テンプレートをダウンロードして描き、ドライブにアップロードしてから選んでください。
+         */
+        "skinDescription": string;
+        /**
+         * テンプレートをダウンロード
+         */
+        "downloadTemplate": string;
+        /**
+         * ドライブから選ぶ
+         */
+        "chooseSkin": string;
+        /**
+         * 既定に戻す
+         */
+        "resetSkin": string;
+        /**
+         * スキンを設定しました
+         */
+        "skinUpdated": string;
+        /**
+         * 64x64 または 64x32 の PNG (256KB 以下、センシティブ設定なし) を選んでください。アップロード時に画像が圧縮される設定だとぼやけることがあります
+         */
+        "skinInvalid": string;
+        /**
+         * 既定のスキンを使っています
+         */
+        "noSkin": string;
+        "_touch": {
+            /**
+             * ジャンプ
+             */
+            "jump": string;
+            /**
+             * 壊す・攻撃
+             */
+            "attack": string;
+            /**
+             * 置く・使う
+             */
+            "use": string;
+            /**
+             * しゃがみ
+             */
+            "sneak": string;
+            /**
+             * ダッシュ
+             */
+            "sprint": string;
+        };
         "_blocks": {
             /**
              * 草ブロック
@@ -16582,6 +16716,128 @@ export interface Locale extends ILocale {
              * ランプ
              */
             "lamp": string;
+            /**
+             * 雪
+             */
+            "snow": string;
+            /**
+             * サボテン
+             */
+            "cactus": string;
+            /**
+             * 石炭鉱石
+             */
+            "coalOre": string;
+            /**
+             * 鉄鉱石
+             */
+            "ironOre": string;
+            /**
+             * 岩盤
+             */
+            "bedrock": string;
+            /**
+             * 作業台
+             */
+            "craftingTable": string;
+            /**
+             * 砂利
+             */
+            "gravel": string;
+        };
+        "_items": {
+            /**
+             * 棒
+             */
+            "stick": string;
+            /**
+             * 石炭
+             */
+            "coal": string;
+            /**
+             * 鉄の原石
+             */
+            "rawIron": string;
+            /**
+             * 鉄インゴット
+             */
+            "ironIngot": string;
+            /**
+             * リンゴ
+             */
+            "apple": string;
+            /**
+             * 生肉
+             */
+            "rawMeat": string;
+            /**
+             * 焼いた肉
+             */
+            "cookedMeat": string;
+            /**
+             * 木のツルハシ
+             */
+            "woodenPickaxe": string;
+            /**
+             * 石のツルハシ
+             */
+            "stonePickaxe": string;
+            /**
+             * 鉄のツルハシ
+             */
+            "ironPickaxe": string;
+            /**
+             * 木の剣
+             */
+            "woodenSword": string;
+            /**
+             * 石の剣
+             */
+            "stoneSword": string;
+            /**
+             * 鉄の剣
+             */
+            "ironSword": string;
+        };
+        "_mobs": {
+            /**
+             * ゾンビ
+             */
+            "zombie": string;
+            /**
+             * 狼
+             */
+            "wolf": string;
+            /**
+             * 熊
+             */
+            "bear": string;
+        };
+        "_biomes": {
+            /**
+             * 海
+             */
+            "ocean": string;
+            /**
+             * 平原
+             */
+            "plains": string;
+            /**
+             * 森
+             */
+            "forest": string;
+            /**
+             * 砂漠
+             */
+            "desert": string;
+            /**
+             * タイガ
+             */
+            "taiga": string;
+            /**
+             * 山岳
+             */
+            "mountains": string;
         };
     };
 }

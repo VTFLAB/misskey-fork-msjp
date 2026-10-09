@@ -17,8 +17,24 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div class="_buttonsCenter">
 					<MkButton primary gradate rounded @click="createWorld"><i class="ti ti-plus"></i> {{ i18n.ts._craft.createWorld }}</MkButton>
 				</div>
-				<div style="font-size: 90%; opacity: 0.7; text-align: center;"><i class="ti ti-keyboard"></i> {{ i18n.ts._craft.keyboardRequired }}</div>
+				<div style="font-size: 90%; opacity: 0.7; text-align: center;"><i class="ti ti-keyboard"></i> {{ i18n.ts._craft.keyboardOrTouch }}</div>
 			</div>
+
+			<MkFolder v-if="$i" :defaultOpen="false">
+				<template #label>{{ i18n.ts._craft.skin }}</template>
+				<div class="_gaps">
+					<div style="font-size: 90%; opacity: 0.7;">{{ i18n.ts._craft.skinDescription }}</div>
+					<div :class="$style.skinPreviewRow">
+						<img :src="skinPreviewUrl" :class="$style.skinPreview" width="128" height="128" alt="">
+						<div v-if="skinUrl == null" style="font-size: 90%; opacity: 0.7;">{{ i18n.ts._craft.noSkin }}</div>
+					</div>
+					<div class="_buttons">
+						<MkButton @click="downloadTemplate"><i class="ti ti-download"></i> {{ i18n.ts._craft.downloadTemplate }}</MkButton>
+						<MkButton primary @click="chooseSkin"><i class="ti ti-upload"></i> {{ i18n.ts._craft.chooseSkin }}</MkButton>
+						<MkButton v-if="skinUrl != null" danger @click="resetSkin"><i class="ti ti-trash"></i> {{ i18n.ts._craft.resetSkin }}</MkButton>
+					</div>
+				</div>
+			</MkFolder>
 
 			<MkFolder v-if="$i" :defaultOpen="true">
 				<template #label>{{ i18n.ts._craft.myWorlds }}</template>
@@ -78,7 +94,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { markRaw } from 'vue';
+import { computed, markRaw, onMounted, ref } from 'vue';
 import { definePage } from '@/page.js';
 import MkButton from '@/components/MkButton.vue';
 import MkFolder from '@/components/MkFolder.vue';
@@ -89,6 +105,9 @@ import { useRouter } from '@/router.js';
 import * as os from '@/os.js';
 import { pleaseLogin } from '@/utility/please-login.js';
 import { Paginator } from '@/utility/paginator.js';
+import { misskeyApi } from '@/utility/misskey-api.js';
+import { selectFile } from '@/utility/drive.js';
+import { buildDefaultSkin, buildSkinTemplate } from '@/utility/craft/skins.js';
 
 const router = useRouter();
 
@@ -102,6 +121,41 @@ const myWorldsPaginator = markRaw(new Paginator('craft/worlds', {
 const publicWorldsPaginator = markRaw(new Paginator('craft/worlds', {
 	limit: 10,
 }));
+
+const skinUrl = ref<string | null>(null);
+const defaultSkinDataUrl = buildDefaultSkin().toDataURL('image/png');
+const skinPreviewUrl = computed(() => skinUrl.value ?? defaultSkinDataUrl);
+
+onMounted(async () => {
+	if ($i == null) return;
+	try {
+		const res = await misskeyApi('craft/skin', {});
+		skinUrl.value = res.skinUrl;
+	} catch (err) {
+		console.error(err);
+	}
+});
+
+function downloadTemplate() {
+	const a = window.document.createElement('a');
+	a.download = 'misskey-craft-skin-template.png';
+	a.href = buildSkinTemplate().toDataURL('image/png');
+	a.click();
+}
+
+async function chooseSkin(ev: PointerEvent) {
+	const file = await selectFile({ anchorElement: ev.currentTarget, multiple: false });
+	const res = await os.apiWithDialog('craft/set-skin', { fileId: file.id }, undefined, {
+		'7df7b670-dae7-4ff1-8b1e-a84eb8bfa5aa': { title: i18n.ts._craft.skin, text: i18n.ts._craft.skinInvalid },
+	});
+	skinUrl.value = res.skinUrl;
+	os.toast(i18n.ts._craft.skinUpdated);
+}
+
+async function resetSkin() {
+	await os.apiWithDialog('craft/set-skin', { fileId: null });
+	skinUrl.value = null;
+}
 
 async function createWorld() {
 	const isLoggedIn = await pleaseLogin();
@@ -171,6 +225,20 @@ definePage(() => ({
 .heroDescription {
 	margin-top: 4px;
 	opacity: 0.9;
+}
+
+.skinPreviewRow {
+	display: flex;
+	align-items: flex-end;
+	gap: 12px;
+}
+
+.skinPreview {
+	width: 128px;
+	height: 128px;
+	image-rendering: pixelated;
+	border-radius: var(--MI-radius);
+	background: var(--MI_THEME-panel);
 }
 
 .worlds {

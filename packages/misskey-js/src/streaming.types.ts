@@ -28,6 +28,18 @@ import {
 	ReversiUpdateKey,
 } from './consts.js';
 
+export type CraftMobState = {
+	id: string;
+	type: string;
+	x: number;
+	y: number;
+	z: number;
+	yaw: number;
+	hp: number;
+	target: string | null;
+	attackAt: number;
+};
+
 type ReversiUpdateSettings<K extends ReversiUpdateKey> = {
 	key: K;
 	value: ReversiGameDetailed[K];
@@ -262,6 +274,7 @@ export type Channels = {
 				username: string;
 				name: string | null;
 				avatarUrl: string | null;
+				skinUrl: string | null;
 				x: number;
 				y: number;
 				z: number;
@@ -273,10 +286,15 @@ export type Channels = {
 			worldUpdated: (payload: { worldId: string; name: string; isPublic: boolean; }) => void;
 			// 送信元の接続にだけ返る (設置・破壊が受け付けられなかった)
 			setBlockRejected: (payload: { x: number; y: number; z: number; }) => void;
+			// ホスト (userId が最小の参加者) が配信する MOB の状態
+			mobsUpdated: (payload: { hostId: User['id']; t: number; mobs: CraftMobState[]; }) => void;
+			mobHit: (payload: { userId: User['id']; id: string; damage: number; kx: number; kz: number; }) => void;
 		};
 		receives: {
 			setBlock: { x: number; y: number; z: number; type: number; };
 			move: { x: number; y: number; z: number; yaw: number; pitch: number; };
+			mobs: { t: number; mobs: CraftMobState[]; };
+			mobHit: { id: string; damage: number; kx: number; kz: number; };
 		};
 	};
 	twitchLiveStream: {

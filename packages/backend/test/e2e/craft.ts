@@ -74,7 +74,7 @@ describe('Misskey Craft', () => {
 		ws.send(JSON.stringify({ type: 'ch', body: { id: 'a', type: 'setBlock', body: { x: 1, y: 30, z: 2, type: 9 } } }));
 		ws.send(JSON.stringify({ type: 'ch', body: { id: 'a', type: 'setBlock', body: { x: 3, y: 30, z: 4, type: 0 } } }));
 		// 範囲外・最下層の破壊は拒否される
-		ws.send(JSON.stringify({ type: 'ch', body: { id: 'a', type: 'setBlock', body: { x: 999, y: 30, z: 4, type: 1 } } }));
+		ws.send(JSON.stringify({ type: 'ch', body: { id: 'a', type: 'setBlock', body: { x: 2000000, y: 30, z: 4, type: 1 } } }));
 		ws.send(JSON.stringify({ type: 'ch', body: { id: 'a', type: 'setBlock', body: { x: 5, y: 0, z: 5, type: 0 } } }));
 		await new Promise(r => setTimeout(r, 1000));
 		ws.close();
@@ -82,7 +82,7 @@ describe('Misskey Craft', () => {
 		const updated = received.filter(m => m.type === 'blockUpdated').map(m => m.body);
 		assert.deepStrictEqual(updated.map(b => [b.x, b.y, b.z, b.type, b.userId]), [[1, 30, 2, 9, bob.id], [3, 30, 4, 0, bob.id]]);
 		const rejected = received.filter(m => m.type === 'setBlockRejected').map(m => m.body);
-		assert.deepStrictEqual(rejected.map(b => [b.x, b.y, b.z]), [[999, 30, 4], [5, 0, 5]]);
+		assert.deepStrictEqual(rejected.map(b => [b.x, b.y, b.z]), [[2000000, 30, 4], [5, 0, 5]]);
 
 		const blocks = await api('craft/blocks', { worldId: created.body.id });
 		assert.strictEqual(blocks.status, 200);
@@ -102,6 +102,33 @@ describe('Misskey Craft', () => {
 		assert.ok(blocks2.body.blocks.length === 8);
 	});
 
+	test('MOB の配信は move を送った接続からだけ中継され、target が長すぎる配信は捨てられる', async () => {
+		const created = await api('craft/create', { name: 'mobs', isPublic: true }, alice);
+		assert.strictEqual(created.status, 200);
+
+		const received: Record<string, any>[] = [];
+		const watcher = await connectStream(alice, 'craftWorld', msg => received.push(msg), { worldId: created.body.id });
+		const host = await connectStream(bob, 'craftWorld', () => {}, { worldId: created.body.id });
+		const mob = { id: 'bob:1', type: 'zombie', x: 1, y: 40, z: 2, yaw: 0, hp: 20, target: null, attackAt: 0 };
+		// move を送る前の配信は中継されない
+		host.send(JSON.stringify({ type: 'ch', body: { id: 'a', type: 'mobs', body: { t: 1, mobs: [mob] } } }));
+		await new Promise(r => setTimeout(r, 500));
+		assert.ok(!received.some(m => m.type === 'mobsUpdated'));
+
+		host.send(JSON.stringify({ type: 'ch', body: { id: 'a', type: 'move', body: { x: 0, y: 40, z: 0, yaw: 0, pitch: 0 } } }));
+		host.send(JSON.stringify({ type: 'ch', body: { id: 'a', type: 'mobs', body: { t: 2, mobs: [mob] } } }));
+		host.send(JSON.stringify({ type: 'ch', body: { id: 'a', type: 'mobs', body: { t: 3, mobs: [{ ...mob, target: 'x'.repeat(100) }] } } }));
+		await new Promise(r => setTimeout(r, 1000));
+		watcher.close();
+		host.close();
+
+		const updates = received.filter(m => m.type === 'mobsUpdated').map(m => m.body);
+		assert.strictEqual(updates.length, 1);
+		assert.strictEqual(updates[0].hostId, bob.id);
+		assert.strictEqual(updates[0].t, 2);
+		assert.deepStrictEqual(updates[0].mobs, [mob]);
+	});
+
 	test('非公開ワールドではオーナー以外のブロック設置が拒否される', async () => {
 		const created = await api('craft/create', { name: 'locked', isPublic: false }, alice);
 		assert.strictEqual(created.status, 200);
@@ -116,6 +143,20 @@ describe('Misskey Craft', () => {
 		assert.ok(!received.some(m => m.type === 'blockUpdated'));
 		const blocks = await api('craft/blocks', { worldId: created.body.id });
 		assert.deepStrictEqual(blocks.body.blocks, []);
+	});
+
+	test('スキンは自分の 64x64 PNG だけ設定でき、解除もできる', async () => {
+		const none = await api('craft/skin', {}, alice);
+		assert.strictEqual(none.status, 200);
+		assert.strictEqual(none.body.skinUrl, null);
+
+		const missing = await api('craft/set-skin', { fileId: 'aaaaaaaaaaaaaaaa' }, alice);
+		assert.strictEqual(missing.status, 400);
+		assert.strictEqual(castAsError(missing.body as any).error.code, 'NO_SUCH_FILE');
+
+		const cleared = await api('craft/set-skin', { fileId: null }, alice);
+		assert.strictEqual(cleared.status, 200);
+		assert.strictEqual(cleared.body.skinUrl, null);
 	});
 
 	test('更新と削除はオーナーだけができる', async () => {

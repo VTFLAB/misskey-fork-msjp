@@ -968,6 +968,7 @@ export type Channels = {
                 username: string;
                 name: string | null;
                 avatarUrl: string | null;
+                skinUrl: string | null;
                 x: number;
                 y: number;
                 z: number;
@@ -990,6 +991,18 @@ export type Channels = {
                 y: number;
                 z: number;
             }) => void;
+            mobsUpdated: (payload: {
+                hostId: User['id'];
+                t: number;
+                mobs: CraftMobState[];
+            }) => void;
+            mobHit: (payload: {
+                userId: User['id'];
+                id: string;
+                damage: number;
+                kx: number;
+                kz: number;
+            }) => void;
         };
         receives: {
             setBlock: {
@@ -1004,6 +1017,16 @@ export type Channels = {
                 z: number;
                 yaw: number;
                 pitch: number;
+            };
+            mobs: {
+                t: number;
+                mobs: CraftMobState[];
+            };
+            mobHit: {
+                id: string;
+                damage: number;
+                kx: number;
+                kz: number;
             };
         };
     };
@@ -1458,10 +1481,19 @@ type CraftCreateResponse = operations['craft___create']['responses']['200']['con
 type CraftDeleteRequest = operations['craft___delete']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
+type CraftSetSkinRequest = operations['craft___set-skin']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type CraftSetSkinResponse = operations['craft___set-skin']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
 type CraftShowRequest = operations['craft___show']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
 type CraftShowResponse = operations['craft___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type CraftSkinResponse = operations['craft___skin']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type CraftUpdateRequest = operations['craft___update']['requestBody']['content']['application/json'];
@@ -2064,8 +2096,11 @@ declare namespace entities {
         CraftCreateRequest,
         CraftCreateResponse,
         CraftDeleteRequest,
+        CraftSetSkinRequest,
+        CraftSetSkinResponse,
         CraftShowRequest,
         CraftShowResponse,
+        CraftSkinResponse,
         CraftUpdateRequest,
         CraftUpdateResponse,
         CraftWorldsRequest,
@@ -4409,9 +4444,10 @@ type VerifyEmailRequest = operations['verify-email']['requestBody']['content']['
 // Warnings were encountered during analysis:
 //
 // src/streaming.ts:57:3 - (ae-forgotten-export) The symbol "ReconnectingWebSocket" needs to be exported by the entry point index.d.ts
-// src/streaming.types.ts:235:4 - (ae-forgotten-export) The symbol "ReversiUpdateKey" needs to be exported by the entry point index.d.ts
-// src/streaming.types.ts:250:4 - (ae-forgotten-export) The symbol "ReversiUpdateSettings" needs to be exported by the entry point index.d.ts
-// src/streaming.types.ts:298:5 - (ae-forgotten-export) The symbol "TwitchChatFragment" needs to be exported by the entry point index.d.ts
+// src/streaming.types.ts:247:4 - (ae-forgotten-export) The symbol "ReversiUpdateKey" needs to be exported by the entry point index.d.ts
+// src/streaming.types.ts:262:4 - (ae-forgotten-export) The symbol "ReversiUpdateSettings" needs to be exported by the entry point index.d.ts
+// src/streaming.types.ts:290:60 - (ae-forgotten-export) The symbol "CraftMobState" needs to be exported by the entry point index.d.ts
+// src/streaming.types.ts:316:5 - (ae-forgotten-export) The symbol "TwitchChatFragment" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)
 
