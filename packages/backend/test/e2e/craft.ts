@@ -159,6 +159,53 @@ describe('Misskey Craft', () => {
 		assert.strictEqual(cleared.body.skinUrl, null);
 	});
 
+	test('プレイヤーのセーブデータを保存して取得でき、大きすぎる状態と存在しないワールドは拒否される', async () => {
+		const created = await api('craft/create', { name: 'state', isPublic: true }, alice);
+		assert.strictEqual(created.status, 200);
+
+		const empty = await api('craft/state', { worldId: created.body.id }, bob);
+		assert.strictEqual(empty.status, 200);
+		assert.strictEqual(empty.body.state, null);
+		assert.strictEqual(empty.body.updatedAt, null);
+
+		const state = { inv: [[1, 64], [2, 3]], hp: 18, pos: [1.5, 40, -2.5] };
+		const saved = await api('craft/save-state', { worldId: created.body.id, state }, bob);
+		assert.strictEqual(saved.status, 204);
+
+		const got = await api('craft/state', { worldId: created.body.id }, bob);
+		assert.strictEqual(got.status, 200);
+		assert.deepStrictEqual(got.body.state, state);
+		assert.strictEqual(typeof got.body.updatedAt, 'string');
+
+		// 上書きできる。他のユーザーには見えない
+		const saved2 = await api('craft/save-state', { worldId: created.body.id, state: { hp: 5 } }, bob);
+		assert.strictEqual(saved2.status, 204);
+		const got2 = await api('craft/state', { worldId: created.body.id }, bob);
+		assert.deepStrictEqual(got2.body.state, { hp: 5 });
+		const other = await api('craft/state', { worldId: created.body.id }, alice);
+		assert.strictEqual(other.body.state, null);
+
+		const tooLarge = await api('craft/save-state', { worldId: created.body.id, state: { blob: 'x'.repeat(32768) } }, bob);
+		assert.strictEqual(tooLarge.status, 400);
+		assert.strictEqual(castAsError(tooLarge.body as any).error.code, 'STATE_TOO_LARGE');
+		// 上限は byte 数で数える (CJK は 1 文字 3 byte)
+		const tooLargeCjk = await api('craft/save-state', { worldId: created.body.id, state: { blob: 'あ'.repeat(11000) } }, bob);
+		assert.strictEqual(tooLargeCjk.status, 400);
+		assert.strictEqual(castAsError(tooLargeCjk.body as any).error.code, 'STATE_TOO_LARGE');
+		// jsonb が受け付けない NUL 文字
+		const nul = await api('craft/save-state', { worldId: created.body.id, state: { s: '\u0000' } }, bob);
+		assert.strictEqual(nul.status, 400);
+		assert.strictEqual(castAsError(nul.body as any).error.code, 'STATE_TOO_LARGE');
+		const still = await api('craft/state', { worldId: created.body.id }, bob);
+		assert.deepStrictEqual(still.body.state, { hp: 5 });
+
+		const noWorld = await api('craft/save-state', { worldId: 'aaaaaaaaaaaaaaaa', state: {} }, bob);
+		assert.strictEqual(noWorld.status, 400);
+		assert.strictEqual(castAsError(noWorld.body as any).error.code, 'NO_SUCH_WORLD');
+		const noWorld2 = await api('craft/state', { worldId: 'aaaaaaaaaaaaaaaa' }, bob);
+		assert.strictEqual(castAsError(noWorld2.body as any).error.code, 'NO_SUCH_WORLD');
+	});
+
 	test('更新と削除はオーナーだけができる', async () => {
 		const created = await api('craft/create', { name: 'owned', isPublic: true }, alice);
 		assert.strictEqual(created.status, 200);

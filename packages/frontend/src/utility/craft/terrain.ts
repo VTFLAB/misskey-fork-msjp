@@ -11,6 +11,16 @@ import type { BiomeId } from './constants.js';
  * サーバーは地形を持たず、どのクライアントでも同じ seed から同じ地形ができることを前提にしている。
  * Math.imul / Math.floor / 四則演算だけを使い、超越関数 (sin など) は使わない。
  * 生成アルゴリズムを変えると既存ワールドの差分ブロックが浮いたり埋まったりするので、変更時は注意。
+ *
+ * v2 の変更点 (高さとバイオーム境界の大枠は据え置き。地表の素材と地物、石の中身だけ増やした):
+ * - 鉱石: ラピスラズリ (y<30)・金 (y<26)・ダイヤ (y<14) を石の中の hash 帯 r で追加。石炭・鉄の帯は変更なし
+ * - バイオーム: 森の一部を白樺の森 (birchForest, 気温 > 0.5)、海岸付近 (大陸性 < 0.46) の湿った土地を沼 (swamp) に分けた
+ * - 沼は地表を草 / 粘土 / 土にし、浅い水たまりと樫の木を置く
+ * - 草 (tallGrass)・花 (flower) を平原・森・白樺の森・沼の草ブロック上に、カボチャを平原に、スイカを森・沼にまれに置く
+ * - 粘土の斑点を砂浜と水底の砂の上に作る
+ * - 砂漠の砂の下 3 マスを砂岩にする
+ * - 気温 < 0.35 の水面を氷にする
+ * - 木の形は treeBlocks() に切り出した (ticks.ts が苗木の成長に同じ形を使う)
  */
 
 const CS = WORLD.chunkSize;
@@ -62,6 +72,8 @@ export function fbm(seed: number, x: number, y: number, octaves: number): number
 
 const C_OCEAN = 0.39;
 const C_MOUNTAIN = 0.63;
+/** これより低い大陸性の湿った土地は沼になる */
+const C_SWAMP = 0.46;
 const STONE_LINE = 60;
 const SNOW_LINE = 72;
 
@@ -96,7 +108,8 @@ function pickBiome(c: number, t: number, hm: number): BiomeId {
 	if (c > C_MOUNTAIN) return BIOME.mountains;
 	if (t > 0.56 && hm < 0.45) return BIOME.desert;
 	if (t < 0.42) return BIOME.taiga;
-	if (hm > 0.54) return BIOME.forest;
+	if (c < C_SWAMP && hm > 0.52) return BIOME.swamp;
+	if (hm > 0.54) return t > 0.5 ? BIOME.birchForest : BIOME.forest;
 	return BIOME.plains;
 }
 
@@ -120,45 +133,57 @@ const colB = new Uint8Array(SPAN * SPAN);
 
 const SY = WORLD.sizeY;
 
-function putLeaf(out: Uint8Array, lx: number, y: number, lz: number): void {
-	if (lx < 0 || lx >= CS || lz < 0 || lz >= CS || y < 0 || y >= SY) return;
-	const i = (y * CS + lz) * CS + lx;
-	if (out[i] === BLOCK.air) out[i] = BLOCK.leaves;
-}
+export type TreeKind = 'oak' | 'birch' | 'spruce';
+export type TreeBlock = { x: number; y: number; z: number; id: number };
 
-function putLog(out: Uint8Array, lx: number, y: number, lz: number): void {
-	if (lx < 0 || lx >= CS || lz < 0 || lz >= CS || y < 0 || y >= SY) return;
-	const i = (y * CS + lz) * CS + lx;
-	const b = out[i];
-	if (b === BLOCK.air || b === BLOCK.leaves) out[i] = BLOCK.log;
-}
-
-function leafDisc(out: Uint8Array, lx: number, y: number, lz: number, r: number, cut: boolean): void {
+function leafDisc(out: TreeBlock[], x: number, y: number, z: number, r: number, cut: boolean): void {
 	for (let dz = -r; dz <= r; dz++) {
 		for (let dx = -r; dx <= r; dx++) {
 			if (cut && r > 0 && Math.abs(dx) === r && Math.abs(dz) === r) continue;
-			putLeaf(out, lx + dx, y, lz + dz);
+			out.push({ x: x + dx, y, z: z + dz, id: BLOCK.leaves });
 		}
 	}
 }
 
-function drawOak(out: Uint8Array, lx: number, lz: number, h: number, th: number): void {
-	const top = h + th;
-	for (let y = h + 1; y <= top; y++) putLog(out, lx, y, lz);
-	leafDisc(out, lx, top - 2, lz, 2, true);
-	leafDisc(out, lx, top - 1, lz, 2, true);
-	leafDisc(out, lx, top, lz, 1, false);
-	leafDisc(out, lx, top + 1, lz, 1, true);
+/**
+ * 木を構成するブロックを世界座標で返す。
+ * (x, y, z) は幹の最下段 (苗木があったマス = 地面の 1 つ上)、h は幹の長さ。
+ * 配置側は、幹 (log / birchLog) は空気と葉だけを、葉は空気だけを置き換えること。順序どおりに適用すれば生成時と同じ結果になる。
+ */
+export function treeBlocks(kind: TreeKind, x: number, y: number, z: number, h: number): TreeBlock[] {
+	const out: TreeBlock[] = [];
+	const top = y - 1 + h;
+	const logId = kind === 'birch' ? BLOCK.birchLog : BLOCK.log;
+	for (let yy = y; yy <= top; yy++) out.push({ x, y: yy, z, id: logId });
+	if (kind === 'spruce') {
+		// 上から下へ半径 0,1,2,1,2,... の円錐。幹の下 2 マスは葉をつけない
+		let k = 0;
+		for (let yy = top + 1; yy >= y + 2; yy--, k++) {
+			const r = k === 0 ? 0 : (k % 2 === 1 ? 1 : 2);
+			leafDisc(out, x, yy, z, r, true);
+		}
+	} else {
+		leafDisc(out, x, top - 2, z, 2, true);
+		leafDisc(out, x, top - 1, z, 2, true);
+		leafDisc(out, x, top, z, 1, false);
+		leafDisc(out, x, top + 1, z, 1, true);
+	}
+	return out;
 }
 
-function drawSpruce(out: Uint8Array, lx: number, lz: number, h: number, th: number): void {
-	const top = h + th;
-	for (let y = h + 1; y <= top; y++) putLog(out, lx, y, lz);
-	// 上から下へ半径 0,1,1,2,1,2,... の円錐。幹の下 2 マスは葉をつけない
-	let k = 0;
-	for (let y = top + 1; y >= h + 3; y--, k++) {
-		const r = k === 0 ? 0 : (k % 2 === 1 ? 1 : 2);
-		leafDisc(out, lx, y, lz, r, true);
+/** 木を chunk に書き込む。幹は空気と葉を、葉は空気だけを置き換える */
+function placeTree(out: Uint8Array, baseX: number, baseZ: number, kind: TreeKind, lx: number, lz: number, h: number, th: number): void {
+	for (const b of treeBlocks(kind, baseX + lx, h + 1, baseZ + lz, th)) {
+		const bx = b.x - baseX;
+		const bz = b.z - baseZ;
+		if (bx < 0 || bx >= CS || bz < 0 || bz >= CS || b.y < 0 || b.y >= SY) continue;
+		const i = (b.y * CS + bz) * CS + bx;
+		const cur = out[i];
+		if (b.id === BLOCK.leaves) {
+			if (cur === BLOCK.air) out[i] = b.id;
+		} else if (cur === BLOCK.air || cur === BLOCK.leaves) {
+			out[i] = b.id;
+		}
 	}
 }
 
@@ -197,13 +222,25 @@ export function generateChunk(seed: number, cx: number, cz: number, out: Uint8Ar
 
 			let top: number = BLOCK.grass;
 			let sub: number = BLOCK.dirt;
-			if (biome === BIOME.ocean || beach) {
+			/** 粘土にする層の数 (top から下へ) */
+			let clayDepth = 0;
+			if (biome === BIOME.swamp) {
+				if (h < WORLD.seaLevel) {
+					const clay = valueNoise(seed + 613, x / 9, z / 9) > 0.55;
+					top = clay ? BLOCK.clay : BLOCK.dirt;
+					clayDepth = clay ? 2 : 0;
+				}
+			} else if (biome === BIOME.ocean || beach) {
 				const gravelPatch = valueNoise(seed + 411, x / 14, z / 14) > 0.7;
 				top = biome === BIOME.ocean && gravelPatch ? BLOCK.gravel : BLOCK.sand;
 				sub = top === BLOCK.gravel ? BLOCK.gravel : BLOCK.sand;
+				if (top === BLOCK.sand && h <= WORLD.seaLevel && valueNoise(seed + 613, x / 9, z / 9) > 0.72) {
+					top = BLOCK.clay;
+					clayDepth = 2;
+				}
 			} else if (biome === BIOME.desert) {
 				top = BLOCK.sand;
-				sub = BLOCK.sand;
+				sub = BLOCK.sandstone;
 			} else if (biome === BIOME.taiga) {
 				top = BLOCK.snow;
 			} else if (biome === BIOME.mountains) {
@@ -225,18 +262,25 @@ export function generateChunk(seed: number, cx: number, cz: number, out: Uint8Ar
 				} else if (y === h) {
 					out[idx] = top;
 				} else if (y > stoneTop) {
-					out[idx] = sub;
+					out[idx] = clayDepth > 1 && y === h - 1 ? BLOCK.clay : sub;
 				} else {
 					let id: number = BLOCK.stone;
 					const r = hash2(seed ^ Math.imul(y, 0x9e3779b1), x, z);
 					if (r < 0.015 && y < 48) id = BLOCK.coalOre;
 					else if (r > 0.992 && y < 28) id = BLOCK.ironOre;
+					else if (r >= 0.015 && r < 0.0185 && y < 30) id = BLOCK.lapisOre;
+					else if (r >= 0.0185 && r < 0.021 && y < 26) id = BLOCK.goldOre;
+					else if (r >= 0.021 && r < 0.0225 && y < 14) id = BLOCK.diamondOre;
 					else if (y > 2 && valueNoise(seed + 503, (x + y * 3) / 7, (z - y * 2) / 7) > 0.8) id = BLOCK.gravel;
 					out[idx] = id;
 				}
 			}
-			for (let y = h + 1; y <= WORLD.seaLevel; y++) {
-				out[(y * CS + lz) * CS + lx] = BLOCK.water;
+			if (h < WORLD.seaLevel) {
+				for (let y = h + 1; y <= WORLD.seaLevel; y++) {
+					out[(y * CS + lz) * CS + lx] = BLOCK.water;
+				}
+				// 寒い場所の水面は氷
+				if (temperature(seed, x, z) < 0.35) out[(WORLD.seaLevel * CS + lz) * CS + lx] = BLOCK.ice;
 			}
 		}
 	}
@@ -246,12 +290,14 @@ export function generateChunk(seed: number, cx: number, cz: number, out: Uint8Ar
 		for (let mx = 0; mx < SPAN; mx++) {
 			const i = mz * SPAN + mx;
 			const h = colH[i];
-			if (h <= WORLD.seaLevel + 1) continue;
 			const biome = colB[i];
+			if (h <= (biome === BIOME.swamp ? WORLD.seaLevel : WORLD.seaLevel + 1)) continue;
 			const x = baseX + mx - MARGIN;
 			const z = baseZ + mz - MARGIN;
 			let p = 0;
 			if (biome === BIOME.forest) p = 1 / 22;
+			else if (biome === BIOME.birchForest) p = 1 / 24;
+			else if (biome === BIOME.swamp) p = 1 / 40;
 			else if (biome === BIOME.plains) p = 1 / 150;
 			else if (biome === BIOME.taiga) p = 1 / 30;
 			if (p === 0) continue;
@@ -260,8 +306,9 @@ export function generateChunk(seed: number, cx: number, cz: number, out: Uint8Ar
 			const r2 = hash2(seed + 778, x, z);
 			const lx = mx - MARGIN;
 			const lz = mz - MARGIN;
-			if (biome === BIOME.taiga) drawSpruce(out, lx, lz, h, 6 + Math.floor(r2 * 3));
-			else drawOak(out, lx, lz, h, 4 + Math.floor(r2 * 3));
+			if (biome === BIOME.taiga) placeTree(out, baseX, baseZ, 'spruce', lx, lz, h, 6 + Math.floor(r2 * 3));
+			else if (biome === BIOME.birchForest) placeTree(out, baseX, baseZ, 'birch', lx, lz, h, 5 + Math.floor(r2 * 3));
+			else placeTree(out, baseX, baseZ, 'oak', lx, lz, h, 4 + Math.floor(r2 * 3));
 		}
 	}
 
@@ -291,6 +338,31 @@ export function generateChunk(seed: number, cx: number, cz: number, out: Uint8Ar
 				const idx = ((h + k) * CS + lz) * CS + lx;
 				if (out[idx] === BLOCK.air) out[idx] = BLOCK.cactus;
 			}
+		}
+	}
+
+	// 草・花・カボチャ・スイカ (chunk 内の草ブロックの上の空気だけ)
+	for (let lz = 0; lz < CS; lz++) {
+		for (let lx = 0; lx < CS; lx++) {
+			const ci = (lz + MARGIN) * SPAN + lx + MARGIN;
+			const biome = colB[ci];
+			let tall = 0;
+			let flower = 0;
+			let pumpkin = 0;
+			let melon = 0;
+			if (biome === BIOME.plains) { tall = 0.1; flower = 0.012; pumpkin = 1 / 500; } else if (biome === BIOME.forest) { tall = 0.06; melon = 1 / 600; } else if (biome === BIOME.birchForest) { tall = 0.06; flower = 0.01; } else if (biome === BIOME.swamp) { tall = 0.08; melon = 1 / 600; } else continue;
+			const h = colH[ci];
+			if (h < WORLD.seaLevel || h >= WORLD.maxY) continue;
+			if (out[(h * CS + lz) * CS + lx] !== BLOCK.grass) continue;
+			const above = ((h + 1) * CS + lz) * CS + lx;
+			if (out[above] !== BLOCK.air) continue;
+			let r = hash2(seed + 1201, baseX + lx, baseZ + lz);
+			if (r < pumpkin) { out[above] = BLOCK.pumpkin; continue; }
+			r -= pumpkin;
+			if (r < melon) { out[above] = BLOCK.melon; continue; }
+			r -= melon;
+			if (r < tall) out[above] = BLOCK.tallGrass;
+			else if (r < tall + flower) out[above] = BLOCK.flower;
 		}
 	}
 }

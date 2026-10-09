@@ -16442,7 +16442,7 @@ export interface Locale extends ILocale {
          */
         "craft": string;
         /**
-         * みんなで同じワールドを探検し、素材を集めて道具を作り、夜に湧く敵と戦いながら建築するサバイバルゲームです。
+         * みんなで同じワールドを探検し、素材を集めて道具や防具を作り、畑を耕し、夜に湧く敵と戦いながら建築するサバイバルゲームです。経験値をためてエンチャント台の装備ガチャを回し、進行状況はサーバーに保存されます。
          */
         "description": string;
         /**
@@ -16510,11 +16510,11 @@ export interface Locale extends ILocale {
          */
         "tapToPlay": string;
         /**
-         * 移動: WASD / ジャンプ: Space / ダッシュ: W を 2 回 / しゃがみ: Shift / 壊す・攻撃: 左クリック長押し / 置く・食べる: 右クリック / インベントリ: E / 全画面: F / ブロック選択: 数字キー・ホイール / 操作をやめる: Esc (やめると右上のボタンや設定を使えます)
+         * 移動: WASD / ジャンプ: Space / ダッシュ: W を 2 回 / しゃがみ: Shift / 壊す・攻撃: 左クリック長押し / 置く・使う・食べる: 右クリック (長押しで食べる・弓を引く) / 捨てる: Q / インベントリ: E / 全画面: F / ブロック選択: 数字キー・ホイール / 操作をやめる: Esc
          */
         "controls": string;
         /**
-         * 左の丸で移動、右側をなぞって見回し、長押しで壊す、タップで置く
+         * 左の丸で移動、右側をなぞって見回し、長押しで壊す、タップで置く、使うボタン長押しで食べる・弓を引く
          */
         "touchControls": string;
         /**
@@ -16622,10 +16622,6 @@ export interface Locale extends ILocale {
          */
         "respawn": string;
         /**
-         * 持ち物はそのまま残ります。最初の場所で復活します。
-         */
-        "deathNote": string;
-        /**
          * あなたが敵の動きを計算しています
          */
         "hostingMobs": string;
@@ -16665,6 +16661,298 @@ export interface Locale extends ILocale {
          * 既定のスキンを使っています
          */
         "noSkin": string;
+        /**
+         * 防具
+         */
+        "armor": string;
+        /**
+         * レベル
+         */
+        "level": string;
+        /**
+         * 経験値
+         */
+        "xp": string;
+        /**
+         * レベル{n}
+         */
+        "levelsCount": ParameterizedString<"n">;
+        /**
+         * かまど
+         */
+        "furnace": string;
+        /**
+         * エンチャント
+         */
+        "enchanting": string;
+        /**
+         * 装備ガチャ
+         */
+        "gacha": string;
+        /**
+         * 経験値レベルとラピスラズリを使って、エンチャント付きの装備をランダムに手に入れます。
+         */
+        "gachaDescription": string;
+        /**
+         * ノーマル
+         */
+        "gachaTier1": string;
+        /**
+         * レア
+         */
+        "gachaTier2": string;
+        /**
+         * レジェンド
+         */
+        "gachaTier3": string;
+        /**
+         * レベル{levels} + ラピスラズリ{lapis}
+         */
+        "gachaCost": ParameterizedString<"levels" | "lapis">;
+        /**
+         * 回す
+         */
+        "gachaRoll": string;
+        /**
+         * ...
+         */
+        "gachaRolling": string;
+        /**
+         * 手に入れた装備
+         */
+        "gachaResult": string;
+        /**
+         * レベルかラピスラズリが足りません
+         */
+        "gachaNotEnough": string;
+        /**
+         * 持ち物がいっぱいです
+         */
+        "gachaInventoryFull": string;
+        /**
+         * 手に持っている物にエンチャント
+         */
+        "enchantHeld": string;
+        /**
+         * 手に持っている道具・防具・弓にランダムなエンチャントを 1〜2 個付けます。
+         */
+        "enchantHeldDescription": string;
+        /**
+         * 手に持っている物にはエンチャントできません
+         */
+        "enchantNotApplicable": string;
+        /**
+         * {name}に{enchants}が付きました
+         */
+        "enchantResult": ParameterizedString<"name" | "enchants">;
+        /**
+         * エンチャント台の近くで使えます
+         */
+        "enchantingTableRequired": string;
+        /**
+         * かまどの近くで作れます
+         */
+        "furnaceRequired": string;
+        /**
+         * 耐久値
+         */
+        "durability": string;
+        /**
+         * 捨てる
+         */
+        "trash": string;
+        /**
+         * {name}を捨てますか？
+         */
+        "trashConfirm": ParameterizedString<"name">;
+        /**
+         * 装備する
+         */
+        "equip": string;
+        /**
+         * 外す
+         */
+        "unequip": string;
+        /**
+         * 頭
+         */
+        "helmet": string;
+        /**
+         * 胴
+         */
+        "chestplate": string;
+        /**
+         * 脚
+         */
+        "leggings": string;
+        /**
+         * 足
+         */
+        "boots": string;
+        /**
+         * すべて
+         */
+        "allCategories": string;
+        /**
+         * 効果音
+         */
+        "sound": string;
+        /**
+         * 効果音の音量
+         */
+        "soundVolume": string;
+        /**
+         * 描画距離
+         */
+        "renderDistance": string;
+        /**
+         * 歩行時の視点の揺れ
+         */
+        "viewBobbing": string;
+        /**
+         * 設定
+         */
+        "settings": string;
+        /**
+         * ベッドで復活地点を設定しました
+         */
+        "spawnPointSet": string;
+        /**
+         * 持ち物はそのまま残りますが、経験値レベルは失います。ベッドがあればそこで復活します。
+         */
+        "deathNoteXp": string;
+        /**
+         * レベルアップ! {level}
+         */
+        "levelUp": ParameterizedString<"level">;
+        /**
+         * 空き枠
+         */
+        "emptySlot": string;
+        /**
+         * {name} x{n}
+         */
+        "pickedUp": ParameterizedString<"name" | "n">;
+        /**
+         * {name}を倒した (+{xp} XP)
+         */
+        "killed": ParameterizedString<"name" | "xp">;
+        /**
+         * 進行状況はサーバーに保存されます
+         */
+        "savedToServer": string;
+        /**
+         * コモン
+         */
+        "rarityCommon": string;
+        /**
+         * レア
+         */
+        "rarityRare": string;
+        /**
+         * エピック
+         */
+        "rarityEpic": string;
+        /**
+         * レジェンダリー
+         */
+        "rarityLegendary": string;
+        "_categories": {
+            /**
+             * 基本
+             */
+            "basic": string;
+            /**
+             * 道具
+             */
+            "tools": string;
+            /**
+             * 武器
+             */
+            "weapons": string;
+            /**
+             * 防具
+             */
+            "armor": string;
+            /**
+             * ブロック
+             */
+            "blocks": string;
+            /**
+             * 食べ物
+             */
+            "food": string;
+            /**
+             * 精錬
+             */
+            "smelting": string;
+        };
+        "_enchants": {
+            /**
+             * ダメージ増加
+             */
+            "sharpness": string;
+            /**
+             * ノックバック
+             */
+            "knockback": string;
+            /**
+             * ドロップ増加
+             */
+            "looting": string;
+            /**
+             * 効率強化
+             */
+            "efficiency": string;
+            /**
+             * 耐久力
+             */
+            "unbreaking": string;
+            /**
+             * 幸運
+             */
+            "fortune": string;
+            /**
+             * シルクタッチ
+             */
+            "silkTouch": string;
+            /**
+             * ダメージ軽減
+             */
+            "protection": string;
+            /**
+             * 落下耐性
+             */
+            "featherFalling": string;
+            /**
+             * 水中呼吸
+             */
+            "respiration": string;
+            /**
+             * 水中採掘
+             */
+            "aquaAffinity": string;
+            /**
+             * 棘の鎧
+             */
+            "thorns": string;
+            /**
+             * 修繕
+             */
+            "mending": string;
+            /**
+             * 射撃ダメージ増加
+             */
+            "power": string;
+            /**
+             * パンチ
+             */
+            "punch": string;
+            /**
+             * 無限
+             */
+            "infinity": string;
+        };
         "_touch": {
             /**
              * ジャンプ
@@ -16709,7 +16997,7 @@ export interface Locale extends ILocale {
              */
             "water": string;
             /**
-             * 原木
+             * オークの原木
              */
             "log": string;
             /**
@@ -16717,7 +17005,7 @@ export interface Locale extends ILocale {
              */
             "leaves": string;
             /**
-             * 木材
+             * オークの木材
              */
             "planks": string;
             /**
@@ -16764,6 +17052,126 @@ export interface Locale extends ILocale {
              * 砂利
              */
             "gravel": string;
+            /**
+             * 金鉱石
+             */
+            "goldOre": string;
+            /**
+             * ダイヤモンド鉱石
+             */
+            "diamondOre": string;
+            /**
+             * ラピスラズリ鉱石
+             */
+            "lapisOre": string;
+            /**
+             * 松明
+             */
+            "torch": string;
+            /**
+             * はしご
+             */
+            "ladder": string;
+            /**
+             * 石レンガ
+             */
+            "stoneBricks": string;
+            /**
+             * 羊毛
+             */
+            "wool": string;
+            /**
+             * かまど
+             */
+            "furnace": string;
+            /**
+             * エンチャント台
+             */
+            "enchantingTable": string;
+            /**
+             * ベッド
+             */
+            "bed": string;
+            /**
+             * 耕地
+             */
+            "farmland": string;
+            /**
+             * 小麦の苗
+             */
+            "wheat0": string;
+            /**
+             * 小麦の苗
+             */
+            "wheat1": string;
+            /**
+             * 小麦の苗
+             */
+            "wheat2": string;
+            /**
+             * 小麦 (収穫できる)
+             */
+            "wheat3": string;
+            /**
+             * 苗木
+             */
+            "sapling": string;
+            /**
+             * 草
+             */
+            "tallGrass": string;
+            /**
+             * ポピー
+             */
+            "flower": string;
+            /**
+             * 本棚
+             */
+            "bookshelf": string;
+            /**
+             * グロウストーン
+             */
+            "glowstone": string;
+            /**
+             * 黒曜石
+             */
+            "obsidian": string;
+            /**
+             * 苔むした丸石
+             */
+            "mossyCobblestone": string;
+            /**
+             * 干草の俵
+             */
+            "hayBale": string;
+            /**
+             * 砂岩
+             */
+            "sandstone": string;
+            /**
+             * 粘土
+             */
+            "clay": string;
+            /**
+             * 氷
+             */
+            "ice": string;
+            /**
+             * カボチャ
+             */
+            "pumpkin": string;
+            /**
+             * スイカ
+             */
+            "melon": string;
+            /**
+             * シラカバの原木
+             */
+            "birchLog": string;
+            /**
+             * シラカバの木材
+             */
+            "birchPlanks": string;
         };
         "_items": {
             /**
@@ -16775,6 +17183,10 @@ export interface Locale extends ILocale {
              */
             "coal": string;
             /**
+             * 木炭
+             */
+            "charcoal": string;
+            /**
              * 鉄の原石
              */
             "rawIron": string;
@@ -16783,9 +17195,61 @@ export interface Locale extends ILocale {
              */
             "ironIngot": string;
             /**
+             * 金の原石
+             */
+            "rawGold": string;
+            /**
+             * 金インゴット
+             */
+            "goldIngot": string;
+            /**
+             * ダイヤモンド
+             */
+            "diamond": string;
+            /**
+             * ラピスラズリ
+             */
+            "lapis": string;
+            /**
+             * 革
+             */
+            "leather": string;
+            /**
+             * 羽根
+             */
+            "feather": string;
+            /**
+             * 骨
+             */
+            "bone": string;
+            /**
+             * 糸
+             */
+            "string": string;
+            /**
+             * 腐った肉
+             */
+            "rottenFlesh": string;
+            /**
+             * 小麦の種
+             */
+            "wheatSeeds": string;
+            /**
+             * 小麦
+             */
+            "wheat": string;
+            /**
+             * パン
+             */
+            "bread": string;
+            /**
              * リンゴ
              */
             "apple": string;
+            /**
+             * 金のリンゴ
+             */
+            "goldenApple": string;
             /**
              * 生肉
              */
@@ -16795,35 +17259,251 @@ export interface Locale extends ILocale {
              */
             "cookedMeat": string;
             /**
+             * 生の牛肉
+             */
+            "rawBeef": string;
+            /**
+             * ステーキ
+             */
+            "cookedBeef": string;
+            /**
+             * 生の豚肉
+             */
+            "rawPorkchop": string;
+            /**
+             * 焼き豚
+             */
+            "cookedPorkchop": string;
+            /**
+             * 生の鶏肉
+             */
+            "rawChicken": string;
+            /**
+             * 焼き鳥
+             */
+            "cookedChicken": string;
+            /**
+             * 生の羊肉
+             */
+            "rawMutton": string;
+            /**
+             * 焼いた羊肉
+             */
+            "cookedMutton": string;
+            /**
+             * 矢
+             */
+            "arrow": string;
+            /**
+             * 弓
+             */
+            "bow": string;
+            /**
+             * 卵
+             */
+            "egg": string;
+            /**
+             * レンガ (素材)
+             */
+            "brick": string;
+            /**
+             * 本
+             */
+            "book": string;
+            /**
+             * 紙
+             */
+            "paper": string;
+            /**
+             * スイカの薄切り
+             */
+            "melonSlice": string;
+            /**
+             * パンプキンパイ
+             */
+            "pumpkinPie": string;
+            /**
              * 木のツルハシ
              */
             "woodenPickaxe": string;
             /**
-             * 石のツルハシ
+             * 木の斧
              */
-            "stonePickaxe": string;
+            "woodenAxe": string;
             /**
-             * 鉄のツルハシ
+             * 木のシャベル
              */
-            "ironPickaxe": string;
+            "woodenShovel": string;
             /**
              * 木の剣
              */
             "woodenSword": string;
             /**
+             * 木のクワ
+             */
+            "woodenHoe": string;
+            /**
+             * 石のツルハシ
+             */
+            "stonePickaxe": string;
+            /**
+             * 石の斧
+             */
+            "stoneAxe": string;
+            /**
+             * 石のシャベル
+             */
+            "stoneShovel": string;
+            /**
              * 石の剣
              */
             "stoneSword": string;
             /**
+             * 石のクワ
+             */
+            "stoneHoe": string;
+            /**
+             * 鉄のツルハシ
+             */
+            "ironPickaxe": string;
+            /**
+             * 鉄の斧
+             */
+            "ironAxe": string;
+            /**
+             * 鉄のシャベル
+             */
+            "ironShovel": string;
+            /**
              * 鉄の剣
              */
             "ironSword": string;
+            /**
+             * 鉄のクワ
+             */
+            "ironHoe": string;
+            /**
+             * 金のツルハシ
+             */
+            "goldenPickaxe": string;
+            /**
+             * 金の斧
+             */
+            "goldenAxe": string;
+            /**
+             * 金のシャベル
+             */
+            "goldenShovel": string;
+            /**
+             * 金の剣
+             */
+            "goldenSword": string;
+            /**
+             * 金のクワ
+             */
+            "goldenHoe": string;
+            /**
+             * ダイヤモンドのツルハシ
+             */
+            "diamondPickaxe": string;
+            /**
+             * ダイヤモンドの斧
+             */
+            "diamondAxe": string;
+            /**
+             * ダイヤモンドのシャベル
+             */
+            "diamondShovel": string;
+            /**
+             * ダイヤモンドの剣
+             */
+            "diamondSword": string;
+            /**
+             * ダイヤモンドのクワ
+             */
+            "diamondHoe": string;
+            /**
+             * 革の帽子
+             */
+            "leatherHelmet": string;
+            /**
+             * 革の上着
+             */
+            "leatherChestplate": string;
+            /**
+             * 革のズボン
+             */
+            "leatherLeggings": string;
+            /**
+             * 革のブーツ
+             */
+            "leatherBoots": string;
+            /**
+             * 鉄のヘルメット
+             */
+            "ironHelmet": string;
+            /**
+             * 鉄のチェストプレート
+             */
+            "ironChestplate": string;
+            /**
+             * 鉄のレギンス
+             */
+            "ironLeggings": string;
+            /**
+             * 鉄のブーツ
+             */
+            "ironBoots": string;
+            /**
+             * 金のヘルメット
+             */
+            "goldenHelmet": string;
+            /**
+             * 金のチェストプレート
+             */
+            "goldenChestplate": string;
+            /**
+             * 金のレギンス
+             */
+            "goldenLeggings": string;
+            /**
+             * 金のブーツ
+             */
+            "goldenBoots": string;
+            /**
+             * ダイヤモンドのヘルメット
+             */
+            "diamondHelmet": string;
+            /**
+             * ダイヤモンドのチェストプレート
+             */
+            "diamondChestplate": string;
+            /**
+             * ダイヤモンドのレギンス
+             */
+            "diamondLeggings": string;
+            /**
+             * ダイヤモンドのブーツ
+             */
+            "diamondBoots": string;
         };
         "_mobs": {
             /**
              * ゾンビ
              */
             "zombie": string;
+            /**
+             * スケルトン
+             */
+            "skeleton": string;
+            /**
+             * クモ
+             */
+            "spider": string;
+            /**
+             * クリーパー
+             */
+            "creeper": string;
             /**
              * 狼
              */
@@ -16832,6 +17512,22 @@ export interface Locale extends ILocale {
              * 熊
              */
             "bear": string;
+            /**
+             * 牛
+             */
+            "cow": string;
+            /**
+             * 豚
+             */
+            "pig": string;
+            /**
+             * 羊
+             */
+            "sheep": string;
+            /**
+             * ニワトリ
+             */
+            "chicken": string;
         };
         "_biomes": {
             /**
@@ -16858,6 +17554,14 @@ export interface Locale extends ILocale {
              * 山岳
              */
             "mountains": string;
+            /**
+             * シラカバの森
+             */
+            "birchForest": string;
+            /**
+             * 沼地
+             */
+            "swamp": string;
         };
     };
 }

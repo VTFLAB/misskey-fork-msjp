@@ -404,6 +404,8 @@ export * as 'craft/update' from './endpoints/craft/update.js';
 export * as 'craft/delete' from './endpoints/craft/delete.js';
 export * as 'craft/skin' from './endpoints/craft/skin.js';
 export * as 'craft/set-skin' from './endpoints/craft/set-skin.js';
+export * as 'craft/state' from './endpoints/craft/state.js';
+export * as 'craft/save-state' from './endpoints/craft/save-state.js';
 export * as 'roles/list' from './endpoints/roles/list.js';
 export * as 'roles/notes' from './endpoints/roles/notes.js';
 export * as 'roles/show' from './endpoints/roles/show.js';

@@ -265,7 +265,7 @@ export class Minimap {
 					}
 					const idx = r * CS + i;
 					h[idx] = top;
-					colors[idx] = top >= 0 ? parseColor(BLOCK_DEFS[id].color) : [0, 0, 0];
+					colors[idx] = top >= 0 ? parseColor(BLOCK_DEFS[id]?.color ?? '#000000') : [0, 0, 0];
 				}
 			}
 			for (let j = 0; j < CS; j++) {

@@ -23,10 +23,10 @@ const MOBS_RATE_PER_SEC = 6;
 const MOB_HIT_RATE_PER_SEC = 20;
 const LIMITER_IDLE_MS = 1000 * 60 * 5;
 /** 1 回の配信に含められる MOB の数 */
-const MAX_MOBS_PER_SNAPSHOT = 32;
+const MAX_MOBS_PER_SNAPSHOT = 48;
 /** この時間内に move を送った接続だけが MOB を配信できる */
 const MOVE_PRESENCE_MS = 15000;
-const MOB_TYPES = ['zombie', 'wolf', 'bear'];
+const MOB_TYPES = ['zombie', 'skeleton', 'spider', 'creeper', 'wolf', 'bear', 'cow', 'pig', 'sheep', 'chicken'];
 
 class RateLimiter {
 	private tokens: number;
@@ -183,7 +183,7 @@ export class CraftWorldChannel extends Channel {
 	private mobHit(id: string, damage: number, kx: number, kz: number) {
 		if (this.user == null || this.worldId == null || !this.canWrite) return;
 		if (id.length > 64 || ![damage, kx, kz].every(Number.isFinite)) return;
-		if (damage <= 0 || damage > 20) return;
+		if (damage <= 0 || damage > 40) return;
 		if (!limiterFor(mobHitLimiters, this.user.id, MOB_HIT_RATE_PER_SEC).take()) return;
 		this.globalEventService.publishCraftWorldStream(this.worldId, 'mobHit', {
 			userId: this.user.id,

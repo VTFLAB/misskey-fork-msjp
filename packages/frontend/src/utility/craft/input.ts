@@ -49,6 +49,10 @@ export class InputController {
 	private attackLook = false;
 	private attackButton = false;
 
+	// 使用 (右クリック / 使うボタン) の押下元
+	private useMouse = false;
+	private useButton = false;
+
 	// タッチ
 	private sneakToggle = false;
 	private sprintToggle = false;
@@ -157,13 +161,14 @@ export class InputController {
 		o.forward = s.forward; o.back = s.back; o.left = s.left; o.right = s.right;
 		o.jump = s.jump; o.sneak = s.sneak; o.sprint = s.sprint;
 		o.lookDX = s.lookDX; o.lookDY = s.lookDY;
-		o.attack = s.attack; o.usePressed = s.usePressed;
+		o.attack = s.attack; o.usePressed = s.usePressed; o.use = s.use;
 		o.hotbarDelta = s.hotbarDelta; o.hotbarSelect = s.hotbarSelect;
 		o.togglePressed = s.togglePressed;
 		o.fullscreenPressed = s.fullscreenPressed;
+		o.dropPressed = s.dropPressed;
 		s.lookDX = 0; s.lookDY = 0;
 		s.hotbarDelta = 0; s.hotbarSelect = null;
-		s.usePressed = false; s.togglePressed = false; s.fullscreenPressed = false;
+		s.usePressed = false; s.togglePressed = false; s.fullscreenPressed = false; s.dropPressed = false;
 		return o;
 	}
 
@@ -190,19 +195,25 @@ export class InputController {
 		s.forward = s.back = s.left = s.right = false;
 		s.jump = s.sneak = s.sprint = false;
 		s.attack = false;
+		s.use = false;
 		this.attackMouse = this.attackLook = this.attackButton = false;
+		this.useMouse = this.useButton = false;
 		this.sprintKey = false;
 		this.sneakToggle = this.sprintToggle = this.sprintStick = false;
 		this.jumpButton = false;
 		this.sneakEl?.classList.remove('active');
 		this.sprintEl?.classList.remove('active');
 		s.lookDX = 0; s.lookDY = 0;
-		s.usePressed = false; s.togglePressed = false;
+		s.usePressed = false; s.togglePressed = false; s.dropPressed = false;
 		s.hotbarDelta = 0; s.hotbarSelect = null;
 	}
 
 	private syncAttack(): void {
 		this.state.attack = this.attackMouse || this.attackLook || this.attackButton;
+	}
+
+	private syncUse(): void {
+		this.state.use = this.useMouse || this.useButton;
 	}
 
 	private syncTouchFlags(): void {
@@ -269,6 +280,9 @@ export class InputController {
 			case 'KeyF':
 				if (down && !ev.repeat) s.fullscreenPressed = true;
 				break;
+			case 'KeyQ':
+				if (down && !ev.repeat) s.dropPressed = true;
+				break;
 			default: {
 				if (down && /^Digit[1-9]$/.test(code)) {
 					s.hotbarSelect = Number(code.slice(5)) - 1;
@@ -294,6 +308,8 @@ export class InputController {
 			this.syncAttack();
 		} else if (ev.button === 2) {
 			this.state.usePressed = true;
+			this.useMouse = true;
+			this.syncUse();
 		}
 		ev.preventDefault();
 	};
@@ -302,6 +318,10 @@ export class InputController {
 		if (ev.button === 0 && this.attackMouse) {
 			this.attackMouse = false;
 			this.syncAttack();
+		}
+		if (ev.button === 2 && this.useMouse) {
+			this.useMouse = false;
+			this.syncUse();
 		}
 	};
 
@@ -483,11 +503,11 @@ export class InputController {
 		});
 
 		// エッジ / トグルのボタン
-		els.use.addEventListener('pointerdown', (ev) => {
-			if (this.mode !== 'touch') return;
-			s.usePressed = true;
-			ev.preventDefault();
-		}, { signal: sig });
+		holdButton(els.use, (v) => {
+			if (v) s.usePressed = true;
+			this.useButton = v;
+			this.syncUse();
+		});
 		els.sneak.addEventListener('pointerdown', (ev) => {
 			if (this.mode !== 'touch') return;
 			this.sneakToggle = !this.sneakToggle;
