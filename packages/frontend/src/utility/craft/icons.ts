@@ -5,6 +5,7 @@
 
 import { ATLAS_TILE_PX, BLOCK_DEFS, ITEM, ITEM_DEFS } from './constants.js';
 import { getAtlasCanvas } from './atlas.js';
+import type { BlockDef } from './constants.js';
 
 const SIZE = 32;
 const cache = new Map<string, string>();
@@ -50,6 +51,10 @@ function drawBlock(ctx: CanvasRenderingContext2D, id: number): void {
 		ctx.drawImage(getAtlas(), top * ATLAS_TILE_PX, 0, ATLAS_TILE_PX, ATLAS_TILE_PX, 2, 2, 28, 28);
 		return;
 	}
+	if (def.shape === 'boxes') {
+		drawBoxesBlock(ctx, def);
+		return;
+	}
 	// 等角立方体。中心 (16, 16)、頂点は上 (16,2) 右上 (28,9) 右下 (28,23) 下 (16,30) 左下 (4,23) 左上 (4,9)
 	// 上面: 基底 u=(12,7) v=(-12,7)、原点 (16,2)の左 (4,9)
 	drawFace(ctx, top, [12, -7, 12, 7, 4, 9], -0.12);
@@ -57,6 +62,80 @@ function drawBlock(ctx: CanvasRenderingContext2D, id: number): void {
 	drawFace(ctx, side, [12, 7, 0, 14, 4, 9], 0.35);
 	// 右面: 基底 u=(12,-7) v=(0,14)、原点 (16,16)
 	drawFace(ctx, side, [12, -7, 0, 14, 16, 16], 0.2);
+}
+
+type IsoBox = [number, number, number, number, number, number];
+
+/** 等角投影。ブロック座標 (0..16) を 32x32 のアイコン座標へ */
+function proj(x: number, y: number, z: number): [number, number] {
+	return [16 + (x - z) * 0.75, 2 + (x + z) * (7 / 16) + (16 - y) * 0.875];
+}
+
+/** タイルの一部 (u0..u1, v0..v1 は 0..1) を、原点 o とベクトル U, V で張る平行四辺形に描く */
+function drawTileQuad(ctx: CanvasRenderingContext2D, tile: number, u0: number, u1: number, v0: number, v1: number, o: [number, number], pu: [number, number], pv: [number, number], shade: number): void {
+	if (u1 <= u0 || v1 <= v0) return;
+	const T = ATLAS_TILE_PX;
+	ctx.save();
+	ctx.setTransform(pu[0] - o[0], pu[1] - o[1], pv[0] - o[0], pv[1] - o[1], o[0], o[1]);
+	ctx.drawImage(getAtlas(), tile * T + u0 * T, v0 * T, (u1 - u0) * T, (v1 - v0) * T, 0, 0, 1, 1);
+	if (shade > 0) {
+		ctx.fillStyle = `rgba(0,0,0,${shade})`;
+		ctx.fillRect(0, 0, 1, 1);
+	} else if (shade < 0) {
+		ctx.fillStyle = `rgba(255,255,255,${-shade})`;
+		ctx.fillRect(0, 0, 1, 1);
+	}
+	ctx.restore();
+}
+
+/** 箱 1 つを等角で描く (上面・+z 面・+x 面。タイルは箱の範囲に合わせて切り出す) */
+function drawIsoBox(ctx: CanvasRenderingContext2D, tiles: [number, number, number], box: IsoBox): void {
+	const [x0, y0, z0, x1, y1, z1] = box;
+	const [top, side] = tiles;
+	// 上面: u は -z 方向、v は +x 方向
+	let o = proj(x0, y1, z1);
+	drawTileQuad(ctx, top, (16 - z1) / 16, (16 - z0) / 16, x0 / 16, x1 / 16, o, proj(x0, y1, z0), proj(x1, y1, z1), -0.12);
+	// +z 面 (左): u は +x 方向、v は下方向
+	o = proj(x0, y1, z1);
+	drawTileQuad(ctx, side, x0 / 16, x1 / 16, (16 - y1) / 16, (16 - y0) / 16, o, proj(x1, y1, z1), proj(x0, y0, z1), 0.35);
+	// +x 面 (右): u は -z 方向
+	o = proj(x1, y1, z1);
+	drawTileQuad(ctx, side, (16 - z1) / 16, (16 - z0) / 16, (16 - y1) / 16, (16 - y0) / 16, o, proj(x1, y1, z0), proj(x1, y0, z1), 0.2);
+}
+
+function drawFlatTile(ctx: CanvasRenderingContext2D, tile: number, x = 2, y = 2, w = 28, h = 28): void {
+	ctx.drawImage(getAtlas(), tile * ATLAS_TILE_PX, 0, ATLAS_TILE_PX, ATLAS_TILE_PX, x, y, w, h);
+}
+
+function drawBoxesBlock(ctx: CanvasRenderingContext2D, def: BlockDef): void {
+	const tiles = def.tiles;
+	if (def.door != null) {
+		// 下半分と上半分を縦に並べる (扉 1 枚ぶん)
+		drawFlatTile(ctx, 125, 9, 1, 14, 15);
+		drawFlatTile(ctx, 124, 9, 16, 14, 15);
+		return;
+	}
+	if (def.connect === 'pane' || def.key === 'lantern' || def.key === 'flowerPot') {
+		drawFlatTile(ctx, tiles[0]);
+		return;
+	}
+	let boxes: IsoBox[] = (def.boxes ?? []).map(b => [b[0], b[1], b[2], b[3], b[4], b[5]]);
+	if (def.connect === 'fence') {
+		boxes = [...boxes, [10, 6, 7, 16, 9, 9], [10, 12, 7, 16, 15, 9], [7, 6, 10, 9, 9, 16], [7, 12, 10, 9, 15, 16]];
+	} else if (def.connect === 'wall') {
+		boxes = [...boxes, [12, 0, 5, 16, 14, 11], [5, 0, 12, 11, 14, 16]];
+	}
+	// 低い箱から、奥から手前の順に描く (上の箱が下の箱の上面を隠す)
+	boxes.sort((a, b) => a[1] - b[1] || (a[0] + a[2]) - (b[0] + b[2]));
+	for (const box of boxes) drawIsoBox(ctx, tiles, box);
+}
+
+function drawDye(ctx: CanvasRenderingContext2D, color: string): void {
+	const dark = mix(color, 0.55);
+	ellipse(ctx, 16, 23, 11, 5.5, 0, mix(color, 0.8), dark);
+	ellipse(ctx, 16, 19, 8.5, 6.5, 0, color, dark);
+	ellipse(ctx, 16, 14, 5, 4.5, 0, mix(color, 1.1), dark);
+	ellipse(ctx, 14, 12.5, 2.2, 1.5, -0.4, mix(color, 1.6));
 }
 
 /** 斜め棒 (左下から右上) */
@@ -257,6 +336,10 @@ function drawItem(ctx: CanvasRenderingContext2D, id: number): void {
 			case 'leggings': drawLeggings(ctx, color); return;
 			case 'boots': drawBoots(ctx, color); return;
 		}
+	}
+	if (id >= ITEM.redDye && id <= ITEM.limeDye) {
+		drawDye(ctx, color);
+		return;
 	}
 	switch (id) {
 		case ITEM.stick:

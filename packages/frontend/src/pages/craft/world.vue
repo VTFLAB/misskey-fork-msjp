@@ -148,7 +148,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 								:aria-pressed="panelTab === tab.key"
 								@click="panelTab = tab.key"
 							><i :class="tab.icon"></i> {{ tab.label }}</button>
-							<button type="button" class="_button" :class="$style.panelClose" :aria-label="i18n.ts.close" :title="i18n.ts.close" @click="closeUi"><i class="ti ti-x"></i></button>
+							<button type="button" class="_button" :class="$style.panelClose" :aria-label="i18n.ts.close" :title="`${i18n.ts.close} (${i18n.ts._craft.closeWithEsc})`" @click="closeUi"><i class="ti ti-x"></i></button>
 						</div>
 						<XInventoryPanel v-if="panelTab === 'inventory'" :engine="engine" :version="inventoryVersion"/>
 						<XCraftingPanel v-else-if="panelTab === 'crafting' || panelTab === 'furnace'" :engine="engine" :version="inventoryVersion" :mode="panelTab"/>
@@ -747,14 +747,32 @@ function onVisibilityChange() {
 	if (window.document.visibilityState === 'hidden') saveState(false);
 }
 
+// パネルやメニューを開いているときの Esc はここで閉じる。Misskey のウィンドウ (MkWindow) まで届くと
+// ウィンドウごと閉じてしまうので、capture で先に受け取って伝播を止める
+function onKeydownCapture(ev: KeyboardEvent) {
+	if (ev.key !== 'Escape' || engine.value == null || dead.value) return;
+	if (uiOpen.value) {
+		ev.preventDefault();
+		ev.stopImmediatePropagation();
+		closeUi();
+	} else if (menuOpen.value) {
+		ev.preventDefault();
+		ev.stopImmediatePropagation();
+		if (menuView.value === 'settings') menuView.value = 'main';
+		else resume();
+	}
+}
+
 onMounted(async () => {
 	window.document.addEventListener('visibilitychange', onVisibilityChange);
+	window.addEventListener('keydown', onKeydownCapture, { capture: true });
 	await load();
 });
 
 onUnmounted(() => {
 	unmounted = true;
 	window.document.removeEventListener('visibilitychange', onVisibilityChange);
+	window.removeEventListener('keydown', onKeydownCapture, { capture: true });
 	if (hudTimer != null) window.clearInterval(hudTimer);
 	if (saveTimer != null) window.clearInterval(saveTimer);
 	for (const t of toastTimers) window.clearTimeout(t);

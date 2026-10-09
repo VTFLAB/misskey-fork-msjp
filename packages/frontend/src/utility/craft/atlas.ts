@@ -142,6 +142,45 @@ function crackPainter(stage: number): TilePainter {
 	};
 }
 
+/** 地色に明暗の斑点を散らす (安山岩・花崗岩・閃緑岩) */
+function speckled(base: Rgb, dark: Rgb, light: Rgb, salt: number): TilePainter {
+	return (px, py, r) => {
+		const h = hash2(px, py, salt);
+		if (h < 0.14) return [vary(dark, 8, r()), 255];
+		if (h > 0.88) return [vary(light, 8, r()), 255];
+		return [vary(base, 8, r()), 255];
+	};
+}
+
+/** 磨いた石 (1px の暗い縁と明るい内側) */
+function polished(base: Rgb): TilePainter {
+	return (px, py, r) => {
+		const edge = px === 0 || py === 0 || px === 15 || py === 15;
+		const k = edge ? 0.82 : (px === 1 || py === 1) ? 1.06 : 1;
+		return [vary([base[0] * k, base[1] * k, base[2] * k], 4, r()), 255];
+	};
+}
+
+function brickPainter(brick: Rgb, mortar: Rgb, amount: number): TilePainter {
+	return (px, py, r) => {
+		const row = Math.floor(py / 4);
+		const shifted = (px + (row % 2 === 0 ? 0 : 4)) % 8;
+		const isMortar = py % 4 === 3 || shifted === 7;
+		return [isMortar ? vary(mortar, 8, r()) : vary(brick, amount, r()), 255];
+	};
+}
+
+function woolPainter(c: Rgb): TilePainter {
+	return (px, py, r) => {
+		const k = (px + py) % 3 === 0 ? 1.06 : 0.94;
+		return [vary([c[0] * k, c[1] * k, c[2] * k], 10, r()), 255];
+	};
+}
+
+function concretePainter(c: Rgb): TilePainter {
+	return (_px, _py, r) => [vary(c, 4, r()), 255];
+}
+
 const painters: TilePainter[] = [
 	// 0: grass top
 	(_px, _py, r) => [vary(GRASS, 24, r()), 255],
@@ -404,6 +443,125 @@ const painters: TilePainter[] = [
 	...[0, 1, 2, 3, 4].map((): TilePainter => (_px, _py, r) => [vary(STONE, 26, r()), 255]),
 	// 70..79: crack stages
 	...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(crackPainter),
+	// 80: smooth stone
+	(_px, _py, r) => [vary([168, 168, 170], 6, r()), 255],
+	// 81..83: andesite / granite / diorite
+	speckled([138, 138, 134], [104, 104, 100], [168, 168, 164], 81),
+	speckled([160, 110, 96], [120, 80, 70], [200, 150, 130], 82),
+	speckled([200, 200, 196], [128, 128, 128], [240, 240, 238], 83),
+	// 84..86: polished (縁取りあり)
+	polished([148, 148, 144]), polished([170, 118, 104]), polished([212, 212, 208]),
+	// 87: deepslate top
+	(_px, _py, r) => [vary([76, 76, 86], 12, r()), 255],
+	// 88: deepslate side (縦の筋)
+	(px, _py, r) => [vary(hash2(px, 0, 88) < 0.35 ? [56, 56, 66] : [78, 78, 88], 10, r()), 255],
+	// 89: deepslate bricks
+	brickPainter([84, 84, 94], [38, 38, 46], 10),
+	// 90: terracotta
+	(_px, _py, r) => [vary([154, 92, 60], 8, r()), 255],
+	// 91: dandelion
+	(px, py, r) => {
+		if (px === 7 && py >= 8) return [vary([60, 130, 40], 10, r()), 255];
+		if (px === 8 && (py === 11 || py === 12)) return [vary([60, 130, 40], 10, r()), 255];
+		if (px === 6 && py === 12) return [vary([60, 130, 40], 10, r()), 255];
+		const d = Math.hypot(px - 7.5, py - 5.5);
+		if (d < 1.3) return [[226, 150, 20], 255];
+		if (d < 3.4) return [vary([244, 208, 40], 16, r()), 255];
+		return [[0, 0, 0], 0];
+	},
+	// 92: chiseled stone bricks
+	(px, py, r) => {
+		const outer = px === 0 || py === 0 || px === 15 || py === 15;
+		const frame = (px === 2 || px === 13) && py >= 2 && py <= 13 || (py === 2 || py === 13) && px >= 2 && px <= 13;
+		if (outer || frame) return [vary([92, 92, 94], 8, r()), 255];
+		const inner = px >= 5 && px <= 10 && py >= 5 && py <= 10;
+		return [inner ? vary([150, 150, 152], 8, r()) : vary([128, 128, 130], 10, r()), 255];
+	},
+	// 93: mossy stone bricks
+	(px, py, r) => {
+		if (hash2(Math.floor(px / 3), Math.floor(py / 3), 93) < 0.4 && r() > 0.15) return [vary([72, 122, 52], 22, r()), 255];
+		return brickPainter([136, 136, 138], [88, 88, 90], 14)(px, py, r);
+	},
+	// 94: smooth sandstone
+	(_px, _py, r) => [vary([226, 212, 164], 6, r()), 255],
+	// 95: spruce log end
+	(px, py, r) => {
+		const d = Math.max(Math.abs(px - 7.5), Math.abs(py - 7.5));
+		return [Math.floor(d) % 2 === 0 ? vary([124, 92, 56], 12, r()) : vary([86, 62, 36], 12, r()), 255];
+	},
+	// 96: spruce log side
+	(px, _py, r) => [px % 4 === 0 ? vary([50, 34, 20], 8, r()) : vary([76, 54, 32], 16, r()), 255],
+	// 97: spruce planks
+	(px, py, r) => {
+		const line = py % 4 === 0 || (py >= 4 && py < 8 && px === 8) || (py >= 12 && px === 3);
+		return [line ? vary([86, 60, 32], 8, r()) : vary([122, 90, 52], 14, r()), 255];
+	},
+	// 98: barrel top
+	(px, py, r) => {
+		const d = Math.max(Math.abs(px - 7.5), Math.abs(py - 7.5));
+		if (d > 6.5) return [vary([84, 60, 32], 8, r()), 255];
+		return [d < 4.5 ? vary([104, 76, 42], 12, r()) : vary([152, 114, 68], 14, r()), 255];
+	},
+	// 99: barrel side (縦の板 + 金具 2 本)
+	(px, py, r) => {
+		if (py === 3 || py === 4 || py === 11 || py === 12) return [vary([92, 92, 98], 8, r()), 255];
+		return [px % 4 === 0 ? vary([100, 72, 40], 8, r()) : vary([152, 114, 68], 14, r()), 255];
+	},
+	// 100: chest top
+	(px, py, r) => {
+		const edge = px === 0 || py === 0 || px === 15 || py === 15;
+		if (edge) return [vary([86, 56, 26], 8, r()), 255];
+		if (px >= 7 && px <= 8 && py >= 13) return [vary([200, 200, 210], 8, r()), 255];
+		return [vary([146, 100, 50], 14, r()), 255];
+	},
+	// 101: chest side
+	(px, py, r) => {
+		const frame = px === 0 || px === 15 || py === 0 || py === 15 || py === 6 || py === 7;
+		if (px >= 7 && px <= 8 && py >= 5 && py <= 9) return [vary([200, 200, 210], 8, r()), 255];
+		if (frame) return [vary([86, 56, 26], 8, r()), 255];
+		return [vary([156, 108, 58], 14, r()), 255];
+	},
+	// 102: lantern (外側は透明。フラットな見た目でも形が分かる)
+	(px, py, r) => {
+		const iron: Rgb = [58, 58, 64];
+		if ((px === 7 || px === 8) && py >= 2 && py <= 4) return [vary(iron, 6, r()), 255];
+		if (py >= 5 && py <= 8 && px >= 5 && px <= 10) return [vary(iron, 8, r()), 255];
+		if (py >= 9 && py <= 15 && px >= 5 && px <= 10) {
+			const frame = px === 5 || px === 10 || py === 9 || py === 15;
+			return [frame ? vary(iron, 8, r()) : vary([252, 222, 110], 16, r()), 255];
+		}
+		return [[0, 0, 0], 0];
+	},
+	// 103: iron bars (2px の棒が 4px おき。間は透明)
+	(px, _py, r) => (px % 4 === 3 || px % 4 === 0 ? [vary([150, 150, 156], 12, r()), 255] : [[0, 0, 0], 0]),
+	// 104: unused
+	(_px, _py, r) => [vary(STONE, 26, r()), 255],
+	// 105..115: wool
+	...([[176, 58, 46], [230, 196, 58], [53, 71, 155], [79, 122, 42], [32, 32, 32], [110, 110, 110], [224, 121, 42], [122, 58, 160], [232, 160, 184], [116, 182, 224], [128, 197, 53]] as Rgb[]).map(woolPainter),
+	// 116..123: concrete (つや消しで平ら)
+	...([[216, 216, 216], [90, 90, 90], [20, 20, 20], [156, 42, 38], [44, 63, 143], [76, 107, 35], [229, 181, 58], [217, 115, 30]] as Rgb[]).map(concretePainter),
+	// 124: door lower
+	(px, py, r) => {
+		const frame = px <= 1 || px >= 14 || py >= 14 || py === 0;
+		if (px >= 11 && px <= 12 && py >= 7 && py <= 8) return [vary([220, 190, 90], 8, r()), 255];
+		if (frame) return [vary([108, 78, 40], 8, r()), 255];
+		const panel = (px === 3 || px === 12) && py >= 2 && py <= 12 || (py === 2 || py === 12) && px >= 3 && px <= 12;
+		return [panel ? vary([120, 88, 48], 8, r()) : vary([170, 130, 78], 14, r()), 255];
+	},
+	// 125: door upper
+	(px, py, r) => {
+		const frame = px <= 1 || px >= 14 || py === 0 || py === 15;
+		if (px >= 5 && px <= 10 && py >= 3 && py <= 8) {
+			const rim = px === 5 || px === 10 || py === 3 || py === 8;
+			return [rim ? vary([108, 78, 40], 8, r()) : vary([186, 224, 238], 10, r()), 255];
+		}
+		if (frame) return [vary([108, 78, 40], 8, r()), 255];
+		return [vary([170, 130, 78], 14, r()), 255];
+	},
+	// 126: flower pot (箱は x5..10, 下から 6/16 の部分を使う)
+	(px, py, r) => [py === 10 || py === 11 ? (px >= 4 && px <= 11 ? vary([186, 104, 72], 8, r()) : vary([150, 80, 54], 8, r())) : vary([156, 82, 54], 10, r()), 255],
+	// 127: spare
+	(_px, _py, r) => [vary(STONE, 26, r()), 255],
 ];
 
 const tileAverages: Rgb[] = [];

@@ -33,6 +33,28 @@ function passable(id: number): boolean {
 	return id === BLOCK.air || id === BLOCK.water || BLOCK_DEFS[id]?.replaceable === true;
 }
 
+/** ドアの上下 (同じ軸) の相方。ドアでなければ null */
+export function doorCounterpart(id: number): number | null {
+	switch (id) {
+		case BLOCK.oakDoor: return BLOCK.oakDoorUpper;
+		case BLOCK.oakDoorUpper: return BLOCK.oakDoor;
+		case BLOCK.oakDoorZ: return BLOCK.oakDoorZUpper;
+		case BLOCK.oakDoorZUpper: return BLOCK.oakDoorZ;
+		default: return null;
+	}
+}
+
+/** ドアを開閉したあとの id (同じ半分で軸だけ入れ替わる)。ドアでなければ null */
+export function doorToggled(id: number): number | null {
+	switch (id) {
+		case BLOCK.oakDoor: return BLOCK.oakDoorZ;
+		case BLOCK.oakDoorZ: return BLOCK.oakDoor;
+		case BLOCK.oakDoorUpper: return BLOCK.oakDoorZUpper;
+		case BLOCK.oakDoorZUpper: return BLOCK.oakDoorUpper;
+		default: return null;
+	}
+}
+
 function isLog(id: number): boolean {
 	return id === BLOCK.log || id === BLOCK.birchLog;
 }
@@ -218,6 +240,10 @@ export function cascadeAfterRemoval(world: CraftWorld, x: number, y: number, z: 
 		out.push({ x: px, y: py, z: pz, id });
 	};
 
+	// ドアの片方が消えたらもう片方も消える
+	const below = get(x, y - 1, z);
+	if (BLOCK_DEFS[below]?.door?.half === 'lower') put(x, y - 1, z, BLOCK.air);
+
 	// 横の梯子: 壁にできる固体が 1 つも残らなければ消える
 	for (let d = 0; d < 4; d++) {
 		const lx = x + (d === 0 ? 1 : d === 1 ? -1 : 0);
@@ -238,8 +264,10 @@ export function cascadeAfterRemoval(world: CraftWorld, x: number, y: number, z: 
 	const sweep = (from: number): number => {
 		let yy = from;
 		while (yy <= WORLD.maxY && out.length < FALL_CAP * 2) {
-			const support = BLOCK_DEFS[get(x, yy, z)]?.support;
-			if (support !== 'below' && support !== 'farmland') break;
+			const sdef = BLOCK_DEFS[get(x, yy, z)];
+			const support = sdef?.support;
+			// ドアの上半分は下半分が消えたら一緒に消える
+			if (support !== 'below' && support !== 'farmland' && sdef?.door?.half !== 'lower' && sdef?.door?.half !== 'upper') break;
 			put(x, yy, z, BLOCK.air);
 			yy++;
 		}
@@ -276,7 +304,13 @@ export function canPlaceAt(world: CraftWorld, id: number, x: number, y: number, 
 	if (!passable(target)) return false;
 	const def = BLOCK_DEFS[id];
 	if (def == null) return false;
-	const support = def.support;
+	const baseDef = def.facingSet != null ? BLOCK_DEFS[def.facingSet[0]] ?? def : def;
+	const isDoor = def.door != null;
+	const support = baseDef.support ?? (def.door?.half === 'lower' ? 'below' : undefined);
+	if (isDoor && def.door?.half === 'lower') {
+		const above = world.getBlock(x, y + 1, z);
+		if (above !== BLOCK.air && BLOCK_DEFS[above]?.replaceable !== true) return false;
+	}
 	if (support == null) return true;
 	if (target === BLOCK.water && support !== 'wall') return false;
 

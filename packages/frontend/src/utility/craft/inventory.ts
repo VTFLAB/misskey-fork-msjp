@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { ARMOR_SLOTS, ITEM_DEFS, PLAYER } from './constants.js';
+import { ARMOR_MATERIALS, ARMOR_SLOTS, ITEM_DEFS, PLAYER } from './constants.js';
 import type { EnchantId, Ingredient } from './constants.js';
 import { canMerge, cloneStack, damageItem, deserializeStack, enchantLevel, hasEnchants, maxStackOf, serializeStack } from './items.js';
 import type { ItemStack, SerializedStack } from './types.js';
@@ -14,6 +14,60 @@ export class Inventory {
 
 	constructor() {
 		this.slots = new Array<ItemStack>(PLAYER.totalSlots).fill(null);
+	}
+
+	/** メイン (9..35) を重ねて並べ替える。ホットバーと防具枠は触らない。変わったら true */
+	public sort(): boolean {
+		const start = PLAYER.hotbarSize;
+		const end = PLAYER.inventorySize;
+		const before = JSON.stringify(this.serialize().slice(start, end));
+		const merged: NonNullable<ItemStack>[] = [];
+		for (let i = start; i < end; i++) {
+			const s = this.slots[i];
+			if (s == null) continue;
+			const max = maxStackOf(s);
+			let left = s.count;
+			if (max > 1) {
+				for (const m of merged) {
+					if (left <= 0) break;
+					if (canMerge(m, s) && m.count < max) {
+						const n = Math.min(left, max - m.count);
+						m.count += n;
+						left -= n;
+					}
+				}
+			}
+			if (left > 0) {
+				const c = cloneStack(s) as NonNullable<ItemStack>;
+				c.count = left;
+				merged.push(c);
+			}
+		}
+		const armorRank = (id: number): number => {
+			const m = ARMOR_MATERIALS.find(a => a.index === Math.floor((id - 300) / 10));
+			return m == null ? 0 : m.points.reduce((a, b) => a + b, 0) + m.toughness;
+		};
+		const key = (s: NonNullable<ItemStack>): number[] => {
+			const def = ITEM_DEFS[s.id];
+			const plain = (hasEnchants(s) || (s.dmg ?? 0) > 0) ? 0 : 1;
+			if (def?.kind === 'tool' && def.tool != null) {
+				const mat = Math.floor((s.id - 200) / 10);
+				return [0, -def.tool.tier, -mat, s.id, plain, -s.count];
+			}
+			if (def?.kind === 'armor' && def.armor != null) return [1, -armorRank(s.id), def.armor.slotIndex, s.id, plain, -s.count];
+			const cat = def?.kind === 'bow' ? 2 : def?.kind === 'food' ? 3 : def?.kind === 'block' ? 4 : 5;
+			return [cat, s.id, plain, -s.count];
+		};
+		merged.sort((a, b) => {
+			const ka = key(a), kb = key(b);
+			for (let i = 0; i < Math.max(ka.length, kb.length); i++) {
+				const d = (ka[i] ?? 0) - (kb[i] ?? 0);
+				if (d !== 0) return d;
+			}
+			return 0;
+		});
+		for (let i = start; i < end; i++) this.slots[i] = merged[i - start] ?? null;
+		return JSON.stringify(this.serialize().slice(start, end)) !== before;
 	}
 
 	/** 防具枠か */
