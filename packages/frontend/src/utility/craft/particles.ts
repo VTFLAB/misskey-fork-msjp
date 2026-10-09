@@ -82,6 +82,20 @@ export class ParticleSystem {
 		return [((l >> 4) & 15) / 15, (l & 15) / 15];
 	}
 
+	/** ブロックの中は光が 0 なので、隣接 6 マスのうち一番明るい値を使う */
+	private lightAroundBlock(x: number, y: number, z: number): [number, number] {
+		const w = this.world;
+		if (w?.lightAt == null) return [1, 0];
+		const bx = Math.floor(x), by = Math.floor(y), bz = Math.floor(z);
+		let sky = 0, block = 0;
+		for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1], [0, 0, 0]]) {
+			const l = w.lightAt(bx + dx, by + dy, bz + dz);
+			sky = Math.max(sky, ((l >> 4) & 15) / 15);
+			block = Math.max(block, (l & 15) / 15);
+		}
+		return [sky, block];
+	}
+
 	private make(kind: ParticleKind, x: number, y: number, z: number, vx: number, vy: number, vz: number, life: number, size: number, c: [number, number, number], gravity: number, light: [number, number]): Particle {
 		return { kind, x, y, z, vx, vy, vz, life, maxLife: life, size, r: c[0], g: c[1], b: c[2], gravity, sky: light[0], block: light[1] };
 	}
@@ -92,7 +106,7 @@ export class ParticleSystem {
 		if (def == null) return;
 		const [r8, g8, b8] = tileAverageColor(def.tiles[1]);
 		this.trim(count);
-		const light = this.lightFor(x, y, z);
+		const light = this.lightAroundBlock(x, y, z);
 		// 発光ブロックの破片は暗がりでも光る
 		const glow = def.light > 0 ? Math.min(1, def.light / 15) : 0;
 		for (let i = 0; i < count; i++) {
@@ -102,7 +116,7 @@ export class ParticleSystem {
 			const pz = z + Math.random();
 			this.push(this.make('block', px, py, pz,
 				rnd(-2.5, 2.5), rnd(0.5, 4), rnd(-2.5, 2.5),
-				rnd(0.4, 1.2), rnd(0.08, 0.18),
+				rnd(0.4, 1.0), rnd(0.06, 0.12),
 				[r8 / 255 * k, g8 / 255 * k, b8 / 255 * k], GRAVITY,
 				[light[0], Math.max(light[1], glow)]));
 		}
