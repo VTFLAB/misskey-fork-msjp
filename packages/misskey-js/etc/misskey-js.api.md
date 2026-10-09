@@ -1491,6 +1491,9 @@ type CraftCreateResponse = operations['craft___create']['responses']['200']['con
 type CraftDeleteRequest = operations['craft___delete']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
+type CraftSaveStateRequest = operations['craft___save-state']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
 type CraftSetSkinRequest = operations['craft___set-skin']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -1504,6 +1507,12 @@ type CraftShowResponse = operations['craft___show']['responses']['200']['content
 
 // @public (undocumented)
 type CraftSkinResponse = operations['craft___skin']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type CraftStateRequest = operations['craft___state']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type CraftStateResponse = operations['craft___state']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type CraftUpdateRequest = operations['craft___update']['requestBody']['content']['application/json'];
@@ -2106,11 +2115,14 @@ declare namespace entities {
         CraftCreateRequest,
         CraftCreateResponse,
         CraftDeleteRequest,
+        CraftSaveStateRequest,
         CraftSetSkinRequest,
         CraftSetSkinResponse,
         CraftShowRequest,
         CraftShowResponse,
         CraftSkinResponse,
+        CraftStateRequest,
+        CraftStateResponse,
         CraftUpdateRequest,
         CraftUpdateResponse,
         CraftWorldsRequest,
