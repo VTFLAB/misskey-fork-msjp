@@ -71,6 +71,7 @@ import { MiReversiGame } from '@/models/ReversiGame.js';
 import { MiCraftWorld } from '@/models/CraftWorld.js';
 import { MiCraftBlock } from '@/models/CraftBlock.js';
 import { MiCraftSkin } from '@/models/CraftSkin.js';
+import { MiCraftPlayerState } from '@/models/CraftPlayerState.js';
 import { MiRole } from '@/models/Role.js';
 import { MiRoleAssignment } from '@/models/RoleAssignment.js';
 import { MiSignin } from '@/models/Signin.js';
@@ -199,6 +200,7 @@ export {
 	MiCraftWorld,
 	MiCraftBlock,
 	MiCraftSkin,
+	MiCraftPlayerState,
 };
 
 export type AbuseUserReportsRepository = Repository<MiAbuseUserReport> & MiRepository<MiAbuseUserReport>;
@@ -292,3 +294,4 @@ export type ReversiGamesRepository = Repository<MiReversiGame> & MiRepository<Mi
 export type CraftWorldsRepository = Repository<MiCraftWorld> & MiRepository<MiCraftWorld>;
 export type CraftBlocksRepository = Repository<MiCraftBlock> & MiRepository<MiCraftBlock>;
 export type CraftSkinsRepository = Repository<MiCraftSkin> & MiRepository<MiCraftSkin>;
+export type CraftPlayerStatesRepository = Repository<MiCraftPlayerState> & MiRepository<MiCraftPlayerState>;

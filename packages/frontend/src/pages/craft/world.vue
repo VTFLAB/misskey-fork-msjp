@@ -22,22 +22,39 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</button>
 				<div v-else-if="menuOpen && !dead" :class="$style.overlay">
 					<div :class="[$style.overlayBox, $style.menuBox]">
-						<div :class="$style.overlayTitle">{{ i18n.ts._craft.pauseMenu }}</div>
-						<div :class="$style.menuList">
-							<MkButton primary rounded full @click="resume"><i class="ti ti-player-play"></i> {{ i18n.ts._craft.resume }}</MkButton>
-							<MkButton v-if="$i" rounded full @click="openUi('inventory')"><i class="ti ti-backpack"></i> {{ i18n.ts._craft.inventory }}</MkButton>
-							<MkButton rounded full @click="toggleFullscreen"><i :class="fullscreen ? 'ti ti-arrows-minimize' : 'ti ti-arrows-maximize'"></i> {{ fullscreen ? i18n.ts._craft.exitFullscreen : i18n.ts._craft.fullscreen }}</MkButton>
-							<MkButton rounded full @click="toggleInputMode"><i :class="touchMode ? 'ti ti-keyboard' : 'ti ti-device-mobile'"></i> {{ touchMode ? i18n.ts._craft.desktopMode : i18n.ts._craft.touchMode }}</MkButton>
-							<MkButton rounded full @click="showMinimap = !showMinimap"><i :class="showMinimap ? 'ti ti-checkbox' : 'ti ti-square'"></i> {{ i18n.ts._craft.showMinimap }}</MkButton>
-							<MkButton v-if="canManage" rounded full @click="editWorld"><i class="ti ti-settings"></i> {{ i18n.ts._craft.editWorld }}</MkButton>
-							<MkButton rounded full @click="router.push('/craft')"><i class="ti ti-arrow-left"></i> {{ i18n.ts._craft.backToWorlds }}</MkButton>
-						</div>
-						<div v-if="!touchMode" :class="$style.overlayControls">{{ i18n.ts._craft.pauseHint }}</div>
+						<template v-if="menuView === 'main'">
+							<div :class="$style.overlayTitle">{{ i18n.ts._craft.pauseMenu }}</div>
+							<div :class="$style.menuList">
+								<MkButton primary rounded full @click="resume"><i class="ti ti-player-play"></i> {{ i18n.ts._craft.resume }}</MkButton>
+								<MkButton v-if="$i" rounded full @click="openUi('inventory')"><i class="ti ti-backpack"></i> {{ i18n.ts._craft.inventory }}</MkButton>
+								<MkButton rounded full @click="menuView = 'settings'"><i class="ti ti-settings"></i> {{ i18n.ts._craft.settings }}</MkButton>
+								<MkButton rounded full @click="toggleFullscreen"><i :class="fullscreen ? 'ti ti-arrows-minimize' : 'ti ti-arrows-maximize'"></i> {{ fullscreen ? i18n.ts._craft.exitFullscreen : i18n.ts._craft.fullscreen }}</MkButton>
+								<MkButton rounded full @click="toggleInputMode"><i :class="touchMode ? 'ti ti-keyboard' : 'ti ti-device-mobile'"></i> {{ touchMode ? i18n.ts._craft.desktopMode : i18n.ts._craft.touchMode }}</MkButton>
+								<MkButton v-if="canManage" rounded full @click="editWorld"><i class="ti ti-adjustments"></i> {{ i18n.ts._craft.editWorld }}</MkButton>
+								<MkButton rounded full @click="router.push('/craft')"><i class="ti ti-arrow-left"></i> {{ i18n.ts._craft.backToWorlds }}</MkButton>
+							</div>
+							<div v-if="!touchMode" :class="$style.overlayControls">{{ i18n.ts._craft.pauseHint }}</div>
+						</template>
+						<template v-else>
+							<div :class="$style.overlayTitle">{{ i18n.ts._craft.settings }}</div>
+							<div :class="$style.settingsList">
+								<MkSwitch v-model="settings.sound">{{ i18n.ts._craft.sound }}</MkSwitch>
+								<MkRange v-model="settings.soundVolume" :min="0" :max="1" :step="0.05" :textConverter="(v) => `${Math.round(v * 100)}%`">
+									<template #label>{{ i18n.ts._craft.soundVolume }}</template>
+								</MkRange>
+								<MkRange v-model="settings.renderDistance" :min="4" :max="12" :step="1">
+									<template #label>{{ i18n.ts._craft.renderDistance }}</template>
+								</MkRange>
+								<MkSwitch v-model="settings.viewBobbing">{{ i18n.ts._craft.viewBobbing }}</MkSwitch>
+								<MkSwitch v-model="showMinimap">{{ i18n.ts._craft.showMinimap }}</MkSwitch>
+								<MkButton rounded full @click="menuView = 'main'"><i class="ti ti-arrow-left"></i> {{ i18n.ts.goBack }}</MkButton>
+							</div>
+						</template>
 					</div>
 				</div>
 
 				<div v-if="active && !uiOpen" :class="$style.crosshair"></div>
-				<div v-if="breakProgress > 0" :class="$style.breakBar"><div :class="$style.breakBarFill" :style="{ width: `${Math.round(breakProgress * 100)}%` }"></div></div>
+				<div v-if="breakProgress > 0 || useProgress > 0" :class="$style.breakBar"><div :class="$style.breakBarFill" :style="{ width: `${Math.round(Math.max(breakProgress, useProgress) * 100)}%` }"></div></div>
 
 				<div
 					v-for="label in playerLabels"
@@ -58,45 +75,53 @@ SPDX-License-Identifier: AGPL-3.0-only
 					<div :class="$style.hudItem" style="font-variant-numeric: tabular-nums;">{{ positionText }}</div>
 				</div>
 
+				<div :class="$style.toasts">
+					<TransitionGroup :enterFromClass="$style.toastEnterFrom" :leaveToClass="$style.toastLeaveTo" :enterActiveClass="$style.toastActive" :leaveActiveClass="$style.toastActive">
+						<div v-for="t in toasts" :key="t.id" :class="[$style.toast, t.kind === 'levelUp' && $style.toastLevelUp]">
+							<img v-if="t.icon" :class="$style.toastIcon" :src="t.icon" alt=""/>
+							<span>{{ t.text }}</span>
+						</div>
+					</TransitionGroup>
+				</div>
+
 				<div :class="$style.hudRight">
 					<canvas v-show="showMinimap" ref="minimapEl" :class="$style.minimap" role="img" :aria-label="i18n.ts._craft.minimap" :title="i18n.ts._craft.minimap"></canvas>
 					<button v-if="!menuOpen && !dead" type="button" class="_button" :class="$style.hudButton" :title="i18n.ts._craft.pauseMenu" :aria-label="i18n.ts._craft.pauseMenu" @click="openMenu"><i class="ti ti-menu-2"></i></button>
 				</div>
 
 				<div v-if="$i" :class="$style.bottom">
-					<div :class="$style.stats">
-						<div :class="$style.stat" :title="i18n.ts._craft.health">
-							<i class="ti ti-heart-filled" style="color: #e8453c;"></i>
-							<div :class="$style.statBar"><div :class="$style.statFill" style="background: #e8453c;" :style="{ width: `${stats.health / PLAYER.maxHealth * 100}%` }"></div></div>
-							<span :class="$style.statValue">{{ Math.ceil(stats.health) }}</span>
+					<div :class="$style.statusRows">
+						<div v-if="stats.armor > 0" :class="$style.iconRow" :title="i18n.ts._craft.armor">
+							<i v-for="i in 10" :key="i" class="ti ti-shield-filled" :class="$style.statIcon" :style="iconStyle(stats.armor, i, '#c8d2dc')"></i>
 						</div>
-						<div :class="$style.stat" :title="i18n.ts._craft.hunger">
-							<i class="ti ti-meat" style="color: #e3a02a;"></i>
-							<div :class="$style.statBar"><div :class="$style.statFill" style="background: #e3a02a;" :style="{ width: `${stats.hunger / PLAYER.maxHunger * 100}%` }"></div></div>
-							<span :class="$style.statValue">{{ Math.ceil(stats.hunger) }}</span>
+						<div :class="$style.rowPair">
+							<div :class="[$style.iconRow, stats.health <= 4 && $style.iconRowBlink]" :title="i18n.ts._craft.health">
+								<i v-for="i in 10" :key="i" class="ti ti-heart-filled" :class="$style.statIcon" :style="iconStyle(stats.health, i, '#e8453c')"></i>
+							</div>
+							<div :class="[$style.iconRow, $style.iconRowRight]" :title="i18n.ts._craft.hunger">
+								<i v-for="i in 10" :key="i" class="ti ti-meat" :class="$style.statIcon" :style="iconStyle(stats.hunger, 11 - i, '#e3a02a')"></i>
+							</div>
 						</div>
-						<div v-if="stats.air < PLAYER.maxAir" :class="$style.stat" :title="i18n.ts._craft.air">
-							<i class="ti ti-droplet" style="color: #4aa3e8;"></i>
-							<div :class="$style.statBar"><div :class="$style.statFill" style="background: #4aa3e8;" :style="{ width: `${stats.air / PLAYER.maxAir * 100}%` }"></div></div>
+						<div v-if="stats.air < PLAYER.maxAir" :class="[$style.iconRow, $style.iconRowRight]" :title="i18n.ts._craft.air">
+							<i v-for="i in 10" :key="i" class="ti ti-droplet-filled" :class="$style.statIcon" :style="iconStyle(stats.air / PLAYER.maxAir * 20, 11 - i, '#4aa3e8')"></i>
+						</div>
+						<div :class="$style.xpRow" :title="i18n.ts._craft.xp">
+							<div :class="$style.xpBar"><div :class="$style.xpFill" :style="{ width: `${Math.round(stats.xpProgress * 100)}%` }"></div></div>
+							<span v-if="stats.level > 0" :class="$style.xpLevel">{{ stats.level }}</span>
 						</div>
 					</div>
 					<div :class="$style.hotbar">
-						<button
+						<XSlot
 							v-for="(stack, index) in hotbar"
 							:key="index"
-							type="button"
-							class="_button"
-							:class="[$style.slot, index === hotbarIndex && $style.slotActive]"
-							:title="stack ? itemName(stack.id) : undefined"
-							:aria-pressed="index === hotbarIndex"
+							:stack="stack"
+							:version="inventoryVersion"
+							:active="index === hotbarIndex"
+							:keyLabel="String(index + 1)"
 							@click="engine?.selectHotbar(index)"
-						>
-							<img v-if="stack" :class="$style.slotIcon" :src="itemIcon(stack.id)" alt=""/>
-							<span v-if="stack && stack.count > 1" :class="$style.slotCount">{{ stack.count }}</span>
-							<span :class="$style.slotKey">{{ index + 1 }}</span>
-						</button>
+						/>
 					</div>
-					<div v-if="selectedName" :class="$style.selectedName">{{ selectedName }}</div>
+					<div v-if="selectedName" :class="$style.selectedName" :style="{ color: selectedColor }">{{ selectedName }}</div>
 				</div>
 
 				<div v-if="touchMode && active && !uiOpen" :class="$style.touch">
@@ -111,68 +136,30 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 				</div>
 
-				<div v-if="uiOpen" :class="$style.panelOverlay">
+				<div v-if="uiOpen && engine" :class="$style.panelOverlay">
 					<div :class="$style.panel">
 						<div :class="$style.panelHeader">
-							<button type="button" class="_button" :class="[$style.panelTab, panelTab === 'inventory' && $style.panelTabActive]" :aria-pressed="panelTab === 'inventory'" @click="panelTab = 'inventory'">{{ i18n.ts._craft.inventory }}</button>
-							<button type="button" class="_button" :class="[$style.panelTab, panelTab === 'crafting' && $style.panelTabActive]" :aria-pressed="panelTab === 'crafting'" @click="panelTab = 'crafting'">{{ i18n.ts._craft.crafting }}</button>
+							<button
+								v-for="tab in panelTabs"
+								:key="tab.key"
+								type="button"
+								class="_button"
+								:class="[$style.panelTab, panelTab === tab.key && $style.panelTabActive]"
+								:aria-pressed="panelTab === tab.key"
+								@click="panelTab = tab.key"
+							><i :class="tab.icon"></i> {{ tab.label }}</button>
 							<button type="button" class="_button" :class="$style.panelClose" :aria-label="i18n.ts.close" :title="i18n.ts.close" @click="closeUi"><i class="ti ti-x"></i></button>
 						</div>
-						<div v-if="panelTab === 'inventory'" :class="$style.inventory">
-							<div :class="$style.invGrid">
-								<button
-									v-for="(stack, index) in invMain"
-									:key="index"
-									type="button"
-									class="_button"
-									:class="[$style.slot, pickedSlot === index + 9 && $style.slotPicked]"
-									:title="stack ? itemName(stack.id) : undefined"
-									@click="clickSlot(index + 9)"
-								>
-									<img v-if="stack" :class="$style.slotIcon" :src="itemIcon(stack.id)" alt=""/>
-									<span v-if="stack && stack.count > 1" :class="$style.slotCount">{{ stack.count }}</span>
-								</button>
-							</div>
-							<div :class="$style.invGrid" style="margin-top: 10px;">
-								<button
-									v-for="(stack, index) in hotbar"
-									:key="index"
-									type="button"
-									class="_button"
-									:class="[$style.slot, pickedSlot === index && $style.slotPicked, index === hotbarIndex && $style.slotActive]"
-									:title="stack ? itemName(stack.id) : undefined"
-									@click="clickSlot(index)"
-								>
-									<img v-if="stack" :class="$style.slotIcon" :src="itemIcon(stack.id)" alt=""/>
-									<span v-if="stack && stack.count > 1" :class="$style.slotCount">{{ stack.count }}</span>
-									<span :class="$style.slotKey">{{ index + 1 }}</span>
-								</button>
-							</div>
-							<div v-if="pickedName" :class="$style.selectedName" style="margin-top: 8px;">{{ pickedName }}</div>
-						</div>
-						<div v-else :class="$style.craftingList">
-							<div v-if="!nearTable" :class="$style.craftingNote"><i class="ti ti-info-circle"></i> {{ i18n.ts._craft.craftingTableRequired }}</div>
-							<div v-for="entry in recipes" :key="entry.recipe.key" :class="[$style.recipe, !entry.craftable && $style.recipeDisabled]">
-								<img :class="$style.recipeIcon" :src="itemIcon(entry.recipe.result.id)" alt=""/>
-								<div :class="$style.recipeBody">
-									<div :class="$style.recipeName">{{ itemName(entry.recipe.result.id) }}<span v-if="entry.recipe.result.count > 1"> x{{ entry.recipe.result.count }}</span><i v-if="entry.recipe.needsTable" class="ti ti-tool" style="margin-left: 6px; opacity: 0.6;" :title="i18n.ts._craft.craftingTableRequired"></i></div>
-									<div :class="$style.recipeIngredients">
-										<span v-for="ing in entry.recipe.ingredients" :key="ing.id" :class="$style.recipeIngredient">
-											<img :class="$style.recipeIngredientIcon" :src="itemIcon(ing.id)" alt=""/>
-											{{ itemName(ing.id) }} x{{ ing.count }}
-										</span>
-									</div>
-								</div>
-								<MkButton :disabled="!entry.craftable" small primary @click="doCraft(entry.recipe)">{{ i18n.ts._craft.craftButton }}</MkButton>
-							</div>
-						</div>
+						<XInventoryPanel v-if="panelTab === 'inventory'" :engine="engine" :version="inventoryVersion"/>
+						<XCraftingPanel v-else-if="panelTab === 'crafting' || panelTab === 'furnace'" :engine="engine" :version="inventoryVersion" :mode="panelTab"/>
+						<XEnchantPanel v-else :engine="engine" :version="inventoryVersion" @changed="inventoryVersion++"/>
 					</div>
 				</div>
 
 				<div v-if="dead" :class="$style.overlay">
 					<div :class="$style.overlayBox">
 						<div :class="$style.overlayTitle" style="color: #ff7b7b;">{{ i18n.ts._craft.youDied }}</div>
-						<div :class="$style.overlayControls">{{ i18n.ts._craft.deathNote }}</div>
+						<div :class="$style.overlayControls">{{ i18n.ts._craft.deathNoteXp }}</div>
 						<MkButton primary rounded style="margin: 12px auto 0;" @click="respawn">{{ i18n.ts._craft.respawn }}</MkButton>
 					</div>
 				</div>
@@ -182,7 +169,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<MkAvatar :class="$style.infoAvatar" :user="world.user"/>
 				<div>
 					<div><b>{{ world.name }}</b> <span v-if="!world.isPublic" :title="i18n.ts._craft.ownerOnly"><i class="ti ti-lock"></i></span></div>
-					<div style="font-size: 0.85em; opacity: 0.7;"><MkUserName :user="world.user"/> · {{ i18n.tsx._craft.blocksCount({ n: world.blockCount }) }} · {{ i18n.ts._craft.seed }}: {{ world.seed }}</div>
+					<div style="font-size: 0.85em; opacity: 0.7;"><MkUserName :user="world.user"/> · {{ i18n.tsx._craft.blocksCount({ n: world.blockCount }) }} · {{ i18n.ts._craft.seed }}: {{ world.seed }}<template v-if="$i"> · <i class="ti ti-cloud-check"></i> {{ i18n.ts._craft.savedToServer }}</template></div>
 				</div>
 			</div>
 		</div>
@@ -192,7 +179,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch, nextTick } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref, shallowRef, useTemplateRef, watch, nextTick } from 'vue';
 import * as Misskey from 'misskey-js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { definePage } from '@/page.js';
@@ -202,18 +189,26 @@ import { $i } from '@/i.js';
 import { useRouter } from '@/router.js';
 import * as os from '@/os.js';
 import MkButton from '@/components/MkButton.vue';
+import MkSwitch from '@/components/MkSwitch.vue';
+import MkRange from '@/components/MkRange.vue';
 import { CraftEngine } from '@/utility/craft/engine.js';
-import type { EngineState } from '@/utility/craft/engine.js';
-import { ITEM_DEFS, PLAYER, isNight } from '@/utility/craft/constants.js';
-import type { Recipe } from '@/utility/craft/constants.js';
+import type { EngineState, EngineToast, PanelKind } from '@/utility/craft/engine.js';
+import { PLAYER, WORLD, isNight } from '@/utility/craft/constants.js';
 import type { ItemStack, MobSnapshot, PlayerStats } from '@/utility/craft/types.js';
 import { itemIcon } from '@/utility/craft/icons.js';
+import XSlot from './craft.item-slot.vue';
+import XInventoryPanel from './craft.inventory-panel.vue';
+import XCraftingPanel from './craft.crafting-panel.vue';
+import XEnchantPanel from './craft.enchant-panel.vue';
+import { itemName, mobName, rarityColor, stackRarity } from './names.js';
 
 const props = defineProps<{
 	worldId: string;
 }>();
 
 const router = useRouter();
+
+type PanelTab = 'inventory' | PanelKind;
 
 const world = ref<Misskey.entities.CraftWorld | null>(null);
 const stageEl = useTemplateRef('stageEl');
@@ -232,10 +227,11 @@ const connection = shallowRef<Misskey.IChannelConnection<Misskey.Channels['craft
 const active = ref(false);
 const uiOpen = ref(false);
 const menuOpen = ref(false);
+const menuView = ref<'main' | 'settings'>('main');
 const showMinimap = ref(true);
 let started = false;
 const dead = ref(false);
-const panelTab = ref<'inventory' | 'crafting'>('inventory');
+const panelTab = ref<PanelTab>('inventory');
 const fullscreen = ref(false);
 const touchMode = ref(false);
 const isHost = ref(false);
@@ -245,15 +241,28 @@ const hotbarIndex = ref(0);
 const playerCount = ref(0);
 const positionText = ref('');
 const breakProgress = ref(0);
+const useProgress = ref(0);
 const webglError = ref(false);
-const stats = ref<PlayerStats>({ health: PLAYER.maxHealth, hunger: PLAYER.maxHunger, air: PLAYER.maxAir });
+const stats = ref<PlayerStats>({ health: PLAYER.maxHealth, hunger: PLAYER.maxHunger, saturation: 5, air: PLAYER.maxAir, armor: 0, level: 0, xpProgress: 0, totalXp: 0 });
 const inventoryVersion = ref(0);
-const pickedSlot = ref<number | null>(null);
-const nearTable = ref(false);
 const playerLabels = ref<{ userId: string; username: string; name: string | null; avatarUrl: string | null; x: number; y: number; dist: number }[]>([]);
+const toasts = ref<{ id: number; kind: EngineToast['kind']; text: string; icon: string | null }[]>([]);
+let toastSeq = 0;
+const toastTimers = new Set<number>();
 let hudTimer: number | null = null;
 let saveTimer: number | null = null;
 let starting = false;
+let lastSavedJson = '';
+
+const SETTINGS_KEY = 'craft:settings';
+const settings = reactive(loadSettings());
+
+const panelTabs = computed<{ key: PanelTab; label: string; icon: string }[]>(() => [
+	{ key: 'inventory', label: i18n.ts._craft.inventory, icon: 'ti ti-backpack' },
+	{ key: 'crafting', label: i18n.ts._craft.crafting, icon: 'ti ti-tool' },
+	{ key: 'furnace', label: i18n.ts._craft.furnace, icon: 'ti ti-flame' },
+	{ key: 'enchanting', label: i18n.ts._craft.enchanting, icon: 'ti ti-wand' },
+]);
 
 const canBuild = computed(() => {
 	if (world.value == null || $i == null) return false;
@@ -270,64 +279,141 @@ const hotbar = computed<ItemStack[]>(() => {
 	return engine.value ? engine.value.player.inventory.slots.slice(0, PLAYER.hotbarSize) : new Array<ItemStack>(PLAYER.hotbarSize).fill(null);
 });
 
-const invMain = computed<ItemStack[]>(() => {
-	void inventoryVersion.value;
-	return engine.value ? engine.value.player.inventory.slots.slice(PLAYER.hotbarSize) : [];
+const selectedStack = computed(() => hotbar.value[hotbarIndex.value] ?? null);
+const selectedName = computed(() => selectedStack.value ? itemName(selectedStack.value.id) : null);
+const selectedColor = computed(() => {
+	const r = stackRarity(selectedStack.value);
+	return r === 'common' ? '#fff' : rarityColor(r);
 });
 
-const recipes = computed<{ recipe: Recipe; craftable: boolean }[]>(() => {
-	void inventoryVersion.value;
-	void nearTable.value;
-	return engine.value ? engine.value.recipes() : [];
-});
+/** 10 個のアイコンで 0..20 の値を表す。i 番目 (1..10) の塗り方 */
+function iconStyle(value: number, i: number, color: string): Record<string, string> {
+	const full = value >= i * 2;
+	const half = !full && value >= i * 2 - 1;
+	return {
+		color,
+		opacity: full ? '1' : half ? '0.55' : '0.18',
+	};
+}
 
-const selectedName = computed(() => {
-	const stack = hotbar.value[hotbarIndex.value];
-	return stack ? itemName(stack.id) : null;
-});
-
-const pickedName = computed(() => {
-	if (pickedSlot.value == null || engine.value == null) return null;
-	const stack = engine.value.player.inventory.slots[pickedSlot.value];
-	return stack ? itemName(stack.id) : null;
-});
-
-function itemName(id: number): string {
-	const def = ITEM_DEFS[id];
-	if (def == null) return '';
-	if (def.kind === 'block') {
-		return (i18n.ts._craft._blocks as Record<string, string>)[def.key] ?? def.key;
+function loadSettings(): { sound: boolean; soundVolume: number; renderDistance: number; viewBobbing: boolean } {
+	const defaults = { sound: true, soundVolume: 0.6, renderDistance: WORLD.renderDistance as number, viewBobbing: true };
+	try {
+		const raw = window.localStorage.getItem(SETTINGS_KEY);
+		if (raw == null) return defaults;
+		const parsed = JSON.parse(raw) as Partial<typeof defaults>;
+		return { ...defaults, ...parsed };
+	} catch {
+		return defaults;
 	}
-	return (i18n.ts._craft._items as Record<string, string>)[def.key] ?? def.key;
+}
+
+function applySettings() {
+	try {
+		window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+	} catch {
+		// ignore
+	}
+	engine.value?.updateSettings({
+		soundVolume: settings.soundVolume,
+		muted: !settings.sound,
+		renderDistance: settings.renderDistance,
+		viewBobbing: settings.viewBobbing,
+	});
 }
 
 function stateKey(): string {
 	return `craft:state:${props.worldId}:${$i?.id ?? 'guest'}`;
 }
 
-function loadState(): EngineState | null {
+function loadLocalState(): { state: EngineState; savedAt: number } | null {
 	try {
 		const raw = window.localStorage.getItem(stateKey());
 		if (raw == null) return null;
-		const parsed = JSON.parse(raw) as EngineState;
-		if (typeof parsed !== 'object' || typeof parsed.pos?.x !== 'number') return null;
-		return parsed;
+		const parsed = JSON.parse(raw) as { state?: EngineState; savedAt?: number } & Partial<EngineState>;
+		// 旧形式 (state を直接保存) にも対応する
+		const state = parsed.state ?? (parsed as EngineState);
+		if (typeof state !== 'object' || typeof state.pos?.x !== 'number') return null;
+		return { state, savedAt: typeof parsed.savedAt === 'number' ? parsed.savedAt : 0 };
 	} catch {
 		return null;
 	}
 }
 
-function saveState() {
-	if (engine.value == null || $i == null || engine.value.player.isDead) return;
+async function loadState(): Promise<EngineState | null> {
+	const local = loadLocalState();
+	if ($i == null) return local?.state ?? null;
 	try {
-		window.localStorage.setItem(stateKey(), JSON.stringify(engine.value.exportState()));
+		const res = await misskeyApi('craft/state', { worldId: props.worldId });
+		if (res.state != null && typeof (res.state as unknown as EngineState).pos?.x === 'number') {
+			const serverAt = res.updatedAt ? new Date(res.updatedAt).getTime() : 0;
+			if (local == null || serverAt >= local.savedAt) return res.state as unknown as EngineState;
+		}
+	} catch (err) {
+		console.error(err);
+	}
+	return local?.state ?? null;
+}
+
+function saveState(force = false) {
+	if (engine.value == null || $i == null) return;
+	// 死んでいる間も保存する (レベルは死んだ時点で失っているので、リロードで逃れられない)
+	const state = engine.value.exportState();
+	const json = JSON.stringify(state);
+	if (!force && json === lastSavedJson) return;
+	const savedAt = Date.now();
+	try {
+		window.localStorage.setItem(stateKey(), JSON.stringify({ state, savedAt }));
 	} catch {
 		// 容量不足などは無視
 	}
+	misskeyApi('craft/save-state', { worldId: props.worldId, state: state as unknown as Record<string, unknown> }).then(() => {
+		lastSavedJson = json;
+	}).catch(err => console.error(err));
 }
 
 async function load() {
 	world.value = await misskeyApi('craft/show', { worldId: props.worldId });
+}
+
+function pushToast(t: EngineToast) {
+	let text = '';
+	let icon: string | null = null;
+	switch (t.kind) {
+		case 'pickup':
+			text = i18n.tsx._craft.pickedUp({ name: itemName(t.id), n: t.count });
+			icon = itemIcon(t.id);
+			break;
+		case 'kill':
+			text = i18n.tsx._craft.killed({ name: mobName(t.mobType), xp: t.xp });
+			break;
+		case 'levelUp':
+			text = i18n.tsx._craft.levelUp({ level: i18n.tsx._craft.levelsCount({ n: t.level }) });
+			break;
+		case 'spawnSet':
+			text = i18n.ts._craft.spawnPointSet;
+			break;
+		case 'itemBroke':
+			text = `${itemName(t.id)} ×`;
+			icon = itemIcon(t.id);
+			break;
+		case 'inventoryFull':
+			text = i18n.ts._craft.gachaInventoryFull;
+			break;
+	}
+	// 同じ拾得は 1 行にまとめる
+	const last = toasts.value[toasts.value.length - 1];
+	if (t.kind === 'pickup' && last?.kind === 'pickup' && last.icon === icon) {
+		toasts.value.pop();
+	}
+	const id = ++toastSeq;
+	toasts.value.push({ id, kind: t.kind, text, icon });
+	if (toasts.value.length > 5) toasts.value.shift();
+	const timer = window.setTimeout(() => {
+		toastTimers.delete(timer);
+		toasts.value = toasts.value.filter(x => x.id !== id);
+	}, 3000);
+	toastTimers.add(timer);
 }
 
 async function startEngine() {
@@ -344,12 +430,17 @@ async function startEngine() {
 		}
 		e.localUserId = $i?.id ?? null;
 		e.canBuild = canBuild.value;
+		e.worldOwnerId = world.value.userId;
+		e.worldIsPublic = world.value.isPublic;
 		touchMode.value = e.inputMode === 'touch';
 
 		e.on('activeChange', (v) => {
 			active.value = v;
 			// 操作をやめた (Esc など) らポーズメニューを出す
-			if (!v && started && !uiOpen.value && !dead.value) menuOpen.value = true;
+			if (!v && started && !uiOpen.value && !dead.value) {
+				menuOpen.value = true;
+				menuView.value = 'main';
+			}
 		});
 		e.on('fullscreenChange', (v) => { fullscreen.value = v; });
 		e.on('hostChange', (v) => { isHost.value = v; });
@@ -357,6 +448,7 @@ async function startEngine() {
 		e.on('inventoryChange', () => { inventoryVersion.value++; });
 		e.on('statsChange', (s) => { stats.value = s; });
 		e.on('playersChange', () => { playerCount.value = e.remotePlayers.size; });
+		e.on('toast', pushToast);
 		e.on('died', () => {
 			dead.value = true;
 			uiOpen.value = false;
@@ -366,7 +458,7 @@ async function startEngine() {
 		e.on('toggleInventory', () => {
 			if (uiOpen.value) closeUi(); else openUi('inventory');
 		});
-		e.on('openCrafting', () => openUi('crafting'));
+		e.on('openPanel', (panel) => openUi(panel));
 		e.on('setBlock', (x, y, z, type) => {
 			connection.value?.send('setBlock', { x, y, z, type });
 		});
@@ -378,13 +470,14 @@ async function startEngine() {
 			connection.value?.send('mobs', { t: snapshot.t, mobs: snapshot.mobs });
 		});
 		e.on('mobHit', (hit) => {
-			connection.value?.send('mobHit', hit);
+			connection.value?.send('mobHit', { id: hit.id, damage: hit.damage, kx: hit.kx, kz: hit.kz });
 		});
 
 		// 取得中の変更を取りこぼさないよう、先に購読してから差分を取得する
 		connect(e);
+		let state: EngineState | null = null;
 		try {
-			await loadBlocks(e);
+			[state] = await Promise.all([loadState(), loadBlocks(e)]);
 		} catch (err) {
 			console.error(err);
 			e.dispose();
@@ -396,12 +489,14 @@ async function startEngine() {
 			return;
 		}
 
-		e.start(loadState());
+		e.start(state);
 		engine.value = e;
-		e.attachMinimap(minimapEl.value ?? null);
+		applySettings();
+		e.attachMinimap(showMinimap.value ? (minimapEl.value ?? null) : null);
 		inventoryVersion.value++;
 		hotbarIndex.value = e.player.hotbarIndex;
-		stats.value = { ...e.player.stats };
+		stats.value = e.player.exportStats();
+		lastSavedJson = JSON.stringify(e.exportState());
 		bindTouch();
 
 		hudTimer = window.setInterval(() => {
@@ -409,16 +504,16 @@ async function startEngine() {
 			positionText.value = `X ${Math.floor(p.pos.x)}  Y ${Math.floor(p.pos.y)}  Z ${Math.floor(p.pos.z)}`;
 			playerCount.value = e.remotePlayers.size;
 			breakProgress.value = e.breakProgressValue;
+			useProgress.value = e.useProgress;
 			night.value = isNight();
-			const near = e.mobs.nearestDistance(p.pos.x, p.pos.y, p.pos.z);
+			const near = e.nearestHostileDistance();
 			enemyNear.value = near != null && near < 12;
-			nearTable.value = e.nearTable;
 			playerLabels.value = e.remotePlayerScreenPositions().map(pos => {
 				const rp = e.remotePlayers.get(pos.userId)!;
 				return { ...pos, username: rp.username, name: rp.name, avatarUrl: rp.avatarUrl };
 			});
 		}, 100);
-		saveTimer = window.setInterval(saveState, 10000);
+		saveTimer = window.setInterval(() => saveState(false), 15000);
 	} finally {
 		starting = false;
 	}
@@ -426,23 +521,30 @@ async function startEngine() {
 
 let blocksLoaded = false;
 let unmounted = false;
-let bufferedBlocks: { x: number; y: number; z: number; type: number }[] = [];
+let bufferedBlocks: { x: number; y: number; z: number; type: number; userId: string | null }[] = [];
 
-async function loadBlocks(e: CraftEngine) {
+async function loadBlocks(e: CraftEngine): Promise<Map<string, number>> {
 	blocksLoaded = false;
 	const blocks = await misskeyApi('craft/blocks', { worldId: props.worldId });
 	e.world.applyFlat(blocks.blocks);
-	for (const b of bufferedBlocks) e.applyRemoteBlock(b.x, b.y, b.z, b.type);
+	const map = new Map<string, number>();
+	const flat = blocks.blocks;
+	for (let i = 0; i + 3 < flat.length; i += 4) map.set(`${flat[i]},${flat[i + 1]},${flat[i + 2]}`, flat[i + 3]);
+	for (const b of bufferedBlocks) {
+		e.applyRemoteBlock(b.x, b.y, b.z, b.type, b.userId);
+		map.set(`${b.x},${b.y},${b.z}`, b.type);
+	}
 	bufferedBlocks = [];
 	blocksLoaded = true;
+	return map;
 }
 
 function onReconnected() {
 	const e = engine.value;
 	if (e == null) return;
-	// 切断中に送った編集は届いたか分からないので戻してから取り直す
-	e.revertAllPending();
-	loadBlocks(e).catch(err => console.error(err));
+	// 切断中に送った編集は届いたか分からないので、取り直した差分と比べて確定・取消する
+	e.beginResync();
+	loadBlocks(e).then(map => e.finishResync(map)).catch(err => console.error(err));
 }
 
 function connect(e: CraftEngine) {
@@ -453,7 +555,7 @@ function connect(e: CraftEngine) {
 			bufferedBlocks.push(payload);
 			return;
 		}
-		e.applyRemoteBlock(payload.x, payload.y, payload.z, payload.type);
+		e.applyRemoteBlock(payload.x, payload.y, payload.z, payload.type, payload.userId);
 	});
 	c.on('setBlockRejected', (payload) => {
 		e.revertLocalEdit(payload.x, payload.y, payload.z);
@@ -474,6 +576,7 @@ function connect(e: CraftEngine) {
 	c.on('worldUpdated', (payload) => {
 		if (world.value == null) return;
 		world.value = { ...world.value, name: payload.name, isPublic: payload.isPublic };
+		if (engine.value) engine.value.worldIsPublic = payload.isPublic;
 	});
 	c.on('worldDeleted', () => {
 		os.alert({
@@ -512,6 +615,7 @@ function openMenu() {
 	const e = engine.value;
 	if (e == null) return;
 	menuOpen.value = true;
+	menuView.value = 'main';
 	e.stopPlaying();
 }
 
@@ -526,15 +630,13 @@ function toggleInputMode() {
 	touchMode.value = e.inputMode === 'touch';
 }
 
-function openUi(tab: 'inventory' | 'crafting') {
+function openUi(tab: PanelTab) {
 	const e = engine.value;
 	if (e == null || $i == null) return;
 	menuOpen.value = false;
 	panelTab.value = tab;
 	uiOpen.value = true;
-	pickedSlot.value = null;
 	e.uiOpen = true;
-	nearTable.value = e.nearTable;
 	inventoryVersion.value++;
 	e.stopPlaying();
 }
@@ -542,26 +644,10 @@ function openUi(tab: 'inventory' | 'crafting') {
 function closeUi() {
 	const e = engine.value;
 	uiOpen.value = false;
-	pickedSlot.value = null;
 	if (e == null) return;
 	e.uiOpen = false;
-	saveState();
+	saveState(false);
 	if (!dead.value) e.startPlaying();
-}
-
-function clickSlot(index: number) {
-	const e = engine.value;
-	if (e == null) return;
-	if (pickedSlot.value == null) {
-		if (e.player.inventory.slots[index] != null) pickedSlot.value = index;
-		return;
-	}
-	if (pickedSlot.value !== index) e.moveItem(pickedSlot.value, index);
-	pickedSlot.value = null;
-}
-
-function doCraft(recipe: Recipe) {
-	engine.value?.craftRecipe(recipe);
 }
 
 function respawn() {
@@ -571,6 +657,7 @@ function respawn() {
 	menuOpen.value = false;
 	e.uiOpen = false;
 	e.respawn();
+	saveState(true);
 	e.startPlaying();
 }
 
@@ -644,6 +731,8 @@ watch(showMinimap, (v) => {
 	engine.value?.attachMinimap(v ? (minimapEl.value ?? null) : null);
 });
 
+watch(settings, () => applySettings());
+
 watch(canvasEl, () => {
 	if (canvasEl.value != null) startEngine();
 });
@@ -655,7 +744,7 @@ watch([active, touchMode, uiOpen], async () => {
 });
 
 function onVisibilityChange() {
-	if (window.document.visibilityState === 'hidden') saveState();
+	if (window.document.visibilityState === 'hidden') saveState(false);
 }
 
 onMounted(async () => {
@@ -668,7 +757,8 @@ onUnmounted(() => {
 	window.document.removeEventListener('visibilitychange', onVisibilityChange);
 	if (hudTimer != null) window.clearInterval(hudTimer);
 	if (saveTimer != null) window.clearInterval(saveTimer);
-	saveState();
+	for (const t of toastTimers) window.clearTimeout(t);
+	saveState(false);
 	useStream().off('_connected_', onReconnected);
 	connection.value?.dispose();
 	connection.value = null;
@@ -732,6 +822,8 @@ definePage(() => ({
 
 .overlayBox {
 	max-width: 520px;
+	max-height: 92%;
+	overflow: auto;
 	padding: 20px 24px;
 	border-radius: var(--MI-radius);
 	background: rgba(0, 0, 0, 0.6);
@@ -766,6 +858,14 @@ definePage(() => ({
 	flex-direction: column;
 	gap: 8px;
 	margin-top: 14px;
+}
+
+.settingsList {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	margin-top: 14px;
+	text-align: left;
 }
 
 .crosshair {
@@ -861,6 +961,52 @@ definePage(() => ({
 	background: rgba(200, 40, 40, 0.75);
 }
 
+.toasts {
+	position: absolute;
+	left: 8px;
+	top: 48px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	pointer-events: none;
+	z-index: 6;
+}
+
+.toast {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 10px;
+	border-radius: 999px;
+	background: rgba(0, 0, 0, 0.5);
+	color: #fff;
+	font-size: 0.8em;
+}
+
+.toastLevelUp {
+	background: rgba(120, 80, 200, 0.8);
+	font-weight: bold;
+}
+
+.toastIcon {
+	width: 18px;
+	height: 18px;
+	image-rendering: pixelated;
+}
+
+.toastActive {
+	transition: opacity 0.3s, transform 0.3s;
+}
+
+.toastEnterFrom {
+	opacity: 0;
+	transform: translateX(-12px);
+}
+
+.toastLeaveTo {
+	opacity: 0;
+}
+
 .hudRight {
 	position: absolute;
 	right: 8px;
@@ -905,39 +1051,78 @@ definePage(() => ({
 	z-index: 5;
 }
 
-.stats {
+.statusRows {
 	display: flex;
-	gap: 10px;
-	padding: 4px 10px;
-	border-radius: 999px;
-	background: rgba(0, 0, 0, 0.45);
-	color: #fff;
-	font-size: 0.8em;
+	flex-direction: column;
+	gap: 2px;
+	width: 100%;
+	padding: 4px 6px;
+	border-radius: 8px;
+	background: rgba(0, 0, 0, 0.35);
 }
 
-.stat {
+.rowPair {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.iconRow {
+	display: flex;
+	gap: 1px;
+	font-size: 14px;
+	line-height: 1;
+	filter: drop-shadow(0 0 1px #000);
+}
+
+.iconRowRight {
+	margin-left: auto;
+}
+
+.iconRowBlink {
+	animation: craft-blink 0.6s steps(2) infinite;
+}
+
+@keyframes craft-blink {
+	from { opacity: 1; }
+	to { opacity: 0.5; }
+}
+
+.statIcon {
+	transition: opacity 0.15s;
+}
+
+.xpRow {
+	position: relative;
 	display: flex;
 	align-items: center;
-	gap: 4px;
+	height: 10px;
+	margin-top: 2px;
 }
 
-.statBar {
-	width: 70px;
-	height: 6px;
+.xpBar {
+	width: 100%;
+	height: 5px;
 	border-radius: 3px;
 	background: rgba(255, 255, 255, 0.2);
 	overflow: hidden;
 }
 
-.statFill {
+.xpFill {
 	height: 100%;
+	background: #7ed957;
 	transition: width 0.2s;
 }
 
-.statValue {
-	min-width: 1.5em;
-	text-align: right;
-	font-variant-numeric: tabular-nums;
+.xpLevel {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -55%);
+	font-size: 11px;
+	font-weight: bold;
+	color: #7ed957;
+	text-shadow: 0 0 2px #000, 0 0 2px #000;
 }
 
 .hotbar {
@@ -947,58 +1132,6 @@ definePage(() => ({
 	border-radius: 8px;
 	background: rgba(0, 0, 0, 0.45);
 	pointer-events: auto;
-}
-
-.slot {
-	position: relative;
-	width: 40px;
-	height: 40px;
-	border-radius: 6px;
-	border: 2px solid rgba(255, 255, 255, 0.25);
-	background: rgba(0, 0, 0, 0.3);
-	cursor: pointer;
-
-	&:hover {
-		border-color: rgba(255, 255, 255, 0.6);
-	}
-}
-
-.slotActive {
-	border-color: #fff;
-	box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4);
-}
-
-.slotPicked {
-	border-color: #ffd37a;
-	box-shadow: 0 0 0 2px rgba(255, 211, 122, 0.6);
-}
-
-.slotIcon {
-	position: absolute;
-	inset: 4px;
-	width: calc(100% - 8px);
-	height: calc(100% - 8px);
-	image-rendering: pixelated;
-	pointer-events: none;
-}
-
-.slotCount {
-	position: absolute;
-	right: 3px;
-	bottom: 1px;
-	font-size: 11px;
-	font-weight: bold;
-	color: #fff;
-	text-shadow: 0 0 2px #000, 0 0 2px #000;
-}
-
-.slotKey {
-	position: absolute;
-	left: 3px;
-	top: 0;
-	font-size: 9px;
-	color: rgba(255, 255, 255, 0.7);
-	text-shadow: 0 0 2px #000;
 }
 
 .selectedName {
@@ -1029,7 +1162,7 @@ definePage(() => ({
 .joystick {
 	position: absolute;
 	left: 24px;
-	bottom: 110px;
+	bottom: 130px;
 	width: 120px;
 	height: 120px;
 	border-radius: 50%;
@@ -1054,7 +1187,7 @@ definePage(() => ({
 .touchButtons {
 	position: absolute;
 	right: 16px;
-	bottom: 110px;
+	bottom: 130px;
 	display: grid;
 	grid-template-columns: repeat(3, 56px);
 	gap: 8px;
@@ -1093,8 +1226,8 @@ definePage(() => ({
 }
 
 .panel {
-	width: min(92%, 520px);
-	max-height: 90%;
+	width: min(94%, 560px);
+	max-height: 92%;
 	overflow: auto;
 	padding: 12px;
 	border-radius: var(--MI-radius);
@@ -1104,16 +1237,18 @@ definePage(() => ({
 
 .panelHeader {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: 6px;
 	margin-bottom: 10px;
 }
 
 .panelTab {
-	padding: 6px 14px;
+	padding: 6px 12px;
 	border-radius: 999px;
 	background: rgba(255, 255, 255, 0.1);
 	color: #fff;
+	font-size: 0.9em;
 }
 
 .panelTabActive {
@@ -1126,82 +1261,6 @@ definePage(() => ({
 	height: 32px;
 	border-radius: 50%;
 	color: #fff;
-}
-
-.inventory {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-}
-
-.invGrid {
-	display: grid;
-	grid-template-columns: repeat(9, 40px);
-	gap: 4px;
-}
-
-.craftingList {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-}
-
-.craftingNote {
-	padding: 6px 10px;
-	border-radius: 6px;
-	background: rgba(255, 211, 122, 0.15);
-	color: #ffd37a;
-	font-size: 0.85em;
-}
-
-.recipe {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	padding: 6px 8px;
-	border-radius: 8px;
-	background: rgba(255, 255, 255, 0.07);
-}
-
-.recipeDisabled {
-	opacity: 0.55;
-}
-
-.recipeIcon {
-	width: 36px;
-	height: 36px;
-	image-rendering: pixelated;
-}
-
-.recipeBody {
-	flex: 1;
-	min-width: 0;
-}
-
-.recipeName {
-	font-weight: bold;
-	font-size: 0.9em;
-}
-
-.recipeIngredients {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-	margin-top: 2px;
-	font-size: 0.8em;
-	opacity: 0.85;
-}
-
-.recipeIngredient {
-	display: inline-flex;
-	align-items: center;
-	gap: 3px;
-}
-
-.recipeIngredientIcon {
-	width: 16px;
-	height: 16px;
-	image-rendering: pixelated;
 }
 
 .info {
