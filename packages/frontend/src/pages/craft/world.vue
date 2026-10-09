@@ -156,6 +156,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 					</div>
 				</div>
 
+				<div v-if="sleep.sleeping && !dead" :class="[$style.overlay, $style.sleepOverlay]">
+					<div :class="$style.overlayBox">
+						<div :class="$style.overlayTitle"><i class="ti ti-zzz"></i> {{ i18n.ts._craft.sleeping }}</div>
+						<div :class="$style.overlayControls">{{ i18n.tsx._craft.sleepingCount({ count: sleep.count, total: sleep.total, required: sleep.required }) }}</div>
+						<div :class="$style.overlayControls">{{ i18n.ts._craft.wakeHint }}</div>
+						<MkButton rounded style="margin: 12px auto 0;" @click="wakeUp">{{ i18n.ts._craft.wakeUp }}</MkButton>
+					</div>
+				</div>
+
 				<div v-if="dead" :class="$style.overlay">
 					<div :class="$style.overlayBox">
 						<div :class="$style.overlayTitle" style="color: #ff7b7b;">{{ i18n.ts._craft.youDied }}</div>
@@ -193,7 +202,7 @@ import MkSwitch from '@/components/MkSwitch.vue';
 import MkRange from '@/components/MkRange.vue';
 import { CraftEngine } from '@/utility/craft/engine.js';
 import type { EngineState, EngineToast, PanelKind } from '@/utility/craft/engine.js';
-import { PLAYER, WORLD, isNight } from '@/utility/craft/constants.js';
+import { PLAYER, WORLD, isNight, setWorldTimeOffset } from '@/utility/craft/constants.js';
 import type { ItemStack, MobSnapshot, PlayerStats } from '@/utility/craft/types.js';
 import { itemIcon } from '@/utility/craft/icons.js';
 import XSlot from './craft.item-slot.vue';
@@ -247,6 +256,7 @@ const stats = ref<PlayerStats>({ health: PLAYER.maxHealth, hunger: PLAYER.maxHun
 const inventoryVersion = ref(0);
 const playerLabels = ref<{ userId: string; username: string; name: string | null; avatarUrl: string | null; x: number; y: number; dist: number }[]>([]);
 const toasts = ref<{ id: number; kind: EngineToast['kind']; text: string; icon: string | null }[]>([]);
+const sleep = ref({ sleeping: false, count: 0, total: 1, required: 1 });
 let toastSeq = 0;
 const toastTimers = new Set<number>();
 let hudTimer: number | null = null;
@@ -400,6 +410,12 @@ function pushToast(t: EngineToast) {
 		case 'inventoryFull':
 			text = i18n.ts._craft.gachaInventoryFull;
 			break;
+		case 'cannotSleepNow':
+			text = i18n.ts._craft.cannotSleepNow;
+			break;
+		case 'morning':
+			text = i18n.ts._craft.morning;
+			break;
 	}
 	// 同じ拾得は 1 行にまとめる
 	const last = toasts.value[toasts.value.length - 1];
@@ -449,6 +465,14 @@ async function startEngine() {
 		e.on('statsChange', (s) => { stats.value = s; });
 		e.on('playersChange', () => { playerCount.value = e.remotePlayers.size; });
 		e.on('toast', pushToast);
+		e.on('sleep', (sleeping) => {
+			connection.value?.send('sleep', { sleeping });
+		});
+		e.on('skipNight', () => {
+			connection.value?.send('skipNight', {});
+		});
+		e.on('sleepChange', (st) => { sleep.value = st; });
+		setWorldTimeOffset(world.value.timeOffset ?? 0);
 		e.on('died', () => {
 			dead.value = true;
 			uiOpen.value = false;
@@ -573,6 +597,12 @@ function connect(e: CraftEngine) {
 	c.on('mobHit', (payload) => {
 		e.applyRemoteMobHit(payload.userId, { id: payload.id, damage: payload.damage, kx: payload.kx, kz: payload.kz });
 	});
+	c.on('playerSleeping', (payload) => {
+		e.applyRemoteSleeping(payload.userId, payload.sleeping);
+	});
+	c.on('timeOffsetUpdated', (payload) => {
+		e.applyTimeOffset(payload.timeOffset);
+	});
 	c.on('worldUpdated', (payload) => {
 		if (world.value == null) return;
 		world.value = { ...world.value, name: payload.name, isPublic: payload.isPublic };
@@ -648,6 +678,10 @@ function closeUi() {
 	e.uiOpen = false;
 	saveState(false);
 	if (!dead.value) e.startPlaying();
+}
+
+function wakeUp() {
+	engine.value?.setSleeping(false);
 }
 
 function respawn() {
@@ -869,6 +903,11 @@ definePage(() => ({
 
 .menuBox {
 	width: min(92%, 360px);
+}
+
+.sleepOverlay {
+	background: rgba(0, 0, 10, 0.75);
+	cursor: default;
 }
 
 .menuList {

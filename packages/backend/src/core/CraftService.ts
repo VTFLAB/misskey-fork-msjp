@@ -23,7 +23,7 @@ export const CRAFT_WORLD = {
 	minY: 0,
 	maxY: 95,
 	/** どの id が実在するかはクライアントが決める。サーバーは smallint の範囲を絞るだけ */
-	maxBlockType: 127,
+	maxBlockType: 255,
 	/** 岩盤。置けないし壊せない */
 	bedrockType: 17,
 	maxWorldsPerUser: 20,
@@ -35,6 +35,8 @@ export const CRAFT_WORLD = {
 	maxPlayerStateBytes: 32768,
 	/** ユーザーあたりのセーブデータ (ワールド) の数の上限 */
 	maxPlayerStatesPerUser: 200,
+	/** 1 日の長さ (ms)。昼夜は壁時計と world の timeOffset から決まる */
+	dayLengthMs: 20 * 60 * 1000,
 } as const;
 
 @Injectable()
@@ -72,6 +74,31 @@ export class CraftService {
 	@bindThis
 	public isValidBlockType(type: number): boolean {
 		return Number.isInteger(type) && type >= 0 && type <= CRAFT_WORLD.maxBlockType;
+	}
+
+	@bindThis
+	public isNight(timeOffset: number, now = Date.now()): boolean {
+		const day = CRAFT_WORLD.dayLengthMs;
+		const t = ((((now + timeOffset) % day) + day) % day) / day;
+		return t >= 0.5 && t < 0.97;
+	}
+
+	/**
+	 * 夜を飛ばして朝にする。夜でなければ何もしない。
+	 * @returns 新しい timeOffset。null のとき権限なし・存在しない・夜ではない
+	 */
+	@bindThis
+	public async skipNight(worldId: MiCraftWorld['id'], user: MiUser): Promise<number | null> {
+		const world = await this.craftWorldsRepository.findOneBy({ id: worldId });
+		if (world == null) return null;
+		if (!this.canBuild(world, user)) return null;
+		const now = Date.now();
+		if (!this.isNight(Number(world.timeOffset), now)) return null;
+		const day = CRAFT_WORLD.dayLengthMs;
+		const offset = (day - (now % day)) % day;
+		await this.craftWorldsRepository.update({ id: worldId }, { timeOffset: offset });
+		this.globalEventService.publishCraftWorldStream(worldId, 'timeOffsetUpdated', { worldId, timeOffset: offset });
+		return offset;
 	}
 
 	@bindThis

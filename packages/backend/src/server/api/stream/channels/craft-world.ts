@@ -21,6 +21,7 @@ const MOVE_RATE_PER_SEC = 20;
 const SET_BLOCK_RATE_PER_SEC = 30;
 const MOBS_RATE_PER_SEC = 6;
 const MOB_HIT_RATE_PER_SEC = 20;
+const SLEEP_RATE_PER_SEC = 2;
 const LIMITER_IDLE_MS = 1000 * 60 * 5;
 /** 1 回の配信に含められる MOB の数 */
 const MAX_MOBS_PER_SNAPSHOT = 48;
@@ -33,12 +34,12 @@ class RateLimiter {
 	public last = Date.now();
 
 	constructor(private readonly perSec: number) {
-		this.tokens = perSec;
+		this.tokens = Math.max(1, perSec);
 	}
 
 	public take(): boolean {
 		const now = Date.now();
-		this.tokens = Math.min(this.perSec, this.tokens + (now - this.last) / 1000 * this.perSec);
+		this.tokens = Math.min(Math.max(1, this.perSec), this.tokens + (now - this.last) / 1000 * this.perSec);
 		this.last = now;
 		if (this.tokens < 1) return false;
 		this.tokens -= 1;
@@ -51,13 +52,15 @@ const moveLimiters = new Map<MiUser['id'], RateLimiter>();
 const setBlockLimiters = new Map<MiUser['id'], RateLimiter>();
 const mobsLimiters = new Map<MiUser['id'], RateLimiter>();
 const mobHitLimiters = new Map<MiUser['id'], RateLimiter>();
+const sleepLimiters = new Map<MiUser['id'], RateLimiter>();
+const skipNightLimiters = new Map<MiUser['id'], RateLimiter>();
 let lastSweep = Date.now();
 
 function limiterFor(map: Map<MiUser['id'], RateLimiter>, userId: MiUser['id'], perSec: number): RateLimiter {
 	const now = Date.now();
 	if (now - lastSweep > LIMITER_IDLE_MS) {
 		lastSweep = now;
-		for (const m of [moveLimiters, setBlockLimiters, mobsLimiters, mobHitLimiters]) {
+		for (const m of [moveLimiters, setBlockLimiters, mobsLimiters, mobHitLimiters, sleepLimiters, skipNightLimiters]) {
 			for (const [id, limiter] of m) {
 				if (now - limiter.last > LIMITER_IDLE_MS) m.delete(id);
 			}
@@ -147,6 +150,14 @@ export class CraftWorldChannel extends Channel {
 				if (typeof body.id !== 'string' || typeof body.damage !== 'number' || typeof body.kx !== 'number' || typeof body.kz !== 'number') return;
 				this.mobHit(body.id, body.damage, body.kx, body.kz);
 				break;
+			case 'sleep':
+				if (!isJsonObject(body)) return;
+				if (typeof body.sleeping !== 'boolean') return;
+				this.sleep(body.sleeping);
+				break;
+			case 'skipNight':
+				this.skipNight();
+				break;
 		}
 	}
 
@@ -176,6 +187,27 @@ export class CraftWorldChannel extends Channel {
 			hostId: this.user.id,
 			t: typeof body.t === 'number' && Number.isFinite(body.t) ? body.t : Date.now(),
 			mobs,
+		});
+	}
+
+	@bindThis
+	private sleep(sleeping: boolean) {
+		if (this.user == null || this.worldId == null || !this.canWrite) return;
+		if (Date.now() - this.lastMoveAt > MOVE_PRESENCE_MS) return;
+		if (!limiterFor(sleepLimiters, this.user.id, SLEEP_RATE_PER_SEC).take()) return;
+		this.globalEventService.publishCraftWorldStream(this.worldId, 'playerSleeping', { userId: this.user.id, sleeping });
+	}
+
+	@bindThis
+	private skipNight() {
+		const user = this.user;
+		const worldId = this.worldId;
+		if (user == null || worldId == null || !this.canWrite) return;
+		if (Date.now() - this.lastMoveAt > MOVE_PRESENCE_MS) return;
+		// 5 秒に 1 回
+		if (!limiterFor(skipNightLimiters, user.id, 1 / 5).take()) return;
+		this.craftService.skipNight(worldId, user).catch(err => {
+			this.loggerService.getLogger('craft').error(err as Error);
 		});
 	}
 

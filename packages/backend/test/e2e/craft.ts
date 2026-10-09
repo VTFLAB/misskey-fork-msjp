@@ -31,6 +31,7 @@ describe('Misskey Craft', () => {
 		const shown = await api('craft/show', { worldId: created.body.id }, bob);
 		assert.strictEqual(shown.status, 200);
 		assert.strictEqual(shown.body.id, created.body.id);
+		assert.strictEqual(shown.body.timeOffset, 0);
 
 		const blocks = await api('craft/blocks', { worldId: created.body.id });
 		assert.strictEqual(blocks.status, 200);
@@ -127,6 +128,35 @@ describe('Misskey Craft', () => {
 		assert.strictEqual(updates[0].hostId, bob.id);
 		assert.strictEqual(updates[0].t, 2);
 		assert.deepStrictEqual(updates[0].mobs, [mob]);
+	});
+
+	test('夜を飛ばすと、夜のときだけ timeOffset が更新されて配信される', async () => {
+		const created = await api('craft/create', { name: 'night', isPublic: true }, alice);
+		assert.strictEqual(created.status, 200);
+
+		const received: Record<string, any>[] = [];
+		const player = await connectStream(alice, 'craftWorld', msg => received.push(msg), { worldId: created.body.id });
+		const day = 20 * 60 * 1000;
+		const t0 = (Date.now() % day) / day;
+		const wasNight = t0 >= 0.5 && t0 < 0.97;
+		player.send(JSON.stringify({ type: 'ch', body: { id: 'a', type: 'move', body: { x: 0, y: 40, z: 0, yaw: 0, pitch: 0 } } }));
+		player.send(JSON.stringify({ type: 'ch', body: { id: 'a', type: 'skipNight', body: {} } }));
+		await new Promise(r => setTimeout(r, 1000));
+		player.close();
+
+		const t1 = (Date.now() % day) / day;
+		const isNightNow = t1 >= 0.5 && t1 < 0.97;
+		const updates = received.filter(m => m.type === 'timeOffsetUpdated');
+		const shown = await api('craft/show', { worldId: created.body.id });
+		if (wasNight && isNightNow) {
+			assert.strictEqual(updates.length, 1);
+			assert.strictEqual(updates[0].body.worldId, created.body.id);
+			assert.strictEqual(updates[0].body.timeOffset, shown.body.timeOffset);
+			assert.ok(shown.body.timeOffset > 0 && shown.body.timeOffset <= day);
+		} else if (!wasNight && !isNightNow) {
+			assert.strictEqual(updates.length, 0);
+			assert.strictEqual(shown.body.timeOffset, 0);
+		}
 	});
 
 	test('非公開ワールドではオーナー以外のブロック設置が拒否される', async () => {

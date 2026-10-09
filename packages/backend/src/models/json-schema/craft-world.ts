@@ -42,5 +42,9 @@ export const packedCraftWorldSchema = {
 			type: 'number',
 			optional: false, nullable: false,
 		},
+		timeOffset: {
+			type: 'number',
+			optional: false, nullable: false,
+		},
 	},
 } as const;

@@ -6231,6 +6231,7 @@ export type components = {
             userId: string;
             user: components['schemas']['UserLite'];
             blockCount: number;
+            timeOffset: number;
         };
         MetaLite: {
             maintainerName: string | null;
