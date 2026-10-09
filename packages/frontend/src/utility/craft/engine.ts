@@ -1228,6 +1228,9 @@ export class CraftEngine {
 		}
 		if (proj.blockHits > 0) this.audio.play('arrowHit', { volume: 0.5 });
 
+		// 粒子の寿命と落下
+		this.renderer.particles.update(dt, this.world);
+
 		// 描画
 		this.renderer.updateChunks(this.player.pos.x, this.player.pos.z);
 		const light = daylight();
