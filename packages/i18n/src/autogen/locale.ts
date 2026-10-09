@@ -16510,7 +16510,7 @@ export interface Locale extends ILocale {
          */
         "tapToPlay": string;
         /**
-         * 移動: WASD / ジャンプ: Space / ダッシュ: W を 2 回 / しゃがみ: Shift / 壊す・攻撃: 左クリック長押し / 置く・食べる: 右クリック / インベントリ: E / ブロック選択: 数字キー・ホイール / 操作をやめる: Esc
+         * 移動: WASD / ジャンプ: Space / ダッシュ: W を 2 回 / しゃがみ: Shift / 壊す・攻撃: 左クリック長押し / 置く・食べる: 右クリック / インベントリ: E / 全画面: F / ブロック選択: 数字キー・ホイール / 操作をやめる: Esc (やめると右上のボタンや設定を使えます)
          */
         "controls": string;
         /**
@@ -16557,6 +16557,26 @@ export interface Locale extends ILocale {
          * ミニマップ
          */
         "minimap": string;
+        /**
+         * ミニマップを表示
+         */
+        "showMinimap": string;
+        /**
+         * メニュー
+         */
+        "pauseMenu": string;
+        /**
+         * ゲームに戻る
+         */
+        "resume": string;
+        /**
+         * ワールド一覧へ
+         */
+        "backToWorlds": string;
+        /**
+         * Esc でこのメニューを開けます
+         */
+        "pauseHint": string;
         /**
          * インベントリ
          */

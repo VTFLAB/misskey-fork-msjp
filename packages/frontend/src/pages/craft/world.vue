@@ -13,13 +13,28 @@ SPDX-License-Identifier: AGPL-3.0-only
 				<div v-if="webglError" :class="$style.overlay">
 					<div :class="$style.overlayBox">{{ i18n.ts._craft.webglRequired }}</div>
 				</div>
-				<button v-else-if="!active && !uiOpen && !dead" type="button" class="_button" :class="$style.overlay" @click="startPlaying">
+				<button v-else-if="!active && !uiOpen && !dead && !menuOpen" type="button" class="_button" :class="$style.overlay" @click="resume">
 					<div :class="$style.overlayBox">
 						<div :class="$style.overlayTitle"><i class="ti ti-pointer"></i> {{ touchMode ? i18n.ts._craft.tapToPlay : i18n.ts._craft.clickToPlay }}</div>
 						<div :class="$style.overlayControls">{{ touchMode ? i18n.ts._craft.touchControls : i18n.ts._craft.controls }}</div>
 						<div v-if="!canBuild" :class="$style.overlayNote"><i class="ti ti-eye"></i> {{ $i ? i18n.ts._craft.spectating : i18n.ts._craft.loginToBuild }}</div>
 					</div>
 				</button>
+				<div v-else-if="menuOpen && !dead" :class="$style.overlay">
+					<div :class="[$style.overlayBox, $style.menuBox]">
+						<div :class="$style.overlayTitle">{{ i18n.ts._craft.pauseMenu }}</div>
+						<div :class="$style.menuList">
+							<MkButton primary rounded full @click="resume"><i class="ti ti-player-play"></i> {{ i18n.ts._craft.resume }}</MkButton>
+							<MkButton v-if="$i" rounded full @click="openUi('inventory')"><i class="ti ti-backpack"></i> {{ i18n.ts._craft.inventory }}</MkButton>
+							<MkButton rounded full @click="toggleFullscreen"><i :class="fullscreen ? 'ti ti-arrows-minimize' : 'ti ti-arrows-maximize'"></i> {{ fullscreen ? i18n.ts._craft.exitFullscreen : i18n.ts._craft.fullscreen }}</MkButton>
+							<MkButton rounded full @click="toggleInputMode"><i :class="touchMode ? 'ti ti-keyboard' : 'ti ti-device-mobile'"></i> {{ touchMode ? i18n.ts._craft.desktopMode : i18n.ts._craft.touchMode }}</MkButton>
+							<MkButton rounded full @click="showMinimap = !showMinimap"><i :class="showMinimap ? 'ti ti-checkbox' : 'ti ti-square'"></i> {{ i18n.ts._craft.showMinimap }}</MkButton>
+							<MkButton v-if="canManage" rounded full @click="editWorld"><i class="ti ti-settings"></i> {{ i18n.ts._craft.editWorld }}</MkButton>
+							<MkButton rounded full @click="router.push('/craft')"><i class="ti ti-arrow-left"></i> {{ i18n.ts._craft.backToWorlds }}</MkButton>
+						</div>
+						<div v-if="!touchMode" :class="$style.overlayControls">{{ i18n.ts._craft.pauseHint }}</div>
+					</div>
+				</div>
 
 				<div v-if="active && !uiOpen" :class="$style.crosshair"></div>
 				<div v-if="breakProgress > 0" :class="$style.breakBar"><div :class="$style.breakBarFill" :style="{ width: `${Math.round(breakProgress * 100)}%` }"></div></div>
@@ -44,12 +59,8 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</div>
 
 				<div :class="$style.hudRight">
-					<canvas ref="minimapEl" :class="$style.minimap" role="img" :aria-label="i18n.ts._craft.minimap" :title="i18n.ts._craft.minimap"></canvas>
-					<div :class="$style.hudButtons">
-						<button type="button" class="_button" :class="$style.hudButton" :title="fullscreen ? i18n.ts._craft.exitFullscreen : i18n.ts._craft.fullscreen" :aria-pressed="fullscreen" @click="toggleFullscreen"><i :class="fullscreen ? 'ti ti-arrows-minimize' : 'ti ti-arrows-maximize'"></i></button>
-						<button type="button" class="_button" :class="$style.hudButton" :title="touchMode ? i18n.ts._craft.desktopMode : i18n.ts._craft.touchMode" :aria-pressed="touchMode" @click="toggleInputMode"><i :class="touchMode ? 'ti ti-keyboard' : 'ti ti-device-mobile'"></i></button>
-						<button v-if="$i" type="button" class="_button" :class="$style.hudButton" :title="i18n.ts._craft.inventory" :aria-pressed="uiOpen" @click="toggleInventory"><i class="ti ti-backpack"></i></button>
-					</div>
+					<canvas v-show="showMinimap" ref="minimapEl" :class="$style.minimap" role="img" :aria-label="i18n.ts._craft.minimap" :title="i18n.ts._craft.minimap"></canvas>
+					<button v-if="!menuOpen && !dead" type="button" class="_button" :class="$style.hudButton" :title="i18n.ts._craft.pauseMenu" :aria-label="i18n.ts._craft.pauseMenu" @click="openMenu"><i class="ti ti-menu-2"></i></button>
 				</div>
 
 				<div v-if="$i" :class="$style.bottom">
@@ -220,6 +231,9 @@ const connection = shallowRef<Misskey.IChannelConnection<Misskey.Channels['craft
 
 const active = ref(false);
 const uiOpen = ref(false);
+const menuOpen = ref(false);
+const showMinimap = ref(true);
+let started = false;
 const dead = ref(false);
 const panelTab = ref<'inventory' | 'crafting'>('inventory');
 const fullscreen = ref(false);
@@ -332,7 +346,11 @@ async function startEngine() {
 		e.canBuild = canBuild.value;
 		touchMode.value = e.inputMode === 'touch';
 
-		e.on('activeChange', (v) => { active.value = v; });
+		e.on('activeChange', (v) => {
+			active.value = v;
+			// 操作をやめた (Esc など) らポーズメニューを出す
+			if (!v && started && !uiOpen.value && !dead.value) menuOpen.value = true;
+		});
 		e.on('fullscreenChange', (v) => { fullscreen.value = v; });
 		e.on('hostChange', (v) => { isHost.value = v; });
 		e.on('hotbarChange', (v) => { hotbarIndex.value = v; });
@@ -484,8 +502,17 @@ function bindTouch() {
 	}
 }
 
-function startPlaying() {
+function resume() {
+	menuOpen.value = false;
+	started = true;
 	engine.value?.startPlaying();
+}
+
+function openMenu() {
+	const e = engine.value;
+	if (e == null) return;
+	menuOpen.value = true;
+	e.stopPlaying();
 }
 
 function toggleFullscreen() {
@@ -502,6 +529,7 @@ function toggleInputMode() {
 function openUi(tab: 'inventory' | 'crafting') {
 	const e = engine.value;
 	if (e == null || $i == null) return;
+	menuOpen.value = false;
 	panelTab.value = tab;
 	uiOpen.value = true;
 	pickedSlot.value = null;
@@ -519,10 +547,6 @@ function closeUi() {
 	e.uiOpen = false;
 	saveState();
 	if (!dead.value) e.startPlaying();
-}
-
-function toggleInventory() {
-	if (uiOpen.value) closeUi(); else openUi('inventory');
 }
 
 function clickSlot(index: number) {
@@ -544,6 +568,7 @@ function respawn() {
 	const e = engine.value;
 	if (e == null) return;
 	dead.value = false;
+	menuOpen.value = false;
 	e.uiOpen = false;
 	e.respawn();
 	e.startPlaying();
@@ -613,6 +638,10 @@ const headerActions = computed(() => {
 
 watch(canBuild, (v) => {
 	if (engine.value) engine.value.canBuild = v;
+});
+
+watch(showMinimap, (v) => {
+	engine.value?.attachMinimap(v ? (minimapEl.value ?? null) : null);
 });
 
 watch(canvasEl, () => {
@@ -728,6 +757,17 @@ definePage(() => ({
 	color: #ffd37a;
 }
 
+.menuBox {
+	width: min(92%, 360px);
+}
+
+.menuList {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-top: 14px;
+}
+
 .crosshair {
 	position: absolute;
 	left: 50%;
@@ -829,18 +869,13 @@ definePage(() => ({
 	flex-direction: column;
 	align-items: flex-end;
 	gap: 6px;
-	z-index: 5;
+	z-index: 25;
 }
 
 .minimap {
 	width: 128px;
 	height: 128px;
 	border-radius: 50%;
-}
-
-.hudButtons {
-	display: flex;
-	gap: 4px;
 }
 
 .hudButton {

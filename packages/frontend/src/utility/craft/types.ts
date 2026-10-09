@@ -85,6 +85,8 @@ export type InputState = {
 	hotbarSelect: number | null;
 	/** インベントリを開閉する (エッジ) */
 	togglePressed: boolean;
+	/** 全画面を切り替える (エッジ) */
+	fullscreenPressed: boolean;
 };
 
 export function emptyInput(): InputState {
@@ -95,6 +97,7 @@ export function emptyInput(): InputState {
 		attack: false, usePressed: false,
 		hotbarDelta: 0, hotbarSelect: null,
 		togglePressed: false,
+		fullscreenPressed: false,
 	};
 }
 
