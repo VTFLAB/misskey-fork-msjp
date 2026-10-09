@@ -106,6 +106,8 @@ const SEND_RATE_PER_SEC = 24;
 const SEND_BUCKET_MAX = 12;
 const BOW_FULL_CHARGE_S = 1.0;
 const MOB_AMBIENT_MIN_INTERVAL = 3000;
+/** 矢の重力 (projectiles.ts と同じ値) */
+const ARROW_GRAVITY = 20;
 /** 半数以上が寝続ける必要のある時間 */
 const SLEEP_QUORUM_MS = 5000;
 
@@ -967,9 +969,14 @@ export class CraftEngine {
 					this.hurtPlayer(dmg, { kind: 'explosion', kx: (this.player.pos.x - ev.x) / h, kz: (this.player.pos.z - ev.z) / h, knockback: 2 }, now);
 				}
 			} else if (ev.type === 'shoot') {
-				const dx = ev.to.x - ev.from.x, dy = ev.to.y - ev.from.y, dz = ev.to.z - ev.from.z;
+				// 矢は各クライアントが実際に飛ばし、自分の体に当たったときだけダメージを受ける。
+				// 重力で落ちる分を狙いに上乗せする (放物線の補正)
+				const dx = ev.to.x - ev.from.x, dz = ev.to.z - ev.from.z;
+				const horiz = Math.hypot(dx, dz);
+				const flight = horiz / Math.max(1, ev.speed);
+				const dy = ev.to.y - ev.from.y + 0.5 * ARROW_GRAVITY * flight * flight;
 				const len = Math.hypot(dx, dy, dz) || 1;
-				this.projectiles.shoot({ x: ev.from.x, y: ev.from.y, z: ev.from.z, dx: dx / len, dy: dy / len, dz: dz / len, speed: ev.speed, damage: 0, knockback: 0, ownerId: ev.mobId, visualOnly: true });
+				this.projectiles.shoot({ x: ev.from.x, y: ev.from.y, z: ev.from.z, dx: dx / len, dy: dy / len, dz: dz / len, speed: ev.speed, damage: ev.damage, knockback: 0, ownerId: ev.mobId, hitsPlayer: true });
 				this.audio.play('bowShoot', { x: ev.from.x, y: ev.from.y, z: ev.from.z, pitch: 0.8 });
 			}
 		}
@@ -1386,7 +1393,11 @@ export class CraftEngine {
 		}
 
 		// 矢
-		const proj = this.projectiles.update(dt, this.world, this.mobs);
+		const proj = this.projectiles.update(dt, this.world, this.mobs, { x: this.player.pos.x, y: this.player.pos.y, z: this.player.pos.z, w: PLAYER.width, h: this.player.heightNow });
+		for (const h of proj.playerHits) {
+			this.hurtPlayer(h.damage, { kind: 'arrow', kx: h.kx, kz: h.kz, knockback: h.knockback }, now);
+			this.audio.play('arrowHit');
+		}
 		for (const h of proj.mobHits) {
 			this.audio.play('arrowHit', { x: this.player.pos.x, y: this.player.pos.y, z: this.player.pos.z });
 			const hit: MobHit = { id: h.id, damage: h.damage, kx: h.kx, kz: h.kz };

@@ -33,14 +33,12 @@ export type MobEvent =
 	| { type: 'attackPlayer'; userId: string; damage: number; mobId: string; ranged?: boolean; kx?: number; kz?: number }
 	| { type: 'died'; mobId: string; mobType: MobType; killerId: string | null; x: number; y: number; z: number; xp: number; drops: ItemStack[] }
 	| { type: 'explode'; x: number; y: number; z: number; radius: number; damage: number }
-	| { type: 'shoot'; mobId: string; from: Vec3; to: Vec3; speed: number };
+	| { type: 'shoot'; mobId: string; from: Vec3; to: Vec3; speed: number; damage: number };
 
 /** ローカルで受け取る攻撃。ネットワークには id / damage / kx / kz だけが流れる */
 export type LocalMobHit = MobHit & { knockback?: number };
 
 export type PlayerPos = { userId: string; x: number; y: number; z: number };
-
-type PendingShot = { at: number; userId: string; damage: number; mobId: string; kx: number; kz: number };
 
 type Mob = MobState & {
 	vel: Vec3;
@@ -124,7 +122,6 @@ export class MobSystem {
 	/** ホストの壁時計 − 自分の壁時計 (ms)。非ホストが attackAt と比べるときの補正 */
 	private clockOffset = 0;
 	private clockOffsetKnown = false;
-	private pending: PendingShot[] = [];
 	/** 自分で爆発させたクリーパー。直後のスナップショットで復活させない */
 	private exploded = new Map<string, number>();
 
@@ -138,7 +135,6 @@ export class MobSystem {
 		this.clockOffsetKnown = false;
 		this.clockOffset = 0;
 		this.mobs.clear();
-		this.pending = [];
 		this.exploded.clear();
 	}
 
@@ -170,7 +166,6 @@ export class MobSystem {
 		const events: MobEvent[] = [];
 		if (!this.isHost) return events;
 		const dt = Math.min(rawDt, 0.1);
-		this.flushPending(events);
 
 		if (now - this.lastSpawnCheck >= SPAWN_INTERVAL_MS) {
 			this.lastSpawnCheck = now;
@@ -241,24 +236,6 @@ export class MobSystem {
 
 		const id = `${hostId}:${this.counter++}`;
 		this.mobs.set(id, this.newMob({ id, type, x: sx, y, z: sz, yaw: Math.random() * TWO_PI, hp: def.maxHp, target: null, attackAt: 0 }));
-	}
-
-	private flushPending(events: MobEvent[], onlyUserId?: string | null): void {
-		if (this.pending.length === 0) return;
-		const wall = this.clock();
-		const rest: PendingShot[] = [];
-		for (const s of this.pending) {
-			if (s.at <= wall) {
-				if (onlyUserId == null || s.userId === onlyUserId) events.push({ type: 'attackPlayer', userId: s.userId, damage: s.damage, mobId: s.mobId, ranged: true, kx: s.kx, kz: s.kz });
-			} else rest.push(s);
-		}
-		this.pending = rest;
-	}
-
-	private schedule(mob: Mob, userId: string, from: Vec3, to: Vec3, damage: number, speed: number): void {
-		const flight = Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z) / speed;
-		const len = Math.hypot(to.x - from.x, to.z - from.z) || 1;
-		this.pending.push({ at: this.clock() + flight * 1000, userId, damage, mobId: mob.id, kx: (to.x - from.x) / len, kz: (to.z - from.z) / len });
 	}
 
 	private isAggressive(mob: Mob, night: boolean, lightAt?: (x: number, y: number, z: number) => number): boolean {
@@ -372,8 +349,7 @@ export class MobSystem {
 					if (!hasLineOfSight(this.world, from, to)) return this.physics(mob, dt, moveX, moveZ, def);
 					mob.lastAttackAt = wall;
 					mob.attackAt = wall;
-					events.push({ type: 'shoot', mobId: mob.id, from, to, speed: rg.speed });
-					this.schedule(mob, nearest.userId, from, to, rg.damage, rg.speed);
+					events.push({ type: 'shoot', mobId: mob.id, from, to, speed: rg.speed, damage: rg.damage });
 				}
 			} else {
 				if (nearestD > 0.3) {
@@ -481,10 +457,9 @@ export class MobSystem {
 					const from = { x: mob.targetPos.x, y: mob.targetPos.y + def.height * 0.85, z: mob.targetPos.z };
 					const me = localUserId != null && st.target === localUserId ? players?.find(p => p.userId === localUserId) : undefined;
 					const to = me != null
-						? { x: me.x, y: me.y + 1.0, z: me.z }
+						? { x: me.x, y: me.y + 1.2, z: me.z }
 						: { x: from.x - Math.sin(st.yaw) * 10, y: from.y, z: from.z - Math.cos(st.yaw) * 10 };
-					events.push({ type: 'shoot', mobId: st.id, from, to, speed: rg.speed });
-					if (me != null && localUserId != null) this.schedule(mob, localUserId, from, to, rg.damage, rg.speed);
+					events.push({ type: 'shoot', mobId: st.id, from, to, speed: rg.speed, damage: rg.damage });
 				} else if (localUserId != null && st.target === localUserId && def.attack > 0) {
 					events.push({ type: 'attackPlayer', userId: localUserId, damage: def.attack, mobId: st.id });
 				}
@@ -507,10 +482,9 @@ export class MobSystem {
 		return events;
 	}
 
-	/** 非ホストのとき: 毎フレームの補間。遅れて届く矢のダメージ・爆発・死亡演出の後始末もここで返す */
-	public interpolate(dt: number, now: number = performance.now(), localUserId: string | null = null): MobEvent[] {
+	/** 非ホストのとき: 毎フレームの補間。爆発・死亡演出の後始末もここで返す */
+	public interpolate(dt: number, now: number = performance.now(), _localUserId: string | null = null): MobEvent[] {
 		const events: MobEvent[] = [];
-		this.flushPending(events, localUserId);
 		const k = Math.min(1, dt * 10);
 		const wall = this.syncedNow();
 		for (const m of [...this.mobs.values()]) {
@@ -561,7 +535,6 @@ export class MobSystem {
 			mob.dyingUntil = now + DYING_MS;
 			mob.attackAt = 0;
 			mob.target = null;
-			this.pending = this.pending.filter(p => p.mobId !== mob.id);
 			return [{
 				type: 'died', mobId: mob.id, mobType: mob.type, killerId: attackerId, x: mob.x, y: mob.y, z: mob.z,
 				xp: randInt(def.xp[0], def.xp[1]), drops: rollDrops(mob.type, opts.looting ?? 0),
