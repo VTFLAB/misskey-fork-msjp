@@ -369,6 +369,76 @@ export type BlockDef = {
 	nameKey?: string;
 };
 
+/**
+ * ブロックはそのままアイテム id として使う (1..MAX_BLOCK_TYPE、最大 255)。
+ * 素材・染料は 400 以降、道具は 200 以降、防具は 300 以降。
+ * (以前は素材が 100 以降だったが、ブロック id が 100 を超えて衝突したため 2026-10-09 に +300 した。
+ * 保存データの古い id は LEGACY_ITEM_IDS で読み替える)
+ */
+export const ITEM = {
+	stick: 400,
+	coal: 401,
+	rawIron: 402,
+	ironIngot: 403,
+	apple: 404,
+	rawMeat: 405,
+	cookedMeat: 406,
+	rawGold: 407,
+	goldIngot: 408,
+	diamond: 409,
+	lapis: 430,
+	leather: 431,
+	feather: 432,
+	bone: 433,
+	string: 434,
+	rottenFlesh: 435,
+	wheatSeeds: 436,
+	wheat: 437,
+	bread: 438,
+	goldenApple: 439,
+	rawBeef: 440,
+	cookedBeef: 441,
+	rawPorkchop: 442,
+	cookedPorkchop: 443,
+	rawChicken: 444,
+	cookedChicken: 445,
+	rawMutton: 446,
+	cookedMutton: 447,
+	arrow: 448,
+	bow: 449,
+	egg: 450,
+	charcoal: 451,
+	brick: 452,
+	book: 453,
+	paper: 454,
+	melonSlice: 455,
+	pumpkinPie: 456,
+	// 染料
+	redDye: 457,
+	yellowDye: 458,
+	blueDye: 459,
+	greenDye: 460,
+	whiteDye: 461,
+	blackDye: 462,
+	grayDye: 463,
+	orangeDye: 464,
+	purpleDye: 465,
+	pinkDye: 466,
+	lightBlueDye: 467,
+	limeDye: 468,
+	// 道具 (200 + 素材 * 10 + 種類)
+	woodenPickaxe: 200, woodenAxe: 201, woodenShovel: 202, woodenSword: 203, woodenHoe: 204,
+	stonePickaxe: 210, stoneAxe: 211, stoneShovel: 212, stoneSword: 213, stoneHoe: 214,
+	ironPickaxe: 220, ironAxe: 221, ironShovel: 222, ironSword: 223, ironHoe: 224,
+	goldenPickaxe: 230, goldenAxe: 231, goldenShovel: 232, goldenSword: 233, goldenHoe: 234,
+	diamondPickaxe: 240, diamondAxe: 241, diamondShovel: 242, diamondSword: 243, diamondHoe: 244,
+	// 防具 (300 + 素材 * 10 + 部位)
+	leatherHelmet: 300, leatherChestplate: 301, leatherLeggings: 302, leatherBoots: 303,
+	ironHelmet: 310, ironChestplate: 311, ironLeggings: 312, ironBoots: 313,
+	goldenHelmet: 320, goldenChestplate: 321, goldenLeggings: 322, goldenBoots: 323,
+	diamondHelmet: 330, diamondChestplate: 331, diamondLeggings: 332, diamondBoots: 333,
+} as const;
+
 const b = (def: BlockDef) => def;
 
 const cube = (id: BlockId, key: Exclude<BlockKey, 'air'>, tiles: [number, number, number], color: string, hardness: number, tool: ToolKind, minTier: ToolTier, drops: BlockDef['drops'], sound: SoundMaterialId, extra: Partial<BlockDef> = {}): BlockDef =>
@@ -554,14 +624,14 @@ export const BLOCK_DEFS: Record<number, BlockDef> = {
 	[BLOCK.lamp]: cube(BLOCK.lamp, 'lamp', [13, 13, 13], '#f6d76b', 0.3, 'none', 0, { id: BLOCK.lamp }, 'glass', { light: 15 }),
 	[BLOCK.snow]: cube(BLOCK.snow, 'snow', [14, 15, 2], '#f0f4f8', 0.2, 'shovel', 0, { id: BLOCK.dirt }, 'snow', { silk: true }),
 	[BLOCK.cactus]: b({ id: BLOCK.cactus, key: 'cactus', shape: 'cube', transparent: true, translucent: false, solid: true, light: 0, opacity: 0, tiles: [16, 17, 16], color: '#4f8a3a', hardness: 0.4, tool: 'none', minTier: 0, drops: { id: BLOCK.cactus }, placeable: true, damaging: true, sound: 'wool', support: 'below' }),
-	[BLOCK.coalOre]: cube(BLOCK.coalOre, 'coalOre', [18, 18, 18], '#4a4a4a', 3, 'pickaxe', 1, { id: 101 }, 'stone', { silk: true, fortune: true, xp: [0, 2] }),
-	[BLOCK.ironOre]: cube(BLOCK.ironOre, 'ironOre', [19, 19, 19], '#b89a7a', 3, 'pickaxe', 2, { id: 102 }, 'stone', { silk: true, fortune: true }),
+	[BLOCK.coalOre]: cube(BLOCK.coalOre, 'coalOre', [18, 18, 18], '#4a4a4a', 3, 'pickaxe', 1, { id: ITEM.coal }, 'stone', { silk: true, fortune: true, xp: [0, 2] }),
+	[BLOCK.ironOre]: cube(BLOCK.ironOre, 'ironOre', [19, 19, 19], '#b89a7a', 3, 'pickaxe', 2, { id: ITEM.rawIron }, 'stone', { silk: true, fortune: true }),
 	[BLOCK.bedrock]: b({ id: BLOCK.bedrock, key: 'bedrock', shape: 'cube', transparent: false, translucent: false, solid: true, light: 0, opacity: 15, tiles: [20, 20, 20], color: '#2a2a2a', hardness: Infinity, tool: 'none', minTier: 0, drops: null, placeable: false, sound: 'stone' }),
 	[BLOCK.craftingTable]: cube(BLOCK.craftingTable, 'craftingTable', [21, 22, 9], '#9c6b3c', 2.5, 'axe', 0, { id: BLOCK.craftingTable }, 'wood', { usable: true, fuel: 1 }),
 	[BLOCK.gravel]: cube(BLOCK.gravel, 'gravel', [23, 23, 23], '#8d8477', 0.6, 'shovel', 0, { id: BLOCK.gravel }, 'gravel'),
-	[BLOCK.goldOre]: cube(BLOCK.goldOre, 'goldOre', [24, 24, 24], '#d9b84a', 3, 'pickaxe', 3, { id: 107 }, 'stone', { silk: true, fortune: true }),
-	[BLOCK.diamondOre]: cube(BLOCK.diamondOre, 'diamondOre', [25, 25, 25], '#6fe3e0', 3, 'pickaxe', 3, { id: 109 }, 'stone', { silk: true, fortune: true, xp: [3, 7] }),
-	[BLOCK.lapisOre]: cube(BLOCK.lapisOre, 'lapisOre', [26, 26, 26], '#3a5bc7', 3, 'pickaxe', 2, { id: 130, count: 4 }, 'stone', { silk: true, fortune: true, xp: [2, 5] }),
+	[BLOCK.goldOre]: cube(BLOCK.goldOre, 'goldOre', [24, 24, 24], '#d9b84a', 3, 'pickaxe', 3, { id: ITEM.rawGold }, 'stone', { silk: true, fortune: true }),
+	[BLOCK.diamondOre]: cube(BLOCK.diamondOre, 'diamondOre', [25, 25, 25], '#6fe3e0', 3, 'pickaxe', 3, { id: ITEM.diamond }, 'stone', { silk: true, fortune: true, xp: [3, 7] }),
+	[BLOCK.lapisOre]: cube(BLOCK.lapisOre, 'lapisOre', [26, 26, 26], '#3a5bc7', 3, 'pickaxe', 2, { id: ITEM.lapis, count: 4 }, 'stone', { silk: true, fortune: true, xp: [2, 5] }),
 	[BLOCK.torch]: b({ id: BLOCK.torch, key: 'torch', shape: 'torch', transparent: true, translucent: false, solid: false, light: 14, opacity: 0, tiles: [27, 27, 27], color: '#ffcc55', hardness: 0, tool: 'none', minTier: 0, drops: { id: BLOCK.torch }, placeable: true, sound: 'wood', support: 'below' }),
 	[BLOCK.ladder]: b({ id: BLOCK.ladder, key: 'ladder', shape: 'ladder', transparent: true, translucent: false, solid: false, light: 0, opacity: 0, tiles: [28, 28, 28], color: '#b48c5a', hardness: 0.4, tool: 'axe', minTier: 0, drops: { id: BLOCK.ladder }, placeable: true, climbable: true, sound: 'wood', support: 'wall' }),
 	[BLOCK.stoneBricks]: cube(BLOCK.stoneBricks, 'stoneBricks', [29, 29, 29], '#7d7d7d', 1.5, 'pickaxe', 1, { id: BLOCK.stoneBricks }, 'stone'),
@@ -570,20 +640,20 @@ export const BLOCK_DEFS: Record<number, BlockDef> = {
 	[BLOCK.enchantingTable]: cube(BLOCK.enchantingTable, 'enchantingTable', [33, 34, 40], '#5a2d7a', 5, 'pickaxe', 1, { id: BLOCK.enchantingTable }, 'stone', { usable: true, light: 7 }),
 	[BLOCK.bed]: b({ id: BLOCK.bed, key: 'bed', shape: 'bed', transparent: true, translucent: false, solid: true, light: 0, opacity: 0, tiles: [35, 36, 9], color: '#c43b3b', hardness: 0.2, tool: 'none', minTier: 0, drops: { id: BLOCK.bed }, placeable: true, usable: true, sound: 'wool', support: 'below' }),
 	[BLOCK.farmland]: b({ id: BLOCK.farmland, key: 'farmland', shape: 'farmland', transparent: true, translucent: false, solid: true, light: 0, opacity: 15, tiles: [37, 2, 2], color: '#6b4524', hardness: 0.6, tool: 'shovel', minTier: 0, drops: { id: BLOCK.dirt }, placeable: false, sound: 'gravel' }),
-	[BLOCK.wheat0]: plant(BLOCK.wheat0, 'wheat0', 41, '#4f9a3a', { id: 136 }, { support: 'farmland', growsTo: BLOCK.wheat1, sound: 'crop', hardness: 0 }),
-	[BLOCK.wheat1]: plant(BLOCK.wheat1, 'wheat1', 42, '#6aa83c', { id: 136 }, { support: 'farmland', growsTo: BLOCK.wheat2, sound: 'crop', placeable: false }),
-	[BLOCK.wheat2]: plant(BLOCK.wheat2, 'wheat2', 43, '#9ab63a', { id: 136 }, { support: 'farmland', growsTo: BLOCK.wheat3, sound: 'crop', placeable: false }),
-	[BLOCK.wheat3]: plant(BLOCK.wheat3, 'wheat3', 44, '#d8b33a', { id: 137 }, { support: 'farmland', sound: 'crop', placeable: false }),
+	[BLOCK.wheat0]: plant(BLOCK.wheat0, 'wheat0', 41, '#4f9a3a', { id: ITEM.wheatSeeds }, { support: 'farmland', growsTo: BLOCK.wheat1, sound: 'crop', hardness: 0 }),
+	[BLOCK.wheat1]: plant(BLOCK.wheat1, 'wheat1', 42, '#6aa83c', { id: ITEM.wheatSeeds }, { support: 'farmland', growsTo: BLOCK.wheat2, sound: 'crop', placeable: false }),
+	[BLOCK.wheat2]: plant(BLOCK.wheat2, 'wheat2', 43, '#9ab63a', { id: ITEM.wheatSeeds }, { support: 'farmland', growsTo: BLOCK.wheat3, sound: 'crop', placeable: false }),
+	[BLOCK.wheat3]: plant(BLOCK.wheat3, 'wheat3', 44, '#d8b33a', { id: ITEM.wheat }, { support: 'farmland', sound: 'crop', placeable: false }),
 	[BLOCK.sapling]: plant(BLOCK.sapling, 'sapling', 45, '#4c8f36', { id: BLOCK.sapling }, { growsTo: BLOCK.log }),
-	[BLOCK.tallGrass]: plant(BLOCK.tallGrass, 'tallGrass', 46, '#5fa23c', { id: 136, chance: 0.125 }, { replaceable: true, silk: true }),
+	[BLOCK.tallGrass]: plant(BLOCK.tallGrass, 'tallGrass', 46, '#5fa23c', { id: ITEM.wheatSeeds, chance: 0.125 }, { replaceable: true, silk: true }),
 	[BLOCK.flower]: plant(BLOCK.flower, 'flower', 47, '#e04a3a', { id: BLOCK.flower }, { replaceable: true }),
-	[BLOCK.bookshelf]: cube(BLOCK.bookshelf, 'bookshelf', [9, 48, 9], '#8a6a3c', 1.5, 'axe', 0, { id: 153, count: 3 }, 'wood', { silk: true, fuel: 1 }),
+	[BLOCK.bookshelf]: cube(BLOCK.bookshelf, 'bookshelf', [9, 48, 9], '#8a6a3c', 1.5, 'axe', 0, { id: ITEM.book, count: 3 }, 'wood', { silk: true, fuel: 1 }),
 	[BLOCK.glowstone]: cube(BLOCK.glowstone, 'glowstone', [49, 49, 49], '#f2d27a', 0.3, 'none', 0, { id: BLOCK.glowstone }, 'glass', { light: 15 }),
 	[BLOCK.obsidian]: cube(BLOCK.obsidian, 'obsidian', [50, 50, 50], '#1a1026', 50, 'pickaxe', 4, { id: BLOCK.obsidian }, 'stone'),
 	[BLOCK.mossyCobblestone]: cube(BLOCK.mossyCobblestone, 'mossyCobblestone', [51, 51, 51], '#5f7a52', 2, 'pickaxe', 1, { id: BLOCK.mossyCobblestone }, 'stone'),
 	[BLOCK.hayBale]: cube(BLOCK.hayBale, 'hayBale', [52, 53, 52], '#c9a63a', 0.5, 'hoe', 0, { id: BLOCK.hayBale }, 'grass'),
 	[BLOCK.sandstone]: cube(BLOCK.sandstone, 'sandstone', [54, 55, 54], '#d9cf9a', 0.8, 'pickaxe', 1, { id: BLOCK.sandstone }, 'stone'),
-	[BLOCK.clay]: cube(BLOCK.clay, 'clay', [56, 56, 56], '#9ea4b0', 0.6, 'shovel', 0, { id: 152, count: 4 }, 'gravel', { silk: true }),
+	[BLOCK.clay]: cube(BLOCK.clay, 'clay', [56, 56, 56], '#9ea4b0', 0.6, 'shovel', 0, { id: ITEM.brick, count: 4 }, 'gravel', { silk: true }),
 	[BLOCK.ice]: b({ id: BLOCK.ice, key: 'ice', shape: 'cube', transparent: true, translucent: true, solid: true, light: 0, opacity: 1, tiles: [57, 57, 57], color: '#a9d3f5', hardness: 0.5, tool: 'pickaxe', minTier: 0, drops: null, silk: true, placeable: true, slippery: true, sound: 'glass' }),
 	[BLOCK.pumpkin]: cube(BLOCK.pumpkin, 'pumpkin', [58, 59, 58], '#d98a2a', 1, 'axe', 0, { id: BLOCK.pumpkin }, 'wood'),
 	[BLOCK.melon]: cube(BLOCK.melon, 'melon', [60, 61, 60], '#8bbf3a', 1, 'axe', 0, { id: BLOCK.melon }, 'wood'),
@@ -689,75 +759,16 @@ export function armorItemId(material: number, slot: number): number {
 
 // ----- アイテム -----
 
-/** ブロックはそのままアイテム id として使う (1..49)。素材は 100 以降、道具は 200 以降、防具は 300 以降 */
-export const ITEM = {
-	stick: 100,
-	coal: 101,
-	rawIron: 102,
-	ironIngot: 103,
-	apple: 104,
-	rawMeat: 105,
-	cookedMeat: 106,
-	rawGold: 107,
-	goldIngot: 108,
-	diamond: 109,
-	lapis: 130,
-	leather: 131,
-	feather: 132,
-	bone: 133,
-	string: 134,
-	rottenFlesh: 135,
-	wheatSeeds: 136,
-	wheat: 137,
-	bread: 138,
-	goldenApple: 139,
-	rawBeef: 140,
-	cookedBeef: 141,
-	rawPorkchop: 142,
-	cookedPorkchop: 143,
-	rawChicken: 144,
-	cookedChicken: 145,
-	rawMutton: 146,
-	cookedMutton: 147,
-	arrow: 148,
-	bow: 149,
-	egg: 150,
-	charcoal: 151,
-	brick: 152,
-	book: 153,
-	paper: 154,
-	melonSlice: 155,
-	pumpkinPie: 156,
-	// 染料
-	redDye: 157,
-	yellowDye: 158,
-	blueDye: 159,
-	greenDye: 160,
-	whiteDye: 161,
-	blackDye: 162,
-	grayDye: 163,
-	orangeDye: 164,
-	purpleDye: 165,
-	pinkDye: 166,
-	lightBlueDye: 167,
-	limeDye: 168,
-	// 道具 (200 + 素材 * 10 + 種類)
-	woodenPickaxe: 200, woodenAxe: 201, woodenShovel: 202, woodenSword: 203, woodenHoe: 204,
-	stonePickaxe: 210, stoneAxe: 211, stoneShovel: 212, stoneSword: 213, stoneHoe: 214,
-	ironPickaxe: 220, ironAxe: 221, ironShovel: 222, ironSword: 223, ironHoe: 224,
-	goldenPickaxe: 230, goldenAxe: 231, goldenShovel: 232, goldenSword: 233, goldenHoe: 234,
-	diamondPickaxe: 240, diamondAxe: 241, diamondShovel: 242, diamondSword: 243, diamondHoe: 244,
-	// 防具 (300 + 素材 * 10 + 部位)
-	leatherHelmet: 300, leatherChestplate: 301, leatherLeggings: 302, leatherBoots: 303,
-	ironHelmet: 310, ironChestplate: 311, ironLeggings: 312, ironBoots: 313,
-	goldenHelmet: 320, goldenChestplate: 321, goldenLeggings: 322, goldenBoots: 323,
-	diamondHelmet: 330, diamondChestplate: 331, diamondLeggings: 332, diamondBoots: 333,
-} as const;
-
-/** 旧バージョンの保存データにある道具 id → 新 id */
+/**
+ * 旧バージョンの保存データの id → 新 id。
+ * 110..112 / 120..122 は最初の版の道具。100..109 と 130..168 は 2026-10-09 までの素材・染料 (+300 した)。
+ * ブロック id が同じ番号を使うようになったため、保存データの 100..168 は素材として読み替える
+ * (その番号のブロックを持ち物に入れていた短い期間のデータは素材に変わる)
+ */
 export const LEGACY_ITEM_IDS: Record<number, number> = {
 	110: ITEM.woodenPickaxe, 111: ITEM.stonePickaxe, 112: ITEM.ironPickaxe,
 	120: ITEM.woodenSword, 121: ITEM.stoneSword, 122: ITEM.ironSword,
+	...Object.fromEntries([...Array.from({ length: 10 }, (_, i) => 100 + i), ...Array.from({ length: 39 }, (_, i) => 130 + i)].map(id => [id, id + 300])),
 };
 
 export type ItemKey = keyof typeof ITEM | Exclude<BlockKey, 'air'>;
