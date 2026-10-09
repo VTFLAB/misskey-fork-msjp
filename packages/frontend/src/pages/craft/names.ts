@@ -10,7 +10,10 @@ import { enchantLabel, rarityOf } from '@/utility/craft/items.js';
 import type { Rarity } from '@/utility/craft/items.js';
 import type { ItemStack } from '@/utility/craft/types.js';
 
-const dict = (key: string): Record<string, string> => (i18n.ts._craft as unknown as Record<string, Record<string, string>>)[key] ?? {};
+// ビルド時のロケール埋め込みは `i18n.ts._craft` をオブジェクトリテラルに置き換えるので、
+// 矢印関数の本体に直接書かずに一度変数へ入れる (式の位置によっては構文が壊れる)
+const craftLocale: Record<string, Record<string, string>> = i18n.ts._craft as unknown as Record<string, Record<string, string>>;
+const dict = (key: string): Record<string, string> => craftLocale[key] ?? {};
 
 export function itemName(id: number): string {
 	const def = ITEM_DEFS[id];
