@@ -486,6 +486,14 @@ export class CraftEngine {
 	/** 支えを失って消えるブロックのドロップを拾いながら連鎖の編集を適用する */
 	private applyCascade(edits: { x: number; y: number; z: number; id: number }[], collectDrops: boolean): void {
 		const drops: ItemStack[] = [];
+		// 落ちてきた砂・砂利がプレイヤーの体と重なるなら、その上で止める
+		for (const e of edits) {
+			if ((e.id === BLOCK.sand || e.id === BLOCK.gravel) && this.occupiedByEntity(e.x, e.y, e.z)) {
+				let y = e.y;
+				while (y <= WORLD.maxY && (this.occupiedByEntity(e.x, y, e.z) || this.world.getBlock(e.x, y, e.z) !== BLOCK.air)) y++;
+				e.y = y;
+			}
+		}
 		for (const e of edits) {
 			if (e.id !== BLOCK.air) continue;
 			const prev = this.world.getBlock(e.x, e.y, e.z);
@@ -605,8 +613,12 @@ export class CraftEngine {
 		if (!canPlaceAt(this.world, blockId, x, y, z, hit.nx, hit.ny, hit.nz)) return false;
 		const def = BLOCK_DEFS[blockId];
 		if (def?.solid && this.occupiedByEntity(x, y, z)) return false;
-		// 砂・砂利は空中なら落ちる
-		const destY = (blockId === BLOCK.sand || blockId === BLOCK.gravel) ? gravityDestination(this.world, x, y, z) : null;
+		// 砂・砂利は空中なら落ちる。落下先がプレイヤーと重なるなら、その上で止める (自分を埋めない)
+		let destY = (blockId === BLOCK.sand || blockId === BLOCK.gravel) ? gravityDestination(this.world, x, y, z) : null;
+		if (destY != null) {
+			while (destY < y && this.occupiedByEntity(x, destY, z)) destY++;
+			if (destY === y) destY = null;
+		}
 		if (!this.canEditAt(x, destY ?? y, z)) return false;
 		if (consume && !this.player.inventory.take(this.player.hotbarIndex, 1)) return false;
 		if (consume) this.listeners.inventoryChange?.();
