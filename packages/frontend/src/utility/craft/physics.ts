@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { BLOCK, WORLD, isSolid } from './constants.js';
+import { BLOCK, BLOCK_DEFS, PLAYER, WORLD, isSolid } from './constants.js';
 import { lookDir } from './math.js';
 import type { BlockHit, Vec3 } from './types.js';
 import type { CraftWorld } from './world.js';
 
-export const GRAVITY = 28;
-export const MAX_FALL_SPEED = 50;
+export const GRAVITY = PLAYER.gravity;
+export const MAX_FALL_SPEED = PLAYER.maxFallSpeed;
 
 /** 幅 w、高さ h の箱 (足元中心が pos) がブロックと重なるか */
 export function collides(world: CraftWorld, x: number, y: number, z: number, w: number, h: number): boolean {
@@ -44,23 +44,53 @@ export type MoveResult = {
 	hitCeiling: boolean;
 };
 
+export type MoveOptions = {
+	/** 段差を自動で登る (高さは stepHeight、既定 PLAYER.stepHeight) */
+	stepUp?: boolean;
+	stepHeight?: number;
+	onGround?: boolean;
+	/** 地面にいるとき、足場が無くなる方向へ水平に動かない (スニーク) */
+	edgeSafe?: boolean;
+};
+
+/** 足元のすぐ下に固体があるか (スニークの縁止め) */
+function hasSupport(world: CraftWorld, x: number, y: number, z: number, w: number): boolean {
+	return collides(world, x, y - 0.1, z, w, 0.05);
+}
+
 /**
  * 速度 vel で dt 秒ぶん動かす。1 軸ずつ動かし、ぶつかったら手前で止めて速度を 0 にする。
- * stepUp が true なら 1 ブロックの段差を自動で登る。
+ * stepUp が true なら stepHeight までの段差を自動で登る。
  */
-export function moveEntity(world: CraftWorld, pos: Vec3, vel: Vec3, w: number, h: number, dt: number, opts: { stepUp?: boolean; onGround?: boolean } = {}): MoveResult {
+export function moveEntity(world: CraftWorld, pos: Vec3, vel: Vec3, w: number, h: number, dt: number, opts: MoveOptions = {}): MoveResult {
 	const result: MoveResult = { onGround: false, hitWall: false, hitCeiling: false };
+	const stepHeight = opts.stepHeight ?? PLAYER.stepHeight;
 	const axis = (dx: number, dy: number, dz: number): boolean => {
 		if (dx === 0 && dy === 0 && dz === 0) return true;
 		const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dz)) / 0.25));
 		const sx = dx / steps, sy = dy / steps, sz = dz / steps;
+		const horizontal = dy === 0;
 		for (let i = 0; i < steps; i++) {
 			const nx = pos.x + sx, ny = pos.y + sy, nz = pos.z + sz;
+			if (horizontal && opts.edgeSafe && opts.onGround && !hasSupport(world, nx, pos.y, nz, w) && hasSupport(world, pos.x, pos.y, pos.z, w)) {
+				return false;
+			}
 			if (collides(world, nx, ny, nz, w, h)) {
-				if (dy === 0 && opts.stepUp && opts.onGround && !collides(world, nx, pos.y + 1.001, nz, w, h)) {
-					pos.y += 1.001;
-					pos.x = nx; pos.z = nz;
-					continue;
+				if (horizontal && opts.stepUp && opts.onGround) {
+					let lifted = false;
+					for (let lift = 0.1; lift <= stepHeight + 1e-6; lift += 0.1) {
+						if (collides(world, pos.x, pos.y + lift, pos.z, w, h)) break;
+						if (!collides(world, nx, pos.y + lift, nz, w, h)) {
+							// 段の上に乗るよう、浮いた分だけ押し下げる
+							let y = pos.y + lift;
+							for (let k = 0; k < 10 && !collides(world, nx, y - 0.01, nz, w, h) && y - 0.01 >= pos.y; k++) y -= 0.01;
+							pos.y = y;
+							pos.x = nx; pos.z = nz;
+							lifted = true;
+							break;
+						}
+					}
+					if (lifted) continue;
 				}
 				return false;
 			}
@@ -94,8 +124,44 @@ export function isHeadInWater(world: CraftWorld, pos: Vec3, eyeHeight: number): 
 	return world.getBlock(Math.floor(pos.x), Math.floor(pos.y + eyeHeight), Math.floor(pos.z)) === BLOCK.water;
 }
 
-/** 視線上のブロックを DDA で探す */
-export function raycastBlocks(world: CraftWorld, ox: number, oy: number, oz: number, yaw: number, pitch: number, maxDist: number): BlockHit | null {
+/** 箱 (足元中心 pos) と重なる範囲にはしごなど登れるブロックがあるか */
+export function isOnLadder(world: CraftWorld, pos: Vec3, w: number, h: number): boolean {
+	const half = w / 2;
+	const minX = Math.floor(pos.x - half), maxX = Math.floor(pos.x + half - 0.0001);
+	const minY = Math.floor(pos.y), maxY = Math.floor(pos.y + h - 0.0001);
+	const minZ = Math.floor(pos.z - half), maxZ = Math.floor(pos.z + half - 0.0001);
+	for (let x = minX; x <= maxX; x++) {
+		for (let y = minY; y <= maxY; y++) {
+			for (let z = minZ; z <= maxZ; z++) {
+				if (BLOCK_DEFS[world.getBlock(x, y, z)]?.climbable === true) return true;
+			}
+		}
+	}
+	return false;
+}
+
+/** 足の真下 (4 隅と中心を y-0.05 で調べる) にあるブロック id。何も無ければ 0 */
+export function blockBelow(world: CraftWorld, pos: Vec3, w: number): number {
+	const half = w / 2 - 0.01;
+	const y = Math.floor(pos.y - 0.05);
+	const center = world.getBlock(Math.floor(pos.x), y, Math.floor(pos.z));
+	if (center !== BLOCK.air && center !== BLOCK.water) return center;
+	for (const [dx, dz] of [[-half, -half], [half, -half], [-half, half], [half, half]]) {
+		const id = world.getBlock(Math.floor(pos.x + dx), y, Math.floor(pos.z + dz));
+		if (id !== BLOCK.air && id !== BLOCK.water) return id;
+	}
+	return BLOCK.air;
+}
+
+export function isOnIce(world: CraftWorld, pos: Vec3, w: number): boolean {
+	return BLOCK_DEFS[blockBelow(world, pos, w)]?.slippery === true;
+}
+
+/**
+ * 視線上のブロックを DDA で探す。空気以外 (十字型・松明・はしごを含む) に当たる。
+ * 水は opts.fluids が true のときだけ当たる
+ */
+export function raycastBlocks(world: CraftWorld, ox: number, oy: number, oz: number, yaw: number, pitch: number, maxDist: number, opts: { fluids?: boolean } = {}): BlockHit | null {
 	const [dx, dy, dz] = lookDir(yaw, pitch);
 	let x = Math.floor(ox), y = Math.floor(oy), z = Math.floor(oz);
 	const stepX = dx > 0 ? 1 : -1, stepY = dy > 0 ? 1 : -1, stepZ = dz > 0 ? 1 : -1;
@@ -109,7 +175,10 @@ export function raycastBlocks(world: CraftWorld, ox: number, oy: number, oz: num
 	let t = 0;
 	while (t <= maxDist) {
 		const id = world.getBlock(x, y, z);
-		if (isSolid(id)) return { x, y, z, nx, ny, nz, dist: t };
+		if (id !== BLOCK.air && (id !== BLOCK.water || opts.fluids === true)) {
+			const def = BLOCK_DEFS[id];
+			if (def != null && (def.shape !== 'cube' || def.solid || id === BLOCK.water)) return { x, y, z, nx, ny, nz, dist: t };
+		}
 		if (tMaxX < tMaxY && tMaxX < tMaxZ) {
 			x += stepX; t = tMaxX; tMaxX += tDeltaX; nx = -stepX; ny = 0; nz = 0;
 		} else if (tMaxY < tMaxZ) {

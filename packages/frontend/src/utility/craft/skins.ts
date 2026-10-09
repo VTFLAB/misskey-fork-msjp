@@ -4,7 +4,7 @@
  */
 
 import { boxUvLayout, modelFor } from './models.js';
-import type { BoxUv, EntityKind, UvRect } from './models.js';
+import type { BoxUv, EntityKind, ModelBox, UvRect } from './models.js';
 
 /**
  * エンティティのテクスチャを canvas で手続き的に描く。
@@ -279,6 +279,261 @@ export function buildBearTexture(): HTMLCanvasElement {
 	});
 }
 
+// ----- 追加 MOB (箱モデルの展開図に沿って塗る) -----
+
+type FaceFn = (face: keyof BoxUv, x: number, y: number, w: number, h: number) => string;
+
+/** 箱の全面を、面名と面内座標から決まる色で塗る */
+function paintBox(ctx: CanvasRenderingContext2D, uv: BoxUv, fn: FaceFn): void {
+	for (const k of FACE_KEYS) {
+		const rc = uv[k];
+		fillRect(ctx, rc, (x, y) => fn(k, x, y, rc.w, rc.h));
+	}
+}
+
+function mobCanvas(kind: EntityKind): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; boxes: ModelBox[] } {
+	const model = modelFor(kind);
+	const { canvas, ctx } = makeCanvas(model.texW, model.texH);
+	return { canvas, ctx, boxes: model.boxes };
+}
+
+export function buildSkeletonSkin(): HTMLCanvasElement {
+	const { canvas, ctx, boxes } = mobCanvas('skeleton');
+	const r = rand(2024);
+	const bone: Rgb = [206, 206, 198];
+	const dark: Rgb = [44, 44, 44];
+	for (const b of boxes) {
+		const rc = b.uv.front;
+		paintBox(ctx, b.uv, () => css(bone, (r() - 0.5) * 20));
+		if (b.name === 'head') {
+			dot(ctx, rc, 1, 4, css(dark), 2, 2);
+			dot(ctx, rc, 5, 4, css(dark), 2, 2);
+			dot(ctx, rc, 3, 6, css(scale(bone, 0.6)), 2, 1);
+			dot(ctx, rc, 2, 7, css(dark), 4, 1);
+		} else if (b.name === 'body') {
+			// 肋骨: 前後の面に暗い横縞
+			for (const k of ['front', 'back'] as const) {
+				const f = b.uv[k];
+				for (let y = 1; y < 10; y += 3) dot(ctx, f, 1, y, css(dark, 30), f.w - 2, 1);
+				dot(ctx, f, 3, 0, css(scale(bone, 0.8)), 2, f.h);
+			}
+		} else {
+			// 腕と脚: 関節の暗い帯
+			for (const k of ['right', 'front', 'left', 'back'] as const) {
+				const f = b.uv[k];
+				dot(ctx, f, 0, 5, css(scale(bone, 0.65)), f.w, 1);
+				dot(ctx, f, 0, f.h - 1, css(scale(bone, 0.8)), f.w, 1);
+			}
+		}
+	}
+	return canvas;
+}
+
+export function buildCreeperSkin(): HTMLCanvasElement {
+	const { canvas, ctx, boxes } = mobCanvas('creeper');
+	const r = rand(555);
+	// 緑の濃淡を 2px 単位のまだらにする
+	const blot = new Map<string, number>();
+	const tone = (key: string) => {
+		let v = blot.get(key);
+		if (v == null) { v = r(); blot.set(key, v); }
+		return v;
+	};
+	for (const b of boxes) {
+		paintBox(ctx, b.uv, (k, x, y) => {
+			const v = tone(`${b.name}${k}${x >> 1},${y >> 1}`);
+			const base: Rgb = v < 0.3 ? [34, 120, 38] : v < 0.7 ? [64, 160, 58] : [92, 190, 76];
+			return css(base, (r() - 0.5) * 10);
+		});
+		if (b.name === 'head') {
+			const f = b.uv.front;
+			const black = '#0a0a0a';
+			dot(ctx, f, 1, 2, black, 2, 2);
+			dot(ctx, f, 5, 2, black, 2, 2);
+			dot(ctx, f, 3, 4, black, 2, 3);
+			dot(ctx, f, 2, 5, black, 1, 3);
+			dot(ctx, f, 5, 5, black, 1, 3);
+		}
+	}
+	return canvas;
+}
+
+export function buildSpiderTexture(): HTMLCanvasElement {
+	const { canvas, ctx, boxes } = mobCanvas('spider');
+	const r = rand(808);
+	for (const b of boxes) {
+		const body = b.name === 'body';
+		const base: Rgb = body ? [52, 44, 44] : b.name === 'head' ? [64, 54, 52] : [44, 38, 38];
+		paintBox(ctx, b.uv, (k, x, y, w, h) => {
+			let c = scale(base, 1);
+			// 胴体は背に薄い斑点
+			if (body && k === 'top' && ((x + y * 3) % 5 === 0)) c = scale(base, 1.5);
+			if (b.name === 'leg') c = scale(base, 0.9 + 0.4 * (x / Math.max(1, w)));
+			return css(c, (r() - 0.5) * 14);
+		});
+		if (b.name === 'head') {
+			const f = b.uv.front;
+			dot(ctx, f, 1, 3, '#d8201c', 2, 2);
+			dot(ctx, f, 5, 3, '#d8201c', 2, 2);
+			dot(ctx, f, 3, 2, '#8a1410', 1, 1);
+			dot(ctx, f, 4, 2, '#8a1410', 1, 1);
+			dot(ctx, f, 2, 6, '#c8c0b0', 1, 2);
+			dot(ctx, f, 5, 6, '#c8c0b0', 1, 2);
+		}
+	}
+	return canvas;
+}
+
+export function buildCowTexture(): HTMLCanvasElement {
+	const { canvas, ctx, boxes } = mobCanvas('cow');
+	const r = rand(1301);
+	const brown: Rgb = [92, 62, 42];
+	const white: Rgb = [232, 228, 220];
+	for (const b of boxes) {
+		if (b.name === 'horn') {
+			paintBox(ctx, b.uv, () => css([226, 220, 196], (r() - 0.5) * 10));
+			continue;
+		}
+		paintBox(ctx, b.uv, (k, x, y, w, h) => {
+			let c = brown;
+			if (b.name === 'body') {
+				// 白い斑: 位置から決まる大きなまだら
+				const blob = Math.sin(x * 0.7 + (k.length) * 2.1) + Math.cos(y * 0.6 + x * 0.25);
+				if (blob > 0.9 && k !== 'bottom') c = white;
+				if (k === 'bottom') c = [200, 170, 160];
+			} else if (b.name === 'head') {
+				if (k === 'front' && y >= h - 3 && x >= 1 && x < w - 1) c = [196, 164, 150];
+				else if (k === 'front' && y < 3 && x >= 2 && x < w - 2) c = white;
+			} else if (b.name === 'leg') {
+				if (y >= h - 2) c = [60, 44, 36];
+			}
+			return css(c, (r() - 0.5) * 16);
+		});
+		if (b.name === 'head') {
+			const f = b.uv.front;
+			dot(ctx, f, 1, 3, '#161616', 1, 1);
+			dot(ctx, f, 6, 3, '#161616', 1, 1);
+			dot(ctx, f, 2, 6, '#5a3a30', 1, 1);
+			dot(ctx, f, 5, 6, '#5a3a30', 1, 1);
+		}
+	}
+	return canvas;
+}
+
+export function buildPigTexture(): HTMLCanvasElement {
+	const { canvas, ctx, boxes } = mobCanvas('pig');
+	const r = rand(4711);
+	const pink: Rgb = [240, 158, 168];
+	for (const b of boxes) {
+		paintBox(ctx, b.uv, (k, x, y, w, h) => {
+			let c = pink;
+			if (b.name === 'snout') c = [224, 130, 142];
+			if (b.name === 'leg' && y >= h - 1) c = [200, 120, 130];
+			if (k === 'bottom') c = scale(pink, 0.9);
+			return css(c, (r() - 0.5) * 14);
+		});
+		if (b.name === 'head') {
+			const f = b.uv.front;
+			dot(ctx, f, 1, 3, '#202020', 1, 1);
+			dot(ctx, f, 6, 3, '#202020', 1, 1);
+			dot(ctx, f, 1, 2, '#f4f4f4', 1, 1);
+			dot(ctx, f, 6, 2, '#f4f4f4', 1, 1);
+		}
+		if (b.name === 'snout') {
+			const f = b.uv.front;
+			dot(ctx, f, 1, 1, '#7a3a44', 1, 1);
+			dot(ctx, f, 2, 1, '#7a3a44', 1, 1);
+		}
+	}
+	return canvas;
+}
+
+export function buildSheepTexture(): HTMLCanvasElement {
+	const { canvas, ctx, boxes } = mobCanvas('sheep');
+	const r = rand(9090);
+	const wool: Rgb = [236, 236, 230];
+	const skin: Rgb = [176, 146, 124];
+	for (const b of boxes) {
+		if (b.name === 'body') {
+			paintBox(ctx, b.uv, (k, x, y) => css(wool, -((x * 7 + y * 13) % 5) * 4 + (r() - 0.5) * 14));
+		} else {
+			paintBox(ctx, b.uv, (k, x, y, w, h) => {
+				let c = skin;
+				if (b.name === 'leg' && y >= h - 2) c = [60, 54, 50];
+				if (b.name === 'leg' && y < 3) c = wool;
+				if (b.name === 'head' && (k === 'top' || k === 'back' || (y < 1 && k !== 'bottom'))) c = wool;
+				return css(c, (r() - 0.5) * 14);
+			});
+		}
+		if (b.name === 'head') {
+			const f = b.uv.front;
+			dot(ctx, f, 0, 3, '#1c1c1c', 1, 1);
+			dot(ctx, f, 5, 3, '#1c1c1c', 1, 1);
+			dot(ctx, f, 2, 5, '#5a4034', 2, 1);
+		}
+	}
+	return canvas;
+}
+
+export function buildChickenTexture(): HTMLCanvasElement {
+	const { canvas, ctx, boxes } = mobCanvas('chicken');
+	const r = rand(66);
+	for (const b of boxes) {
+		let base: Rgb = [242, 242, 238];
+		if (b.name === 'beak') base = [240, 190, 50];
+		else if (b.name === 'wattle') base = [200, 40, 40];
+		else if (b.name === 'leg') base = [222, 180, 60];
+		else if (b.name === 'wing') base = [226, 226, 220];
+		paintBox(ctx, b.uv, (k, x, y) => css(base, (r() - 0.5) * 12 - (b.name === 'wing' && y > 2 ? 10 : 0)));
+		if (b.name === 'head') {
+			const f = b.uv.front;
+			dot(ctx, f, 0, 2, '#161616', 1, 1);
+			dot(ctx, f, 3, 2, '#161616', 1, 1);
+			// とさか
+			dot(ctx, b.uv.top, 1, 0, '#c82828', 2, b.uv.top.h);
+		}
+	}
+	return canvas;
+}
+
+export function buildArrowTexture(): HTMLCanvasElement {
+	const { canvas, ctx, boxes } = mobCanvas('arrow');
+	const r = rand(3);
+	const b = boxes[0];
+	// 長辺の面 (right/left/top/bottom) は u か v が矢の長さ方向。先端を -z とした位置 t (0 = 羽根、1 = 先端)
+	const along = (k: keyof BoxUv, x: number, y: number, w: number, h: number): number => {
+		switch (k) {
+			case 'right': return x / w;
+			case 'left': return 1 - x / w;
+			case 'top': return (y + 0.5) / h;
+			case 'bottom': return 1 - (y + 0.5) / h;
+			default: return 0.5;
+		}
+	};
+	paintBox(ctx, b.uv, (k, x, y, w, h) => {
+		const t = along(k, x, y, w, h);
+		let c: Rgb = [138, 106, 60];
+		if (t > 0.88) c = [150, 150, 154];
+		else if (t < 0.2) c = (x + y) % 2 === 0 ? [236, 236, 230] : [200, 200, 196];
+		return css(c, (r() - 0.5) * 10);
+	});
+	return canvas;
+}
+
+const MOB_PAINTERS: Record<Exclude<EntityKind, 'player'>, () => HTMLCanvasElement> = {
+	zombie: buildZombieSkin,
+	skeleton: buildSkeletonSkin,
+	creeper: buildCreeperSkin,
+	spider: buildSpiderTexture,
+	cow: buildCowTexture,
+	pig: buildPigTexture,
+	sheep: buildSheepTexture,
+	chicken: buildChickenTexture,
+	wolf: buildWolfTexture,
+	bear: buildBearTexture,
+	arrow: buildArrowTexture,
+};
+
 // ----- GPU テクスチャのキャッシュ -----
 
 /**
@@ -325,9 +580,8 @@ function uploadTexture(gl: WebGL2RenderingContext, source: TexImageSource): WebG
 
 export class SkinCache {
 	private defaultTex: WebGLTexture;
-	private zombieTex: WebGLTexture;
-	private wolfTex: WebGLTexture;
-	private bearTex: WebGLTexture;
+	/** 手続き生成のテクスチャ (MOB と矢)。使われるときに作る */
+	private mobTex = new Map<EntityKind, WebGLTexture>();
 	private loaded = new Map<string, WebGLTexture>();
 	/** 読み込み中または失敗済みの url (再試行しない) */
 	private attempted = new Set<string>();
@@ -336,9 +590,6 @@ export class SkinCache {
 
 	constructor(private gl: WebGL2RenderingContext) {
 		this.defaultTex = uploadTexture(gl, buildDefaultSkin());
-		this.zombieTex = uploadTexture(gl, buildZombieSkin());
-		this.wolfTex = uploadTexture(gl, buildWolfTexture());
-		this.bearTex = uploadTexture(gl, buildBearTexture());
 	}
 
 	/** 読み込み済みならそのスキン、そうでなければ標準スキンを返す。未読み込みの url は非同期で読み込む */
@@ -354,12 +605,13 @@ export class SkinCache {
 	}
 
 	public textureFor(kind: EntityKind, skinUrl?: string | null): WebGLTexture {
-		switch (kind) {
-			case 'player': return this.get(skinUrl ?? null);
-			case 'zombie': return this.zombieTex;
-			case 'wolf': return this.wolfTex;
-			case 'bear': return this.bearTex;
+		if (kind === 'player') return this.get(skinUrl ?? null);
+		let tex = this.mobTex.get(kind);
+		if (tex == null) {
+			tex = uploadTexture(this.gl, MOB_PAINTERS[kind]());
+			this.mobTex.set(kind, tex);
 		}
+		return tex;
 	}
 
 	private load(url: string): void {
@@ -399,9 +651,8 @@ export class SkinCache {
 		const gl = this.gl;
 		for (const t of this.loaded.values()) gl.deleteTexture(t);
 		this.loaded.clear();
+		for (const t of this.mobTex.values()) gl.deleteTexture(t);
+		this.mobTex.clear();
 		gl.deleteTexture(this.defaultTex);
-		gl.deleteTexture(this.zombieTex);
-		gl.deleteTexture(this.wolfTex);
-		gl.deleteTexture(this.bearTex);
 	}
 }

@@ -4,12 +4,14 @@
  */
 
 import { Inject, Injectable } from '@nestjs/common';
+import { QueryFailedError } from 'typeorm';
 import { DI } from '@/di-symbols.js';
-import type { CraftBlocksRepository, CraftSkinsRepository, CraftWorldsRepository, DriveFilesRepository, MiCraftWorld, MiDriveFile, MiUser } from '@/models/_.js';
+import type { CraftBlocksRepository, CraftPlayerStatesRepository, CraftSkinsRepository, CraftWorldsRepository, DriveFilesRepository, MiCraftPlayerState, MiCraftWorld, MiDriveFile, MiUser } from '@/models/_.js';
 import { bindThis } from '@/decorators.js';
 import { GlobalEventService } from '@/core/GlobalEventService.js';
 import { IdService } from '@/core/IdService.js';
 import { RoleService } from '@/core/RoleService.js';
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity.js';
 
 /**
  * Misskey Craft (bsky-fork original) のワールド定数。
@@ -20,13 +22,19 @@ export const CRAFT_WORLD = {
 	maxCoord: 1000000,
 	minY: 0,
 	maxY: 95,
-	maxBlockType: 19,
+	/** どの id が実在するかはクライアントが決める。サーバーは smallint の範囲を絞るだけ */
+	maxBlockType: 127,
 	/** 岩盤。置けないし壊せない */
 	bedrockType: 17,
 	maxWorldsPerUser: 20,
 	maxBlocksPerWorld: 200000,
 	/** スキン画像の上限 (byte) */
 	maxSkinFileSize: 1024 * 256,
+	/** プレイヤーのセーブデータ (JSON 文字列) の上限 (文字数) */
+	/** セーブデータの上限 (UTF-8 の byte 数) */
+	maxPlayerStateBytes: 32768,
+	/** ユーザーあたりのセーブデータ (ワールド) の数の上限 */
+	maxPlayerStatesPerUser: 200,
 } as const;
 
 @Injectable()
@@ -40,6 +48,9 @@ export class CraftService {
 
 		@Inject(DI.craftSkinsRepository)
 		private craftSkinsRepository: CraftSkinsRepository,
+
+		@Inject(DI.craftPlayerStatesRepository)
+		private craftPlayerStatesRepository: CraftPlayerStatesRepository,
 
 		@Inject(DI.driveFilesRepository)
 		private driveFilesRepository: DriveFilesRepository,
@@ -182,6 +193,56 @@ export class CraftService {
 			updatedAt: new Date(),
 		}, ['userId']);
 		return { ok: true, url: this.skinUrlOf(file) };
+	}
+
+	// ----- プレイヤーのセーブデータ -----
+
+	@bindThis
+	public async getPlayerState(worldId: MiCraftWorld['id'], userId: MiUser['id']): Promise<{ state: Record<string, unknown>; updatedAt: Date } | null> {
+		const row = await this.craftPlayerStatesRepository.findOneBy({ worldId, userId });
+		if (row == null) return null;
+		return { state: row.state, updatedAt: row.updatedAt };
+	}
+
+	/**
+	 * セーブデータの大きさと中身を検査する。jsonb が受け付けない \u0000 も弾く
+	 */
+	@bindThis
+	public isValidPlayerState(state: Record<string, unknown>): boolean {
+		const json = JSON.stringify(state);
+		if (Buffer.byteLength(json, 'utf8') > CRAFT_WORLD.maxPlayerStateBytes) return false;
+		if (json.includes('\\u0000')) return false;
+		return true;
+	}
+
+	/**
+	 * セーブデータを保存する (ゲームロジックは検証しない)。
+	 */
+	@bindThis
+	public async savePlayerState(worldId: MiCraftWorld['id'], userId: MiUser['id'], state: Record<string, unknown>): Promise<'ok' | 'noSuchWorld' | 'tooLarge' | 'tooMany'> {
+		if (!this.isValidPlayerState(state)) return 'tooLarge';
+		const exists = await this.craftWorldsRepository.existsBy({ id: worldId });
+		if (!exists) return 'noSuchWorld';
+		// 新しい行なら、ユーザーあたりの件数の上限を見る
+		const existing = await this.craftPlayerStatesRepository.existsBy({ worldId, userId });
+		if (!existing) {
+			const n = await this.craftPlayerStatesRepository.countBy({ userId });
+			if (n >= CRAFT_WORLD.maxPlayerStatesPerUser) return 'tooMany';
+		}
+
+		try {
+			await this.craftPlayerStatesRepository.upsert({
+				worldId,
+				userId,
+				state: state as QueryDeepPartialEntity<MiCraftPlayerState>['state'],
+				updatedAt: new Date(),
+			}, ['worldId', 'userId']);
+		} catch (err) {
+			// 検査の直後にワールドが消えた (外部キー違反)
+			if (err instanceof QueryFailedError && (err.driverError as { code?: string } | undefined)?.code === '23503') return 'noSuchWorld';
+			throw err;
+		}
+		return 'ok';
 	}
 
 	/**

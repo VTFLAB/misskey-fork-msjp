@@ -94,6 +94,7 @@ export const DI = {
 	craftWorldsRepository: Symbol('craftWorldsRepository'),
 	craftBlocksRepository: Symbol('craftBlocksRepository'),
 	craftSkinsRepository: Symbol('craftSkinsRepository'),
+	craftPlayerStatesRepository: Symbol('craftPlayerStatesRepository'),
 	noteDraftsRepository: Symbol('noteDraftsRepository'),
 	updateInfosRepository: Symbol('updateInfosRepository'),
 	userFeedbacksRepository: Symbol('userFeedbacksRepository'),

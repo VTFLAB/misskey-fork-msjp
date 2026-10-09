@@ -61,6 +61,33 @@ export function mat4TranslateScale(x: number, y: number, z: number, sx: number, 
 	return m;
 }
 
+export function mat4RotateX(a: number): Mat4 {
+	const m = mat4Identity();
+	const c = Math.cos(a), s = Math.sin(a);
+	m[5] = c; m[6] = s; m[9] = -s; m[10] = c;
+	return m;
+}
+
+export function mat4RotateY(a: number): Mat4 {
+	const m = mat4Identity();
+	const c = Math.cos(a), s = Math.sin(a);
+	m[0] = c; m[2] = -s; m[8] = s; m[10] = c;
+	return m;
+}
+
+export function mat4RotateZ(a: number): Mat4 {
+	const m = mat4Identity();
+	const c = Math.cos(a), s = Math.sin(a);
+	m[0] = c; m[1] = s; m[4] = -s; m[5] = c;
+	return m;
+}
+
+export function mat4Scale(sx: number, sy: number, sz: number): Mat4 {
+	const m = mat4Identity();
+	m[0] = sx; m[5] = sy; m[10] = sz;
+	return m;
+}
+
 /** 視線方向の単位ベクトル (yaw=0 で -z 方向) */
 export function lookDir(yaw: number, pitch: number): [number, number, number] {
 	const cp = Math.cos(pitch);

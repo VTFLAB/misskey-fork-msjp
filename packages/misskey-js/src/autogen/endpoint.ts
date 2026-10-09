@@ -308,11 +308,14 @@ import type {
 	CraftCreateRequest,
 	CraftCreateResponse,
 	CraftDeleteRequest,
+	CraftSaveStateRequest,
 	CraftSetSkinRequest,
 	CraftSetSkinResponse,
 	CraftShowRequest,
 	CraftShowResponse,
 	CraftSkinResponse,
+	CraftStateRequest,
+	CraftStateResponse,
 	CraftUpdateRequest,
 	CraftUpdateResponse,
 	CraftWorldsRequest,
@@ -991,9 +994,11 @@ export type Endpoints = {
 	'craft/blocks': { req: CraftBlocksRequest; res: CraftBlocksResponse };
 	'craft/create': { req: CraftCreateRequest; res: CraftCreateResponse };
 	'craft/delete': { req: CraftDeleteRequest; res: EmptyResponse };
+	'craft/save-state': { req: CraftSaveStateRequest; res: EmptyResponse };
 	'craft/set-skin': { req: CraftSetSkinRequest; res: CraftSetSkinResponse };
 	'craft/show': { req: CraftShowRequest; res: CraftShowResponse };
 	'craft/skin': { req: EmptyRequest; res: CraftSkinResponse };
+	'craft/state': { req: CraftStateRequest; res: CraftStateResponse };
 	'craft/update': { req: CraftUpdateRequest; res: CraftUpdateResponse };
 	'craft/worlds': { req: CraftWorldsRequest; res: CraftWorldsResponse };
 	'drive': { req: EmptyRequest; res: DriveResponse };
