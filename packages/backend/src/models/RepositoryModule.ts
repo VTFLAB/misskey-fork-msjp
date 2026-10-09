@@ -63,6 +63,8 @@ import {
 	miRepository,
 	MiRetentionAggregation,
 	MiReversiGame,
+	MiCraftWorld,
+	MiCraftBlock,
 	MiRole,
 	MiRoleAssignment,
 	MiSignin,
@@ -560,6 +562,18 @@ const $reversiGamesRepository: Provider = {
 	inject: [DI.db],
 };
 
+const $craftWorldsRepository: Provider = {
+	provide: DI.craftWorldsRepository,
+	useFactory: (db: DataSource) => db.getRepository(MiCraftWorld).extend(miRepository as MiRepository<MiCraftWorld>),
+	inject: [DI.db],
+};
+
+const $craftBlocksRepository: Provider = {
+	provide: DI.craftBlocksRepository,
+	useFactory: (db: DataSource) => db.getRepository(MiCraftBlock).extend(miRepository as MiRepository<MiCraftBlock>),
+	inject: [DI.db],
+};
+
 const $updateInfosRepository: Provider = {
 	provide: DI.updateInfosRepository,
 	useFactory: (db: DataSource) => db.getRepository(MiUpdateInfo).extend(miRepository as MiRepository<MiUpdateInfo>),
@@ -694,6 +708,8 @@ const $googleAccountsRepository: Provider = {
 		$chatApprovalsRepository,
 		$bubbleGameRecordsRepository,
 		$reversiGamesRepository,
+		$craftWorldsRepository,
+		$craftBlocksRepository,
 		$updateInfosRepository,
 		$userFeedbacksRepository,
 		$twitchAccountsRepository,
@@ -782,6 +798,8 @@ const $googleAccountsRepository: Provider = {
 		$chatApprovalsRepository,
 		$bubbleGameRecordsRepository,
 		$reversiGamesRepository,
+		$craftWorldsRepository,
+		$craftBlocksRepository,
 		$updateInfosRepository,
 		$userFeedbacksRepository,
 		$twitchAccountsRepository,

@@ -961,6 +961,62 @@ export type Channels = {
             claimTimeIsUp: null | Record<string, never>;
         };
     };
+    craftWorld: {
+        params: {
+            worldId: string;
+        };
+        events: {
+            blockUpdated: (payload: {
+                x: number;
+                y: number;
+                z: number;
+                type: number;
+                userId: User['id'];
+            }) => void;
+            playerMoved: (payload: {
+                userId: User['id'];
+                username: string;
+                name: string | null;
+                avatarUrl: string | null;
+                x: number;
+                y: number;
+                z: number;
+                yaw: number;
+                pitch: number;
+            }) => void;
+            playerLeft: (payload: {
+                userId: User['id'];
+            }) => void;
+            worldDeleted: (payload: {
+                worldId: string;
+            }) => void;
+            worldUpdated: (payload: {
+                worldId: string;
+                name: string;
+                isPublic: boolean;
+            }) => void;
+            setBlockRejected: (payload: {
+                x: number;
+                y: number;
+                z: number;
+            }) => void;
+        };
+        receives: {
+            setBlock: {
+                x: number;
+                y: number;
+                z: number;
+                type: number;
+            };
+            move: {
+                x: number;
+                y: number;
+                z: number;
+                yaw: number;
+                pitch: number;
+            };
+        };
+    };
     twitchLiveStream: {
         params: {
             streamId: string;
@@ -1395,6 +1451,42 @@ type ClipsUpdateRequest = operations['clips___update']['requestBody']['content']
 
 // @public (undocumented)
 type ClipsUpdateResponse = operations['clips___update']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type CraftBlocksRequest = operations['craft___blocks']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type CraftBlocksResponse = operations['craft___blocks']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type CraftCreateRequest = operations['craft___create']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type CraftCreateResponse = operations['craft___create']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type CraftDeleteRequest = operations['craft___delete']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type CraftShowRequest = operations['craft___show']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type CraftShowResponse = operations['craft___show']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type CraftUpdateRequest = operations['craft___update']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type CraftUpdateResponse = operations['craft___update']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type CraftWorld = components['schemas']['CraftWorld'];
+
+// @public (undocumented)
+type CraftWorldsRequest = operations['craft___worlds']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type CraftWorldsResponse = operations['craft___worlds']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type DateString = string;
@@ -1977,6 +2069,17 @@ declare namespace entities {
         ClipsUnfavoriteRequest,
         ClipsUpdateRequest,
         ClipsUpdateResponse,
+        CraftBlocksRequest,
+        CraftBlocksResponse,
+        CraftCreateRequest,
+        CraftCreateResponse,
+        CraftDeleteRequest,
+        CraftShowRequest,
+        CraftShowResponse,
+        CraftUpdateRequest,
+        CraftUpdateResponse,
+        CraftWorldsRequest,
+        CraftWorldsResponse,
         DriveResponse,
         DriveFilesRequest,
         DriveFilesResponse,
@@ -2498,6 +2601,7 @@ declare namespace entities {
         RolePolicies,
         ReversiGameLite,
         ReversiGameDetailed,
+        CraftWorld,
         MetaLite,
         MetaDetailedOnly,
         MetaDetailed,

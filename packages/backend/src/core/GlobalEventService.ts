@@ -21,7 +21,7 @@ import type { MiPage } from '@/models/Page.js';
 import type { MiWebhook } from '@/models/Webhook.js';
 import type { MiSystemWebhook } from '@/models/SystemWebhook.js';
 import type { MiMeta } from '@/models/Meta.js';
-import { MiAvatarDecoration, MiChatMessage, MiChatRoom, MiReversiGame, MiRole, MiRoleAssignment } from '@/models/_.js';
+import { MiAvatarDecoration, MiChatMessage, MiChatRoom, MiCraftWorld, MiReversiGame, MiRole, MiRoleAssignment } from '@/models/_.js';
 import type { Packed } from '@/misc/json-schema.js';
 import type { JmaEewHistoryEntry } from '@/core/earthquake/EarthquakeAlertService.js';
 import type { TwitchChatFragment } from '@/models/TwitchStreamComment.js';
@@ -219,6 +219,38 @@ export interface ReversiGameEventTypes {
 		userId: MiUser['id'];
 	};
 }
+
+export interface CraftWorldEventTypes {
+	blockUpdated: {
+		x: number;
+		y: number;
+		z: number;
+		type: number;
+		userId: MiUser['id'];
+	};
+	playerMoved: {
+		userId: MiUser['id'];
+		username: string;
+		name: string | null;
+		avatarUrl: string | null;
+		x: number;
+		y: number;
+		z: number;
+		yaw: number;
+		pitch: number;
+	};
+	playerLeft: {
+		userId: MiUser['id'];
+	};
+	worldDeleted: {
+		worldId: MiCraftWorld['id'];
+	};
+	worldUpdated: {
+		worldId: MiCraftWorld['id'];
+		name: string;
+		isPublic: boolean;
+	};
+}
 //#endregion
 
 // 辞書(interface or type)から{ type, body }ユニオンを定義
@@ -343,6 +375,10 @@ export type GlobalEvents = {
 	reversiGame: {
 		name: `reversiGameStream:${MiReversiGame['id']}`;
 		payload: EventTypesToEventPayload<ReversiGameEventTypes>;
+	};
+	craftWorld: {
+		name: `craftWorldStream:${MiCraftWorld['id']}`;
+		payload: EventTypesToEventPayload<CraftWorldEventTypes>;
 	};
 	twitchLiveStream: {
 		name: `twitchLiveStream:${string}`;
@@ -512,6 +548,11 @@ export class GlobalEventService {
 	@bindThis
 	public publishReversiGameStream<K extends keyof ReversiGameEventTypes>(gameId: MiReversiGame['id'], type: K, value?: ReversiGameEventTypes[K]): void {
 		this.publish(`reversiGameStream:${gameId}`, type, typeof value === 'undefined' ? null : value);
+	}
+
+	@bindThis
+	public publishCraftWorldStream<K extends keyof CraftWorldEventTypes>(worldId: MiCraftWorld['id'], type: K, value?: CraftWorldEventTypes[K]): void {
+		this.publish(`craftWorldStream:${worldId}`, type, typeof value === 'undefined' ? null : value);
 	}
 
 	@bindThis

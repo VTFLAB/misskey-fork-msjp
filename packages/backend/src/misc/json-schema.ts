@@ -60,6 +60,7 @@ import {
 } from '@/models/json-schema/role.js';
 import { packedAdSchema } from '@/models/json-schema/ad.js';
 import { packedReversiGameDetailedSchema, packedReversiGameLiteSchema } from '@/models/json-schema/reversi-game.js';
+import { packedCraftWorldSchema } from '@/models/json-schema/craft-world.js';
 import {
 	packedMetaDetailedOnlySchema,
 	packedMetaDetailedSchema,
@@ -135,6 +136,7 @@ export const refs = {
 	RolePolicies: packedRolePoliciesSchema,
 	ReversiGameLite: packedReversiGameLiteSchema,
 	ReversiGameDetailed: packedReversiGameDetailedSchema,
+	CraftWorld: packedCraftWorldSchema,
 	MetaLite: packedMetaLiteSchema,
 	MetaDetailedOnly: packedMetaDetailedOnlySchema,
 	MetaDetailed: packedMetaDetailedSchema,
