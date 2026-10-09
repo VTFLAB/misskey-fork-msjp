@@ -65,6 +65,7 @@ import {
 	MiReversiGame,
 	MiCraftWorld,
 	MiCraftBlock,
+	MiCraftSkin,
 	MiRole,
 	MiRoleAssignment,
 	MiSignin,
@@ -574,6 +575,12 @@ const $craftBlocksRepository: Provider = {
 	inject: [DI.db],
 };
 
+const $craftSkinsRepository: Provider = {
+	provide: DI.craftSkinsRepository,
+	useFactory: (db: DataSource) => db.getRepository(MiCraftSkin).extend(miRepository as MiRepository<MiCraftSkin>),
+	inject: [DI.db],
+};
+
 const $updateInfosRepository: Provider = {
 	provide: DI.updateInfosRepository,
 	useFactory: (db: DataSource) => db.getRepository(MiUpdateInfo).extend(miRepository as MiRepository<MiUpdateInfo>),
@@ -710,6 +717,7 @@ const $googleAccountsRepository: Provider = {
 		$reversiGamesRepository,
 		$craftWorldsRepository,
 		$craftBlocksRepository,
+		$craftSkinsRepository,
 		$updateInfosRepository,
 		$userFeedbacksRepository,
 		$twitchAccountsRepository,
@@ -800,6 +808,7 @@ const $googleAccountsRepository: Provider = {
 		$reversiGamesRepository,
 		$craftWorldsRepository,
 		$craftBlocksRepository,
+		$craftSkinsRepository,
 		$updateInfosRepository,
 		$userFeedbacksRepository,
 		$twitchAccountsRepository,

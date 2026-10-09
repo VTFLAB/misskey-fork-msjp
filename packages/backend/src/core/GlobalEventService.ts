@@ -233,6 +233,7 @@ export interface CraftWorldEventTypes {
 		username: string;
 		name: string | null;
 		avatarUrl: string | null;
+		skinUrl: string | null;
 		x: number;
 		y: number;
 		z: number;
@@ -250,7 +251,31 @@ export interface CraftWorldEventTypes {
 		name: string;
 		isPublic: boolean;
 	};
+	mobsUpdated: {
+		hostId: MiUser['id'];
+		t: number;
+		mobs: CraftMobState[];
+	};
+	mobHit: {
+		userId: MiUser['id'];
+		id: string;
+		damage: number;
+		kx: number;
+		kz: number;
+	};
 }
+
+export type CraftMobState = {
+	id: string;
+	type: string;
+	x: number;
+	y: number;
+	z: number;
+	yaw: number;
+	hp: number;
+	target: string | null;
+	attackAt: number;
+};
 //#endregion
 
 // 辞書(interface or type)から{ type, body }ユニオンを定義
