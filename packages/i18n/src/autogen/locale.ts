@@ -16826,6 +16826,30 @@ export interface Locale extends ILocale {
          */
         "spawnPointSet": string;
         /**
+         * 夜にならないと寝られません
+         */
+        "cannotSleepNow": string;
+        /**
+         * 寝ています
+         */
+        "sleeping": string;
+        /**
+         * {count} / {total} 人が寝ています ({required} 人で朝になります)
+         */
+        "sleepingCount": ParameterizedString<"count" | "total" | "required">;
+        /**
+         * 起きる
+         */
+        "wakeUp": string;
+        /**
+         * 何か操作すると起きます
+         */
+        "wakeHint": string;
+        /**
+         * 朝になりました
+         */
+        "morning": string;
+        /**
          * 持ち物はそのまま残りますが、経験値レベルは失います。ベッドがあればそこで復活します。
          */
         "deathNoteXp": string;
@@ -17192,6 +17216,254 @@ export interface Locale extends ILocale {
              * シラカバの木材
              */
             "birchPlanks": string;
+            /**
+             * 松明
+             */
+            "wallTorch": string;
+            /**
+             * 松明
+             */
+            "wallTorch1": string;
+            /**
+             * 松明
+             */
+            "wallTorch2": string;
+            /**
+             * 松明
+             */
+            "wallTorch3": string;
+            /**
+             * シラカバの階段
+             */
+            "birchStairs": string;
+            /**
+             * シラカバの階段
+             */
+            "birchStairs1": string;
+            /**
+             * シラカバの階段
+             */
+            "birchStairs2": string;
+            /**
+             * シラカバの階段
+             */
+            "birchStairs3": string;
+            /**
+             * トウヒの階段
+             */
+            "spruceStairs": string;
+            /**
+             * トウヒの階段
+             */
+            "spruceStairs1": string;
+            /**
+             * トウヒの階段
+             */
+            "spruceStairs2": string;
+            /**
+             * トウヒの階段
+             */
+            "spruceStairs3": string;
+            /**
+             * 砂岩の階段
+             */
+            "sandstoneStairs": string;
+            /**
+             * 砂岩の階段
+             */
+            "sandstoneStairs1": string;
+            /**
+             * 砂岩の階段
+             */
+            "sandstoneStairs2": string;
+            /**
+             * 砂岩の階段
+             */
+            "sandstoneStairs3": string;
+            /**
+             * 滑らかな石の階段
+             */
+            "smoothStoneStairs": string;
+            /**
+             * 滑らかな石の階段
+             */
+            "smoothStoneStairs1": string;
+            /**
+             * 滑らかな石の階段
+             */
+            "smoothStoneStairs2": string;
+            /**
+             * 滑らかな石の階段
+             */
+            "smoothStoneStairs3": string;
+            /**
+             * 深層岩レンガの階段
+             */
+            "deepslateBrickStairs": string;
+            /**
+             * 深層岩レンガの階段
+             */
+            "deepslateBrickStairs1": string;
+            /**
+             * 深層岩レンガの階段
+             */
+            "deepslateBrickStairs2": string;
+            /**
+             * 深層岩レンガの階段
+             */
+            "deepslateBrickStairs3": string;
+            /**
+             * レンガの階段
+             */
+            "brickStairs": string;
+            /**
+             * レンガの階段
+             */
+            "brickStairs1": string;
+            /**
+             * レンガの階段
+             */
+            "brickStairs2": string;
+            /**
+             * レンガの階段
+             */
+            "brickStairs3": string;
+            /**
+             * 深層岩レンガのハーフブロック
+             */
+            "deepslateBrickSlab": string;
+            /**
+             * 磨かれた安山岩のハーフブロック
+             */
+            "polishedAndesiteSlab": string;
+            /**
+             * 磨かれた花崗岩のハーフブロック
+             */
+            "polishedGraniteSlab": string;
+            /**
+             * 磨かれた閃緑岩のハーフブロック
+             */
+            "polishedDioriteSlab": string;
+            /**
+             * レンガのハーフブロック
+             */
+            "brickSlab": string;
+            /**
+             * シラカバのフェンス
+             */
+            "birchFence": string;
+            /**
+             * トウヒのフェンス
+             */
+            "spruceFence": string;
+            /**
+             * 石レンガの塀
+             */
+            "stoneBrickWall": string;
+            /**
+             * 深層岩レンガの塀
+             */
+            "deepslateBrickWall": string;
+            /**
+             * シラカバのドア
+             */
+            "birchDoor": string;
+            /**
+             * シラカバのドア
+             */
+            "birchDoorUpper": string;
+            /**
+             * シラカバのドア
+             */
+            "birchDoorZ": string;
+            /**
+             * シラカバのドア
+             */
+            "birchDoorZUpper": string;
+            /**
+             * トウヒのドア
+             */
+            "spruceDoor": string;
+            /**
+             * トウヒのドア
+             */
+            "spruceDoorUpper": string;
+            /**
+             * トウヒのドア
+             */
+            "spruceDoorZ": string;
+            /**
+             * トウヒのドア
+             */
+            "spruceDoorZUpper": string;
+            /**
+             * シラカバのテーブル
+             */
+            "birchTable": string;
+            /**
+             * トウヒのテーブル
+             */
+            "spruceTable": string;
+            /**
+             * シラカバのスツール
+             */
+            "birchStool": string;
+            /**
+             * トウヒのスツール
+             */
+            "spruceStool": string;
+            /**
+             * シラカバの椅子
+             */
+            "birchChair": string;
+            /**
+             * シラカバの椅子
+             */
+            "birchChair1": string;
+            /**
+             * シラカバの椅子
+             */
+            "birchChair2": string;
+            /**
+             * シラカバの椅子
+             */
+            "birchChair3": string;
+            /**
+             * トウヒの椅子
+             */
+            "spruceChair": string;
+            /**
+             * トウヒの椅子
+             */
+            "spruceChair1": string;
+            /**
+             * トウヒの椅子
+             */
+            "spruceChair2": string;
+            /**
+             * トウヒの椅子
+             */
+            "spruceChair3": string;
+            /**
+             * 赤色の色ガラス
+             */
+            "redStainedGlass": string;
+            /**
+             * 青色の色ガラス
+             */
+            "blueStainedGlass": string;
+            /**
+             * 緑色の色ガラス
+             */
+            "greenStainedGlass": string;
+            /**
+             * 黄色の色ガラス
+             */
+            "yellowStainedGlass": string;
+            /**
+             * 石の柱
+             */
+            "stonePillar": string;
             /**
              * 滑らかな石
              */

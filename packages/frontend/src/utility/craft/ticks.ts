@@ -261,6 +261,14 @@ export function cascadeAfterRemoval(world: CraftWorld, x: number, y: number, z: 
 		if (!hasWall) put(lx, y, lz, BLOCK.air);
 	}
 
+	// 壁付きの松明: 向いている壁が消えたら落ちる (向き 0: -z、1: +x、2: +z、3: -x の壁)
+	for (let d = 0; d < 4; d++) {
+		const tx = x + (d === 1 ? -1 : d === 3 ? 1 : 0);
+		const tz = z + (d === 0 ? 1 : d === 2 ? -1 : 0);
+		const tdef = BLOCK_DEFS[get(tx, y, tz)];
+		if (tdef?.support === 'wall' && tdef.facing === d && tdef.shape === 'torch') put(tx, y, tz, BLOCK.air);
+	}
+
 	const sweep = (from: number): number => {
 		let yy = from;
 		while (yy <= WORLD.maxY && out.length < FALL_CAP * 2) {

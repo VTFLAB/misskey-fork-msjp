@@ -43,6 +43,7 @@ export class CraftWorldEntityService {
 			userId: world.userId,
 			user,
 			blockCount: world.blockCount,
+			timeOffset: Number(world.timeOffset),
 		};
 	}
 

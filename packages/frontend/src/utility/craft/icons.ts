@@ -111,8 +111,8 @@ function drawBoxesBlock(ctx: CanvasRenderingContext2D, def: BlockDef): void {
 	const tiles = def.tiles;
 	if (def.door != null) {
 		// 下半分と上半分を縦に並べる (扉 1 枚ぶん)
-		drawFlatTile(ctx, 125, 9, 1, 14, 15);
-		drawFlatTile(ctx, 124, 9, 16, 14, 15);
+		drawFlatTile(ctx, tiles[2] + 1, 9, 1, 14, 15);
+		drawFlatTile(ctx, tiles[2], 9, 16, 14, 15);
 		return;
 	}
 	if (def.connect === 'pane' || def.key === 'lantern' || def.key === 'flowerPot') {

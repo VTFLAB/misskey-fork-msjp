@@ -289,12 +289,16 @@ export type Channels = {
 			// ホスト (userId が最小の参加者) が配信する MOB の状態
 			mobsUpdated: (payload: { hostId: User['id']; t: number; mobs: CraftMobState[]; }) => void;
 			mobHit: (payload: { userId: User['id']; id: string; damage: number; kx: number; kz: number; }) => void;
+			timeOffsetUpdated: (payload: { worldId: string; timeOffset: number; }) => void;
+			playerSleeping: (payload: { userId: User['id']; sleeping: boolean; }) => void;
 		};
 		receives: {
 			setBlock: { x: number; y: number; z: number; type: number; };
 			move: { x: number; y: number; z: number; yaw: number; pitch: number; };
 			mobs: { t: number; mobs: CraftMobState[]; };
 			mobHit: { id: string; damage: number; kx: number; kz: number; };
+			sleep: { sleeping: boolean; };
+			skipNight: Record<string, never>;
 		};
 	};
 	twitchLiveStream: {

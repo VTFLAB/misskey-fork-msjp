@@ -1003,6 +1003,14 @@ export type Channels = {
                 kx: number;
                 kz: number;
             }) => void;
+            timeOffsetUpdated: (payload: {
+                worldId: string;
+                timeOffset: number;
+            }) => void;
+            playerSleeping: (payload: {
+                userId: User['id'];
+                sleeping: boolean;
+            }) => void;
         };
         receives: {
             setBlock: {
@@ -1028,6 +1036,10 @@ export type Channels = {
                 kx: number;
                 kz: number;
             };
+            sleep: {
+                sleeping: boolean;
+            };
+            skipNight: Record<string, never>;
         };
     };
     twitchLiveStream: {
@@ -4459,7 +4471,7 @@ type VerifyEmailRequest = operations['verify-email']['requestBody']['content']['
 // src/streaming.types.ts:247:4 - (ae-forgotten-export) The symbol "ReversiUpdateKey" needs to be exported by the entry point index.d.ts
 // src/streaming.types.ts:262:4 - (ae-forgotten-export) The symbol "ReversiUpdateSettings" needs to be exported by the entry point index.d.ts
 // src/streaming.types.ts:290:60 - (ae-forgotten-export) The symbol "CraftMobState" needs to be exported by the entry point index.d.ts
-// src/streaming.types.ts:316:5 - (ae-forgotten-export) The symbol "TwitchChatFragment" needs to be exported by the entry point index.d.ts
+// src/streaming.types.ts:320:5 - (ae-forgotten-export) The symbol "TwitchChatFragment" needs to be exported by the entry point index.d.ts
 
 // (No @packageDocumentation comment for this package)
 

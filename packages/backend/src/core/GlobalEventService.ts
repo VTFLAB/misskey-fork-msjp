@@ -257,6 +257,14 @@ export interface CraftWorldEventTypes {
 		kx: number;
 		kz: number;
 	};
+	timeOffsetUpdated: {
+		worldId: MiCraftWorld['id'];
+		timeOffset: number;
+	};
+	playerSleeping: {
+		userId: MiUser['id'];
+		sleeping: boolean;
+	};
 }
 
 export type CraftMobState = {

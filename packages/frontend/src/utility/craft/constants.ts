@@ -27,9 +27,34 @@ export const WORLD = {
 /** 昼夜サイクル。Date.now() 基準なので全クライアントで一致する */
 export const DAY_LENGTH_MS = 20 * 60 * 1000;
 
+/**
+ * ワールドごとの時刻のずれ (ms)。ベッドで夜を飛ばすとサーバーが更新し、全員に配る。
+ * サーバーの craft_world.timeOffset と同じ値
+ */
+let worldTimeOffset = 0;
+
+export function setWorldTimeOffset(ms: number): void {
+	worldTimeOffset = Number.isFinite(ms) ? ms : 0;
+}
+
+export function getWorldTimeOffset(): number {
+	return worldTimeOffset;
+}
+
 /** 0..1 の一日の時刻。0 = 朝 6 時相当、0.5 = 夕方 */
 export function timeOfDay(now = Date.now()): number {
-	return (now % DAY_LENGTH_MS) / DAY_LENGTH_MS;
+	return (((now + worldTimeOffset) % DAY_LENGTH_MS) + DAY_LENGTH_MS) % DAY_LENGTH_MS / DAY_LENGTH_MS;
+}
+
+/** 夜を飛ばして朝 (時刻 0) にするための時刻のずれ */
+export function timeOffsetForMorning(now = Date.now()): number {
+	return (DAY_LENGTH_MS - (now % DAY_LENGTH_MS)) % DAY_LENGTH_MS;
+}
+
+/** 寝て夜を飛ばせる時間帯 */
+export function canSleepNow(now = Date.now()): boolean {
+	const t = timeOfDay(now);
+	return t >= 0.5 && t < 0.97;
 }
 
 /** 0.12 (真夜中) .. 1 (昼) の空の明るさ */
@@ -187,11 +212,80 @@ export const BLOCK = {
 	oakChair2: 124,
 	oakChair3: 125,
 	flowerPot: 126,
+	// 壁付きの松明 (向き = 壁のある方向。0: -z、1: +x、2: +z、3: -x)
+	wallTorch: 127,
+	wallTorch1: 128,
+	wallTorch2: 129,
+	wallTorch3: 130,
+	// 追加の階段
+	birchStairs: 131,
+	birchStairs1: 132,
+	birchStairs2: 133,
+	birchStairs3: 134,
+	spruceStairs: 135,
+	spruceStairs1: 136,
+	spruceStairs2: 137,
+	spruceStairs3: 138,
+	sandstoneStairs: 139,
+	sandstoneStairs1: 140,
+	sandstoneStairs2: 141,
+	sandstoneStairs3: 142,
+	smoothStoneStairs: 143,
+	smoothStoneStairs1: 144,
+	smoothStoneStairs2: 145,
+	smoothStoneStairs3: 146,
+	deepslateBrickStairs: 147,
+	deepslateBrickStairs1: 148,
+	deepslateBrickStairs2: 149,
+	deepslateBrickStairs3: 150,
+	// 追加の半ブロック
+	deepslateBrickSlab: 151,
+	polishedAndesiteSlab: 152,
+	polishedGraniteSlab: 153,
+	polishedDioriteSlab: 154,
+	// 追加の柵・塀
+	birchFence: 155,
+	spruceFence: 156,
+	stoneBrickWall: 157,
+	deepslateBrickWall: 158,
+	// 追加のドア
+	birchDoor: 159,
+	birchDoorUpper: 160,
+	birchDoorZ: 161,
+	birchDoorZUpper: 162,
+	spruceDoor: 163,
+	spruceDoorUpper: 164,
+	spruceDoorZ: 165,
+	spruceDoorZUpper: 166,
+	// 追加の家具
+	birchTable: 167,
+	spruceTable: 168,
+	birchStool: 169,
+	spruceStool: 170,
+	birchChair: 171,
+	birchChair1: 172,
+	birchChair2: 173,
+	birchChair3: 174,
+	spruceChair: 175,
+	spruceChair1: 176,
+	spruceChair2: 177,
+	spruceChair3: 178,
+	// 色ガラス・柱・レンガの階段と半ブロック
+	redStainedGlass: 179,
+	blueStainedGlass: 180,
+	greenStainedGlass: 181,
+	yellowStainedGlass: 182,
+	stonePillar: 183,
+	brickSlab: 184,
+	brickStairs: 185,
+	brickStairs1: 186,
+	brickStairs2: 187,
+	brickStairs3: 188,
 } as const;
 
 export type BlockKey = keyof typeof BLOCK;
 export type BlockId = typeof BLOCK[keyof typeof BLOCK];
-export const MAX_BLOCK_TYPE = 126;
+export const MAX_BLOCK_TYPE = 188;
 
 export type ToolKind = 'none' | 'pickaxe' | 'axe' | 'shovel' | 'hoe' | 'sword';
 /** 0: 素手, 1: 木 (と金), 2: 石, 3: 鉄, 4: ダイヤ */
@@ -313,6 +407,35 @@ const PANE_POST: ShapeBox[] = [[7, 0, 7, 9, 16, 9]];
 const DOOR_X: ShapeBox[] = [[0, 0, 0, 16, 16, 3]];
 const DOOR_Z: ShapeBox[] = [[0, 0, 0, 3, 16, 16]];
 
+/** ドア 4 変種 (x 下、x 上、z 下、z 上) を base から連番で登録する。ドロップは下半分だけ */
+function addDoor(add: (def: BlockDef) => void, key: string, base: BlockId, tiles: [number, number], color: string): void {
+	const ids = [base, base + 1, base + 2, base + 3] as BlockId[];
+	const keys = [key, `${key}Upper`, `${key}Z`, `${key}ZUpper`] as Exclude<BlockKey, 'air'>[];
+	const axes: ('x' | 'z')[] = ['x', 'x', 'z', 'z'];
+	const halves: ('lower' | 'upper')[] = ['lower', 'upper', 'lower', 'upper'];
+	for (let i = 0; i < 4; i++) {
+		add(boxBlock(ids[i], keys[i], [tiles[halves[i] === 'lower' ? 0 : 1], tiles[halves[i] === 'lower' ? 0 : 1], tiles[0]], color, 3, 'axe', 0, halves[i] === 'lower' ? { id: base } : null, 'wood', axes[i] === 'x' ? DOOR_X : DOOR_Z, {
+			door: { half: halves[i], axis: axes[i] }, placeable: i === 0, usable: true, nameKey: key, support: halves[i] === 'lower' ? 'below' : undefined,
+		}));
+	}
+}
+
+/** 階段 4 向きを base から連番で登録する */
+function addStairs(add: (def: BlockDef) => void, key: string, base: BlockId, tiles: [number, number, number], color: string, tool: ToolKind): void {
+	const set: [BlockId, BlockId, BlockId, BlockId] = [base, (base + 1) as BlockId, (base + 2) as BlockId, (base + 3) as BlockId];
+	for (let f = 0; f < 4; f++) {
+		add(boxBlock(set[f], (f === 0 ? key : `${key}${f}`) as Exclude<BlockKey, 'air'>, tiles, color, 2, tool, tool === 'pickaxe' ? 1 : 0, { id: base }, tool === 'axe' ? 'wood' : 'stone', stairBoxes(f as 0 | 1 | 2 | 3), { facing: f as 0 | 1 | 2 | 3, facingSet: set, placeable: f === 0, nameKey: key, fuel: tool === 'axe' ? 1 : undefined }));
+	}
+}
+
+/** 椅子 4 向き */
+function addChair(add: (def: BlockDef) => void, key: string, base: BlockId, tile: number, color: string): void {
+	const set: [BlockId, BlockId, BlockId, BlockId] = [base, (base + 1) as BlockId, (base + 2) as BlockId, (base + 3) as BlockId];
+	for (let f = 0; f < 4; f++) {
+		add(boxBlock(set[f], (f === 0 ? key : `${key}${f}`) as Exclude<BlockKey, 'air'>, [tile, tile, tile], color, 2, 'axe', 0, { id: base }, 'wood', chairBoxes(f as 0 | 1 | 2 | 3), { facing: f as 0 | 1 | 2 | 3, facingSet: set, placeable: f === 0, nameKey: key, fuel: 1 }));
+	}
+}
+
 function buildBuildingBlocks(): Record<number, BlockDef> {
 	const out: Record<number, BlockDef> = {};
 	const add = (def: BlockDef) => { out[def.id] = def; };
@@ -365,28 +488,52 @@ function buildBuildingBlocks(): Record<number, BlockDef> {
 	];
 	for (const [id, key, tiles, color, tool, hardness] of slabs) add(boxBlock(id, key, tiles, color, hardness, tool, tool === 'pickaxe' ? 1 : 0, { id }, tool === 'axe' ? 'wood' : 'stone', SLAB, tool === 'axe' ? { fuel: 1 } : {}));
 	// 階段 (向き 4 種)
-	const stairs: [BlockId, Exclude<BlockKey, 'air'>, [number, number, number], string, ToolKind][] = [
-		[BLOCK.oakStairs, 'oakStairs', [9, 9, 9], '#b48c5a', 'axe'], [BLOCK.cobblestoneStairs, 'cobblestoneStairs', [11, 11, 11], '#6f6f6f', 'pickaxe'], [BLOCK.stoneBrickStairs, 'stoneBrickStairs', [29, 29, 29], '#7d7d7d', 'pickaxe'],
+	addStairs(add, 'oakStairs', BLOCK.oakStairs, [9, 9, 9], '#b48c5a', 'axe');
+	addStairs(add, 'cobblestoneStairs', BLOCK.cobblestoneStairs, [11, 11, 11], '#6f6f6f', 'pickaxe');
+	addStairs(add, 'stoneBrickStairs', BLOCK.stoneBrickStairs, [29, 29, 29], '#7d7d7d', 'pickaxe');
+	addStairs(add, 'birchStairs', BLOCK.birchStairs, [64, 64, 64], '#d9c99a', 'axe');
+	addStairs(add, 'spruceStairs', BLOCK.spruceStairs, [97, 97, 97], '#7a5a34', 'axe');
+	addStairs(add, 'sandstoneStairs', BLOCK.sandstoneStairs, [54, 55, 54], '#d9cf9a', 'pickaxe');
+	addStairs(add, 'smoothStoneStairs', BLOCK.smoothStoneStairs, [80, 80, 80], '#a0a0a0', 'pickaxe');
+	addStairs(add, 'deepslateBrickStairs', BLOCK.deepslateBrickStairs, [89, 89, 89], '#55555c', 'pickaxe');
+	addStairs(add, 'brickStairs', BLOCK.brickStairs, [10, 10, 10], '#a04b3a', 'pickaxe');
+	// 追加の半ブロック
+	add(boxBlock(BLOCK.deepslateBrickSlab, 'deepslateBrickSlab', [89, 89, 89], '#55555c', 2, 'pickaxe', 1, { id: BLOCK.deepslateBrickSlab }, 'stone', SLAB));
+	add(boxBlock(BLOCK.polishedAndesiteSlab, 'polishedAndesiteSlab', [84, 84, 84], '#94948f', 2, 'pickaxe', 1, { id: BLOCK.polishedAndesiteSlab }, 'stone', SLAB));
+	add(boxBlock(BLOCK.polishedGraniteSlab, 'polishedGraniteSlab', [85, 85, 85], '#a87868', 2, 'pickaxe', 1, { id: BLOCK.polishedGraniteSlab }, 'stone', SLAB));
+	add(boxBlock(BLOCK.polishedDioriteSlab, 'polishedDioriteSlab', [86, 86, 86], '#d2d2cf', 2, 'pickaxe', 1, { id: BLOCK.polishedDioriteSlab }, 'stone', SLAB));
+	add(boxBlock(BLOCK.brickSlab, 'brickSlab', [10, 10, 10], '#a04b3a', 2, 'pickaxe', 1, { id: BLOCK.brickSlab }, 'stone', SLAB));
+	// 色ガラス・柱
+	const glasses: [BlockId, Exclude<BlockKey, 'air'>, number, string][] = [
+		[BLOCK.redStainedGlass, 'redStainedGlass', 132, '#c84a4a'], [BLOCK.blueStainedGlass, 'blueStainedGlass', 133, '#4a6ac8'], [BLOCK.greenStainedGlass, 'greenStainedGlass', 134, '#5ab05a'], [BLOCK.yellowStainedGlass, 'yellowStainedGlass', 135, '#e0d05a'],
 	];
-	for (const [base, key, tiles, color, tool] of stairs) {
-		const set: [BlockId, BlockId, BlockId, BlockId] = [base, (base + 1) as BlockId, (base + 2) as BlockId, (base + 3) as BlockId];
-		for (let f = 0; f < 4; f++) {
-			add(boxBlock(set[f], (f === 0 ? key : `${key}${f}`) as Exclude<BlockKey, 'air'>, tiles, color, 2, tool, tool === 'pickaxe' ? 1 : 0, { id: base }, tool === 'axe' ? 'wood' : 'stone', stairBoxes(f as 0 | 1 | 2 | 3), { facing: f as 0 | 1 | 2 | 3, facingSet: set, placeable: f === 0, nameKey: key, fuel: tool === 'axe' ? 1 : undefined }));
-		}
-	}
+	for (const [id, key, tile, color] of glasses) add(b({ id, key, shape: 'cube', transparent: true, translucent: true, solid: true, light: 0, opacity: 0, tiles: [tile, tile, tile], color, hardness: 0.3, tool: 'none', minTier: 0, drops: null, silk: true, placeable: true, sound: 'glass' }));
+	add(cube(BLOCK.stonePillar, 'stonePillar', [136, 137, 136], '#b8b8b4', 2, 'pickaxe', 1, { id: BLOCK.stonePillar }, 'stone'));
 	// 柵・塀・ドア
 	add(boxBlock(BLOCK.oakFence, 'oakFence', [9, 9, 9], '#b48c5a', 2, 'axe', 0, { id: BLOCK.oakFence }, 'wood', FENCE_POST, { connect: 'fence', collisionHeight: 1.5, fuel: 1 }));
 	add(boxBlock(BLOCK.cobblestoneWall, 'cobblestoneWall', [11, 11, 11], '#6f6f6f', 2, 'pickaxe', 1, { id: BLOCK.cobblestoneWall }, 'stone', WALL_POST, { connect: 'wall', collisionHeight: 1.5 }));
-	add(boxBlock(BLOCK.oakDoor, 'oakDoor', [124, 124, 124], '#b48c5a', 3, 'axe', 0, { id: BLOCK.oakDoor }, 'wood', DOOR_X, { door: { half: 'lower', axis: 'x' }, support: 'below', usable: true, nameKey: 'oakDoor' }));
-	add(boxBlock(BLOCK.oakDoorUpper, 'oakDoorUpper', [125, 125, 125], '#b48c5a', 3, 'axe', 0, null, 'wood', DOOR_X, { door: { half: 'upper', axis: 'x' }, placeable: false, usable: true, nameKey: 'oakDoor' }));
-	add(boxBlock(BLOCK.oakDoorZ, 'oakDoorZ', [124, 124, 124], '#b48c5a', 3, 'axe', 0, { id: BLOCK.oakDoor }, 'wood', DOOR_Z, { door: { half: 'lower', axis: 'z' }, placeable: false, usable: true, nameKey: 'oakDoor' }));
-	add(boxBlock(BLOCK.oakDoorZUpper, 'oakDoorZUpper', [125, 125, 125], '#b48c5a', 3, 'axe', 0, null, 'wood', DOOR_Z, { door: { half: 'upper', axis: 'z' }, placeable: false, usable: true, nameKey: 'oakDoor' }));
+	addDoor(add, 'oakDoor', BLOCK.oakDoor, [124, 125], '#b48c5a');
+	addDoor(add, 'birchDoor', BLOCK.birchDoor, [128, 129], '#d9c99a');
+	addDoor(add, 'spruceDoor', BLOCK.spruceDoor, [130, 131], '#7a5a34');
 	// 家具
 	add(boxBlock(BLOCK.oakTable, 'oakTable', [9, 9, 9], '#b48c5a', 2, 'axe', 0, { id: BLOCK.oakTable }, 'wood', TABLE, { fuel: 1 }));
 	add(boxBlock(BLOCK.oakStool, 'oakStool', [9, 9, 9], '#b48c5a', 2, 'axe', 0, { id: BLOCK.oakStool }, 'wood', STOOL, { fuel: 1 }));
-	const chairSet: [BlockId, BlockId, BlockId, BlockId] = [BLOCK.oakChair, BLOCK.oakChair1, BLOCK.oakChair2, BLOCK.oakChair3];
+	addChair(add, 'oakChair', BLOCK.oakChair, 9, '#b48c5a');
+	addChair(add, 'birchChair', BLOCK.birchChair, 64, '#d9c99a');
+	addChair(add, 'spruceChair', BLOCK.spruceChair, 97, '#7a5a34');
+	add(boxBlock(BLOCK.birchTable, 'birchTable', [64, 64, 64], '#d9c99a', 2, 'axe', 0, { id: BLOCK.birchTable }, 'wood', TABLE, { fuel: 1 }));
+	add(boxBlock(BLOCK.spruceTable, 'spruceTable', [97, 97, 97], '#7a5a34', 2, 'axe', 0, { id: BLOCK.spruceTable }, 'wood', TABLE, { fuel: 1 }));
+	add(boxBlock(BLOCK.birchStool, 'birchStool', [64, 64, 64], '#d9c99a', 2, 'axe', 0, { id: BLOCK.birchStool }, 'wood', STOOL, { fuel: 1 }));
+	add(boxBlock(BLOCK.spruceStool, 'spruceStool', [97, 97, 97], '#7a5a34', 2, 'axe', 0, { id: BLOCK.spruceStool }, 'wood', STOOL, { fuel: 1 }));
+	// 追加の柵・塀
+	add(boxBlock(BLOCK.birchFence, 'birchFence', [64, 64, 64], '#d9c99a', 2, 'axe', 0, { id: BLOCK.birchFence }, 'wood', FENCE_POST, { connect: 'fence', collisionHeight: 1.5, fuel: 1 }));
+	add(boxBlock(BLOCK.spruceFence, 'spruceFence', [97, 97, 97], '#7a5a34', 2, 'axe', 0, { id: BLOCK.spruceFence }, 'wood', FENCE_POST, { connect: 'fence', collisionHeight: 1.5, fuel: 1 }));
+	add(boxBlock(BLOCK.stoneBrickWall, 'stoneBrickWall', [29, 29, 29], '#7d7d7d', 2, 'pickaxe', 1, { id: BLOCK.stoneBrickWall }, 'stone', WALL_POST, { connect: 'wall', collisionHeight: 1.5 }));
+	add(boxBlock(BLOCK.deepslateBrickWall, 'deepslateBrickWall', [89, 89, 89], '#55555c', 3.5, 'pickaxe', 1, { id: BLOCK.deepslateBrickWall }, 'stone', WALL_POST, { connect: 'wall', collisionHeight: 1.5 }));
+	// 壁付きの松明 (向き = 壁の方向)。ドロップは普通の松明
+	const torchSet: [BlockId, BlockId, BlockId, BlockId] = [BLOCK.wallTorch, BLOCK.wallTorch1, BLOCK.wallTorch2, BLOCK.wallTorch3];
 	for (let f = 0; f < 4; f++) {
-		add(boxBlock(chairSet[f], (f === 0 ? 'oakChair' : `oakChair${f}`) as Exclude<BlockKey, 'air'>, [9, 9, 9], '#b48c5a', 2, 'axe', 0, { id: BLOCK.oakChair }, 'wood', chairBoxes(f as 0 | 1 | 2 | 3), { facing: f as 0 | 1 | 2 | 3, facingSet: chairSet, placeable: f === 0, nameKey: 'oakChair', fuel: 1 }));
+		add(b({ id: torchSet[f], key: (f === 0 ? 'wallTorch' : `wallTorch${f}`) as Exclude<BlockKey, 'air'>, shape: 'torch', transparent: true, translucent: false, solid: false, light: 14, opacity: 0, tiles: [27, 27, 27], color: '#ffcc55', hardness: 0, tool: 'none', minTier: 0, drops: { id: BLOCK.torch }, placeable: false, sound: 'wood', support: 'wall', facing: f as 0 | 1 | 2 | 3, facingSet: torchSet, nameKey: 'torch' }));
 	}
 	add(boxBlock(BLOCK.flowerPot, 'flowerPot', [126, 126, 126], '#a04b3a', 0.2, 'none', 0, { id: BLOCK.flowerPot }, 'stone', FLOWER_POT, { support: 'below' }));
 	return out;
@@ -445,7 +592,7 @@ export const BLOCK_DEFS: Record<number, BlockDef> = {
 	...buildBuildingBlocks(),
 };
 
-export const ATLAS_TILE_COUNT = 128;
+export const ATLAS_TILE_COUNT = 144;
 export const ATLAS_TILE_PX = 16;
 /** 破壊の進み具合のひび割れ (10 段階) はアトラスの末尾 10 タイルに置く */
 export const ATLAS_CRACK_TILE = 70;
@@ -943,18 +1090,46 @@ function buildingRecipes(): Recipe[] {
 	];
 	for (const [key, id, from] of slabs) out.push(r(key, { id, count: 6 }, [one(from, 3)], 'table', 'building'));
 	out.push(r('oakStairs', { id: BLOCK.oakStairs, count: 4 }, [one(BLOCK.planks, 6)], 'table', 'building'));
+	out.push(r('birchStairs', { id: BLOCK.birchStairs, count: 4 }, [one(BLOCK.birchPlanks, 6)], 'table', 'building'));
+	out.push(r('spruceStairs', { id: BLOCK.spruceStairs, count: 4 }, [one(BLOCK.sprucePlanks, 6)], 'table', 'building'));
+	out.push(r('sandstoneStairs', { id: BLOCK.sandstoneStairs, count: 4 }, [one(BLOCK.sandstone, 6)], 'table', 'building'));
+	out.push(r('smoothStoneStairs', { id: BLOCK.smoothStoneStairs, count: 4 }, [one(BLOCK.smoothStone, 6)], 'table', 'building'));
+	out.push(r('deepslateBrickStairs', { id: BLOCK.deepslateBrickStairs, count: 4 }, [one(BLOCK.deepslateBricks, 6)], 'table', 'building'));
+	out.push(r('brickStairs', { id: BLOCK.brickStairs, count: 4 }, [one(BLOCK.bricks, 6)], 'table', 'building'));
+	out.push(r('deepslateBrickSlab', { id: BLOCK.deepslateBrickSlab, count: 6 }, [one(BLOCK.deepslateBricks, 3)], 'table', 'building'));
+	out.push(r('polishedAndesiteSlab', { id: BLOCK.polishedAndesiteSlab, count: 6 }, [one(BLOCK.polishedAndesite, 3)], 'table', 'building'));
+	out.push(r('polishedGraniteSlab', { id: BLOCK.polishedGraniteSlab, count: 6 }, [one(BLOCK.polishedGranite, 3)], 'table', 'building'));
+	out.push(r('polishedDioriteSlab', { id: BLOCK.polishedDioriteSlab, count: 6 }, [one(BLOCK.polishedDiorite, 3)], 'table', 'building'));
+	out.push(r('brickSlab', { id: BLOCK.brickSlab, count: 6 }, [one(BLOCK.bricks, 3)], 'table', 'building'));
+	out.push(r('stonePillar', { id: BLOCK.stonePillar, count: 2 }, [one(BLOCK.smoothStoneSlab, 2)], 'table', 'building'));
+	out.push(r('redStainedGlass', { id: BLOCK.redStainedGlass, count: 8 }, [one(BLOCK.glass, 8), one(ITEM.redDye)], 'table', 'building'));
+	out.push(r('blueStainedGlass', { id: BLOCK.blueStainedGlass, count: 8 }, [one(BLOCK.glass, 8), one(ITEM.blueDye)], 'table', 'building'));
+	out.push(r('greenStainedGlass', { id: BLOCK.greenStainedGlass, count: 8 }, [one(BLOCK.glass, 8), one(ITEM.greenDye)], 'table', 'building'));
+	out.push(r('yellowStainedGlass', { id: BLOCK.yellowStainedGlass, count: 8 }, [one(BLOCK.glass, 8), one(ITEM.yellowDye)], 'table', 'building'));
 	out.push(r('cobblestoneStairs', { id: BLOCK.cobblestoneStairs, count: 4 }, [one(BLOCK.cobblestone, 6)], 'table', 'building'));
 	out.push(r('stoneBrickStairs', { id: BLOCK.stoneBrickStairs, count: 4 }, [one(BLOCK.stoneBricks, 6)], 'table', 'building'));
 	// 柵・塀・ガラス・ドア
-	out.push(r('oakFence', { id: BLOCK.oakFence, count: 3 }, [any(ALL_PLANK_IDS, 4), one(ITEM.stick, 2)], 'table', 'building'));
+	out.push(r('oakFence', { id: BLOCK.oakFence, count: 3 }, [one(BLOCK.planks, 4), one(ITEM.stick, 2)], 'table', 'building'));
+	out.push(r('birchFence', { id: BLOCK.birchFence, count: 3 }, [one(BLOCK.birchPlanks, 4), one(ITEM.stick, 2)], 'table', 'building'));
+	out.push(r('spruceFence', { id: BLOCK.spruceFence, count: 3 }, [one(BLOCK.sprucePlanks, 4), one(ITEM.stick, 2)], 'table', 'building'));
 	out.push(r('cobblestoneWall', { id: BLOCK.cobblestoneWall, count: 6 }, [one(BLOCK.cobblestone, 6)], 'table', 'building'));
+	out.push(r('stoneBrickWall', { id: BLOCK.stoneBrickWall, count: 6 }, [one(BLOCK.stoneBricks, 6)], 'table', 'building'));
+	out.push(r('deepslateBrickWall', { id: BLOCK.deepslateBrickWall, count: 6 }, [one(BLOCK.deepslateBricks, 6)], 'table', 'building'));
 	out.push(r('glassPane', { id: BLOCK.glassPane, count: 16 }, [one(BLOCK.glass, 6)], 'table', 'building'));
 	out.push(r('ironBars', { id: BLOCK.ironBars, count: 16 }, [one(ITEM.ironIngot, 6)], 'table', 'building'));
-	out.push(r('oakDoor', { id: BLOCK.oakDoor, count: 3 }, [any(ALL_PLANK_IDS, 6)], 'table', 'building'));
+	out.push(r('oakDoor', { id: BLOCK.oakDoor, count: 3 }, [one(BLOCK.planks, 6)], 'table', 'building'));
+	out.push(r('birchDoor', { id: BLOCK.birchDoor, count: 3 }, [one(BLOCK.birchPlanks, 6)], 'table', 'building'));
+	out.push(r('spruceDoor', { id: BLOCK.spruceDoor, count: 3 }, [one(BLOCK.sprucePlanks, 6)], 'table', 'building'));
 	// 家具
-	out.push(r('oakTable', { id: BLOCK.oakTable, count: 1 }, [any(ANY_SLAB_IDS), one(ITEM.stick, 4)], 'table', 'furniture'));
-	out.push(r('oakStool', { id: BLOCK.oakStool, count: 1 }, [any(ANY_SLAB_IDS), one(ITEM.stick, 3)], 'table', 'furniture'));
-	out.push(r('oakChair', { id: BLOCK.oakChair, count: 2 }, [any(ALL_PLANK_IDS, 3), one(ITEM.stick, 4)], 'table', 'furniture'));
+	out.push(r('oakTable', { id: BLOCK.oakTable, count: 1 }, [one(BLOCK.oakSlab), one(ITEM.stick, 4)], 'table', 'furniture'));
+	out.push(r('birchTable', { id: BLOCK.birchTable, count: 1 }, [one(BLOCK.birchSlab), one(ITEM.stick, 4)], 'table', 'furniture'));
+	out.push(r('spruceTable', { id: BLOCK.spruceTable, count: 1 }, [one(BLOCK.spruceSlab), one(ITEM.stick, 4)], 'table', 'furniture'));
+	out.push(r('oakStool', { id: BLOCK.oakStool, count: 1 }, [one(BLOCK.oakSlab), one(ITEM.stick, 3)], 'table', 'furniture'));
+	out.push(r('birchStool', { id: BLOCK.birchStool, count: 1 }, [one(BLOCK.birchSlab), one(ITEM.stick, 3)], 'table', 'furniture'));
+	out.push(r('spruceStool', { id: BLOCK.spruceStool, count: 1 }, [one(BLOCK.spruceSlab), one(ITEM.stick, 3)], 'table', 'furniture'));
+	out.push(r('oakChair', { id: BLOCK.oakChair, count: 2 }, [one(BLOCK.planks, 3), one(ITEM.stick, 4)], 'table', 'furniture'));
+	out.push(r('birchChair', { id: BLOCK.birchChair, count: 2 }, [one(BLOCK.birchPlanks, 3), one(ITEM.stick, 4)], 'table', 'furniture'));
+	out.push(r('spruceChair', { id: BLOCK.spruceChair, count: 2 }, [one(BLOCK.sprucePlanks, 3), one(ITEM.stick, 4)], 'table', 'furniture'));
 	out.push(r('chest', { id: BLOCK.chest, count: 1 }, [any(ALL_PLANK_IDS, 8)], 'table', 'furniture'));
 	out.push(r('barrel', { id: BLOCK.barrel, count: 1 }, [any(ALL_PLANK_IDS, 6), any(ANY_SLAB_IDS, 2)], 'table', 'furniture'));
 	out.push(r('lantern', { id: BLOCK.lantern, count: 1 }, [one(ITEM.ironIngot), one(BLOCK.torch)], 'table', 'furniture'));
