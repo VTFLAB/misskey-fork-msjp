@@ -58,20 +58,8 @@ function shouldDrawFace(self: number, neighbor: number): boolean {
 	return true;
 }
 
-/**
- * 空の上にある列ほど明るく、埋まった場所は少し暗くする簡易の環境光
- */
-function skyLight(world: CraftWorld, x: number, y: number, z: number): number {
-	let covered = 0;
-	for (let yy = y + 1; yy <= Math.min(WORLD.maxY, y + 12); yy++) {
-		const id = world.getBlock(x, yy, z);
-		if (id !== BLOCK.air && id !== BLOCK.water && id !== BLOCK.glass) {
-			covered++;
-			if (covered >= 3) break;
-		}
-	}
-	return 1 - covered * 0.12;
-}
+/** 光を放つブロックの light 値。シェーダーはこの値を昼夜の減衰なしの全明るさとして扱う */
+export const EMISSIVE_LIGHT = 2.0;
 
 export function buildChunkMesh(world: CraftWorld, cx: number, cz: number): ChunkMesh | null {
 	const chunk = world.getChunk(cx, cz);
@@ -81,6 +69,28 @@ export function buildChunkMesh(world: CraftWorld, cx: number, cz: number): Chunk
 	const opaque = new GrowBuffer();
 	const translucent = new GrowBuffer();
 	const tileW = 1 / ATLAS_TILE_COUNT;
+
+	// 自 chunk 内は配列を直接読み、外側 (隣の chunk と高さの範囲外) だけ world 経由にする
+	const blockAt = (x: number, y: number, z: number): number => {
+		if (y < WORLD.minY || y > WORLD.maxY) return BLOCK.air;
+		const lx = x - baseX;
+		const lz = z - baseZ;
+		if (lx >= 0 && lx < CS && lz >= 0 && lz < CS) return chunk[(y * CS + lz) * CS + lx];
+		return world.getBlock(x, y, z);
+	};
+
+	// 空の上にある列ほど明るく、埋まった場所は少し暗くする簡易の環境光
+	const skyLight = (x: number, y: number, z: number): number => {
+		let covered = 0;
+		for (let yy = y + 1; yy <= Math.min(WORLD.maxY, y + 12); yy++) {
+			const id = blockAt(x, yy, z);
+			if (id !== BLOCK.air && id !== BLOCK.water && id !== BLOCK.glass) {
+				covered++;
+				if (covered >= 3) break;
+			}
+		}
+		return 1 - covered * 0.12;
+	};
 
 	for (let y = 0; y < WORLD.sizeY; y++) {
 		for (let lz = 0; lz < CS; lz++) {
@@ -92,17 +102,17 @@ export function buildChunkMesh(world: CraftWorld, cx: number, cz: number): Chunk
 				const x = baseX + lx;
 				const z = baseZ + lz;
 				const target = def.translucent ? translucent : opaque;
-				const emissive = def.emissive ? 1.0 : 0;
+				const emissive = def.emissive;
 				for (const face of FACES) {
 					const nx = x + face.dir[0];
 					const ny = y + face.dir[1];
 					const nz = z + face.dir[2];
-					const neighbor = ny < WORLD.minY || ny > WORLD.maxY ? BLOCK.air : world.getBlock(nx, ny, nz);
 					if (ny < WORLD.minY) continue; // 底面は描かない
+					const neighbor = blockAt(nx, ny, nz);
 					if (!shouldDrawFace(id, neighbor)) continue;
 					const tile = def.tiles[face.tileIndex];
 					const u0 = tile * tileW;
-					const light = emissive > 0 ? 1.0 : face.shade * (face.dir[1] === 1 ? skyLight(world, x, y, z) : skyLight(world, nx, ny, nz));
+					const light = emissive ? EMISSIVE_LIGHT : face.shade * (face.dir[1] === 1 ? skyLight(x, y, z) : skyLight(nx, ny, nz));
 					// 水面は少し下げる
 					const topOffset = (id === BLOCK.water && face.dir[1] === 1) ? -0.125 : 0;
 					const c = face.corners;

@@ -93,6 +93,7 @@ export const DI = {
 	reversiGamesRepository: Symbol('reversiGamesRepository'),
 	craftWorldsRepository: Symbol('craftWorldsRepository'),
 	craftBlocksRepository: Symbol('craftBlocksRepository'),
+	craftSkinsRepository: Symbol('craftSkinsRepository'),
 	noteDraftsRepository: Symbol('noteDraftsRepository'),
 	updateInfosRepository: Symbol('updateInfosRepository'),
 	userFeedbacksRepository: Symbol('userFeedbacksRepository'),

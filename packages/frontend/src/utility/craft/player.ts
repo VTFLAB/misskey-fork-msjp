@@ -3,86 +3,146 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { BLOCK, WORLD, isSolid } from './constants.js';
-import { lookDir } from './math.js';
+import { BLOCK_DEFS, ITEM_DEFS, PLAYER } from './constants.js';
+import { Inventory } from './inventory.js';
+import { GRAVITY, MAX_FALL_SPEED, isHeadInWater, isInWater, moveEntity, overlapsBlock, raycastBlocks } from './physics.js';
+import type { BlockHit, InputState, ItemStack, PlayerStats, Vec3 } from './types.js';
 import type { CraftWorld } from './world.js';
 
-export const PLAYER_WIDTH = 0.6;
-export const PLAYER_HEIGHT = 1.8;
-export const EYE_HEIGHT = 1.62;
+export type PlayerEvents = { died: boolean; damaged: number; fellDistance: number };
 
-const GRAVITY = 28;
+const WALK_SPEED = 4.3;
+const SPRINT_SPEED = 5.6;
+const SNEAK_SPEED = 1.3;
+const AIR_CONTROL = 0.6;
 const JUMP_SPEED = 9;
-const WALK_SPEED = 4.5;
-const SPRINT_SPEED = 7;
-const SNEAK_SPEED = 2;
-const FLY_SPEED = 12;
-const MAX_FALL = 50;
-
-export type Input = {
-	forward: boolean;
-	back: boolean;
-	left: boolean;
-	right: boolean;
-	jump: boolean;
-	sneak: boolean;
-	sprint: boolean;
-	flyUp: boolean;
-	flyDown: boolean;
-};
+const MAX_DT = 0.05;
+const HURT_MS = 400;
 
 export class Player {
-	public x = 0;
-	public y = 0;
-	public z = 0;
-	public vx = 0;
-	public vy = 0;
-	public vz = 0;
+	public readonly pos: Vec3 = { x: 0, y: 0, z: 0 };
+	public readonly vel: Vec3 = { x: 0, y: 0, z: 0 };
 	public yaw = 0;
 	public pitch = 0;
 	public onGround = false;
-	public flying = false;
+	public readonly stats: PlayerStats = { health: PLAYER.maxHealth, hunger: PLAYER.maxHunger, air: PLAYER.maxAir };
+	public readonly inventory = new Inventory();
+	public hotbarIndex = 0;
+	public hurtUntil = 0;
+	public isDead = false;
+
+	private fallTopY = 0;
+	private hungerTimer = 0;
+	private starveTimer = 0;
+	private regenTimer = 0;
+	private drownTimer = 0;
+	private cactusTimer = 0;
+	private voidTimer = 0;
 
 	constructor(private world: CraftWorld) {
 	}
 
 	public get eyeY(): number {
-		return this.y + EYE_HEIGHT;
+		return this.pos.y + PLAYER.eyeHeight;
+	}
+
+	public get selectedStack(): ItemStack {
+		return this.inventory.slots[this.hotbarIndex] ?? null;
 	}
 
 	public spawn(x: number, z: number): void {
-		this.x = x + 0.5;
-		this.z = z + 0.5;
-		this.y = this.world.surfaceY(x, z);
-		this.vx = 0; this.vy = 0; this.vz = 0;
+		this.pos.x = x;
+		this.pos.z = z;
+		this.pos.y = this.world.surfaceY(Math.floor(x), Math.floor(z));
+		this.vel.x = 0;
+		this.vel.y = 0;
+		this.vel.z = 0;
+		this.onGround = false;
+		this.fallTopY = this.pos.y;
 	}
 
-	private collides(x: number, y: number, z: number): boolean {
-		const half = PLAYER_WIDTH / 2;
-		const minX = Math.floor(x - half), maxX = Math.floor(x + half - 0.0001);
-		const minY = Math.floor(y), maxY = Math.floor(y + PLAYER_HEIGHT - 0.0001);
-		const minZ = Math.floor(z - half), maxZ = Math.floor(z + half - 0.0001);
-		for (let bx = minX; bx <= maxX; bx++) {
-			for (let by = minY; by <= maxY; by++) {
-				for (let bz = minZ; bz <= maxZ; bz++) {
-					if (by < WORLD.minY) return true;
-					if (isSolid(this.world.getBlock(bx, by, bz))) return true;
-				}
-			}
+	public respawn(x: number, z: number): void {
+		this.spawn(x, z);
+		this.stats.health = PLAYER.maxHealth;
+		this.stats.hunger = PLAYER.maxHunger;
+		this.stats.air = PLAYER.maxAir;
+		this.isDead = false;
+		this.hungerTimer = 0;
+		this.starveTimer = 0;
+		this.regenTimer = 0;
+		this.drownTimer = 0;
+		this.cactusTimer = 0;
+		this.voidTimer = 0;
+	}
+
+	public damage(amount: number, now: number): void {
+		if (this.isDead || amount <= 0) return;
+		this.stats.health = Math.max(0, this.stats.health - amount);
+		this.hurtUntil = now + HURT_MS;
+		if (this.stats.health <= 0) this.isDead = true;
+	}
+
+	public eat(now: number): boolean {
+		void now;
+		const stack = this.selectedStack;
+		if (stack == null || this.isDead) return false;
+		const food = ITEM_DEFS[stack.id]?.food;
+		if (food == null || this.stats.hunger >= PLAYER.maxHunger) return false;
+		if (!this.inventory.take(this.hotbarIndex, 1)) return false;
+		this.stats.hunger = Math.min(PLAYER.maxHunger, this.stats.hunger + food);
+		this.stats.health = Math.min(PLAYER.maxHealth, this.stats.health + 1);
+		return true;
+	}
+
+	public overlapsBlock(bx: number, by: number, bz: number): boolean {
+		return overlapsBlock(this.pos, PLAYER.width, PLAYER.height, bx, by, bz);
+	}
+
+	public raycast(maxDist: number = PLAYER.reach): BlockHit | null {
+		return raycastBlocks(this.world, this.pos.x, this.eyeY, this.pos.z, this.yaw, this.pitch, maxDist);
+	}
+
+	/** 足元と頭のブロックの水平 4 近傍にダメージブロックがあるか */
+	private touchesDamaging(): boolean {
+		const half = PLAYER.width / 2;
+		const bx = Math.floor(this.pos.x), bz = Math.floor(this.pos.z);
+		const ys = [Math.floor(this.pos.y), Math.floor(this.pos.y + PLAYER.height - 0.01)];
+		const xs = [Math.floor(this.pos.x - half - 0.05), Math.floor(this.pos.x + half + 0.05)];
+		const zs = [Math.floor(this.pos.z - half - 0.05), Math.floor(this.pos.z + half + 0.05)];
+		const check = (x: number, y: number, z: number): boolean => BLOCK_DEFS[this.world.getBlock(x, y, z)]?.damaging === true;
+		for (const y of ys) {
+			if (check(bx, y, bz)) return true;
+			for (const x of xs) if (check(x, y, bz)) return true;
+			for (const z of zs) if (check(bx, y, z)) return true;
 		}
 		return false;
 	}
 
-	/** 指定ブロックがプレイヤーの体と重なるか (設置の可否判定) */
-	public overlapsBlock(bx: number, by: number, bz: number): boolean {
-		const half = PLAYER_WIDTH / 2;
-		return bx + 1 > this.x - half && bx < this.x + half &&
-			by + 1 > this.y && by < this.y + PLAYER_HEIGHT &&
-			bz + 1 > this.z - half && bz < this.z + half;
-	}
+	public update(dtRaw: number, input: InputState, now: number): PlayerEvents {
+		const events: PlayerEvents = { died: false, damaged: 0, fellDistance: 0 };
+		if (this.isDead) {
+			this.vel.x = 0;
+			this.vel.y = 0;
+			this.vel.z = 0;
+			return events;
+		}
+		const dt = Math.min(Math.max(dtRaw, 0), MAX_DT);
+		const hurt = (amount: number): void => {
+			if (amount <= 0 || this.isDead) return;
+			events.damaged += amount;
+			this.damage(amount, now);
+		};
 
-	public update(dt: number, input: Input): void {
-		dt = Math.min(dt, 0.05);
+		// 視点
+		this.yaw += input.lookDX;
+		this.pitch = Math.max(-(Math.PI / 2 - 0.01), Math.min(Math.PI / 2 - 0.01, this.pitch + input.lookDY));
+
+		// 移動
+		const inWater = isInWater(this.world, this.pos, PLAYER.height);
+		const sneaking = input.sneak;
+		const sprinting = input.sprint && !sneaking && this.stats.hunger > 6;
+		let speed = sneaking ? SNEAK_SPEED : (sprinting ? SPRINT_SPEED : WALK_SPEED);
+		if (inWater) speed *= 0.6;
 		const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
 		let mx = 0, mz = 0;
 		if (input.forward) { mx -= sin; mz -= cos; }
@@ -90,106 +150,112 @@ export class Player {
 		if (input.left) { mx -= cos; mz += sin; }
 		if (input.right) { mx += cos; mz -= sin; }
 		const len = Math.hypot(mx, mz);
-		if (len > 0) { mx /= len; mz /= len; }
-
-		if (this.flying) {
-			const speed = input.sprint ? FLY_SPEED * 2 : FLY_SPEED;
-			this.vx = mx * speed;
-			this.vz = mz * speed;
-			this.vy = (input.flyUp ? speed : 0) - (input.flyDown ? speed : 0);
-		} else if (this.inWater()) {
-			const speed = WALK_SPEED * 0.6;
-			this.vx += (mx * speed - this.vx) * Math.min(1, dt * 6);
-			this.vz += (mz * speed - this.vz) * Math.min(1, dt * 6);
-			this.vy -= GRAVITY * 0.2 * dt;
-			if (this.vy < -3) this.vy = -3;
-			if (input.jump) this.vy = Math.min(4, this.vy + 30 * dt);
+		if (len > 0) { mx = mx / len * speed; mz = mz / len * speed; }
+		if (this.onGround || inWater) {
+			this.vel.x = mx;
+			this.vel.z = mz;
 		} else {
-			const speed = input.sneak ? SNEAK_SPEED : input.sprint ? SPRINT_SPEED : WALK_SPEED;
-			// 空中では操作を効きにくくする
-			const control = this.onGround ? 1 : 0.6;
-			this.vx += (mx * speed - this.vx) * Math.min(1, dt * 12 * control);
-			this.vz += (mz * speed - this.vz) * Math.min(1, dt * 12 * control);
-			this.vy -= GRAVITY * dt;
-			if (this.vy < -MAX_FALL) this.vy = -MAX_FALL;
-			if (input.jump && this.onGround) {
-				this.vy = JUMP_SPEED;
-				this.onGround = false;
-			}
+			// 空中は入力方向へ寄せるだけ
+			const k = Math.min(1, AIR_CONTROL * dt * 10);
+			this.vel.x += (mx - this.vel.x) * k;
+			this.vel.z += (mz - this.vel.z) * k;
 		}
 
-		this.moveAxis(this.vx * dt, 0, 0);
-		this.moveAxis(0, 0, this.vz * dt);
-		const before = this.vy;
-		const movedY = this.moveAxis(0, this.vy * dt, 0);
-		if (!movedY) {
-			this.onGround = before < 0;
-			this.vy = 0;
+		if (inWater) {
+			this.vel.y -= GRAVITY * 0.2 * dt;
+			if (this.vel.y < -3) this.vel.y = -3;
+			if (input.jump) this.vel.y = Math.min(4, this.vel.y + 30 * dt);
 		} else {
-			this.onGround = false;
+			this.vel.y -= GRAVITY * dt;
+			if (this.vel.y < -MAX_FALL_SPEED) this.vel.y = -MAX_FALL_SPEED;
+			if (input.jump && this.onGround) this.vel.y = JUMP_SPEED;
 		}
-		// ワールドの外に出ない
-		this.x = Math.max(WORLD.minX + 0.3, Math.min(WORLD.maxX + 0.7, this.x));
-		this.z = Math.max(WORLD.minZ + 0.3, Math.min(WORLD.maxZ + 0.7, this.z));
-		if (this.y > WORLD.maxY + 8) { this.y = WORLD.maxY + 8; if (this.vy > 0) this.vy = 0; }
-		if (this.y < WORLD.minY - 20) {
-			this.spawn(Math.floor(this.x), Math.floor(this.z));
-		}
-	}
 
-	private inWater(): boolean {
-		return this.world.getBlock(Math.floor(this.x), Math.floor(this.y + 0.6), Math.floor(this.z)) === BLOCK.water;
-	}
+		const wasOnGround = this.onGround;
+		const res = moveEntity(this.world, this.pos, this.vel, PLAYER.width, PLAYER.height, dt, { stepUp: !sneaking, onGround: wasOnGround });
+		this.onGround = res.onGround;
 
-	/** 1 軸ずつ動かし、ぶつかったら手前で止める。@returns 動けたか */
-	private moveAxis(dx: number, dy: number, dz: number): boolean {
-		if (dx === 0 && dy === 0 && dz === 0) return true;
-		const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dz)) / 0.25));
-		const sx = dx / steps, sy = dy / steps, sz = dz / steps;
-		for (let i = 0; i < steps; i++) {
-			const nx = this.x + sx, ny = this.y + sy, nz = this.z + sz;
-			if (this.collides(nx, ny, nz)) {
-				// 低い段差 (1 ブロック以下) は自動で登る
-				if (dy === 0 && this.onGround && !this.collides(nx, this.y + 1.001, nz) && !this.flying) {
-					this.y += 1.001;
-					this.x = nx; this.z = nz;
-					continue;
+		// 落下ダメージ
+		if (inWater) {
+			this.fallTopY = this.pos.y;
+		} else if (this.onGround) {
+			if (!wasOnGround) {
+				const dist = this.fallTopY - this.pos.y;
+				if (dist > 3) {
+					events.fellDistance = dist;
+					hurt(Math.floor(dist - 3));
 				}
-				if (dx !== 0) this.vx = 0;
-				if (dz !== 0) this.vz = 0;
-				return false;
 			}
-			this.x = nx; this.y = ny; this.z = nz;
+			this.fallTopY = this.pos.y;
+		} else {
+			this.fallTopY = Math.max(this.fallTopY, this.pos.y);
 		}
-		return true;
-	}
 
-	/** 視線上のブロックを DDA で探す */
-	public raycast(maxDist = 6): { x: number; y: number; z: number; nx: number; ny: number; nz: number } | null {
-		const [dx, dy, dz] = lookDir(this.yaw, this.pitch);
-		const ox = this.x, oy = this.eyeY, oz = this.z;
-		let x = Math.floor(ox), y = Math.floor(oy), z = Math.floor(oz);
-		const stepX = dx > 0 ? 1 : -1, stepY = dy > 0 ? 1 : -1, stepZ = dz > 0 ? 1 : -1;
-		const tDeltaX = dx !== 0 ? Math.abs(1 / dx) : Infinity;
-		const tDeltaY = dy !== 0 ? Math.abs(1 / dy) : Infinity;
-		const tDeltaZ = dz !== 0 ? Math.abs(1 / dz) : Infinity;
-		let tMaxX = dx !== 0 ? ((dx > 0 ? x + 1 - ox : ox - x) * tDeltaX) : Infinity;
-		let tMaxY = dy !== 0 ? ((dy > 0 ? y + 1 - oy : oy - y) * tDeltaY) : Infinity;
-		let tMaxZ = dz !== 0 ? ((dz > 0 ? z + 1 - oz : oz - z) * tDeltaZ) : Infinity;
-		let nx = 0, ny = 0, nz = 0;
-		let t = 0;
-		while (t <= maxDist) {
-			const id = this.world.getBlock(x, y, z);
-			if (isSolid(id)) return { x, y, z, nx, ny, nz };
-			if (tMaxX < tMaxY && tMaxX < tMaxZ) {
-				x += stepX; t = tMaxX; tMaxX += tDeltaX; nx = -stepX; ny = 0; nz = 0;
-			} else if (tMaxY < tMaxZ) {
-				y += stepY; t = tMaxY; tMaxY += tDeltaY; nx = 0; ny = -stepY; nz = 0;
-			} else {
-				z += stepZ; t = tMaxZ; tMaxZ += tDeltaZ; nx = 0; ny = 0; nz = -stepZ;
+		// 溺れ
+		if (isHeadInWater(this.world, this.pos, PLAYER.eyeHeight)) {
+			this.stats.air = Math.max(0, this.stats.air - dt);
+			if (this.stats.air <= 0) {
+				this.drownTimer += dt;
+				if (this.drownTimer >= 1) {
+					this.drownTimer -= 1;
+					hurt(2);
+				}
 			}
-			if (y < WORLD.minY - 1 || y > WORLD.maxY + 1) return null;
+		} else {
+			this.stats.air = Math.min(PLAYER.maxAir, this.stats.air + 2 * dt);
+			this.drownTimer = 0;
 		}
-		return null;
+
+		// 空腹と回復
+		const moving = len > 0;
+		this.hungerTimer += dt;
+		const hungerInterval = sprinting && moving ? 15 : 40;
+		if (this.hungerTimer >= hungerInterval) {
+			this.hungerTimer = 0;
+			this.stats.hunger = Math.max(0, this.stats.hunger - 1);
+		}
+		if (this.stats.hunger <= 0) {
+			this.starveTimer += dt;
+			if (this.starveTimer >= 4) {
+				this.starveTimer -= 4;
+				if (this.stats.health > 1) hurt(1);
+			}
+		} else {
+			this.starveTimer = 0;
+		}
+		if (this.stats.hunger >= 18 && this.stats.health < PLAYER.maxHealth) {
+			this.regenTimer += dt;
+			if (this.regenTimer >= 4) {
+				this.regenTimer -= 4;
+				this.stats.health = Math.min(PLAYER.maxHealth, this.stats.health + 1);
+			}
+		} else {
+			this.regenTimer = 0;
+		}
+
+		// サボテン
+		if (this.touchesDamaging()) {
+			this.cactusTimer += dt;
+			if (this.cactusTimer >= 0.5) {
+				this.cactusTimer -= 0.5;
+				hurt(1);
+			}
+		} else {
+			this.cactusTimer = 0;
+		}
+
+		// 奈落
+		if (this.pos.y < -16) {
+			this.voidTimer += dt;
+			if (this.voidTimer >= 0.25) {
+				this.voidTimer -= 0.25;
+				hurt(1);
+			}
+		} else {
+			this.voidTimer = 0;
+		}
+
+		if (this.isDead) events.died = true;
+		return events;
 	}
 }
