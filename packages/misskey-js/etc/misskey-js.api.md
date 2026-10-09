@@ -1013,6 +1013,14 @@ export type Channels = {
                 kx: number;
                 kz: number;
             }) => void;
+            timeOffsetUpdated: (payload: {
+                worldId: string;
+                timeOffset: number;
+            }) => void;
+            playerSleeping: (payload: {
+                userId: User['id'];
+                sleeping: boolean;
+            }) => void;
         };
         receives: {
             setBlock: {
@@ -1038,6 +1046,10 @@ export type Channels = {
                 kx: number;
                 kz: number;
             };
+            sleep: {
+                sleeping: boolean;
+            };
+            skipNight: Record<string, never>;
         };
     };
     twitchLiveStream: {

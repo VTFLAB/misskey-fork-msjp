@@ -5,7 +5,7 @@
 
 import { BLOCK, MOB_DEFS, isNight } from './constants.js';
 import { lookDir } from './math.js';
-import { GRAVITY, MAX_FALL_SPEED, moveEntity, rayHitsBox } from './physics.js';
+import { GRAVITY, MAX_FALL_SPEED, moveEntity, rayHitsBox, raycastBlocks } from './physics.js';
 import type { MobType } from './constants.js';
 import type { ItemStack, MobHit, MobSnapshot, MobState, Vec3 } from './types.js';
 import type { CraftWorld } from './world.js';
@@ -103,6 +103,15 @@ function rollDrops(type: MobType, looting: number): ItemStack[] {
 		if (count > 0) out.push({ id: d.id, count });
 	}
 	return out;
+}
+
+/** from から to の間に固体ブロックが無いか (攻撃が壁を抜けないための判定) */
+export function hasLineOfSight(world: CraftWorld, from: Vec3, to: Vec3): boolean {
+	const dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z;
+	const dist = Math.hypot(dx, dy, dz);
+	if (dist < 0.05) return true;
+	const hit = raycastBlocks(world, from.x, from.y, from.z, Math.atan2(-dx, -dz), Math.asin(Math.max(-1, Math.min(1, dy / dist))), dist);
+	return hit == null || hit.dist >= dist - 0.05;
 }
 
 export class MobSystem {
@@ -358,10 +367,11 @@ export class MobSystem {
 				}
 				mob.yaw = Math.atan2(-dx, -dz);
 				if (nearestD >= rg.minRange && nearestD <= rg.maxRange && wall - mob.lastAttackAt >= rg.interval * 1000) {
+					const from = { x: mob.x, y: mob.y + def.height * 0.85, z: mob.z };
+					const to = { x: nearest.x, y: nearest.y + 1.2, z: nearest.z };
+					if (!hasLineOfSight(this.world, from, to)) return this.physics(mob, dt, moveX, moveZ, def);
 					mob.lastAttackAt = wall;
 					mob.attackAt = wall;
-					const from = { x: mob.x, y: mob.y + def.height * 0.85, z: mob.z };
-					const to = { x: nearest.x, y: nearest.y + 1.0, z: nearest.z };
 					events.push({ type: 'shoot', mobId: mob.id, from, to, speed: rg.speed });
 					this.schedule(mob, nearest.userId, from, to, rg.damage, rg.speed);
 				}
@@ -374,7 +384,8 @@ export class MobSystem {
 					}
 					mob.yaw = Math.atan2(-dx, -dz);
 				}
-				if (def.attack > 0 && nearestD <= def.width / 2 + 1.6 && wall - mob.lastAttackAt >= def.attackInterval * 1000) {
+				if (def.attack > 0 && nearestD <= def.width / 2 + 1.6 && wall - mob.lastAttackAt >= def.attackInterval * 1000 &&
+					hasLineOfSight(this.world, { x: mob.x, y: mob.y + def.height * 0.85, z: mob.z }, { x: nearest.x, y: nearest.y + 1.2, z: nearest.z })) {
 					mob.lastAttackAt = wall;
 					mob.attackAt = wall;
 					events.push({ type: 'attackPlayer', userId: nearest.userId, damage: def.attack, mobId: mob.id, kx: dx, kz: dz });

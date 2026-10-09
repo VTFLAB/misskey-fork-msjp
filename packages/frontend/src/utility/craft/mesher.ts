@@ -338,10 +338,43 @@ export function buildChunkMesh(world: CraftWorld, cx: number, cz: number): Chunk
 						break;
 					}
 					case 'torch': {
+						// 幅 2/16・高さ 12/16 の柱。側面はタイルの炎 (行 4-5) から下を貼り、上面は炎の 2x2。頂点は最大の明るさで炎を暗くしない。
+						// 壁掛けは壁側へ 5/16・上へ 3/16 ずらし、根元を軸に壁から離れる向きへ 25 度傾ける
+						const wall = def.facing;
+						const wx = wall === 1 ? 1 : wall === 3 ? -1 : 0;
+						const wz = wall === 2 ? 1 : wall === 0 ? -1 : 0;
+						const isWall = wall != null;
+						const ang = isWall ? 25 * Math.PI / 180 : 0;
+						const cs = Math.cos(ang);
+						const sn = Math.sin(ang);
 						const u0 = 7 / 16;
 						const u1 = 9 / 16;
-						// 4 側面は柱の下 10/16、上面は先端の 2x2
-						box(target, def, x, y, z, 7 / 16, 0, 7 / 16, 9 / 16, 10 / 16, 9 / 16, [u0, u1, 6 / 16, 1], [u0, u1, 6 / 16, 8 / 16], true, true, false);
+						const tu = def.tiles[0] * tileW;
+						for (let fi = 0; fi < 6; fi++) {
+							if (fi === 3) continue;
+							const face = FACES[fi];
+							for (let i = 0; i < 4; i++) {
+								const c = face.corners[i];
+								let px = c[0] === 1 ? 9 / 16 : 7 / 16;
+								let py = c[1] === 1 ? 12 / 16 : 0;
+								let pz = c[2] === 1 ? 9 / 16 : 7 / 16;
+								if (isWall) {
+									const rx = px - 0.5;
+									const rz = pz - 0.5;
+									const d = rx * wx + rz * wz;
+									const d2 = d * cs - py * sn;
+									py = py * cs + d * sn;
+									const dd = d2 - d;
+									px += dd * wx + wx * 5 / 16;
+									pz += dd * wz + wz * 5 / 16;
+									py += 3 / 16;
+								}
+								const uu = fi === 2 ? (c[0] === 1 ? u1 : u0) : (fi === 0 || fi === 1 ? (c[2] === 1 ? u1 : u0) : (c[0] === 1 ? u1 : u0));
+								const vv = fi === 2 ? (c[2] === 1 ? 6 / 16 : 4 / 16) : (c[1] === 1 ? 4 / 16 : 1);
+								setQ(i, x + px, y + py, z + pz, tu + uu * tileW, vv, 1, 1);
+							}
+							emitQuad(target, 0, 1, 1, 1);
+						}
 						break;
 					}
 					case 'ladder': {

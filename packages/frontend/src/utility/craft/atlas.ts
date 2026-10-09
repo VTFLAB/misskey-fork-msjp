@@ -181,6 +181,30 @@ function concretePainter(c: Rgb): TilePainter {
 	return (_px, _py, r) => [vary(c, 4, r()), 255];
 }
 
+/** 木のドア。窓つきの上半分と、取っ手つきの下半分 */
+function doorPainter(plank: Rgb, dark: Rgb, upper: boolean): TilePainter {
+	return (px, py, r) => {
+		if (upper && px >= 5 && px <= 10 && py >= 3 && py <= 8) {
+			const rim = px === 5 || px === 10 || py === 3 || py === 8;
+			return [rim ? vary(dark, 8, r()) : vary([186, 224, 238], 10, r()), 255];
+		}
+		if (!upper && px >= 11 && px <= 12 && py >= 7 && py <= 8) return [vary([220, 190, 90], 8, r()), 255];
+		const frame = px <= 1 || px >= 14 || py === (upper ? 15 : 0) || (!upper && py >= 14);
+		if (frame || (upper && py === 0)) return [vary(dark, 8, r()), 255];
+		const panel = !upper && ((px === 3 || px === 12) && py >= 2 && py <= 12 || (py === 2 || py === 12) && px >= 3 && px <= 12);
+		return [panel ? vary(dark, 8, r()) : vary(plank, 12, r()), 255];
+	};
+}
+
+/** 色つきガラス (内側は半透明、縁は濃い) */
+function stainedGlassPainter(c: Rgb): TilePainter {
+	return (px, py, r) => {
+		const edge = px === 0 || py === 0 || px === 15 || py === 15;
+		const k = edge ? 0.8 : 1;
+		return [vary([c[0] * k, c[1] * k, c[2] * k], 8, r()), edge ? 235 : 150];
+	};
+}
+
 const painters: TilePainter[] = [
 	// 0: grass top
 	(_px, _py, r) => [vary(GRASS, 24, r()), 255],
@@ -562,6 +586,21 @@ const painters: TilePainter[] = [
 	(px, py, r) => [py === 10 || py === 11 ? (px >= 4 && px <= 11 ? vary([186, 104, 72], 8, r()) : vary([150, 80, 54], 8, r())) : vary([156, 82, 54], 10, r()), 255],
 	// 127: spare
 	(_px, _py, r) => [vary(STONE, 26, r()), 255],
+	// 128..131: birch / spruce doors
+	doorPainter([214, 196, 146], [150, 130, 88], false), doorPainter([214, 196, 146], [150, 130, 88], true),
+	doorPainter([102, 74, 42], [66, 46, 24], false), doorPainter([102, 74, 42], [66, 46, 24], true),
+	// 132..135: stained glass (red, blue, green, yellow)
+	...([[190, 50, 44], [50, 80, 200], [60, 150, 50], [230, 200, 50]] as Rgb[]).map(stainedGlassPainter),
+	// 136: stone pillar top
+	(px, py, r) => {
+		const edge = px === 0 || py === 0 || px === 15 || py === 15;
+		const inset = (px === 3 || px === 12) && py >= 3 && py <= 12 || (py === 3 || py === 12) && px >= 3 && px <= 12;
+		return [edge || inset ? vary([120, 120, 124], 5, r()) : vary([170, 170, 174], 5, r()), 255];
+	},
+	// 137: stone pillar side (縦の溝)
+	(px, _py, r) => [px % 4 === 0 ? vary([118, 118, 122], 5, r()) : px % 4 === 1 ? vary([186, 186, 190], 5, r()) : vary([160, 160, 164], 5, r()), 255],
+	// 138..143: spare
+	...[0, 1, 2, 3, 4, 5].map((): TilePainter => (_px, _py, r) => [vary(STONE, 26, r()), 255]),
 ];
 
 const tileAverages: Rgb[] = [];

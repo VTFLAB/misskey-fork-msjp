@@ -53,4 +53,12 @@ export class MiCraftWorld {
 		default: 0,
 	})
 	public blockCount: number;
+
+	/**
+	 * 昼夜の時刻のずれ (ms)。夜を飛ばすと更新される。bigint は文字列で返るので使う側で Number() する
+	 */
+	@Column('bigint', {
+		default: 0,
+	})
+	public timeOffset: number;
 }

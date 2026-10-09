@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-import { BLOCK, BLOCK_DEFS, GACHA_TIERS, ITEM, ITEM_DEFS, MOB_DEFS, PLAYER, WORLD, daylight, isBlockItem, timeOfDay } from './constants.js';
+import { BLOCK, BLOCK_DEFS, GACHA_TIERS, ITEM, ITEM_DEFS, MOB_DEFS, PLAYER, WORLD, canSleepNow, daylight, isBlockItem, setWorldTimeOffset, timeOfDay } from './constants.js';
 import type { EnchantId, GachaTier, MobType, Recipe } from './constants.js';
 import type { BlockHit, InputState, ItemStack, MobHit, MobSnapshot, PlayerStats, RemotePlayerInfo, SerializedStack, SoundMaterial } from './types.js';
 import { CraftWorld } from './world.js';
@@ -22,7 +22,7 @@ import { WorldTicker, canPlaceAt, cascadeAfterRemoval, gravityDestination, plant
 import { attackCooldownSeconds, attackDamage, blockXp, breakTime, canHarvest, dropsFor, durabilityCostPerAttack, durabilityCostPerBlock, knockbackStrength } from './mining.js';
 import { availableRecipes, craft, isNearBlock } from './crafting.js';
 import { enchantStack, rollGacha } from './enchant.js';
-import { isHeadInWater } from './physics.js';
+import { isHeadInWater, raycastBlocks } from './physics.js';
 import { damageItem, enchantLevel } from './items.js';
 import { lookDir, project } from './math.js';
 
@@ -41,7 +41,9 @@ export type EngineToast =
 	| { kind: 'levelUp'; level: number }
 	| { kind: 'spawnSet' }
 	| { kind: 'itemBroke'; id: number }
-	| { kind: 'inventoryFull' };
+	| { kind: 'inventoryFull' }
+	| { kind: 'cannotSleepNow' }
+	| { kind: 'morning' };
 
 export type PanelKind = 'crafting' | 'furnace' | 'enchanting';
 
@@ -63,6 +65,12 @@ export type EngineEvents = {
 	openPanel: (panel: PanelKind) => void;
 	playersChange: () => void;
 	toast: (toast: EngineToast) => void;
+	/** 寝る・起きる (サーバーへ送る) */
+	sleep: (sleeping: boolean) => void;
+	/** 夜を飛ばす (ホストがサーバーへ送る) */
+	skipNight: () => void;
+	/** 寝ている人数が変わった (UI 向け) */
+	sleepChange: (state: { sleeping: boolean; count: number; total: number; required: number }) => void;
 };
 
 export type EngineSettings = {
@@ -98,6 +106,8 @@ const SEND_RATE_PER_SEC = 24;
 const SEND_BUCKET_MAX = 12;
 const BOW_FULL_CHARGE_S = 1.0;
 const MOB_AMBIENT_MIN_INTERVAL = 3000;
+/** 半数以上が寝続ける必要のある時間 */
+const SLEEP_QUORUM_MS = 5000;
 
 function colorFromId(id: string): string {
 	let h = 0;
@@ -141,6 +151,12 @@ export class CraftEngine {
 	private lastMineParticle = 0;
 	private lastEatSound = 0;
 	private lastMobAmbientAt = 0;
+	/** 寝ている人 (自分を含む)。userId の集合 */
+	private sleepingPlayers = new Set<string>();
+	public sleeping = false;
+	/** 半数以上が寝続けている時間の開始 (ホストが夜を飛ばす判定に使う) */
+	private sleepQuorumSince: number | null = null;
+	private lastSkipNightSent = 0;
 	private breakProgress = 0;
 	private breakTarget: string | null = null;
 	/** 弓を引いている・食べている (右クリック長押し) */
@@ -378,6 +394,63 @@ export class CraftEngine {
 			this.emitStats(true);
 		}
 		return ok;
+	}
+
+	// ----- 睡眠 (夜を飛ばす) -----
+
+	/** 自分が寝る・起きる */
+	public setSleeping(sleeping: boolean): void {
+		if (this.sleeping === sleeping || this.localUserId == null) return;
+		this.sleeping = sleeping;
+		if (sleeping) this.sleepingPlayers.add(this.localUserId);
+		else this.sleepingPlayers.delete(this.localUserId);
+		this.cancelUsing();
+		this.listeners.sleep?.(sleeping);
+		this.emitSleepState();
+	}
+
+	public applyRemoteSleeping(userId: string, sleeping: boolean): void {
+		if (userId === this.localUserId) return;
+		if (sleeping) this.sleepingPlayers.add(userId);
+		else this.sleepingPlayers.delete(userId);
+		this.emitSleepState();
+	}
+
+	/** サーバーがワールドの時刻を変えた (夜を飛ばした) */
+	public applyTimeOffset(ms: number): void {
+		const wasNight = !canSleepNow() ? false : true;
+		setWorldTimeOffset(ms);
+		if (this.sleeping) this.setSleeping(false);
+		this.sleepQuorumSince = null;
+		if (wasNight && !canSleepNow()) this.listeners.toast?.({ kind: 'morning' });
+	}
+
+	private sleepCounts(): { count: number; total: number; required: number } {
+		let total = this.localUserId != null ? 1 : 0;
+		let count = this.sleeping ? 1 : 0;
+		for (const id of this.remotePlayers.keys()) {
+			total++;
+			if (this.sleepingPlayers.has(id)) count++;
+		}
+		return { count, total, required: Math.max(1, Math.ceil(total / 2)) };
+	}
+
+	private emitSleepState(): void {
+		this.listeners.sleepChange?.({ sleeping: this.sleeping, ...this.sleepCounts() });
+	}
+
+	/** ホスト: 半数以上が 5 秒寝続けたら夜を飛ばすようサーバーへ頼む */
+	private checkSleepQuorum(now: number): void {
+		const { count, required } = this.sleepCounts();
+		if (count === 0 || count < required || !canSleepNow()) {
+			this.sleepQuorumSince = null;
+			return;
+		}
+		if (this.sleepQuorumSince == null) this.sleepQuorumSince = now;
+		if (now - this.sleepQuorumSince >= SLEEP_QUORUM_MS && now - this.lastSkipNightSent > 10000) {
+			this.lastSkipNightSent = now;
+			this.listeners.skipNight?.();
+		}
 	}
 
 	public sortInventory(): void {
@@ -656,6 +729,11 @@ export class CraftEngine {
 		// 向きのあるブロック (階段・椅子) はプレイヤーの向きの変種を置く
 		const facing = this.facingFromYaw();
 		if (itemDef?.facingSet != null) blockId = itemDef.facingSet[facing];
+		// 松明は壁の側面を狙ったら壁付きにする (向き = 壁のある方向)
+		if (blockId === BLOCK.torch && hit.ny === 0 && (hit.nx !== 0 || hit.nz !== 0)) {
+			const wallDir = hit.nz === 1 ? 0 : hit.nx === -1 ? 1 : hit.nz === -1 ? 2 : 3;
+			blockId = BLOCK_DEFS[BLOCK.wallTorch].facingSet![wallDir];
+		}
 		// ドアは下半分と上半分の 2 ブロック。板の軸はプレイヤーの向きで決める
 		if (itemDef?.door != null) {
 			blockId = (facing === 0 || facing === 2) ? BLOCK.oakDoor : BLOCK.oakDoorZ;
@@ -713,6 +791,8 @@ export class CraftEngine {
 				this.spawnPoint = { x: this.target.x, y: this.target.y, z: this.target.z };
 				this.audio.play('click');
 				this.listeners.toast?.({ kind: 'spawnSet' });
+				if (canSleepNow()) this.setSleeping(true);
+				else this.listeners.toast?.({ kind: 'cannotSleepNow' });
 				return;
 			}
 		}
@@ -993,6 +1073,7 @@ export class CraftEngine {
 
 	public removeRemotePlayer(userId: string): void {
 		if (this.lastSnapshotHost?.id === userId) this.lastSnapshotHost = null;
+		if (this.sleepingPlayers.delete(userId)) this.emitSleepState();
 		if (this.remotePlayers.delete(userId)) {
 			this.listeners.playersChange?.();
 		}
@@ -1020,6 +1101,8 @@ export class CraftEngine {
 			const d = Math.hypot(mob.x - this.player.pos.x, mob.z - this.player.pos.z);
 			const maxD = ev.ranged ? (def.ranged?.maxRange ?? 16) + 2 : def.width / 2 + 2.2;
 			if (d > maxD || Math.abs(mob.y - this.player.pos.y) >= (ev.ranged ? 8 : 2.5)) return false;
+			// 壁越しの攻撃は受けない
+			if (!this.lineOfSight(mob.x, mob.y + def.height * 0.85, mob.z, this.player.pos.x, this.player.pos.y + 1.2, this.player.pos.z)) return false;
 			const last = this.lastMobAttackAt.get(mob.id) ?? -Infinity;
 			const interval = ev.ranged ? (def.ranged?.interval ?? 2) : def.attackInterval;
 			if (now - last < interval * 1000 * 0.8) return false;
@@ -1096,6 +1179,17 @@ export class CraftEngine {
 		this.listeners.statsChange?.(this.player.exportStats());
 	}
 
+	/** 2 点の間に固体ブロックが無いか */
+	private lineOfSight(ax: number, ay: number, az: number, bx: number, by: number, bz: number): boolean {
+		const dx = bx - ax, dy = by - ay, dz = bz - az;
+		const dist = Math.hypot(dx, dy, dz);
+		if (dist < 0.01) return true;
+		const yaw = Math.atan2(-dx, -dz);
+		const pitch = Math.asin(Math.max(-1, Math.min(1, dy / dist)));
+		const hit = raycastBlocks(this.world, ax, ay, az, yaw, pitch, dist);
+		return hit == null || hit.dist >= dist - 0.05;
+	}
+
 	private lightAtEye(): number {
 		const packed = this.world.lightAt(Math.floor(this.player.pos.x), Math.floor(this.player.eyeY), Math.floor(this.player.pos.z));
 		const sky = (packed >> 4) / 15;
@@ -1120,7 +1214,9 @@ export class CraftEngine {
 
 		if (!this.resyncing) this.flushSendQueue(now);
 		const raw = this.input.consumeFrame();
-		const active = this.input.active && !this.uiOpen && !this.player.isDead;
+		// 寝ている間に何か操作したら起きる
+		if (this.sleeping && (raw.forward || raw.back || raw.left || raw.right || raw.jump || raw.attack || raw.usePressed || raw.togglePressed)) this.setSleeping(false);
+		const active = this.input.active && !this.uiOpen && !this.player.isDead && !this.sleeping;
 		const input: InputState = active ? raw : { ...raw, forward: false, back: false, left: false, right: false, jump: false, sneak: false, sprint: false, attack: false, usePressed: false, use: false, lookDX: 0, lookDY: 0, hotbarDelta: 0, hotbarSelect: null, dropPressed: false };
 
 		if (input.togglePressed && !this.player.isDead && this.input.active) {
@@ -1274,6 +1370,7 @@ export class CraftEngine {
 				this.lastMobBroadcast = now;
 				this.listeners.mobs?.(this.mobs.snapshot(this.localUserId));
 			}
+			this.checkSleepQuorum(now);
 			// ワールドのランダム tick (作物の成長など)
 			if (now - this.lastTick >= TICK_INTERVAL) {
 				this.lastTick = now;
