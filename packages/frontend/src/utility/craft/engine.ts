@@ -512,6 +512,9 @@ export class CraftEngine {
 		if (input.togglePressed && !this.player.isDead && this.input.active) {
 			this.listeners.toggleInventory?.();
 		}
+		if (raw.fullscreenPressed && this.input.active) {
+			this.input.toggleFullscreen().catch(() => {});
+		}
 		if (input.hotbarSelect != null) this.selectHotbar(input.hotbarSelect);
 		if (input.hotbarDelta !== 0) {
 			this.selectHotbar(((this.player.hotbarIndex + input.hotbarDelta) % PLAYER.hotbarSize + PLAYER.hotbarSize) % PLAYER.hotbarSize);

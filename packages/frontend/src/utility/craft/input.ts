@@ -160,9 +160,10 @@ export class InputController {
 		o.attack = s.attack; o.usePressed = s.usePressed;
 		o.hotbarDelta = s.hotbarDelta; o.hotbarSelect = s.hotbarSelect;
 		o.togglePressed = s.togglePressed;
+		o.fullscreenPressed = s.fullscreenPressed;
 		s.lookDX = 0; s.lookDY = 0;
 		s.hotbarDelta = 0; s.hotbarSelect = null;
-		s.usePressed = false; s.togglePressed = false;
+		s.usePressed = false; s.togglePressed = false; s.fullscreenPressed = false;
 		return o;
 	}
 
@@ -264,6 +265,9 @@ export class InputController {
 				break;
 			case 'KeyE':
 				if (down && !ev.repeat) s.togglePressed = true;
+				break;
+			case 'KeyF':
+				if (down && !ev.repeat) s.fullscreenPressed = true;
 				break;
 			default: {
 				if (down && /^Digit[1-9]$/.test(code)) {
