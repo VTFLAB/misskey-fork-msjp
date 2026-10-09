@@ -97,6 +97,7 @@ const SWING_MS = 300;
 const SEND_RATE_PER_SEC = 24;
 const SEND_BUCKET_MAX = 12;
 const BOW_FULL_CHARGE_S = 1.0;
+const MOB_AMBIENT_MIN_INTERVAL = 3000;
 
 function colorFromId(id: string): string {
 	let h = 0;
@@ -139,6 +140,7 @@ export class CraftEngine {
 	private lastMineHitSound = 0;
 	private lastMineParticle = 0;
 	private lastEatSound = 0;
+	private lastMobAmbientAt = 0;
 	private breakProgress = 0;
 	private breakTarget: string | null = null;
 	/** 弓を引いている・食べている (右クリック長押し) */
@@ -1246,9 +1248,13 @@ export class CraftEngine {
 				this.audio.play('creeperFuse', { x: m.x, y: m.y, z: m.z });
 				this.hurtMobs.add(`${m.id}:fuse`);
 			}
-			if (m.deathT === 0 && Math.random() < dt / 12) {
+			// 鳴き声は近くの MOB だけ、全体で 3 秒に 1 回まで (夜は MOB が多く、鳴きすぎると耳障り)
+			if (m.deathT === 0 && now - this.lastMobAmbientAt > MOB_AMBIENT_MIN_INTERVAL && Math.random() < dt / 30) {
 				const d = Math.hypot(m.x - this.player.pos.x, m.z - this.player.pos.z);
-				if (d < 24) this.audio.play('mobAmbient', { mob: m.type, x: m.x, y: m.y, z: m.z });
+				if (d < 16) {
+					this.lastMobAmbientAt = now;
+					this.audio.play('mobAmbient', { mob: m.type, x: m.x, y: m.y, z: m.z, volume: 0.7 });
+				}
 			}
 		}
 		for (const id of [...this.hurtMobs]) if (!id.endsWith(':fuse') && !hurtNow.has(id)) this.hurtMobs.delete(id);
