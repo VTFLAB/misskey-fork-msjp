@@ -50,7 +50,7 @@ definePage(() => ({
 	padding: 32px 24px;
 	text-align: center;
 	text-decoration: none;
-	// 草ブロックと水の色 (テーマに依存しないブランド色)
+	/* 草ブロックと水の色 (テーマに依存しないブランド色) */
 	background: linear-gradient(160deg, #6cae3e 0%, #3b6fd8 100%);
 	color: #fff;
 }
