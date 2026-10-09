@@ -157,10 +157,11 @@ function mobSound(r: Rig, mob: string, mode: 0 | 1 | 2, t: number): void {
 	r.pitch *= mode === 1 ? 1.25 : mode === 2 ? 0.8 : 1;
 	switch (mob) {
 		case 'skeleton':
-			for (let i = 0; i < 4 + mode * 2; i++) noise(r, t + i * 0.05, 0.025, { ft: 'bandpass', f0: rnd(2500, 3800), q: 3, peak: 0.6 });
+			// 骨の鳴る音。高すぎると耳障りなので中音域の短いクリックにする
+			for (let i = 0; i < 4 + mode * 2; i++) noise(r, t + i * 0.05, 0.025, { ft: 'bandpass', f0: rnd(900, 1800), q: 2.5, peak: mode === 0 ? 0.3 : 0.5 });
 			break;
 		case 'spider':
-			noise(r, t, 0.4 * k, { ft: 'highpass', f0: 5000, peak: 0.45, atk: 0.06 });
+			noise(r, t, 0.4 * k, { ft: 'bandpass', f0: 1800, q: 0.8, peak: mode === 0 ? 0.2 : 0.35, atk: 0.06 });
 			tone(r, t, 0.3 * k, { type: 'sawtooth', f0: 200, f1: 150, peak: 0.1, lp: 900 });
 			break;
 		case 'creeper':
@@ -348,7 +349,7 @@ export class CraftAudio {
 	private ly = 0;
 	private lz = 0;
 	private lyaw = 0;
-	private amb: { wind: GainNode; night: GainNode; cricket: GainNode; under: GainNode; nodes: AudioScheduledSourceNode[] } | null = null;
+	private amb: { wind: GainNode; night: GainNode; under: GainNode; nodes: AudioScheduledSourceNode[] } | null = null;
 	private ambState = { daylight: 1, underwater: false };
 
 	get unlocked(): boolean {
@@ -437,9 +438,8 @@ export class CraftAudio {
 		const uw = state.underwater ? 1 : 0;
 		const t = ctx.currentTime;
 		const tc = 0.3; // 約 1 秒でクロスフェード
-		a.wind.gain.setTargetAtTime(0.03 * day * (1 - uw), t, tc);
-		a.night.gain.setTargetAtTime(0.03 * (1 - day) * (1 - uw), t, tc);
-		a.cricket.gain.setTargetAtTime(0.012 * (1 - day) * (1 - uw), t, tc);
+		a.wind.gain.setTargetAtTime(0.025 * day * (1 - uw), t, tc);
+		a.night.gain.setTargetAtTime(0.018 * (1 - day) * (1 - uw), t, tc);
 		a.under.gain.setTargetAtTime(0.04 * uw, t, tc);
 	}
 
@@ -515,23 +515,8 @@ export class CraftAudio {
 			o.start();
 			nodes.push(o);
 		}
-		// コオロギ風の高い刻み: 高音を 7 Hz で断続させる
-		const cricket = bed();
-		const amp = ctx.createGain();
-		amp.gain.value = 0.5;
-		const lfo = ctx.createOscillator();
-		lfo.frequency.value = 7;
-		const lg = ctx.createGain();
-		lg.gain.value = 0.5;
-		lfo.connect(lg).connect(amp.gain);
-		const co = ctx.createOscillator();
-		co.type = 'sine';
-		co.frequency.value = 4300;
-		co.connect(amp).connect(cricket);
-		co.start();
-		lfo.start();
-		nodes.push(co, lfo);
-		this.amb = { wind, night, cricket, under, nodes };
+		// 夜の高音 (コオロギ風) は耳障りだったので入れない。夜は低い持続音だけにする
+		this.amb = { wind, night, under, nodes };
 	}
 }
 
