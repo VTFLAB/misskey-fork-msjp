@@ -16762,6 +16762,14 @@ export interface Locale extends ILocale {
          */
         "trash": string;
         /**
+         * 整理
+         */
+        "sortInventory": string;
+        /**
+         * Esc で閉じる
+         */
+        "closeWithEsc": string;
+        /**
          * {name}を捨てますか？
          */
         "trashConfirm": ParameterizedString<"name">;
@@ -16886,6 +16894,18 @@ export interface Locale extends ILocale {
              * 精錬
              */
             "smelting": string;
+            /**
+             * 建材
+             */
+            "building": string;
+            /**
+             * 家具
+             */
+            "furniture": string;
+            /**
+             * 染料
+             */
+            "dyes": string;
         };
         "_enchants": {
             /**
@@ -17172,6 +17192,314 @@ export interface Locale extends ILocale {
              * シラカバの木材
              */
             "birchPlanks": string;
+            /**
+             * 滑らかな石
+             */
+            "smoothStone": string;
+            /**
+             * 安山岩
+             */
+            "andesite": string;
+            /**
+             * 花崗岩
+             */
+            "granite": string;
+            /**
+             * 閃緑岩
+             */
+            "diorite": string;
+            /**
+             * 磨かれた安山岩
+             */
+            "polishedAndesite": string;
+            /**
+             * 磨かれた花崗岩
+             */
+            "polishedGranite": string;
+            /**
+             * 磨かれた閃緑岩
+             */
+            "polishedDiorite": string;
+            /**
+             * 深層岩
+             */
+            "deepslate": string;
+            /**
+             * 深層岩レンガ
+             */
+            "deepslateBricks": string;
+            /**
+             * テラコッタ
+             */
+            "terracotta": string;
+            /**
+             * タンポポ
+             */
+            "dandelion": string;
+            /**
+             * 模様入りの石レンガ
+             */
+            "chiseledStoneBricks": string;
+            /**
+             * 苔むした石レンガ
+             */
+            "mossyStoneBricks": string;
+            /**
+             * 滑らかな砂岩
+             */
+            "smoothSandstone": string;
+            /**
+             * トウヒの原木
+             */
+            "spruceLog": string;
+            /**
+             * トウヒの木材
+             */
+            "sprucePlanks": string;
+            /**
+             * 樽
+             */
+            "barrel": string;
+            /**
+             * チェスト (飾り)
+             */
+            "chest": string;
+            /**
+             * ランタン
+             */
+            "lantern": string;
+            /**
+             * 鉄格子
+             */
+            "ironBars": string;
+            /**
+             * 板ガラス
+             */
+            "glassPane": string;
+            /**
+             * 赤色の羊毛
+             */
+            "redWool": string;
+            /**
+             * 黄色の羊毛
+             */
+            "yellowWool": string;
+            /**
+             * 青色の羊毛
+             */
+            "blueWool": string;
+            /**
+             * 緑色の羊毛
+             */
+            "greenWool": string;
+            /**
+             * 黒色の羊毛
+             */
+            "blackWool": string;
+            /**
+             * 灰色の羊毛
+             */
+            "grayWool": string;
+            /**
+             * 橙色の羊毛
+             */
+            "orangeWool": string;
+            /**
+             * 紫色の羊毛
+             */
+            "purpleWool": string;
+            /**
+             * 桃色の羊毛
+             */
+            "pinkWool": string;
+            /**
+             * 空色の羊毛
+             */
+            "lightBlueWool": string;
+            /**
+             * 黄緑色の羊毛
+             */
+            "limeWool": string;
+            /**
+             * 白色のコンクリート
+             */
+            "whiteConcrete": string;
+            /**
+             * 灰色のコンクリート
+             */
+            "grayConcrete": string;
+            /**
+             * 黒色のコンクリート
+             */
+            "blackConcrete": string;
+            /**
+             * 赤色のコンクリート
+             */
+            "redConcrete": string;
+            /**
+             * 青色のコンクリート
+             */
+            "blueConcrete": string;
+            /**
+             * 緑色のコンクリート
+             */
+            "greenConcrete": string;
+            /**
+             * 黄色のコンクリート
+             */
+            "yellowConcrete": string;
+            /**
+             * 橙色のコンクリート
+             */
+            "orangeConcrete": string;
+            /**
+             * 白色のカーペット
+             */
+            "whiteCarpet": string;
+            /**
+             * 赤色のカーペット
+             */
+            "redCarpet": string;
+            /**
+             * 青色のカーペット
+             */
+            "blueCarpet": string;
+            /**
+             * 緑色のカーペット
+             */
+            "greenCarpet": string;
+            /**
+             * オークのハーフブロック
+             */
+            "oakSlab": string;
+            /**
+             * シラカバのハーフブロック
+             */
+            "birchSlab": string;
+            /**
+             * トウヒのハーフブロック
+             */
+            "spruceSlab": string;
+            /**
+             * 石のハーフブロック
+             */
+            "stoneSlab": string;
+            /**
+             * 丸石のハーフブロック
+             */
+            "cobblestoneSlab": string;
+            /**
+             * 石レンガのハーフブロック
+             */
+            "stoneBrickSlab": string;
+            /**
+             * 砂岩のハーフブロック
+             */
+            "sandstoneSlab": string;
+            /**
+             * 滑らかな石のハーフブロック
+             */
+            "smoothStoneSlab": string;
+            /**
+             * オークの階段
+             */
+            "oakStairs": string;
+            /**
+             * 丸石の階段
+             */
+            "cobblestoneStairs": string;
+            /**
+             * 石レンガの階段
+             */
+            "stoneBrickStairs": string;
+            /**
+             * オークのフェンス
+             */
+            "oakFence": string;
+            /**
+             * 丸石の塀
+             */
+            "cobblestoneWall": string;
+            /**
+             * オークのドア
+             */
+            "oakDoor": string;
+            /**
+             * オークのテーブル
+             */
+            "oakTable": string;
+            /**
+             * オークのスツール
+             */
+            "oakStool": string;
+            /**
+             * オークの椅子
+             */
+            "oakChair": string;
+            /**
+             * 植木鉢
+             */
+            "flowerPot": string;
+            /**
+             * オークの階段
+             */
+            "oakStairs1": string;
+            /**
+             * オークの階段
+             */
+            "oakStairs2": string;
+            /**
+             * オークの階段
+             */
+            "oakStairs3": string;
+            /**
+             * 丸石の階段
+             */
+            "cobblestoneStairs1": string;
+            /**
+             * 丸石の階段
+             */
+            "cobblestoneStairs2": string;
+            /**
+             * 丸石の階段
+             */
+            "cobblestoneStairs3": string;
+            /**
+             * 石レンガの階段
+             */
+            "stoneBrickStairs1": string;
+            /**
+             * 石レンガの階段
+             */
+            "stoneBrickStairs2": string;
+            /**
+             * 石レンガの階段
+             */
+            "stoneBrickStairs3": string;
+            /**
+             * オークの椅子
+             */
+            "oakChair1": string;
+            /**
+             * オークの椅子
+             */
+            "oakChair2": string;
+            /**
+             * オークの椅子
+             */
+            "oakChair3": string;
+            /**
+             * オークのドア
+             */
+            "oakDoorUpper": string;
+            /**
+             * オークのドア
+             */
+            "oakDoorZ": string;
+            /**
+             * オークのドア
+             */
+            "oakDoorZUpper": string;
         };
         "_items": {
             /**
@@ -17322,6 +17650,54 @@ export interface Locale extends ILocale {
              * パンプキンパイ
              */
             "pumpkinPie": string;
+            /**
+             * 赤色の染料
+             */
+            "redDye": string;
+            /**
+             * 黄色の染料
+             */
+            "yellowDye": string;
+            /**
+             * 青色の染料
+             */
+            "blueDye": string;
+            /**
+             * 緑色の染料
+             */
+            "greenDye": string;
+            /**
+             * 白色の染料
+             */
+            "whiteDye": string;
+            /**
+             * 黒色の染料
+             */
+            "blackDye": string;
+            /**
+             * 灰色の染料
+             */
+            "grayDye": string;
+            /**
+             * 橙色の染料
+             */
+            "orangeDye": string;
+            /**
+             * 紫色の染料
+             */
+            "purpleDye": string;
+            /**
+             * 桃色の染料
+             */
+            "pinkDye": string;
+            /**
+             * 空色の染料
+             */
+            "lightBlueDye": string;
+            /**
+             * 黄緑色の染料
+             */
+            "limeDye": string;
             /**
              * 木のツルハシ
              */

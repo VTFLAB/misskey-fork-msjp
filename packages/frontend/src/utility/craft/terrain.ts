@@ -21,6 +21,11 @@ import type { BiomeId } from './constants.js';
  * - 砂漠の砂の下 3 マスを砂岩にする
  * - 気温 < 0.35 の水面を氷にする
  * - 木の形は treeBlocks() に切り出した (ticks.ts が苗木の成長に同じ形を使う)
+ *
+ * v3 の変更点 (既存ワールドの地下のブロックは変わるが、地表の高さ・素材・地物の位置は変わらない):
+ * - 針葉樹 (taiga の木) の幹をトウヒの原木 (spruceLog) にした
+ * - 平原・森・白樺の森の草の上にタンポポ (dandelion) を約 1/60 の列で置く
+ * - 石の中に安山岩・花崗岩・閃緑岩の塊 (y<60、それぞれ石の約 2%) を valueNoise で作り、y<14 の石は深層岩にする (y<14 の鉱石はそのまま)
  */
 
 const CS = WORLD.chunkSize;
@@ -153,7 +158,7 @@ function leafDisc(out: TreeBlock[], x: number, y: number, z: number, r: number, 
 export function treeBlocks(kind: TreeKind, x: number, y: number, z: number, h: number): TreeBlock[] {
 	const out: TreeBlock[] = [];
 	const top = y - 1 + h;
-	const logId = kind === 'birch' ? BLOCK.birchLog : BLOCK.log;
+	const logId = kind === 'birch' ? BLOCK.birchLog : kind === 'spruce' ? BLOCK.spruceLog : BLOCK.log;
 	for (let yy = y; yy <= top; yy++) out.push({ x, y: yy, z, id: logId });
 	if (kind === 'spruce') {
 		// 上から下へ半径 0,1,2,1,2,... の円錐。幹の下 2 マスは葉をつけない
@@ -272,6 +277,14 @@ export function generateChunk(seed: number, cx: number, cz: number, out: Uint8Ar
 					else if (r >= 0.0185 && r < 0.021 && y < 26) id = BLOCK.goldOre;
 					else if (r >= 0.021 && r < 0.0225 && y < 14) id = BLOCK.diamondOre;
 					else if (y > 2 && valueNoise(seed + 503, (x + y * 3) / 7, (z - y * 2) / 7) > 0.8) id = BLOCK.gravel;
+					if (id === BLOCK.stone) {
+						if (y < 14) id = BLOCK.deepslate;
+						else if (y < 60) {
+							if (valueNoise(seed + 521, (x + y * 2) / 8, (z + y * 3) / 8) > 0.8) id = BLOCK.andesite;
+							else if (valueNoise(seed + 523, (x - y * 3) / 8, (z + y * 2) / 8) > 0.8) id = BLOCK.granite;
+							else if (valueNoise(seed + 527, (x + y * 3) / 8, (z - y * 2) / 8) > 0.8) id = BLOCK.diorite;
+						}
+					}
 					out[idx] = id;
 				}
 			}
@@ -363,6 +376,7 @@ export function generateChunk(seed: number, cx: number, cz: number, out: Uint8Ar
 			r -= melon;
 			if (r < tall) out[above] = BLOCK.tallGrass;
 			else if (r < tall + flower) out[above] = BLOCK.flower;
+			else if (biome !== BIOME.swamp && hash2(seed + 1202, baseX + lx, baseZ + lz) < 1 / 60) out[above] = BLOCK.dandelion;
 		}
 	}
 }

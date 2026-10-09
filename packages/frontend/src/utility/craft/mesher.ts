@@ -6,6 +6,8 @@
 import { ATLAS_CRACK_TILE, ATLAS_TILE_COUNT, BLOCK, BLOCK_DEFS, WORLD, isTransparent } from './constants.js';
 import type { BlockDef } from './constants.js';
 import { isOpaqueForLight } from './lighting.js';
+import { renderBoxes } from './shapes.js';
+import type { Box } from './shapes.js';
 import type { CraftWorld } from './world.js';
 
 const CS = WORLD.chunkSize;
@@ -253,6 +255,40 @@ export function buildChunkMesh(world: CraftWorld, cx: number, cz: number): Chunk
 		}
 	};
 
+	/**
+	 * boxes 形の 1 つの箱 (ブロック単位)。各面は箱の実際の位置に対応するタイルの範囲を貼る。
+	 * 面がマスの境界にあるとき (flush) は隣のマスの光を使い、不透明な立方体の隣なら省く。それ以外は自分のマスの光。AO なし
+	 */
+	const boxesBox = (target: GrowBuffer, def: BlockDef, x: number, y: number, z: number, bx: Box): void => {
+		const [x0, y0, z0, x1, y1, z1] = bx;
+		for (let fi = 0; fi < 6; fi++) {
+			const face = FACES[fi];
+			const flush = fi === 0 ? x1 >= 1 : fi === 1 ? x0 <= 0 : fi === 2 ? y1 >= 1 : fi === 3 ? y0 <= 0 : fi === 4 ? z1 >= 1 : z0 <= 0;
+			const nx = x + face.dir[0];
+			const ny = y + face.dir[1];
+			const nz = z + face.dir[2];
+			if (flush) {
+				if (ny < WORLD.minY) continue;
+				if (!isTransparent(blockAt(nx, ny, nz))) continue;
+				flatLight(def, nx, ny, nz, face.shade);
+			} else {
+				flatLight(def, x, y, z, face.shade);
+			}
+			const u0 = def.tiles[face.tileIndex] * tileW;
+			for (let i = 0; i < 4; i++) {
+				const c = face.corners[i];
+				const px = c[0] === 1 ? x1 : x0;
+				const py = c[1] === 1 ? y1 : y0;
+				const pz = c[2] === 1 ? z1 : z0;
+				let u: number;
+				let v: number;
+				if (fi === 0) { u = 1 - pz; v = 1 - py; } else if (fi === 1) { u = pz; v = 1 - py; } else if (fi === 4) { u = px; v = 1 - py; } else if (fi === 5) { u = 1 - px; v = 1 - py; } else if (fi === 2) { u = px; v = pz; } else { u = px; v = 1 - pz; }
+				setQ(i, x + px, y + py, z + pz, u0 + u * tileW, v, flatSky, flatBlk);
+			}
+			emitQuad(target, 0, 1, 1, 1);
+		}
+	};
+
 	/** 立っている四角形 (両面)。4 隅は UVS の順 (左下, 右下, 右上, 左上) */
 	const standingQuad = (
 		target: GrowBuffer, def: BlockDef, ax: number, az: number, bx: number, bz: number, y0: number, y1: number,
@@ -330,6 +366,11 @@ export function buildChunkMesh(world: CraftWorld, cx: number, cz: number): Chunk
 							const pz = wz > 0 ? z + 1 - e : z + e;
 							standingQuad(target, def, x, pz, x + 1, pz, y, y + 1, u0, light, 1, 1, 1);
 						}
+						break;
+					}
+					case 'boxes': {
+						const boxes = renderBoxes(id, (dx, dy, dz) => blockAt(x + dx, y + dy, z + dz));
+						for (const bx of boxes) boxesBox(target, def, x, y, z, bx);
 						break;
 					}
 					case 'bed':

@@ -55,7 +55,7 @@ const props = defineProps<{
 	mode: 'crafting' | 'furnace';
 }>();
 
-const categories = ['all', 'basic', 'tools', 'weapons', 'armor', 'blocks', 'food', 'smelting'] as const;
+const categories = ['all', 'basic', 'building', 'furniture', 'dyes', 'tools', 'weapons', 'armor', 'blocks', 'food', 'smelting'] as const;
 const category = ref<string>(props.mode === 'furnace' ? 'smelting' : 'all');
 
 const nearTable = computed(() => {
