@@ -37,6 +37,16 @@ type UpdateInstanceJob = {
 	shouldUnsuspend: boolean,
 };
 
+/**
+ * jsonld.js reports problems with the document itself (safe mode validation, syntax errors)
+ * as plain `Error`s whose `name` starts with `jsonld.`, not as Misskey's {@link JsonLdError}.
+ * By the time the LD-Signature is verified the context cache is frozen, so such an error
+ * depends only on the document and retrying the job reproduces the same failure.
+ */
+function isJsonLdLibraryError(error: unknown): boolean {
+	return error instanceof Error && error.name.startsWith('jsonld.');
+}
+
 @Injectable()
 export class InboxProcessorService implements OnApplicationShutdown {
 	private logger: Logger;
@@ -194,7 +204,7 @@ export class InboxProcessorService implements OnApplicationShutdown {
 						throw new Bull.UnrecoverableError('skip: LD-Signatureの検証に失敗しました');
 					}
 				} catch (error) {
-					if (error instanceof JsonLdError) {
+					if (error instanceof JsonLdError || isJsonLdLibraryError(error)) {
 						throw new Bull.UnrecoverableError(`skip: encountered a JSON-LD error while verifying signature: ${error}`);
 					} else {
 						throw error;
@@ -269,6 +279,8 @@ export class InboxProcessorService implements OnApplicationShutdown {
 						return 'note contains too many mentions';
 					case '09d79f9e-64f1-4316-9cfa-e75c4d091574': // Instance is blocked
 						return 'skip: blocked instance';
+					case 'd592da9f-822f-4d91-83d7-4ceefabcf3d2': // reply chain deeper than the resolver recursion limit
+						return `skip: ${e.message}`;
 				}
 			}
 			throw e;
