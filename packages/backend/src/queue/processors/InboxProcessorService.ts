@@ -164,6 +164,7 @@ export class InboxProcessorService implements OnApplicationShutdown {
 				const jsonLd = this.jsonLdService.use();
 
 				delete activity.signature;
+				this.stripEmptyGeneratorUrl(activity);
 				try {
 					activity = await jsonLd.compact(activity) as IActivity;
 				} catch (error) {
@@ -273,6 +274,29 @@ export class InboxProcessorService implements OnApplicationShutdown {
 			throw e;
 		}
 		return 'ok';
+	}
+
+	/**
+	 * Drop `generator.url` when it is an empty string, on the activity and on its object.
+	 *
+	 * Some senders (fedibird's "Web" client) emit `"generator": { "url": "" }`. `url` is an
+	 * `@id`-typed term, so during RDF canonicalization the empty value becomes a relative IRI,
+	 * which jsonld's safe mode rejects with "Safe mode validation error" before the LD-Signature
+	 * is checked. The signer's own canonicalization silently dropped that triple, so removing the
+	 * empty value here reproduces the signed form and lets the signature verify. No signed data
+	 * is lost: an empty IRI carries none.
+	 */
+	@bindThis
+	private stripEmptyGeneratorUrl(activity: IActivity): void {
+		const candidates: unknown[] = [activity, activity.object];
+		for (const candidate of candidates) {
+			if (candidate == null || typeof candidate !== 'object') continue;
+			const generator = (candidate as Record<string, unknown>).generator;
+			if (generator == null || typeof generator !== 'object' || Array.isArray(generator)) continue;
+			if ((generator as Record<string, unknown>).url === '') {
+				delete (generator as Record<string, unknown>).url;
+			}
+		}
 	}
 
 	@bindThis
