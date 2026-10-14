@@ -145,6 +145,7 @@
 - Fix: MSJP独自配信 (OME) のライブ視聴プレイヤーが、PC表示で画面上部に小さく表示され下に大きな黒帯が偏る不具合を修正 (bsky-fork 独自)。サードパーティ埋め込みプレイヤー (ovenplayer) が内部の `padding-bottom` トリックで自身の高さを幅の16:9に固定してしまい、画面の残り高さいっぱいに表示する想定のレイアウトと競合していた。該当CSSを上書きして高さをコンテナいっぱいに広げ、映像は上下中央に最大表示、余りは上下均等の黒帯になるよう修正
 
 ### Server
+- Fix: リレー経由で届く fedibird などの投稿が、LD-Signature の検証前に JSON-LD の safe mode で拒否され (`Safe mode validation error`)、取り込まれなかった問題を修正 (bsky-fork 独自)。送信側が付ける空の `generator.url` が相対 IRI として扱われていたため、検証前にその空の値だけを取り除く (署名側の正規化でも元々落ちる値なので、署名で保護されないデータを処理することはない)。これまで relay 経由の fedibird の投稿はおよそ半分が GTL に届いていなかった
 - Feat: モデレーター向けフィードバック管理 API `admin/feedback/list` / `admin/feedback/update` を追加 (bsky-fork 独自)。権限 `read:admin:feedback` / `write:admin:feedback` を新設
 - Enhance: 地震速報の履歴を Redis へ永続化 (bsky-fork 独自)。デプロイ等のサーバー再起動のたびに履歴ウィジェット・履歴 API が空に戻っていたのを、直近30件・最後の地震から7日間の TTL で再起動をまたいで保持するように
 - Feat: フィードバック受付 API を追加 (bsky-fork 独自)。`feedback/create` (ローカルユーザー限定・画像のみ添付可 (SVG 除外)・レートリミット 10件/日)、`feedback/list` (自分の報告一覧) に加え、LAN 内 LLM エージェント向けの `feedback/list-local` / `feedback/update-status-local` (update-info/create-local と同一の到達経路ガード、config `updateInfoLocalPost.allowedIps` を共用) を追加。報告内容はエンドユーザーの自由入力のため、参照側はプロンプトインジェクション対策の規律 (`.claude/skills/handling-user-feedback`) に従う
