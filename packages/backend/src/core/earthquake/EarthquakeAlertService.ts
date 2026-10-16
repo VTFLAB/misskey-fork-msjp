@@ -378,8 +378,15 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 	@bindThis
 	private classifyReport(evt: JmaEewAlert): JmaEewReportKind | null {
 		if (evt.isCancel) {
-			// 取消報は第一報を出した地震に限り出す (出していない地震の取消は意味を持たないため)。
-			return this.reportedEvents.delete(evt.EventID) ? 'cancel' : null;
+			this.reportedEvents.delete(evt.EventID);
+			// 取消報は第一報または最終報を出した地震に限り、1回だけ出す (出していない地震の取消は
+			// 意味を持たず、Wolfx と P2P地震情報の両方から届く取消を二重に出さないため)。
+			// 判定は Redis に永続化している履歴で行う。reportedEvents は最終報で消えるうえ再起動で
+			// 失われるため、最終報のあとに届く取消報 (2026-10-16 の誤報 M9.9 で実際に発生) を
+			// 取りこぼしていた。
+			const shown = this.history.some(h => h.EventID === evt.EventID && h.reportKind !== 'cancel');
+			const alreadyCancelled = this.history.some(h => h.EventID === evt.EventID && h.reportKind === 'cancel');
+			return shown && !alreadyCancelled ? 'cancel' : null;
 		}
 
 		const rank = intensityRank(evt.MaxIntensity);
@@ -388,6 +395,11 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 		const qualifies = evt.isWarn || (rank != null && rank >= MIN_REPORT_INTENSITY);
 
 		if (evt.isFinal) {
+			// 同じ地震の最終報は1回だけ出す (同じ最終報が重ねて届いても履歴を二重にしない)。
+			if (this.history.some(h => h.EventID === evt.EventID && h.reportKind === 'final')) {
+				this.reportedEvents.delete(evt.EventID);
+				return null;
+			}
 			if (this.reportedEvents.delete(evt.EventID)) return 'final';
 			// 続報が無く最終報しか来ない小規模イベントでも、震度条件を満たすなら最終報1件だけ出す。
 			return qualifies ? 'final' : null;
