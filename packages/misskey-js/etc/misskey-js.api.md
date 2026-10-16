@@ -173,6 +173,9 @@ type AdminDriveShowFileRequest = operations['admin___drive___show-file']['reques
 type AdminDriveShowFileResponse = operations['admin___drive___show-file']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
+type AdminEarthquakeSendCancelRequest = operations['admin___earthquake___send-cancel']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
 type AdminEmojiAddAliasesBulkRequest = operations['admin___emoji___add-aliases-bulk']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
@@ -1853,6 +1856,7 @@ declare namespace entities {
         AdminDriveFilesResponse,
         AdminDriveShowFileRequest,
         AdminDriveShowFileResponse,
+        AdminEarthquakeSendCancelRequest,
         AdminEmojiAddRequest,
         AdminEmojiAddResponse,
         AdminEmojiAddAliasesBulkRequest,
