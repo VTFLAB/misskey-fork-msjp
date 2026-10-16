@@ -151,6 +151,45 @@ describe('EarthquakeAlertService', () => {
 		expect(notificationService.createNotification).toHaveBeenCalledTimes(4);
 	});
 
+	test('最終報のあとに届いた取消報も出す', async () => {
+		await feed({ EventID: 'evt-a', Serial: 1, MaxIntensity: '3' });
+		await feed({ EventID: 'evt-a', Serial: 42, MaxIntensity: '7', isWarn: true, isFinal: true });
+		await feed({ EventID: 'evt-a', Serial: 42, MaxIntensity: '7', isWarn: true, isFinal: true, isCancel: true });
+
+		const kinds = globalEventService.publishBroadcastStream.mock.calls.map(c => c[1].alert.reportKind);
+		expect(kinds).toEqual(['first', 'final', 'cancel']);
+		expect(service.getHistory()[0].reportKind).toBe('cancel');
+	});
+
+	test('同じ地震の取消報は別ソースから重ねて届いても1回だけ出す', async () => {
+		await feed({ EventID: 'evt-a', Serial: 1, MaxIntensity: '5弱' });
+		await feed({ EventID: 'evt-a', Serial: 2, isCancel: true });
+		service.ingest(baseAlert({ EventID: 'evt-a', Serial: 2, isCancel: true }) as any, 'p2pquake');
+		await new Promise(resolve => setImmediate(resolve));
+
+		expect(globalEventService.publishBroadcastStream).toHaveBeenCalledTimes(2);
+	});
+
+	test('同じ地震の最終報が重ねて届いても1回だけ出す', async () => {
+		await feed({ EventID: 'evt-a', Serial: 1, MaxIntensity: '4' });
+		await feed({ EventID: 'evt-a', Serial: 9, MaxIntensity: '4', isFinal: true });
+		await feed({ EventID: 'evt-a', Serial: 9, MaxIntensity: '4', isFinal: true });
+
+		const kinds = globalEventService.publishBroadcastStream.mock.calls.map(c => c[1].alert.reportKind);
+		expect(kinds).toEqual(['first', 'final']);
+	});
+
+	test('再起動で復元した履歴にある地震の取消報も出す', async () => {
+		redisClient.get.mockResolvedValue(JSON.stringify([
+			{ ...baseAlert({ EventID: 'evt-r', Serial: 5, isFinal: true }), reportKind: 'final' },
+		]));
+		await (service as any).restoreHistory();
+		await feed({ EventID: 'evt-r', Serial: 5, isFinal: true, isCancel: true });
+
+		expect(globalEventService.publishBroadcastStream).toHaveBeenCalledTimes(1);
+		expect(globalEventService.publishBroadcastStream.mock.calls[0][1].alert.reportKind).toBe('cancel');
+	});
+
 	test('MaxIntensity「不明」は同一イベントの直近の有効値で補完される', async () => {
 		await feed({ Serial: 1, MaxIntensity: '4' });
 		await feed({ Serial: 2, MaxIntensity: '不明', isFinal: true });
