@@ -12,7 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<MkLoading v-if="fetching"/>
 		<MkResult v-else-if="alerts.length === 0" type="empty"/>
 		<div v-else :class="$style.list">
-			<div v-for="alert in alerts" :key="`${alert.EventID}-${alert.Serial}`" :class="$style.item">
+			<div v-for="alert in alerts" :key="`${alert.EventID}-${alert.Serial}-${alert.reportKind}`" :class="[$style.item, { [$style.cancelled]: alert.reportKind !== 'cancel' && cancelledEventIds.has(alert.EventID) }]">
 				<div :class="$style.badges">
 					<span :class="[$style.badge, alert.isWarn ? $style.badgeWarn : $style.badgeForecast]">{{ alert.isWarn ? i18n.ts._widgetOptions._earthquakeHistory.warn : i18n.ts._widgetOptions._earthquakeHistory.forecast }}</span>
 					<span v-if="alert.reportKind === 'first'" :class="[$style.badge, $style.badgeFirst]">{{ i18n.ts._widgetOptions._earthquakeHistory.first }}</span>
@@ -28,7 +28,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useInterval } from '@@/js/use-interval.js';
 import { useWidgetPropsManager } from './widget.js';
 import type { WidgetComponentEmits, WidgetComponentExpose, WidgetComponentProps } from './widget.js';
@@ -60,6 +60,9 @@ const { widgetProps, configure } = useWidgetPropsManager(name,
 
 const fetching = ref(true);
 const alerts = ref<Awaited<ReturnType<typeof fetchHistory>>>([]);
+
+// 取消報が出た地震 (誤報など)。同じ地震の第一報・最終報は取り消されたことが分かるよう薄く表示する。
+const cancelledEventIds = computed(() => new Set(alerts.value.filter(a => a.reportKind === 'cancel').map(a => a.EventID)));
 
 function fetchHistory() {
 	return misskeyApiGet('earthquake/history', {}).then(res => res.alerts);
@@ -146,6 +149,14 @@ defineExpose<WidgetComponentExpose>({
 
 .main {
 	font-weight: bold;
+}
+
+.cancelled {
+	opacity: 0.5;
+
+	.main {
+		text-decoration: line-through;
+	}
 }
 
 .sub {
