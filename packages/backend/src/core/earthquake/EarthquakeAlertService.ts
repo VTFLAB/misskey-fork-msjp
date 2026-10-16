@@ -88,6 +88,9 @@ const MIN_REPORT_INTENSITY = 3;
 // この範囲内で既に第一報を出した地震は同一とみなし、二重の第一報を出さない。
 const ORIGIN_DEDUPE_WINDOW_MS = 3_000;
 const ORIGIN_DEDUPE_RETENTION_MS = 30 * 60_000;
+// 取消報の手動発報 (sendCancelManually) の二重実行ガード。
+const MANUAL_CANCEL_GUARD_KEY_PREFIX = 'earthquake:manualCancel:';
+const MANUAL_CANCEL_GUARD_TTL_SEC = 24 * 60 * 60;
 
 @Injectable()
 export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdown {
@@ -389,6 +392,12 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 			return shown && !alreadyCancelled ? 'cancel' : null;
 		}
 
+		// 取消報 (手動発報を含む) を出した地震の報は、そのあと届いても出さない。
+		if (this.history.some(h => h.EventID === evt.EventID && h.reportKind === 'cancel')) {
+			this.reportedEvents.delete(evt.EventID);
+			return null;
+		}
+
 		const rank = intensityRank(evt.MaxIntensity);
 		// 警報 (isWarn) は定義上強い揺れが予測されている。震度文字列が「不明」等で
 		// 解析できなくても採用対象から外さない。
@@ -413,6 +422,46 @@ export class EarthquakeAlertService implements OnModuleInit, OnApplicationShutdo
 			return 'first';
 		}
 		return null;
+	}
+
+	// 管理者が取消報を手動で発報する (admin/earthquake/send-cancel)。配信元の取消報を受け取れなかった、
+	// または採用しなかった地震 (2026-10-16 の誤報 M9.9 で最終報のあとの取消報を捨てた) の訂正に使う。
+	// 履歴に取消報がなければ同じ地震の最新の報から作って追加し、broadcast と全ユーザーへの通知を行う。
+	// 通知のプッシュは EventID 単位の tag なので、端末に残った誤報の通知を取消の通知で置き換えられる。
+	// 誤操作で全ユーザーへ二重に通知しないよう、同じ地震への手動発報は 24 時間に1回までにする。
+	// 履歴は cluster primary だけが持つため、API を primary が処理する構成を前提にする。
+	@bindThis
+	public async sendCancelManually(eventId: string): Promise<'ok' | 'noSuchEvent' | 'alreadySent'> {
+		const entries = this.history.filter(h => h.EventID === eventId);
+		if (entries.length === 0) return 'noSuchEvent';
+
+		const guardKey = `${MANUAL_CANCEL_GUARD_KEY_PREFIX}${eventId}`;
+		const acquired = await this.redisClient.set(guardKey, '1', 'EX', MANUAL_CANCEL_GUARD_TTL_SEC, 'NX');
+		if (acquired == null) return 'alreadySent';
+
+		let cancel = entries.find(h => h.reportKind === 'cancel');
+		if (cancel == null) {
+			const latest = entries.reduce((a, b) => (b.Serial > a.Serial ? b : a));
+			cancel = { ...latest, isCancel: true, reportKind: 'cancel' };
+			this.history.push(cancel);
+			if (this.history.length > HISTORY_LIMIT) {
+				this.history.shift();
+			}
+			this.persistHistory();
+		}
+		this.reportedEvents.delete(eventId);
+		this.lastKnownIntensity.delete(eventId);
+
+		this.logger.info(`manual cancel: ${cancel.Hypocenter} M${cancel.Magunitude} (EventID=${eventId}, Serial=${cancel.Serial})`);
+		this.globalEventService.publishBroadcastStream('earthquakeAlert', { alert: cancel });
+		try {
+			await this.notifyAllUsers(cancel);
+		} catch (e) {
+			// 通知を送れなかったときは再実行できるようガードを外す。
+			await this.redisClient.del(guardKey).catch(() => null);
+			throw e;
+		}
+		return 'ok';
 	}
 
 	@bindThis
