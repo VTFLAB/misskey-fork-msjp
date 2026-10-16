@@ -18,7 +18,7 @@ describe('EarthquakeAlertService', () => {
 	let globalEventService: { publishBroadcastStream: ReturnType<typeof vi.fn> };
 	let notificationService: { createNotification: ReturnType<typeof vi.fn> };
 	let usersRepository: { findBy: ReturnType<typeof vi.fn> };
-	let redisClient: { get: ReturnType<typeof vi.fn>; set: ReturnType<typeof vi.fn> };
+	let redisClient: { get: ReturnType<typeof vi.fn>; set: ReturnType<typeof vi.fn>; del: ReturnType<typeof vi.fn> };
 	let service: EarthquakeAlertService;
 
 	function baseAlert(overrides: Record<string, unknown>) {
@@ -52,7 +52,7 @@ describe('EarthquakeAlertService', () => {
 		globalEventService = { publishBroadcastStream: vi.fn() };
 		notificationService = { createNotification: vi.fn() };
 		usersRepository = { findBy: vi.fn().mockResolvedValue([{ id: 'user1' }, { id: 'user2' }]) };
-		redisClient = { get: vi.fn().mockResolvedValue(null), set: vi.fn().mockResolvedValue('OK') };
+		redisClient = { get: vi.fn().mockResolvedValue(null), set: vi.fn().mockResolvedValue('OK'), del: vi.fn().mockResolvedValue(1) };
 
 		service = new EarthquakeAlertService(
 			new LoggerService(),
@@ -228,6 +228,63 @@ describe('EarthquakeAlertService', () => {
 
 		expect(globalEventService.publishBroadcastStream).toHaveBeenCalledTimes(1);
 		expect(globalEventService.publishBroadcastStream.mock.calls[0][1].alert.reportKind).toBe('first');
+	});
+
+	describe('sendCancelManually', () => {
+		test('履歴に取消報が無い地震は取消報を作って通知する', async () => {
+			await feed({ EventID: 'evt-m', Serial: 1, MaxIntensity: '4' });
+			await feed({ EventID: 'evt-m', Serial: 7, MaxIntensity: '7', isWarn: true, isFinal: true });
+			redisClient.set.mockResolvedValue('OK');
+
+			expect(await service.sendCancelManually('evt-m')).toBe('ok');
+			const alert = globalEventService.publishBroadcastStream.mock.calls[2][1].alert;
+			expect(alert.reportKind).toBe('cancel');
+			expect(alert.isCancel).toBe(true);
+			expect(alert.Serial).toBe(7);
+			expect(service.getHistory()[0].reportKind).toBe('cancel');
+			// (第一報 + 最終報 + 手動取消) × 2ユーザー
+			expect(notificationService.createNotification).toHaveBeenCalledTimes(6);
+		});
+
+		test('履歴に取消報がある地震は既存の取消報で通知し、履歴を増やさない', async () => {
+			await feed({ EventID: 'evt-m', Serial: 1, MaxIntensity: '4' });
+			await feed({ EventID: 'evt-m', Serial: 2, isCancel: true });
+			const before = service.getHistory().length;
+
+			expect(await service.sendCancelManually('evt-m')).toBe('ok');
+			expect(service.getHistory().length).toBe(before);
+			expect(globalEventService.publishBroadcastStream.mock.calls[2][1].alert.reportKind).toBe('cancel');
+		});
+
+		test('通知の送信に失敗したらガードを外して再実行できるようにする', async () => {
+			await feed({ EventID: 'evt-m', Serial: 1, MaxIntensity: '4' });
+			usersRepository.findBy.mockRejectedValueOnce(new Error('db down'));
+
+			await expect(service.sendCancelManually('evt-m')).rejects.toThrow('db down');
+			expect(redisClient.del).toHaveBeenCalledWith('earthquake:manualCancel:evt-m');
+		});
+
+		test('手動で取り消した地震の最終報があとから届いても出さない', async () => {
+			await feed({ EventID: 'evt-m', Serial: 1, MaxIntensity: '4' });
+			await service.sendCancelManually('evt-m');
+			await feed({ EventID: 'evt-m', Serial: 5, MaxIntensity: '5弱', isFinal: true });
+
+			const kinds = globalEventService.publishBroadcastStream.mock.calls.map(c => c[1].alert.reportKind);
+			expect(kinds).toEqual(['first', 'cancel']);
+		});
+
+		test('履歴に無い地震は noSuchEvent', async () => {
+			expect(await service.sendCancelManually('evt-none')).toBe('noSuchEvent');
+			expect(globalEventService.publishBroadcastStream).not.toHaveBeenCalled();
+		});
+
+		test('24時間以内に手動発報済みなら alreadySent で通知しない', async () => {
+			await feed({ EventID: 'evt-m', Serial: 1, MaxIntensity: '4' });
+			redisClient.set.mockResolvedValue(null);
+
+			expect(await service.sendCancelManually('evt-m')).toBe('alreadySent');
+			expect(globalEventService.publishBroadcastStream).toHaveBeenCalledTimes(1);
+		});
 	});
 
 	// 複数ソース購読 (Wolfx + P2P地震情報) の重複ガード検証
