@@ -108,6 +108,9 @@ export class Paginator<
 	private aheadQueue: T[] = [];
 	private useShallowRef: SRef;
 
+	// init() が連続して呼ばれたとき (再読み込みの連打など)、古い呼び出しの応答で items を汚さないための世代番号
+	private initGeneration = 0;
+
 	// 配列内の要素をどのような順序で並べるか
 	// newest: 新しいものが先頭 (default)
 	// oldest: 古いものが先頭
@@ -191,6 +194,8 @@ export class Paginator<
 	}
 
 	public async init(): Promise<void> {
+		const generation = ++this.initGeneration;
+
 		this.items.value = [];
 		this.aheadQueue = [];
 		this.queuedAheadItemsCount.value = 0;
@@ -214,12 +219,17 @@ export class Paginator<
 		};
 
 		const apiRes = (await misskeyApi(this.endpoint, data).catch(_ => {
-			this.error.value = true;
-			this.fetching.value = false;
 			return null;
 		})) as T[] | null;
 
+		// 応答を待っている間に次の init() が始まっていたら、この応答は捨てる (同じアイテムが二重に積まれるのを防ぐ)
+		if (generation !== this.initGeneration) {
+			return;
+		}
+
 		if (apiRes == null) {
+			this.error.value = true;
+			this.fetching.value = false;
 			return;
 		}
 
@@ -339,7 +349,7 @@ export class Paginator<
 		}
 
 		if (options.toQueue) {
-			this.aheadQueue.unshift(...apiRes.toReversed());
+			this.aheadQueue.unshift(...this.excludeDuplicates(apiRes.toReversed(), [...this.aheadQueue, ...this.items.value]));
 			if (this.aheadQueue.length > MAX_QUEUE_ITEMS) {
 				this.aheadQueue = this.aheadQueue.slice(0, MAX_QUEUE_ITEMS);
 			}
@@ -369,16 +379,33 @@ export class Paginator<
 		if (this.useShallowRef && trigger) triggerRef(this.items);
 	}
 
+	/**
+	 * ストリーミング・ポーリング・再読み込みのタイミングによっては同じアイテムが複数回届くことがあるため、
+	 * 既に存在するものと同じ id のアイテム、および同一バッチ内で重複するアイテムを取り除く
+	 */
+	private excludeDuplicates(newItems: T[], existing: readonly T[]): T[] {
+		const seen = new Set(existing.map(x => x.id));
+		const result: T[] = [];
+		for (const item of newItems) {
+			if (seen.has(item.id)) continue;
+			seen.add(item.id);
+			result.push(item);
+		}
+		return result;
+	}
+
 	public unshiftItems(newItems: T[], trim = true): void {
-		if (newItems.length === 0) return; // これやらないと余計なre-renderが走る
-		this.items.value.unshift(...newItems.filter(x => !this.items.value.some(y => y.id === x.id))); // ストリーミングやポーリングのタイミングによっては重複することがあるため
+		const items = this.excludeDuplicates(newItems, this.items.value);
+		if (items.length === 0) return; // これやらないと余計なre-renderが走る
+		this.items.value.unshift(...items);
 		if (trim) this.trim(true);
 		if (this.useShallowRef) triggerRef(this.items);
 	}
 
 	public pushItems(oldItems: T[]): void {
-		if (oldItems.length === 0) return; // これやらないと余計なre-renderが走る
-		this.items.value.push(...oldItems);
+		const items = this.excludeDuplicates(oldItems, this.items.value);
+		if (items.length === 0) return; // これやらないと余計なre-renderが走る
+		this.items.value.push(...items);
 		if (this.useShallowRef) triggerRef(this.items);
 	}
 
@@ -390,6 +417,8 @@ export class Paginator<
 	}
 
 	public enqueue(item: T): void {
+		// 表示済み・キュー済みのアイテムが再度届いた場合は積まない (releaseQueue で同じノートが何件も並ぶのを防ぐ)
+		if (this.aheadQueue.some(x => x.id === item.id) || this.items.value.some(x => x.id === item.id)) return;
 		this.aheadQueue.unshift(item);
 		if (this.aheadQueue.length > MAX_QUEUE_ITEMS) {
 			this.aheadQueue.pop();
