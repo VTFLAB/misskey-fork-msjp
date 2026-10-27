@@ -246,7 +246,7 @@ import { i18n } from '@/i18n.js';
 import { $i } from '@/i.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
-import { notePage } from '@/filters/note.js';
+import { notePage } from '@@/js/note.js';
 import { prefer } from '@/preferences.js';
 
 type StreamSession = Misskey.Endpoints['twitch/streams/show']['res']['sessions'][number];
