@@ -556,6 +556,10 @@ import type {
 	MetaResponse,
 	MiauthGenTokenRequest,
 	MiauthGenTokenResponse,
+	MsjpBotCreateBadgeRoleRequest,
+	MsjpBotCreateBadgeRoleResponse,
+	MsjpBotSelfStatsRequest,
+	MsjpBotSelfStatsResponse,
 	MsjpLearningOptOutsRequest,
 	MsjpLearningOptOutsResponse,
 	MuteCreateRequest,
@@ -1159,6 +1163,8 @@ export type Endpoints = {
 	'live-channels/verify-view-password': { req: LiveChannelsVerifyViewPasswordRequest; res: LiveChannelsVerifyViewPasswordResponse };
 	'meta': { req: MetaRequest; res: MetaResponse };
 	'miauth/gen-token': { req: MiauthGenTokenRequest; res: MiauthGenTokenResponse };
+	'msjp/bot/create-badge-role': { req: MsjpBotCreateBadgeRoleRequest; res: MsjpBotCreateBadgeRoleResponse };
+	'msjp/bot/self-stats': { req: MsjpBotSelfStatsRequest; res: MsjpBotSelfStatsResponse };
 	'msjp/learning-opt-outs': { req: MsjpLearningOptOutsRequest; res: MsjpLearningOptOutsResponse };
 	'mute/create': { req: MuteCreateRequest; res: EmptyResponse };
 	'mute/delete': { req: MuteDeleteRequest; res: EmptyResponse };

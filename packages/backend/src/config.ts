@@ -106,6 +106,10 @@ type Source = {
 	// 未設定なら誰も呼べない。
 	learningOptOutReaders?: string[];
 
+	// bsky-fork 独自: msjp/bot/* の endpoint を呼べるユーザー ID (キャラクター bot のアカウント)。
+	// 未設定なら誰も呼べない。
+	msjpBotUserIds?: string[];
+
 	maxFileSize?: number;
 
 	clusterLimit?: number;
@@ -219,6 +223,7 @@ export type Config = {
 	allowedPrivateNetworks: string[] | undefined;
 	updateInfoLocalPost: { allowedIps: string[]; token?: string } | undefined;
 	learningOptOutReaders: string[];
+	msjpBotUserIds: string[];
 	maxFileSize: number;
 	clusterLimit: number | undefined;
 	threadPoolSize: number;
@@ -422,6 +427,7 @@ export function loadConfig(): Config {
 			? { allowedIps: config.updateInfoLocalPost.allowedIps, token: config.updateInfoLocalPost.token != null && config.updateInfoLocalPost.token !== '' ? config.updateInfoLocalPost.token : undefined }
 			: undefined,
 		learningOptOutReaders: Array.isArray(config.learningOptOutReaders) ? config.learningOptOutReaders.filter((v): v is string => typeof v === 'string') : [],
+		msjpBotUserIds: Array.isArray(config.msjpBotUserIds) ? config.msjpBotUserIds.filter((v): v is string => typeof v === 'string') : [],
 		maxFileSize: config.maxFileSize ?? 262144000,
 		clusterLimit: config.clusterLimit,
 		threadPoolSize: config.threadPoolSize ?? 1,
