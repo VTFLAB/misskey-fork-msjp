@@ -489,6 +489,8 @@ export * as 'atproto/unfollow' from './endpoints/atproto/unfollow.js';
 export * as 'atproto/backfill' from './endpoints/atproto/backfill.js';
 
 // msjp (bot 連携、private fork 専用)
+export * as 'msjp/bot/create-badge-role' from './endpoints/msjp/bot/create-badge-role.js';
+export * as 'msjp/bot/self-stats' from './endpoints/msjp/bot/self-stats.js';
 export * as 'msjp/learning-opt-outs' from './endpoints/msjp/learning-opt-outs.js';
 
 // twitch (Twitch 連携、private fork 専用)
