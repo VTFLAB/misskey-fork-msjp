@@ -3,6 +3,9 @@
 # conflict 発生時は rebase --abort して Gitea Issue を立てて exit 1 (人間が手動 rebase)。
 # open な conflict Issue が既にあれば新規起票せず、その Issue を使い回す (重複防止)。
 # pnpm-lock.yaml だけの conflict は upstream 側で進め、rebase 後に lockfile を再生成して commit する。
+# サーバーの bot (msjp-bot) が「[sync] ...」Issue に `/sync` とコメントすると、03:00 を待たずに同じ手順で走る。
+# そのときは結果を `[upgrade-status] ...` の行で Issue に書いて閉じる (bot がこの行を読んで管理者に伝える)。
+# conflict の解消は upstream-conflict.yml (Claude) の担当。
 name: Upstream Sync
 
 # 2026-07-31: base を stable tag 2026.7.0 (master 系列) に載せ替えたため schedule を復活。
@@ -12,6 +15,8 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 18 * * *'
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: write
@@ -19,6 +24,12 @@ permissions:
 
 jobs:
   sync:
+    if: >-
+      github.event_name != 'issue_comment' || (
+        github.event.comment.body == '/sync' &&
+        startsWith(github.event.issue.title, '[sync] ') &&
+        (github.event.comment.user.login == 'msjp-bot' || github.event.comment.user.login == 'VTF')
+      )
     runs-on: ubuntu-latest
     # Job container: debian:trixie-slim (理由は build-image.yml 冒頭を参照)。node が無いので
     # actions/checkout は使わず、GITEA_TOKEN 入り URL で git clone する。
@@ -135,12 +146,16 @@ jobs:
             set -e
             case "$(uname -m)" in x86_64) ARCH=x64 ;; aarch64) ARCH=arm64 ;; *) ARCH=$(uname -m) ;; esac
             NODE_VERSION=$(cat .node-version)
+            printf '%s' "$NODE_VERSION" | grep -qxE '[0-9]+\.[0-9]+\.[0-9]+'
             curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${ARCH}.tar.gz" \
               | tar -xz -C /usr/local --strip-components=1
-            npm install -g --silent "$(node -p "require('./package.json').packageManager")"
-            # CI=true では pnpm が frozen-lockfile を既定にするため明示的に外す
-            pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts
-            pnpm install --lockfile-only --frozen-lockfile --ignore-scripts
+            # この job は GITEA_TOKEN 入りの URL で clone しているので、リポジトリの値をそのまま実行に回さない
+            PM=$(node -p "require('./package.json').packageManager")
+            printf '%s' "$PM" | grep -qxE 'pnpm@[0-9]+\.[0-9]+\.[0-9]+'
+            npm install -g --silent "$PM"
+            # CI=true では pnpm が frozen-lockfile を既定にするため明示的に外す。.pnpmfile.cjs も読ませない
+            pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts --ignore-pnpmfile
+            pnpm install --lockfile-only --frozen-lockfile --ignore-scripts --ignore-pnpmfile
             git add pnpm-lock.yaml
             if ! git diff --cached --quiet; then
               git commit -q -m "chore(lockfile): upstream rebase 後に pnpm-lock.yaml を再生成" \
@@ -163,6 +178,7 @@ jobs:
           fi
 
       - name: Push rebased branch
+        id: push
         if: steps.rebase.outputs.result == 'success' && steps.regen.outputs.result != 'failed'
         working-directory: src
         run: |
@@ -259,3 +275,32 @@ jobs:
             fi
           fi
           exit 1
+
+      # msjp-bot の `/sync` から起動したときだけ、結果を [sync] Issue に書いて閉じる。
+      # 1 行目の `[upgrade-status] <state> [key=value ...]` は bot が読む決まった形式。
+      - name: Report to the sync request issue
+        if: always() && github.event_name == 'issue_comment'
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+          NEEDED: ${{ steps.check.outputs.needed }}
+          REBASE: ${{ steps.rebase.outputs.result }}
+          REGEN: ${{ steps.regen.outputs.result }}
+          PUSHED: ${{ steps.push.outcome }}
+          ISSUE: ${{ github.event.issue.number }}
+          RUN_URL: ${{ gitea.server_url }}/${{ gitea.repository }}/actions/runs/${{ gitea.run_id }}
+          API: ${{ gitea.server_url }}/api/v1/repos/${{ gitea.repository }}/issues/${{ github.event.issue.number }}
+        run: |
+          VERSION=$(sed -nE 's/^[[:space:]]*"version": *"([^"]+)".*/\1/p' src/package.json 2>/dev/null | head -n 1)
+          if [ "$NEEDED" = "false" ]; then
+            BODY="[upgrade-status] done note=up-to-date version=$VERSION"$'\n\n'"upstream/master はもう取り込み済みだったよ。"
+          elif [ "$PUSHED" = "success" ]; then
+            BODY="[upgrade-status] synced version=$VERSION"$'\n\n'"conflict は無かったから、そのまま push したよ。build と本番への反映はこれから。"
+          elif [ "$REBASE" = "conflict" ] || [ "$REGEN" = "failed" ]; then
+            BODY="[upgrade-status] conflict"$'\n\n'"conflict が出たから、Upstream rebase conflict の Issue を立てたよ。"
+          else
+            BODY="[upgrade-status] failed"$'\n\n'"取り込みの途中で失敗したよ。Actions のログを見てね: $RUN_URL"
+          fi
+          jq -n --arg body "$BODY" '{body: $body}' \
+            | curl -fsS -X POST -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/json" --data @- "$API/comments" > /dev/null
+          curl -fsS -X PATCH -H "Authorization: token $GITEA_TOKEN" -H "Content-Type: application/json" \
+            --data '{"state":"closed"}' "$API" > /dev/null
