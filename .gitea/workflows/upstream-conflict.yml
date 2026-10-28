@@ -1,0 +1,31 @@
+# Upstream rebase conflict の解消を、msjp-bot (サーバーのキャラクター bot) 経由の指示で Claude Code に任せる。
+# upstream-sync.yml が立てた「Upstream rebase conflict (...)」Issue に `/claude resolve` `/claude resume`
+# `/claude abort` のコメントが付くと、claude-upgrade ラベルの専用 runner (リポジトリ単位で登録) で動く。
+# 手順の本体は runner 側にあり、ここからはコマンド・Issue 番号・job トークンだけを渡す。
+name: Upstream Conflict (Claude)
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  claude:
+    if: >-
+      !github.event.issue.pull_request &&
+      startsWith(github.event.issue.title, 'Upstream rebase conflict (') &&
+      startsWith(github.event.comment.body, '/claude ') &&
+      (github.event.comment.user.login == 'msjp-bot' || github.event.comment.user.login == 'VTF')
+    runs-on: claude-upgrade
+    timeout-minutes: 200
+    steps:
+      - name: Hand over to msjp-upgrade
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          printf '%s\n' "$GITEA_TOKEN" | sudo -n /usr/local/sbin/msjp-upgrade "$COMMENT_BODY" "$ISSUE_NUMBER"
