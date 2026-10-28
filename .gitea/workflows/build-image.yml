@@ -40,9 +40,9 @@ permissions:
 env:
   REGISTRY: git.msjp.pro
   IMAGE: vtf/misskey-bsky-fork
-  # upstream の base version。fork patch を当てている version を反映。
-  # rebase で upstream 系列が上がったらこの値も bump する。
-  BASE_VERSION: 2026.10.1
+  # upstream の base version は Compute tags の step が package.json の version から読む
+  # (2026-10-28 から。以前は手で書き換えていたため、conflict の無い自動取り込みでは古いまま残った)。
+  # 本番の起動前 dump が image ラベルの版で upstream の更新を判定するので、手で固定しないこと。
 
 jobs:
   build:
@@ -87,6 +87,15 @@ jobs:
         working-directory: src
         run: |
           SHA=$(git rev-parse --short HEAD)
+          # the job image has no jq/node: read the root package.json "version" with sed
+          BASE_VERSION=$(sed -nE 's/^[[:space:]]*"version": *"([^"]+)".*/\1/p' package.json | head -n 1)
+          # whole-string match: the value is interpolated into later run scripts via
+          # steps.tags.outputs, so anything beyond a plain version would be executed by bash
+          if ! printf '%s' "$BASE_VERSION" | grep -qxE '[0-9]{4}\.[0-9]{1,2}\.[0-9]+(-[0-9A-Za-z.]+)?'; then
+            echo "::error::could not read the version from package.json ('$BASE_VERSION')"
+            exit 1
+          fi
+          echo "base_version=$BASE_VERSION" >> "$GITHUB_OUTPUT"
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "sha_full=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           echo "image_sha=${REGISTRY}/${IMAGE}:${BASE_VERSION}-bsky-${SHA}" >> "$GITHUB_OUTPUT"
@@ -127,7 +136,7 @@ jobs:
             --label io.containers.autoupdate=registry \
             --label "org.opencontainers.image.source=${{ gitea.server_url }}/${{ gitea.repository }}" \
             --label "org.opencontainers.image.revision=${{ steps.tags.outputs.sha_full }}" \
-            --label "org.opencontainers.image.version=${{ env.BASE_VERSION }}-bsky-${{ steps.tags.outputs.sha }}" \
+            --label "org.opencontainers.image.version=${{ steps.tags.outputs.base_version }}-bsky-${{ steps.tags.outputs.sha }}" \
             -t "${{ steps.tags.outputs.image_sha }}" \
             .
           docker image inspect "${{ steps.tags.outputs.image_sha }}" --format '{{.Id}} {{.Config.Labels}}'

@@ -81,7 +81,7 @@ push 前の検査として、homelab-ops の `misskey/public-mirror-guard/pre-pu
 
 ### Fork base
 
-- upstream: `github.com/misskey-dev/misskey` **v2026.5.3** (本番と同 version で fork を開始。現在の base は `.gitea/workflows/build-image.yml` の `BASE_VERSION`)
+- upstream: `github.com/misskey-dev/misskey` **v2026.5.3** (本番と同 version で fork を開始。現在の base はルートの `package.json` の `version`。`build-image.yml` が image のタグとラベルに使う)
 - branch: `bsky-integration`
 - コードリポジトリは非公開のまま: private repo on Gitea (`git.msjp.pro`)。ソース開示は GitHub の公開ミラー (`VTFLAB/misskey-fork-msjp`) で行う。稼働インスタンス自体は公開運用 (上記プロジェクト目的を参照)
 
