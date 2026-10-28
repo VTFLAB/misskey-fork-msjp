@@ -102,6 +102,10 @@ type Source = {
 		token?: string;
 	};
 
+	// bsky-fork 独自: msjp/learning-opt-outs を呼べるユーザー ID (学習する bot のアカウント)。
+	// 未設定なら誰も呼べない。
+	learningOptOutReaders?: string[];
+
 	maxFileSize?: number;
 
 	clusterLimit?: number;
@@ -214,6 +218,7 @@ export type Config = {
 	proxyBypassHosts: string[] | undefined;
 	allowedPrivateNetworks: string[] | undefined;
 	updateInfoLocalPost: { allowedIps: string[]; token?: string } | undefined;
+	learningOptOutReaders: string[];
 	maxFileSize: number;
 	clusterLimit: number | undefined;
 	threadPoolSize: number;
@@ -416,6 +421,7 @@ export function loadConfig(): Config {
 		updateInfoLocalPost: config.updateInfoLocalPost?.allowedIps != null && config.updateInfoLocalPost.allowedIps.length > 0
 			? { allowedIps: config.updateInfoLocalPost.allowedIps, token: config.updateInfoLocalPost.token != null && config.updateInfoLocalPost.token !== '' ? config.updateInfoLocalPost.token : undefined }
 			: undefined,
+		learningOptOutReaders: Array.isArray(config.learningOptOutReaders) ? config.learningOptOutReaders.filter((v): v is string => typeof v === 'string') : [],
 		maxFileSize: config.maxFileSize ?? 262144000,
 		clusterLimit: config.clusterLimit,
 		threadPoolSize: config.threadPoolSize ?? 1,
