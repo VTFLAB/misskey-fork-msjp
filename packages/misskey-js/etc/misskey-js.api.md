@@ -2376,6 +2376,10 @@ declare namespace entities {
         MetaResponse,
         MiauthGenTokenRequest,
         MiauthGenTokenResponse,
+        MsjpBotCreateBadgeRoleRequest,
+        MsjpBotCreateBadgeRoleResponse,
+        MsjpBotSelfStatsRequest,
+        MsjpBotSelfStatsResponse,
         MsjpLearningOptOutsRequest,
         MsjpLearningOptOutsResponse,
         MuteCreateRequest,
@@ -3446,6 +3450,18 @@ type ModerationLog = {
 
 // @public (undocumented)
 export const moderationLogTypes: readonly ["updateServerSettings", "suspend", "unsuspend", "updateUserNote", "addCustomEmoji", "updateCustomEmoji", "deleteCustomEmoji", "assignRole", "unassignRole", "createRole", "updateRole", "deleteRole", "clearQueue", "promoteQueue", "deleteDriveFile", "deleteNote", "createGlobalAnnouncement", "createUserAnnouncement", "updateGlobalAnnouncement", "updateUserAnnouncement", "deleteGlobalAnnouncement", "deleteUserAnnouncement", "resetPassword", "suspendRemoteInstance", "unsuspendRemoteInstance", "updateRemoteInstanceNote", "markSensitiveDriveFile", "unmarkSensitiveDriveFile", "resolveAbuseReport", "forwardAbuseReport", "updateAbuseReportNote", "createInvitation", "createAd", "updateAd", "deleteAd", "createAvatarDecoration", "updateAvatarDecoration", "deleteAvatarDecoration", "unsetMfa", "unsetUserAvatar", "unsetUserBanner", "createSystemWebhook", "updateSystemWebhook", "deleteSystemWebhook", "createAbuseReportNotificationRecipient", "updateAbuseReportNotificationRecipient", "deleteAbuseReportNotificationRecipient", "deleteAccount", "deletePage", "deleteFlash", "deleteGalleryPost", "deleteChatRoom", "updateProxyAccountDescription", "createUpdateInfo", "updateUpdateInfo", "deleteUpdateInfo"];
+
+// @public (undocumented)
+type MsjpBotCreateBadgeRoleRequest = operations['msjp___bot___create-badge-role']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type MsjpBotCreateBadgeRoleResponse = operations['msjp___bot___create-badge-role']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type MsjpBotSelfStatsRequest = operations['msjp___bot___self-stats']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type MsjpBotSelfStatsResponse = operations['msjp___bot___self-stats']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type MsjpLearningOptOutsRequest = operations['msjp___learning-opt-outs']['requestBody']['content']['application/json'];
