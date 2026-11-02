@@ -8,7 +8,7 @@ import getCaretCoordinates from 'textarea-caret';
 import { toASCII } from 'punycode.js';
 import type { Ref } from 'vue';
 import type { CompleteInfo } from '@/components/MkAutocomplete.vue';
-import { popup } from '@/os.js';
+import { popup, selectUser } from '@/os.js';
 
 export type SuggestionType = 'user' | 'hashtag' | 'emoji' | 'mfmTag' | 'mfmParam';
 
@@ -234,6 +234,9 @@ export class Autocomplete {
 				done: (res) => {
 					this.complete(res);
 				},
+				chooseUser: () => {
+					this.chooseUser();
+				},
 			});
 
 			this.suggestion = {
@@ -257,6 +260,16 @@ export class Autocomplete {
 		this.suggestion = null;
 
 		this.textarea.focus();
+	}
+
+	/**
+	 * Close the suggestion, open the user select dialog and complete with the chosen user.
+	 * The suggestion component is disposed on close, so this instance receives the result.
+	 */
+	private async chooseUser() {
+		this.close();
+		const user = await selectUser({ includeSelf: true });
+		this.complete({ type: 'user', value: user });
 	}
 
 	/**
