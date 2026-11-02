@@ -179,6 +179,7 @@ const props = defineProps<PropsType<'user'> | PropsType<'hashtag'> | PropsType<'
 
 const emit = defineEmits<{
 	<T extends keyof CompleteInfo>(event: 'done', value: { type: T; value: CompleteInfo[T]['payload'] }): void;
+	(event: 'chooseUser'): void;
 	(event: 'closed'): void;
 }>();
 
@@ -393,11 +394,10 @@ function applySelect() {
 }
 
 function chooseUser() {
-	props.close();
-	os.selectUser({ includeSelf: true }).then(user => {
-		complete('user', user);
-		props.textarea.focus();
-	});
+	// The caller closes (disposes) this popup before opening the dialog.
+	// Vue drops events emitted after unmount, so a 'done' emitted from here
+	// after the user picks someone would never reach the caller.
+	emit('chooseUser');
 }
 
 onUpdated(() => {
