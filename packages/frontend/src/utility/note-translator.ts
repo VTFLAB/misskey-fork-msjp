@@ -26,6 +26,7 @@ import {
 	isPlamoCrash,
 	isPlamoModelCached,
 	isPlamoModelLoading,
+	isPlamoModelOnServer,
 	isPlamoUnusable,
 	toPlamoLang,
 	translateWithPlamo,
@@ -64,7 +65,7 @@ function currentTargetLang(): string {
 }
 
 function canUsePlamo(targetLang: string): boolean {
-	return prefer.s['plamoTranslator.enabled'] && isPlamoEnvironmentSupported() && !isPlamoUnusable() && toPlamoLang(targetLang) != null;
+	return $i != null && prefer.s['plamoTranslator.enabled'] && isPlamoEnvironmentSupported() && !isPlamoUnusable() && toPlamoLang(targetLang) != null;
 }
 
 /**
@@ -165,6 +166,8 @@ async function tryPlamo(t: TranslateTarget): Promise<boolean> {
 		// 確認なしで取り直さないため。読み込み中・読み込み済みなら translateWithPlamo はそのまま進む)
 		let allowDownload = false;
 		if (!isPlamoModelLoading() && !(await isPlamoModelCached())) {
+			// サーバーがまだモデルを用意できていなければ、確認を出さずに次の手段を使う
+			if (!(await isPlamoModelOnServer())) return false;
 			if (!(await confirmModelDownload())) return false;
 			allowDownload = true;
 		}

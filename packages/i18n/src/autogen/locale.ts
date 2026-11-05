@@ -18305,7 +18305,7 @@ export interface Locale extends ILocale {
          */
         "enable": string;
         /**
-         * 対応する端末では、翻訳モデル PLaMo 3 Translate をブラウザ内で動かしてノートを翻訳します。ノートの本文は外部に送りません。初回は約573MBのモデルを Hugging Face からダウンロードします。WebGPU が使えない端末では、ブラウザ内蔵の翻訳機能かサーバーの翻訳を使います。
+         * 対応する端末では、翻訳モデル PLaMo 3 Translate をブラウザ内で動かしてノートを翻訳します。ノートの本文は外部に送りません。初回は約573MBのモデルをこのサーバーからダウンロードします。WebGPU が使えない端末では、ブラウザ内蔵の翻訳機能かサーバーの翻訳を使います。
          */
         "enableDescription": string;
         /**
@@ -18325,7 +18325,7 @@ export interface Locale extends ILocale {
          */
         "downloadTitle": string;
         /**
-         * この端末でノートを翻訳するため、PLaMo 3 Translate のモデル (約{size}MB) を Hugging Face からダウンロードします。ダウンロード後は端末内で翻訳し、ノートの本文を外部に送りません。モバイル回線では通信量に注意してください。
+         * この端末でノートを翻訳するため、PLaMo 3 Translate のモデル (約{size}MB) をこのサーバーからダウンロードします。ダウンロード後は端末内で翻訳し、ノートの本文を外部に送りません。モバイル回線では通信量に注意してください。
          */
         "downloadText": ParameterizedString<"size">;
         /**
