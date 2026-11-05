@@ -19,6 +19,7 @@ import { miLocalStorage } from '@/local-storage.js';
 import * as os from '@/os.js';
 import { prefer } from '@/preferences.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
+import { detectTextLang } from '@/utility/detect-text-lang.js';
 import {
 	PLAMO_MODEL_SIZE_MB,
 	hasWebGpuAdapter,
@@ -81,26 +82,9 @@ function baseLang(lang: string): string {
 
 type DetectedLang = {
 	lang: string;
-	// ブラウザの言語判定の結果か。文字の種類による簡易判定のときは false で、同じ言語とみなして翻訳を省く判断には使わない
+	// ブラウザの言語判定の結果か。簡易判定 (detect-text-lang.ts) のときは false で、同じ言語とみなして翻訳を省く判断には使わない
 	reliable: boolean;
 };
-
-// ブラウザの言語判定が使えないときの簡易判定。表示用の言語名にだけ使う。
-// 顔文字の「・」(U+30FB) や長音「ー」(U+30FC) は数えず、文字のうち 2 割以上を占める文字種で判定する。
-function detectByScript(text: string): string | null {
-	const count = (re: RegExp) => (text.match(re) ?? []).length;
-	const letters = count(/\p{L}/gu);
-	if (letters === 0) return null;
-	const kana = count(/[぀-ゟ゠-ヺヽ-ヿ]/g);
-	const hangul = count(/[가-힯ᄀ-ᇿ]/g);
-	const han = count(/[一-鿿]/g);
-	const thai = count(/[฀-๿]/g);
-	if (kana / letters >= 0.2) return 'ja';
-	if (hangul / letters >= 0.2) return 'ko';
-	if (han / letters >= 0.2) return kana > 0 ? 'ja' : 'zh';
-	if (thai / letters >= 0.2) return 'th';
-	return null;
-}
 
 async function detectSourceLang(text: string): Promise<DetectedLang | null> {
 	const detector = getLanguageDetector();
@@ -114,7 +98,7 @@ async function detectSourceLang(text: string): Promise<DetectedLang | null> {
 			// 判定できなければ文字の種類で判定する
 		}
 	}
-	const lang = detectByScript(text);
+	const lang = detectTextLang(text);
 	return lang == null ? null : { lang, reliable: false };
 }
 
