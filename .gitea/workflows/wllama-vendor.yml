@@ -1,0 +1,566 @@
+# packages/frontend/vendor/wllama/ に同梱している wllama (WebGPU 版 wasm) を upstream master から作り直す。
+# PLaMo 3 Translate の GGUF は llama.cpp の plamo3 tokenizer を要求するが、npm の最新版 (3.8.1) は
+# まだ対応していないため、wllama の master を CI で build して同梱している。
+#
+# 毎日 19:30 UTC (upstream-sync の 90 分後) に schedule で走る。手動実行 (workflow_dispatch) と、
+# この workflow / Dockerfile / build.sh を変えた push でも走る。同梱物 (esm/ など) の変更では走らない。
+# - 対象は upstream master への最新の push のうち、push が 7 日以上前のもの (npm の minimumReleaseAge と同じ
+#   7 日)。時刻は commit に書かれた日付ではなく、GitHub の events API の push 時刻を使う (commit の日付は
+#   書き換えられるため)。SOURCE.json の wllama.commit がその祖先で、かつ違う commit のときだけ作り直す。同じか、
+#   より新しいか、別の履歴なら何もしない (force か push 起動を除く)。commit 入力で指定した場合は 7 日の規則を適用しない。
+# - build は emscripten/emsdk image (digest 固定) を使う Dockerfile で行い、生成物を許可リストと SOURCE.json の
+#   sha256 で検査してから差し替えて commit し、bsky-integration に通常の push で載せる (force しない)。
+# - job token による push では workflow が起動しないので、push したら build-image.yml を必ず dispatch する。
+# - upstream 由来の出力で workflow command (::set-env:: など) が実行されないよう、build の出力は
+#   ファイルにだけ書き、step 全体を ::stop-commands:: で囲む。
+# - build に失敗したら commit せず、Gitea Issue を 1 件立てるか更新する。
+# - npm の @wllama/wllama が plamo3 対応の llama.cpp を含む版になったら、同梱版を外すよう促す Issue を
+#   1 件立てるか更新する。依存の切り替えは自動では行わない。
+name: wllama Vendor
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Rebuild and commit even when the vendored commit equals upstream master'
+        type: boolean
+        default: false
+      commit:
+        description: 'wllama commit to build (40 hex chars). Empty = the newest master push that is at least 7 days old. A value skips the 7-day rule and the ancestor check'
+        type: string
+        default: ''
+  schedule:
+    - cron: '30 19 * * *'
+  push:
+    branches: [bsky-integration]
+    paths:
+      - '.gitea/workflows/wllama-vendor.yml'
+      - 'packages/frontend/vendor/wllama/Dockerfile'
+      - 'packages/frontend/vendor/wllama/build.sh'
+
+permissions:
+  contents: write
+  issues: write
+  actions: write   # build-image.yml を workflow_dispatch で起動するのに使う
+
+concurrency:
+  group: wllama-vendor
+  cancel-in-progress: false
+
+env:
+  WLLAMA_REPO: https://github.com/ngxson/wllama
+  VENDOR_DIR: packages/frontend/vendor/wllama
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    # Job container: debian:trixie-slim (理由は build-image.yml 冒頭を参照)。actions/checkout は使わず
+    # GITEA_TOKEN 入り URL で git clone する。docker CLI はランナーの /var/run/docker.sock (= ホストの
+    # podman) に向くため、job 内のファイルは bind mount できない。build context を送る
+    # `docker buildx build` と、`docker create` + `docker cp` で生成物を取り出す。
+    container:
+      image: docker.io/library/debian:trixie-slim
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    defaults:
+      run:
+        shell: bash   # the image's sh is dash
+    steps:
+      - name: Toolchain
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends \
+            git ca-certificates curl jq docker-cli docker-buildx > /dev/null
+          docker version --format '{{.Client.Version}} -> {{.Server.Platform.Name}}'
+
+          # Issue の作成・更新用 helper。同じ title prefix の open な Issue があれば使い回す。
+          #   upsert-issue <title-prefix> <title> <body>
+          #   - 同じ title の Issue が open なら何もしない
+          #   - 別 title (prefix は同じ) の Issue が open なら title/body を差し替えてコメントする
+          #   - open が無ければ新規に起票する
+          cat > /usr/local/bin/upsert-issue <<'HELPER'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          PREFIX="$1"; TITLE="$2"; BODY="$3"
+          API="${GITHUB_SERVER_URL}/api/v1/repos/${GITHUB_REPOSITORY}"
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          AUTH="Authorization: token ${GITEA_TOKEN}"
+          EXISTING=$(curl -fsS -H "$AUTH" "$API/issues?state=open&type=issues&limit=50" \
+            | jq -c --arg p "$PREFIX" '[.[] | select(.title | startswith($p))] | sort_by(.number) | last // empty')
+          if [ -z "$EXISTING" ]; then
+            jq -n --arg title "$TITLE" --arg body "$BODY" '{title: $title, body: $body, labels: []}' \
+              | curl -fsS -X POST -H "$AUTH" -H "Content-Type: application/json" --data @- "$API/issues" > /dev/null
+            echo "::notice::Opened a new issue: $TITLE"
+          else
+            NUM=$(jq -r '.number' <<<"$EXISTING")
+            OLD_TITLE=$(jq -r '.title' <<<"$EXISTING")
+            if [ "$OLD_TITLE" = "$TITLE" ]; then
+              echo "::notice::Issue #$NUM is already open for this state. Not opening another one."
+            else
+              jq -n --arg title "$TITLE" --arg body "$BODY" '{title: $title, body: $body}' \
+                | curl -fsS -X PATCH -H "$AUTH" -H "Content-Type: application/json" --data @- "$API/issues/$NUM" > /dev/null
+              jq -n --arg body "状態が変わったため、本文を最新の結果に差し替えました (更新前のタイトル: $OLD_TITLE)。 Run: $RUN_URL" '{body: $body}' \
+                | curl -fsS -X POST -H "$AUTH" -H "Content-Type: application/json" --data @- "$API/issues/$NUM/comments" > /dev/null
+              echo "::notice::Updated issue #$NUM."
+            fi
+          fi
+          HELPER
+          chmod +x /usr/local/bin/upsert-issue
+
+          # build の生成物の検査 (と、検査済みの許可リスト内のファイルだけのコピー)。
+          #   verify-wllama-out <dir> [<dest>]
+          #   - <dir> の全パスが許可リストに合い、普通のファイル以外 (symlink など) が無い
+          #   - SOURCE.json の files に載った全ファイルが存在して sha256 が合い、載っていないファイルが無い
+          #   - esm/index.js と wasm の大きさが妥当な範囲にある
+          #   - <dest> があれば、検査したファイルだけを <dest> 以下に同じ相対パスでコピーする
+          cat > /usr/local/bin/verify-wllama-out <<'HELPER'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          D="${1:?usage: verify-wllama-out <dir> [<dest>]}"
+          DEST="${2:-}"
+          RE='^(esm/(index\.js|wasm/wllama\.wasm|[A-Za-z0-9_/.-]+\.d\.ts)|LICENCE\.wllama|LICENSE\.[A-Za-z0-9._-]+|SOURCE\.json)$'
+          fail() { echo "verify: $*" >&2; exit 1; }
+          [ -d "$D" ] || fail "not a directory"
+          [ -z "$(find "$D" -mindepth 1 ! -type f ! -type d -print -quit)" ] || fail "the output has something other than regular files and directories"
+          [ -z "$(find "$D" -mindepth 1 -name $'*\n*' -print -quit)" ] || fail "the output has a path with a newline"
+          T=$(mktemp -d) || exit 1
+          trap 'rm -rf "${T:?}"' EXIT
+          (cd "$D" && find . -type f -printf '%P\n' | LC_ALL=C sort) > "$T/actual"
+          grep -vxE "$RE" "$T/actual" > "$T/bad" || true
+          if [ -s "$T/bad" ]; then
+            sed -n '1,5p' "$T/bad" >&2
+            fail "$(wc -l < "$T/bad") path(s) outside the allowlist"
+          fi
+          [ "$(wc -l < "$T/actual")" -le 200 ] || fail "more than 200 files in the output"
+          DTS=0
+          while IFS= read -r f; do DTS=$((DTS + $(stat -c %s "$D/$f"))); done < <(grep -E '\.d\.ts$' "$T/actual")
+          [ "$DTS" -le 2097152 ] || fail "the .d.ts files total $DTS bytes (limit 2 MB)"
+          for f in esm/index.js esm/index.d.ts esm/wasm/wllama.wasm LICENCE.wllama LICENSE.llama.cpp SOURCE.json; do
+            grep -qxF "$f" "$T/actual" || fail "missing $f"
+          done
+          SZ=$(stat -c %s "$D/esm/index.js")
+          [ "$SZ" -ge 153600 ] && [ "$SZ" -le 2097152 ] || fail "esm/index.js size $SZ is outside 150 KB - 2 MB"
+          SZ=$(stat -c %s "$D/esm/wasm/wllama.wasm")
+          [ "$SZ" -ge 4194304 ] && [ "$SZ" -le 41943040 ] || fail "esm/wasm/wllama.wasm size $SZ is outside 4 - 40 MB"
+          S="$D/SOURCE.json"
+          jq -e '
+            (.wllama.commit | test("^[0-9a-f]{40}$")) and (.llamaCpp.commit | test("^[0-9a-f]{40}$"))
+            and (.wllama.version | test("^[0-9A-Za-z.+-]{1,32}$"))
+            and (.wllama.committedAt | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"))
+            and (.toolchain.dawn | test("^v[0-9.]{1,32}$"))
+            and ((.toolchain.dawnZipSha256 // "") | (. == "" or test("^[0-9a-f]{64}$")))
+            and (.files | type == "object") and ([.files[] | tostring | test("^[0-9a-f]{64}$")] | all)
+          ' "$S" > /dev/null || fail "SOURCE.json has a malformed field"
+          jq -r '.files | keys[]' "$S" | LC_ALL=C sort > "$T/keys"
+          grep -vxE "$RE" "$T/keys" > "$T/badkeys" || true
+          [ ! -s "$T/badkeys" ] || fail "SOURCE.json lists a path outside the allowlist"
+          ! grep -qxF SOURCE.json "$T/keys" || fail "SOURCE.json lists itself"
+          grep -vxF SOURCE.json "$T/actual" > "$T/files" || true
+          diff -q "$T/keys" "$T/files" > /dev/null || fail "the files in the output differ from the files listed in SOURCE.json"
+          jq -r '.files | to_entries[] | "\(.value)  \(.key)"' "$S" > "$T/sums"
+          (cd "$D" && sha256sum --strict -c --quiet "$T/sums" > /dev/null) || fail "sha256 mismatch against SOURCE.json"
+          if [ -n "$DEST" ]; then
+            while IFS= read -r f; do
+              mkdir -p "$DEST/$(dirname "$f")"
+              cp -- "$D/$f" "$DEST/$f"
+            done < "$T/actual"
+          fi
+          HELPER
+          chmod +x /usr/local/bin/verify-wllama-out
+
+      - name: Checkout bsky-integration
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+        run: |
+          git clone -q --depth 1 -b bsky-integration \
+            "https://x:${GITEA_TOKEN}@${GITHUB_SERVER_URL#https://}/${GITHUB_REPOSITORY}.git" src
+          git -C src rev-parse --short HEAD
+
+      # upstream-sync.yml と同じ identity
+      - name: Configure git identity
+        working-directory: src
+        run: |
+          git config user.name "gitea-actions[bot]"
+          git config user.email "actions@git.msjp.pro"
+
+      # 対象 commit を決める。
+      # - 既定: upstream master への push のうち、GitHub の events API が記録した push 時刻が 7 日以上前の
+      #   最新のもの (payload.head)。同梱中の commit (SOURCE.json) がその祖先で、かつ違うときだけ作り直す。
+      # - commit 入力: その commit (7 日の規則と祖先の検査は適用しない)。
+      # - push 起動: 同梱中の commit を作り直す (build.sh / Dockerfile の変更を確かめるため)。
+      - name: Decide whether a rebuild is needed
+        id: decide
+        working-directory: src
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_FORCE: ${{ inputs.force }}
+          INPUT_COMMIT: ${{ inputs.commit }}
+        run: |
+          set -euo pipefail
+          rm -f /tmp/decide.log
+          # 失敗したときの Issue に載せるため、error は file にも残す
+          err() { echo "::error::$*"; echo "$*" >> /tmp/decide.log; }
+          CURRENT=""; CURRENT_DATE=""
+          if [ -f "$VENDOR_DIR/SOURCE.json" ]; then
+            CURRENT=$(jq -r '.wllama.commit // ""' "$VENDOR_DIR/SOURCE.json")
+            CURRENT_DATE=$(jq -r '.wllama.committedAt // ""' "$VENDOR_DIR/SOURCE.json")
+          fi
+          # steps.decide.outputs は後の run スクリプトに入るので、40 桁の hex 以外は受け付けない
+          if [ -n "$CURRENT" ] && ! printf '%s' "$CURRENT" | grep -qxE '[0-9a-f]{40}'; then
+            err "SOURCE.json has a malformed wllama.commit"
+            exit 1
+          fi
+          FORCE=false
+          # Dockerfile / build.sh を変えたときは、同じ commit でも作り直して差分を見る
+          if [ "$EVENT" = "push" ] || [ "${INPUT_FORCE:-false}" = "true" ]; then FORCE=true; fi
+          TARGET=""
+          NEEDED=false
+          if [ -n "${INPUT_COMMIT:-}" ]; then
+            if ! printf '%s' "$INPUT_COMMIT" | grep -qxE '[0-9a-f]{40}'; then
+              err "the commit input must be 40 lowercase hex chars"
+              exit 1
+            fi
+            TARGET="$INPUT_COMMIT"
+            if [ "$FORCE" = "true" ] || [ "$CURRENT" != "$TARGET" ]; then NEEDED=true; fi
+          elif [ "$EVENT" = "push" ] && [ -n "$CURRENT" ]; then
+            TARGET="$CURRENT"
+            NEEDED=true
+          else
+            # 7 日以上前の push は、commit の日付ではなく GitHub が記録した push 時刻 (events API) で選ぶ。
+            # events API は直近の 100 件までしか返さないので、該当が無ければ何もしない。
+            NOW=$(date +%s)
+            CUT=$((NOW - 7 * 86400))
+            W=$(mktemp -d) || exit 1
+            if ! curl -fsS -H 'Accept: application/vnd.github+json' -o "$W/events.json" \
+                'https://api.github.com/repos/ngxson/wllama/events?per_page=100'; then
+              err "could not read the events of $WLLAMA_REPO"
+              exit 1
+            fi
+            TARGET=$(jq -r --argjson cut "$CUT" '
+              [.[] | select(.type == "PushEvent" and .payload.ref == "refs/heads/master"
+                            and ((.created_at | fromdateiso8601) <= $cut))]
+              | sort_by(.created_at) | last | (.payload.head // "")
+            ' "$W/events.json")
+            if [ -z "$TARGET" ]; then
+              echo "::notice::no push to upstream master is 7 days old yet in the events API. Nothing to do."
+            elif ! printf '%s' "$TARGET" | grep -qxE '[0-9a-f]{40}'; then
+              err "the events API returned a malformed head"
+              exit 1
+            elif [ -z "$CURRENT" ]; then
+              NEEDED=true
+            elif [ "$CURRENT" = "$TARGET" ]; then
+              echo "::notice::vendored wllama is already at the matured target ${TARGET:0:7}."
+              [ "$FORCE" = "true" ] && NEEDED=true
+            else
+              # 祖先の検査用に、target を blob 無しの浅い範囲で取得する。範囲は、同梱中の commit (と 8 日前) の
+              # 早い方より 2 日前からで、target が入るまで段階的に広げる。
+              BASE=$((NOW - 8 * 86400))
+              CD=$(date -d "$CURRENT_DATE" +%s 2>/dev/null || echo "$BASE")
+              if [ "$CD" -lt "$BASE" ]; then BASE="$CD"; fi
+              git init -q --bare "$W/up.git"
+              FETCHED=false
+              for DAYS in 2 30 120 400; do
+                SINCE=$(date -u -d "@$((BASE - DAYS * 86400))" +%Y-%m-%dT%H:%M:%SZ)
+                if git -C "$W/up.git" fetch -q --filter=blob:none --shallow-since="$SINCE" \
+                    "$WLLAMA_REPO" "+${TARGET}:refs/remotes/origin/target" 2> "$W/fetch.err"; then
+                  FETCHED=true
+                  break
+                fi
+              done
+              if [ "$FETCHED" != "true" ]; then
+                err "could not fetch the target ${TARGET:0:7} from $WLLAMA_REPO"
+                exit 1
+              fi
+              if git -C "$W/up.git" merge-base --is-ancestor "$CURRENT" "$TARGET" 2>/dev/null; then
+                NEEDED=true
+              else
+                echo "::notice::skip: vendored commit ${CURRENT:0:7} is newer than the matured target ${TARGET:0:7} (or on a diverged history)."
+                [ "$FORCE" = "true" ] && NEEDED=true
+              fi
+            fi
+          fi
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+          echo "needed=$NEEDED" >> "$GITHUB_OUTPUT"
+          echo "vendored=${CURRENT:0:7} target=${TARGET:0:7} force=$FORCE needed=$NEEDED"
+
+      # npm の最新版が plamo3 対応の llama.cpp を含むか調べる。対応していれば同梱版を外す Issue を立てる。
+      # 見張りの失敗で build を止めないよう continue-on-error にしてある。
+      - name: Watch the npm release of @wllama/wllama
+        if: github.event_name != 'push'
+        continue-on-error: true
+        working-directory: src
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+        run: |
+          set -euo pipefail
+          # 外部から受け取った値は検査してから使い、検査前の値は出力しない。curl の出力は file に落としてから
+          # 読む (pipe にすると、読む側が先に閉じたとき pipefail で curl が EPIPE になり、結果を取り違える)。
+          curl -fsS -o /tmp/npm-latest.json https://registry.npmjs.org/@wllama/wllama/latest
+          VER=$(jq -r '.version' /tmp/npm-latest.json)
+          printf '%s' "$VER" | grep -qxE '[0-9]+\.[0-9]+\.[0-9]+' || { echo "::error::unexpected npm version string"; exit 1; }
+          git ls-remote --tags "$WLLAMA_REPO" "refs/tags/$VER" "refs/tags/v$VER" > /tmp/tags.txt
+          TAG=$(sed -n '1p' /tmp/tags.txt | sed -E 's#.*refs/tags/##')
+          if ! printf '%s' "$TAG" | grep -qxE 'v?[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::warning::no git tag found for @wllama/wllama $VER"
+            exit 1
+          fi
+          # 配布版が使う llama.cpp は、そのタグの submodule (gitlink) が指す commit
+          git -c advice.detachedHead=false clone -q --depth 1 --branch "$TAG" "$WLLAMA_REPO" /tmp/wllama-tag > /tmp/watch-clone.log 2>&1 \
+            || { echo "::error::could not clone tag $TAG"; exit 1; }
+          LLAMA_SHA=$(git -C /tmp/wllama-tag ls-tree HEAD llama.cpp | awk '{print $3}')
+          printf '%s' "$LLAMA_SHA" | grep -qxE '[0-9a-f]{40}' || { echo "::error::could not read the llama.cpp commit of tag $TAG"; exit 1; }
+          curl -fsS -o /tmp/llama-vocab.cpp "https://raw.githubusercontent.com/ggml-org/llama.cpp/${LLAMA_SHA}/src/llama-vocab.cpp"
+          if grep -q '"plamo3"' /tmp/llama-vocab.cpp; then
+            echo "@wllama/wllama $VER (llama.cpp ${LLAMA_SHA:0:7}) knows plamo3"
+            TITLE="wllama の npm 版 ${VER} が PLaMo 3 に対応しました: 同梱版をやめて依存に戻す"
+            BODY=$(printf '%s\n' \
+              "npm の \`@wllama/wllama\` ${VER} が使う llama.cpp (\`${LLAMA_SHA:0:7}\`) に plamo3 tokenizer が入っていました。" \
+              "" \
+              "\`${VENDOR_DIR}\` の同梱版をやめて、npm の依存に戻せる状態です。このリポジトリは自動では切り替えません。" \
+              "" \
+              "- \`packages/frontend/package.json\` に \`@wllama/wllama\` を戻し、フロントエンドの import を \`vendor/wllama\` から依存に変える" \
+              "- 同梱版 (\`${VENDOR_DIR}\`) と \`wllama-vendor.yml\` を削除する" \
+              "" \
+              "---" \
+              "Workflow: \`wllama-vendor.yml\`" \
+              "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")
+            upsert-issue "wllama の npm 版 " "$TITLE" "$BODY"
+          else
+            echo "@wllama/wllama $VER (llama.cpp ${LLAMA_SHA:0:7}) does not know plamo3 yet"
+          fi
+
+      # emsdk の版は Dockerfile の EMSDK_TAG に 1 か所だけ書く。upstream が EMSDK_IMAGE_TAG を
+      # 変えたらここで止まり、失敗 Issue に理由が出る (build.sh も emcc の版を検査する)。
+      # upstream 由来の出力 (docker build のログ、取得した file) は /tmp/build.log にだけ書く。stdout に出すのは
+      # 検査済みの値と固定の文だけで、step 全体を ::stop-commands:: で囲んで workflow command を無効にする
+      # (そのため、この step の中では ::error:: などの annotation は使わない)。
+      - name: Build in the emscripten image
+        id: build
+        if: steps.decide.outputs.needed == 'true'
+        working-directory: src
+        env:
+          TARGET: ${{ steps.decide.outputs.target }}
+        run: |
+          set +e
+          STOP=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+          printf '%s' "$STOP" | grep -qxE '[0-9a-f]{64}' || { echo "::error::could not generate a stop-commands token"; exit 1; }
+          echo "::stop-commands::${STOP}"
+          rm -f /tmp/phase
+          : > /tmp/build.log
+          (
+            set -euo pipefail
+            exec 3>&1 >> /tmp/build.log 2>&1
+            say() { echo "$*"; echo "$*" >&3; }
+            phase() { echo "$1" > /tmp/phase; echo "phase: $1" >&3; }
+
+            phase toolchain-check
+            PINNED=$(sed -n 's/^ARG EMSDK_TAG=\([0-9.]*\)$/\1/p' "$VENDOR_DIR/Dockerfile" | sed -n '1p')
+            DIGEST=$(sed -n 's/^ARG EMSDK_DIGEST=\(sha256:[0-9a-f]\{64\}\)$/\1/p' "$VENDOR_DIR/Dockerfile" | sed -n '1p')
+            curl -fsSL -o /tmp/up-build_wasm.sh "https://raw.githubusercontent.com/ngxson/wllama/${TARGET}/scripts/build_wasm.sh"
+            UPSTREAM=$(sed -n 's/^export EMSDK_IMAGE_TAG="\([0-9.]*\)"$/\1/p' /tmp/up-build_wasm.sh | sed -n '1p')
+            say "emsdk image tag: Dockerfile=$PINNED upstream=$UPSTREAM"
+            if [ -z "$DIGEST" ]; then
+              say "error: $VENDOR_DIR/Dockerfile has no EMSDK_DIGEST (sha256:...) line"
+              exit 1
+            fi
+            if [ -z "$PINNED" ] || [ -z "$UPSTREAM" ] || [ "$PINNED" != "$UPSTREAM" ]; then
+              say "error: upstream wllama pins emsdk $UPSTREAM but $VENDOR_DIR/Dockerfile has EMSDK_TAG=$PINNED. Update EMSDK_TAG and EMSDK_DIGEST in the Dockerfile (and check build.sh against upstream's docker-compose.yml)."
+              exit 1
+            fi
+
+            # emdawnwebgpu の zip は、tag が同梱中と同じなら記録済みの sha256 に固定する。
+            # tag が変わったら固定せず、build.sh が新しい sha256 を SOURCE.json に記録する。
+            phase dawn-pin
+            curl -fsSL -o /tmp/up-docker-compose.yml "https://raw.githubusercontent.com/ngxson/wllama/${TARGET}/scripts/docker-compose.yml"
+            UP_DAWN=$(sed -n 's/^[[:space:]]*DAWN_TAG=\(v[0-9.]*\)[[:space:]]*$/\1/p' /tmp/up-docker-compose.yml | sed -n '1p')
+            VEND_DAWN=""; VEND_PIN=""
+            if [ -f "$VENDOR_DIR/SOURCE.json" ]; then
+              VEND_DAWN=$(jq -r '.toolchain.dawn // ""' "$VENDOR_DIR/SOURCE.json")
+              VEND_PIN=$(jq -r '.toolchain.dawnZipSha256 // ""' "$VENDOR_DIR/SOURCE.json")
+            fi
+            EMDAWN=""
+            if [ -n "$UP_DAWN" ] && [ "$UP_DAWN" = "$VEND_DAWN" ] && printf '%s' "$VEND_PIN" | grep -qxE '[0-9a-f]{64}'; then
+              EMDAWN="$VEND_PIN"
+              say "dawn: $UP_DAWN (zip sha256 pinned from SOURCE.json)"
+            else
+              say "dawn: ${UP_DAWN:-unknown} (zip sha256 not pinned; build.sh records the new hash)"
+            fi
+
+            phase docker-build
+            CTX=$(mktemp -d)
+            cp "$VENDOR_DIR/Dockerfile" "$VENDOR_DIR/build.sh" "$CTX/"
+            docker buildx build --load --progress=plain --platform linux/amd64 \
+              --build-arg "WLLAMA_COMMIT=$TARGET" \
+              --build-arg "EMDAWN_SHA256=$EMDAWN" \
+              -t "wllama-vendor:${TARGET:0:12}" "$CTX"
+
+            phase extract
+            rm -rf /tmp/wllama-out
+            mkdir -p /tmp/wllama-out
+            CID=$(docker create "wllama-vendor:${TARGET:0:12}" /nonexistent)
+            docker cp "$CID:/." /tmp/wllama-out
+            docker rm "$CID" > /dev/null
+
+            phase verify
+            verify-wllama-out /tmp/wllama-out
+            BUILT=$(jq -r '.wllama.commit' /tmp/wllama-out/SOURCE.json)
+            [ "$BUILT" = "$TARGET" ] || { say "error: SOURCE.json says a different wllama commit than the target"; exit 1; }
+            BUILT_PIN=$(jq -r '.toolchain.dawnZipSha256 // ""' /tmp/wllama-out/SOURCE.json)
+            printf '%s' "$BUILT_PIN" | grep -qxE '[0-9a-f]{64}' || { say "error: SOURCE.json has no toolchain.dawnZipSha256"; exit 1; }
+            if [ -n "$EMDAWN" ] && [ "$BUILT_PIN" != "$EMDAWN" ]; then
+              say "error: the emdawnwebgpu zip hash in SOURCE.json differs from the pinned one"
+              exit 1
+            fi
+            say "built wllama $(jq -r '.wllama.version' /tmp/wllama-out/SOURCE.json) ${TARGET:0:7} with llama.cpp $(jq -r '.llamaCpp.commit[0:7]' /tmp/wllama-out/SOURCE.json)"
+            echo "done" > /tmp/phase
+          )
+          RC=$?
+          if [ "$RC" = "0" ]; then
+            echo "result=ok" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=failed" >> "$GITHUB_OUTPUT"
+          fi
+          echo "::${STOP}::"
+
+      # 検査済みの許可リスト内のファイルだけを差し替える (verify-wllama-out の第 2 引数)。build.sh、
+      # Dockerfile、README.md は build の出力に含まれても上書きされない。builtAt 以外に差が無ければ
+      # commit しない。push が non-fast-forward で断られたら、最新の先頭を取り直して 1 回だけやり直す。
+      - name: Commit and push
+        id: commit
+        if: steps.build.outputs.result == 'ok'
+        working-directory: src
+        env:
+          INPUT_COMMIT: ${{ inputs.commit }}
+        run: |
+          OUT=/tmp/wllama-out
+          V="$VENDOR_DIR"
+          apply() {
+            rm -rf "${V:?}/esm"
+            rm -f "${V:?}/LICENCE.wllama" "${V:?}/SOURCE.json" "${V:?}"/LICENSE.*
+            mkdir -p "$V"
+            verify-wllama-out "$OUT" "$V"
+            git add -A -- "$V"
+          }
+          for ATTEMPT in 1 2; do
+            if [ -f "$V/SOURCE.json" ] \
+              && [ "$(jq -S 'del(.builtAt)' "$V/SOURCE.json")" = "$(jq -S 'del(.builtAt)' "$OUT/SOURCE.json")" ]; then
+              echo "pushed=false" >> "$GITHUB_OUTPUT"
+              echo "::notice::the build differs from the committed copy only in builtAt. Nothing to commit."
+              exit 0
+            fi
+            OLD_DAWN=$(jq -r '.toolchain.dawn // ""' "$V/SOURCE.json" 2>/dev/null || true)
+            apply
+            if git diff --cached --quiet; then
+              echo "pushed=false" >> "$GITHUB_OUTPUT"
+              echo "::notice::no file changed. Nothing to commit."
+              exit 0
+            fi
+            WL=$(jq -r '.wllama.commit[0:7]' "$V/SOURCE.json")
+            WV=$(jq -r '.wllama.version' "$V/SOURCE.json")
+            LC=$(jq -r '.llamaCpp.commit[0:7]' "$V/SOURCE.json")
+            NEW_DAWN=$(jq -r '.toolchain.dawn' "$V/SOURCE.json")
+            BODY_ARGS=(-m "wllama ${WV} の ${WL} を CI で build し直した。同梱物の由来は ${V}/SOURCE.json を参照。")
+            if [ -n "${INPUT_COMMIT:-}" ]; then
+              BODY_ARGS+=(-m "manual: commit input, 7-day rule skipped")
+            fi
+            if [ "$OLD_DAWN" != "$NEW_DAWN" ]; then
+              BODY_ARGS+=(-m "toolchain: dawn ${OLD_DAWN:-none} -> ${NEW_DAWN} (zip sha256 re-pinned)")
+            fi
+            git commit -q -m "chore(wllama): 同梱の wllama を ${WL} (llama.cpp ${LC}) に更新" "${BODY_ARGS[@]}"
+            if git push -q origin HEAD:bsky-integration; then
+              echo "pushed=true" >> "$GITHUB_OUTPUT"
+              echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::warning::push was rejected (attempt $ATTEMPT/2); fetching the new branch head and applying again"
+            git fetch -q --depth 1 origin bsky-integration
+            git reset -q --hard FETCH_HEAD
+          done
+          echo "::error::could not push the vendored wllama update after a retry"
+          exit 1
+
+      # この Gitea は job token (GITEA_TOKEN) による push では workflow の run を作らない (起因者が
+      # Actions ユーザーだと通知側が何もしない)。そのため push したら build-image.yml を必ず
+      # workflow_dispatch で起動する。失敗したら本番に反映されないので、Issue を立てて job も失敗させる。
+      - name: Dispatch build-image for the pushed commit
+        if: steps.commit.outputs.pushed == 'true'
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+          PUSHED_SHA: ${{ steps.commit.outputs.sha }}
+        run: |
+          API="${GITHUB_SERVER_URL}/api/v1/repos/${GITHUB_REPOSITORY}"
+          STATUS=$(jq -n '{ref: "bsky-integration", inputs: {push: "true"}}' \
+            | curl -sS -o /tmp/dispatch.out -w '%{http_code}' -X POST \
+                -H "Authorization: token ${GITEA_TOKEN}" -H "Content-Type: application/json" \
+                --data @- "$API/actions/workflows/build-image.yml/dispatches") || true
+          STATUS="${STATUS:-000}"
+          case "$STATUS" in
+            2??)
+              echo "dispatched build-image.yml for ${PUSHED_SHA:0:7} (HTTP $STATUS)"
+              exit 0
+              ;;
+          esac
+          RESP=$(head -c 600 /tmp/dispatch.out 2>/dev/null || true)
+          RESP="${RESP//"$GITEA_TOKEN"/***}"
+          echo "::error::dispatching build-image.yml failed (HTTP $STATUS)"
+          TITLE="wllama の同梱を本番に反映できませんでした (${PUSHED_SHA:0:7})"
+          BODY=$(printf '%s\n' \
+            "同梱している wllama の更新を \`bsky-integration\` に push しましたが、\`build-image.yml\` を起動できませんでした。" \
+            "Actions の token による push では workflow が起動しないため、image が作られず本番に反映されていません。" \
+            "" \
+            "- push した commit: \`${PUSHED_SHA}\`" \
+            "- dispatch API の応答: HTTP ${STATUS}" \
+            "" \
+            '```' \
+            "$RESP" \
+            '```' \
+            "" \
+            "Gitea の Web UI から \`build-image.yml\` を \`bsky-integration\` で手動実行すると反映できます。" \
+            "" \
+            "---" \
+            "Workflow: \`wllama-vendor.yml\`" \
+            "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")
+          upsert-issue "wllama の同梱を本番に反映できませんでした" "$TITLE" "$BODY"
+          exit 1
+
+      - name: Discard the build image
+        if: always() && steps.build.outcome != 'skipped'
+        continue-on-error: true
+        run: |
+          docker rmi "wllama-vendor:${TARGET:0:12}" || true
+        env:
+          TARGET: ${{ steps.decide.outputs.target }}
+
+      - name: Open issue on decide or build failure
+        if: always() && (steps.decide.outcome == 'failure' || steps.build.outputs.result == 'failed')
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+          TARGET: ${{ steps.decide.outputs.target }}
+          DECIDE_OUTCOME: ${{ steps.decide.outcome }}
+        run: |
+          if [ "${DECIDE_OUTCOME}" = "failure" ]; then
+            PHASE=decide
+            LOG=$(tail -n 80 /tmp/decide.log 2>/dev/null || true)
+          else
+            PHASE=$(cat /tmp/phase 2>/dev/null || echo unknown)
+            LOG=$(tail -n 80 /tmp/build.log 2>/dev/null || true)
+          fi
+          SHORT="${TARGET:0:7}"; SHORT="${SHORT:-decide}"
+          TITLE="wllama の同梱ビルドに失敗しました (${SHORT})"
+          BODY=$(printf '%s\n' \
+            "同梱している wllama の自動ビルドが失敗しました。同梱物は更新していません。" \
+            "" \
+            "- 対象の wllama commit: \`${TARGET}\`" \
+            "- 失敗した段階: \`${PHASE}\` (decide / toolchain-check / dawn-pin / docker-build / extract / verify)" \
+            "" \
+            "### ログ末尾 80 行" \
+            "" \
+            '```' \
+            "$LOG" \
+            '```' \
+            "" \
+            "---" \
+            "Workflow: \`wllama-vendor.yml\`" \
+            "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")
+          upsert-issue "wllama の同梱ビルドに失敗しました" "$TITLE" "$BODY"
+          exit 1
