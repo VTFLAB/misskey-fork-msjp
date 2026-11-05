@@ -11,9 +11,10 @@
 	},
 	"toolchain": {
 		"emscripten": "4.0.20",
-		"dawn": "v20260317.182325"
+		"dawn": "v20260317.182325",
+		"dawnZipSha256": "8dcae86c630d76b6794b271c6572becba36f4237d132bee121a56638c3d76575"
 	},
-	"builtAt": "2026-11-05T04:21:52.969Z",
+	"builtAt": "2026-11-05T05:23:34.891Z",
 	"files": {
 		"LICENCE.wllama": "5866e3bd7e3cbd3f7c8bea6efd8a1e7fa7cc8de68c30f428aff7c6584a0fb720",
 		"LICENSE.emdawnwebgpu-webgpu": "2f79bf3699b0870251255b381670237f73f21a04a38c094f791eba39c5fd1df7",
@@ -35,7 +36,7 @@
 		"esm/utils.d.ts": "8cea8602db6079bb95e97744a29a92ccbcdfab2c4c21d4f45775ce8182468c1f",
 		"esm/wasm-from-cdn.d.ts": "9d236a61f209ba03e5c69ea5ce51b5256e6db12f5731f016152b62da818210f2",
 		"esm/wasm/source-map.d.ts": "53c0271c3e4e11c2ed5e1b26572d88ddf5efcb411a2bc5037f3a7f8d3a7039d1",
-		"esm/wasm/wllama.wasm": "18f8886bf71210a34ab5127680cf60fd5b1984c869aa029026d633bdb260fc7f",
+		"esm/wasm/wllama.wasm": "2601a95c21d03f15b1c325e358d4bf1d721930ba5a0f29fb6e63d0759e91b76f",
 		"esm/wllama.d.ts": "24a09515478269fbc8fe8a4a7fb06b2ae60f5c4040ddee4d3b7f31ce8a74cf7e",
 		"esm/worker.d.ts": "e8ff2a8d075a8ffa9dade298e622f0df5c49f97e1261d92a324b391b2a784595",
 		"esm/workers-code/generated.d.ts": "67852aa1c3f01e1a13661e4ff807b27d2c70e4919ad6cf9023a0a7a00c88232b"
