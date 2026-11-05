@@ -7,22 +7,25 @@
 // WASM 版、WebGPU backend) でブラウザ内で動かす。
 // - npm の wllama はまだ PLaMo 3 の tokenizer (plamo3) に対応していないため、upstream master を
 //   build したものを packages/frontend/vendor/wllama/ に同梱している (経緯は同ディレクトリの README.md)。
-// - モデルは Hugging Face から revision を固定して取得し、wllama が OPFS にキャッシュする。
-//   このサーバーはモデルを配布しない。
+// - モデルはこのサーバーが /plamo-model/ で配信し (backend の PlamoModelService が取得して持つ)、
+//   wllama が OPFS にキャッシュする。利用者のブラウザは Hugging Face へ接続しない。
 // - WebGPU で動かせる端末だけで使う。CPU 実行は COOP/COEP 無しだとシングルスレッドになり遅いため、
 //   呼び出し側 (note-translator.ts) がブラウザ内蔵の Translator API、サーバーの翻訳の順に切り替える。
 // - PLaMo Community License 第4条により、利用箇所に「Built with PLaMo」を表示する。
 
 import { reactive } from 'vue';
 import type { Wllama } from '../../vendor/wllama/esm/index.js';
+import { miLocalStorage } from '@/local-storage.js';
+import { $i } from '@/i.js';
 
-const MODEL_REPO = 'pfnet/plamo-3-translate-0.8b-GGUF';
+// backend の core/plamo/PlamoModelService.ts の PLAMO_MODEL と同じモデルを指す
 const MODEL_REVISION = '03891e907db8a43c97d3a7c75add125cc6d1f96a';
 const MODEL_FILE = 'plamo-3-translate-0.8b-Q4_K_M.gguf';
 // モデルはこのサーバーが配信する (利用者のブラウザから Hugging Face へは接続しない)
 export const PLAMO_MODEL_URL = `${window.location.origin}/plamo-model/${MODEL_REVISION}/${MODEL_FILE}`;
 export const PLAMO_MODEL_SIZE_MB = 573;
-export const PLAMO_LICENSE_URL = `https://huggingface.co/${MODEL_REPO}/tree/${MODEL_REVISION}/LICENSE`;
+// PLaMo Community License 第4条 (再配布時にライセンスのコピーを渡す)。このサーバーの静的アセットに置いてある
+export const PLAMO_LICENSE_URL = `${window.location.origin}/static-assets/plamo/LICENSE.${(miLocalStorage.getItem('lang') ?? navigator.language).startsWith('ja') ? 'ja' : 'en'}.txt`;
 
 // モデルカードの「対応言語」にある 53 言語の言語コード
 const SUPPORTED_LANGS = new Set([
@@ -167,6 +170,27 @@ async function resetWllama(): Promise<void> {
 	if (w != null) await w.exit().catch(() => { /* already stopped */ });
 }
 
+// モデルの配信はログイン中のユーザーに限る (backend の PlamoModelServerService)
+function authHeaders(): Record<string, string> {
+	return $i?.token != null ? { Authorization: `Bearer ${$i.token}` } : {};
+}
+
+let modelOnServer = false;
+
+/**
+ * サーバーがモデルを配信できる状態か (サーバーが取得を終えるまでは 503 になる)。取れると分かった後は確かめ直さない。
+ */
+export async function isPlamoModelOnServer(): Promise<boolean> {
+	if (modelOnServer) return true;
+	try {
+		const res = await window.fetch(PLAMO_MODEL_URL, { method: 'HEAD', cache: 'no-store', headers: authHeaders() });
+		modelOnServer = res.ok;
+	} catch {
+		modelOnServer = false;
+	}
+	return modelOnServer;
+}
+
 /**
  * モデルが端末にダウンロード済みか (ダウンロードを終えたものだけ。途中のものは含まない)。
  */
@@ -193,6 +217,7 @@ function loadModel(): Promise<Wllama> {
 		plamoStatus.phase = 'downloading';
 		plamoStatus.progress = 0;
 		await w.loadModelFromUrl(PLAMO_MODEL_URL, {
+			headers: authHeaders(),
 			n_ctx: N_CTX,
 			n_batch: N_BATCH,
 			n_ubatch: N_BATCH,
