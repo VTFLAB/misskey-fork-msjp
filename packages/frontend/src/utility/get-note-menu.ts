@@ -10,7 +10,6 @@ import type { Ref, ShallowRef } from 'vue';
 import type { MenuItem } from '@/types/menu.js';
 import { $i } from '@/i.js';
 import { i18n } from '@/i18n.js';
-import { instance } from '@/instance.js';
 import * as os from '@/os.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { copyToClipboard } from '@/utility/copy-to-clipboard.js';
@@ -26,11 +25,8 @@ import { prefer } from '@/preferences.js';
 import { getPluginHandlers } from '@/plugin.js';
 import { globalEvents } from '@/events.js';
 import { noteEvents } from '@/composables/use-note-capture.js';
-
-const isInBrowserTranslationAvailable = (
-	'LanguageDetector' in window &&
-	'Translator' in window
-);
+import { canTranslateNotes, translateNote } from '@/utility/note-translator.js';
+import type { NoteTranslation } from '@/utility/note-translator.js';
 
 export async function getNoteClipMenu(props: {
 	note: Misskey.entities.Note;
@@ -181,7 +177,7 @@ function getNoteEmbedCodeMenu(note: Misskey.entities.Note, text: string): MenuIt
 
 export function getNoteMenu(props: {
 	note: Misskey.entities.Note;
-	translation: Ref<Misskey.entities.NotesTranslateResponse | null>;
+	translation: Ref<NoteTranslation | null>; // bsky-fork: 翻訳に使った手段 (engine) を持つ
 	translating: Ref<boolean>;
 	currentClip?: Misskey.entities.Clip | null;
 	currentAntenna?: Misskey.entities.Antenna | null;
@@ -315,55 +311,15 @@ export function getNoteMenu(props: {
 	}
 
 	async function translate(): Promise<void> {
-		if (props.translation.value != null) return;
+		if (props.translation.value != null || props.translating.value) return; // bsky-fork: 翻訳中の二重実行を防ぐ
 
 		let text = appearNote.text ?? '';
 		if (appearNote.cw != null) {
 			text = `${appearNote.cw}\n-----\n${text}`;
 		}
 
-		if (prefer.s['experimental.enableWebTranslatorApi'] && isInBrowserTranslationAvailable && text.trim() !== '') {
-			props.translating.value = true;
-			try {
-				// @ts-expect-error 実験的なAPIなので型定義がない
-				const detector = await LanguageDetector.create();
-				const langResult = await detector.detect(text);
-				let localStorageLang = miLocalStorage.getItem('lang');
-				if (localStorageLang != null) {
-					localStorageLang = localStorageLang.split('-')[0];
-				}
-
-				// 翻訳元と翻訳先の言語が同じ場合はTranslatorがthrowするのでそのまま返す
-				if (langResult[0]?.detectedLanguage === localStorageLang || langResult[0]?.detectedLanguage === navigator.language) {
-					props.translation.value = {
-						sourceLang: langResult[0]?.detectedLanguage ?? 'unknown',
-						text: text,
-					};
-					return;
-				}
-
-				// @ts-expect-error 実験的なAPIなので型定義がない
-				const translator = await Translator.create({
-					sourceLanguage: langResult[0]?.detectedLanguage,
-					targetLanguage: localStorageLang ?? navigator.language,
-				});
-				const translated = await translator.translate(text);
-				props.translation.value = {
-					sourceLang: langResult[0]?.detectedLanguage ?? 'unknown',
-					text: translated,
-				};
-			} finally {
-				props.translating.value = false;
-			}
-		} else if ($i?.policies.canUseTranslator && instance.translatorAvailable) {
-			props.translating.value = true;
-			const res = await misskeyApi('notes/translate', {
-				noteId: appearNote.id,
-				targetLang: miLocalStorage.getItem('lang') ?? navigator.language,
-			});
-			props.translating.value = false;
-			props.translation.value = res;
-		}
+		// bsky-fork: 端末内の PLaMo → ブラウザ内蔵の Translator API → サーバーの順に試す (note-translator.ts)
+		await translateNote(appearNote, text, props.translation, props.translating, miLocalStorage.getItem('lang') ?? navigator.language);
 	}
 
 	const menuItems: MenuItem[] = [];
@@ -421,7 +377,7 @@ export function getNoteMenu(props: {
 			});
 		}
 
-		if ((prefer.s['experimental.enableWebTranslatorApi'] && isInBrowserTranslationAvailable) || ($i.policies.canUseTranslator && instance.translatorAvailable)) {
+		if (canTranslateNotes()) { // bsky-fork
 			menuItems.push({
 				icon: 'ti ti-language-hiragana',
 				text: i18n.ts.translate,

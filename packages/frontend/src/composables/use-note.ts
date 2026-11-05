@@ -40,6 +40,7 @@ import type { DI as DIType } from '@/di.js';
 import type { ExtractInjectedType } from '@/types/misc.js';
 import type { MenuItem } from '@/types/menu.js';
 import type { WordMuteResult } from '@/utility/check-word-mute.js';
+import type { NoteTranslation } from '@/utility/note-translator.js'; // bsky-fork
 
 export interface UseNoteProps {
 	note: Misskey.entities.Note;
@@ -155,7 +156,7 @@ export function useNote(
 	const showContent = ref(false);
 	const isDeleted = ref(false);
 	const translating = ref(false);
-	const translation = ref<Misskey.entities.NotesTranslateResponse | null>(null);
+	const translation = ref<NoteTranslation | null>(null); // bsky-fork: 翻訳に使った手段 (engine) を持つ
 
 	// ミュート判定
 	// mutedはミュート解除の操作で書き換わるのでref。hardMutedも通常は解除できず不変だが、

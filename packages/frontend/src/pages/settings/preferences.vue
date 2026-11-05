@@ -223,6 +223,21 @@ SPDX-License-Identifier: AGPL-3.0-only
 									</MkPreferenceContainer>
 								</SearchMarker>
 
+								<!-- bsky-fork: ノートの翻訳に端末内の PLaMo 3 Translate を使う -->
+								<SearchMarker :keywords="['translate', 'translation', 'plamo', 'local', 'device']">
+									<MkPreferenceContainer k="plamoTranslator.enabled">
+										<MkSwitch v-model="plamoTranslatorEnabled">
+											<template #label><SearchLabel>{{ i18n.ts._plamoTranslator.enable }}</SearchLabel></template>
+											<template #caption>
+												<SearchText>{{ i18n.ts._plamoTranslator.enableDescription }}</SearchText>
+												<MkLink :url="PLAMO_LICENSE_URL">{{ i18n.ts._plamoTranslator.builtWith }}</MkLink>
+											</template>
+										</MkSwitch>
+									</MkPreferenceContainer>
+								</SearchMarker>
+
+								<MkButton v-if="plamoModelCached" danger @click="deletePlamoTranslatorModel"><i class="ti ti-trash"></i> {{ i18n.ts._plamoTranslator.deleteModel }}</MkButton>
+
 								<SearchMarker :keywords="['reaction', 'confirm']">
 									<MkPreferenceContainer k="confirmOnReact">
 										<MkSwitch v-model="confirmOnReact">
@@ -910,6 +925,7 @@ import { instance } from '@/instance.js';
 import { ensureSignin } from '@/i.js';
 import { genId } from '@/utility/id.js';
 import { suggestReload } from '@/utility/reload-suggest.js';
+import { PLAMO_LICENSE_URL, deletePlamoModel, hasPlamoModelFiles, isPlamoEnvironmentSupported } from '@/utility/plamo-translator.js'; // bsky-fork
 
 const $i = ensureSignin();
 
@@ -929,6 +945,23 @@ const collapseRenotes = prefer.model('collapseRenotes');
 const advancedMfm = prefer.model('advancedMfm');
 const showReactionsCount = prefer.model('showReactionsCount');
 const fetchRemoteReactions = prefer.model('fetchRemoteReactions'); // bsky-fork
+// bsky-fork: 端末内翻訳 (PLaMo)。モデルのファイル (途中で止まったダウンロードを含む) があるときだけ削除ボタンを出す
+const plamoTranslatorEnabled = prefer.model('plamoTranslator.enabled');
+const plamoModelCached = ref(false);
+if (isPlamoEnvironmentSupported()) {
+	hasPlamoModelFiles().then(found => { plamoModelCached.value = found; }).catch(() => { /* cache unavailable */ });
+}
+
+async function deletePlamoTranslatorModel() {
+	const { canceled } = await os.confirm({
+		type: 'warning',
+		text: i18n.ts._plamoTranslator.deleteModelConfirm,
+	});
+	if (canceled) return;
+	await os.promiseDialog(deletePlamoModel());
+	plamoModelCached.value = false;
+}
+
 const enableQuickAddMfmFunction = prefer.model('enableQuickAddMfmFunction');
 const forceShowAds = prefer.model('forceShowAds');
 const loadRawImages = prefer.model('loadRawImages');

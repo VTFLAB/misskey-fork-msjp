@@ -18299,4 +18299,66 @@ export interface Locale extends ILocale {
             "swamp": string;
         };
     };
+    "_plamoTranslator": {
+        /**
+         * 端末内でノートを翻訳する
+         */
+        "enable": string;
+        /**
+         * 対応する端末では、翻訳モデル PLaMo 3 Translate をブラウザ内で動かしてノートを翻訳します。ノートの本文は外部に送りません。初回は約573MBのモデルを Hugging Face からダウンロードします。WebGPU が使えない端末では、ブラウザ内蔵の翻訳機能かサーバーの翻訳を使います。
+         */
+        "enableDescription": string;
+        /**
+         * Built with PLaMo
+         */
+        "builtWith": string;
+        /**
+         * 端末内翻訳のモデルを削除
+         */
+        "deleteModel": string;
+        /**
+         * ダウンロード済みの翻訳モデルをこの端末から削除しますか？次に端末内で翻訳するときに、もう一度ダウンロードします。
+         */
+        "deleteModelConfirm": string;
+        /**
+         * 翻訳モデルをダウンロードしますか？
+         */
+        "downloadTitle": string;
+        /**
+         * この端末でノートを翻訳するため、PLaMo 3 Translate のモデル (約{size}MB) を Hugging Face からダウンロードします。ダウンロード後は端末内で翻訳し、ノートの本文を外部に送りません。モバイル回線では通信量に注意してください。
+         */
+        "downloadText": ParameterizedString<"size">;
+        /**
+         * ダウンロードする
+         */
+        "download": string;
+        /**
+         * 今回は使わない
+         */
+        "notThisTime": string;
+        /**
+         * 今後は使わない
+         */
+        "never": string;
+        /**
+         * 翻訳モデルをダウンロードしています ({progress}%)
+         */
+        "downloading": ParameterizedString<"progress">;
+        /**
+         * 翻訳モデルを読み込んでいます
+         */
+        "loading": string;
+        /**
+         * 不明な言語
+         */
+        "unknownLanguage": string;
+        /**
+         * この端末では翻訳を利用できません
+         */
+        "unavailable": string;
+        /**
+         * 端末内翻訳でエラーが起きたため、この端末の端末内翻訳をオフにしました。設定の「端末内でノートを翻訳する」から再びオンにできます
+         */
+        "disabledAfterError": string;
+    };
 }
