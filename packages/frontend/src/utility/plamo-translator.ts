@@ -19,7 +19,8 @@ import type { Wllama } from '../../vendor/wllama/esm/index.js';
 const MODEL_REPO = 'pfnet/plamo-3-translate-0.8b-GGUF';
 const MODEL_REVISION = '03891e907db8a43c97d3a7c75add125cc6d1f96a';
 const MODEL_FILE = 'plamo-3-translate-0.8b-Q4_K_M.gguf';
-export const PLAMO_MODEL_URL = `https://huggingface.co/${MODEL_REPO}/resolve/${MODEL_REVISION}/${MODEL_FILE}`;
+// モデルはこのサーバーが配信する (利用者のブラウザから Hugging Face へは接続しない)
+export const PLAMO_MODEL_URL = `${window.location.origin}/plamo-model/${MODEL_REVISION}/${MODEL_FILE}`;
 export const PLAMO_MODEL_SIZE_MB = 573;
 export const PLAMO_LICENSE_URL = `https://huggingface.co/${MODEL_REPO}/tree/${MODEL_REVISION}/LICENSE`;
 
