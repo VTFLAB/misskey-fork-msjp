@@ -109,6 +109,12 @@ SPDX-License-Identifier: AGPL-3.0-only
 						<div v-else-if="translation">
 							<b>{{ i18n.tsx.translatedFrom({ x: translation.sourceLang }) }}: </b>
 							<Mfm :text="translation.text" :author="appearNote.user" :nyaize="'respect'" :emojiUrls="appearNote.emojis" class="_selectable"/>
+							<!-- bsky-fork: 端末内翻訳 (PLaMo) の表記。PLaMo Community License 第4条 -->
+							<a v-if="translation.engine === 'plamo'" :href="PLAMO_LICENSE_URL" target="_blank" rel="noopener" class="_link" :class="$style.translationEngine">{{ i18n.ts._plamoTranslator.builtWith }}</a>
+						</div>
+						<!-- bsky-fork: 端末内翻訳のモデルのダウンロード・読み込みの進捗 -->
+						<div v-if="translating && plamoWaitingNoteIds.has(appearNote.id) && (plamoStatus.phase === 'downloading' || plamoStatus.phase === 'loading')" :class="$style.translationStatus">
+							{{ plamoStatus.phase === 'downloading' ? i18n.tsx._plamoTranslator.downloading({ progress: plamoStatus.progress }) : i18n.ts._plamoTranslator.loading }}
 						</div>
 					</div>
 					<div v-if="appearNote.files && appearNote.files.length > 0">
@@ -246,6 +252,8 @@ import * as Misskey from 'misskey-js';
 import { useNote } from '@/composables/use-note.js';
 import { prefer } from '@/preferences.js';
 import { i18n } from '@/i18n.js';
+import { plamoStatus, PLAMO_LICENSE_URL } from '@/utility/plamo-translator.js'; // bsky-fork
+import { plamoWaitingNoteIds } from '@/utility/note-translator.js'; // bsky-fork
 import { userPage } from '@@/js/user.js';
 import { notePage } from '@@/js/note.js';
 import { isEnabledUrlPreview } from '@/utility/url-preview.js';
@@ -597,6 +605,21 @@ const keymap = {
 	border-radius: var(--MI-radius);
 	padding: 12px;
 	margin-top: 8px;
+}
+
+// bsky-fork: 端末内翻訳 (PLaMo) の表記と進捗
+.translationEngine {
+	display: block;
+	margin-top: 6px;
+	font-size: 80%;
+	opacity: 0.7;
+}
+
+.translationStatus {
+	margin-top: 6px;
+	font-size: 85%;
+	text-align: center;
+	opacity: 0.7;
 }
 
 .poll {

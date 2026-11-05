@@ -318,6 +318,10 @@ export const PREF_DEF = definePreferences({
 	fetchRemoteReactions: {
 		default: true,
 	},
+	// bsky-fork: 対応する端末ではノートの翻訳に端末内の PLaMo 3 Translate を使う (utility/note-translator.ts)
+	'plamoTranslator.enabled': {
+		default: true,
+	},
 	forceShowAds: {
 		default: false,
 	},
