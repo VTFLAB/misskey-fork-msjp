@@ -212,6 +212,9 @@ git push --force-with-lease origin bsky-integration  # ※force push は §4 des
 - 言語: **日本語** (private fork なので global rule §1 通り human-facing 内容)
 - 接頭辞: `feat(atproto): ...`, `fix(atproto): ...`, `chore(rebase): upstream v2026.6.0 取込`
 - 1 機能 = 1 commit
+- 変更履歴は `CHANGELOG.fork.md` に書く。`CHANGELOG.md` は upstream の内容のまま編集しない。upstream は release のたびに
+  `CHANGELOG.md` の先頭へ版の節を挿入するので、fork の追記と毎回 conflict していた (2026-11-12 に分離し、過去の commit からも
+  `CHANGELOG.md` の変更を外した)
 - AGPL-3.0-only ライセンス維持 (Misskey upstream に倣う)
 - **upstream CLAUDE.md / AGENTS.md は touch しない** (本ファイルの `---` より上の部分も触らない)
 

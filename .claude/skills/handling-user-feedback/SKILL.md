@@ -65,7 +65,7 @@ curl -sS -X POST "$FEEDBACK_API_BASE/feedback/update-status-local" \
 ### 4. 修正をデプロイしたら
 
 - 修正が本番反映されてから `resolved` にする (反映前に resolved にすると報告者が混乱する)
-- 一般ユーザーが体感する修正なら通常どおり CHANGELOG + `/updates` 掲載 (`shipping-misskey-change` の判定基準)
+- 一般ユーザーが体感する修正なら通常どおり CHANGELOG.fork.md + `/updates` 掲載 (`shipping-misskey-change` の判定基準)
 
 ## 無人運転 (auto-triage)
 
