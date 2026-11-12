@@ -2,7 +2,8 @@
 # 毎日 18:00 UTC = 03:00 JST に schedule で走る。手動でも workflow_dispatch から走らせられる。
 # conflict 発生時は rebase --abort して Gitea Issue を立てて exit 1 (人間が手動 rebase)。
 # open な conflict Issue が既にあれば新規起票せず、その Issue を使い回す (重複防止)。
-# pnpm-lock.yaml だけの conflict は upstream 側で進め、rebase 後に lockfile を再生成して commit する。
+# pnpm-lock.yaml・CHANGELOG.md・package.json だけの conflict は自動で解消して進める
+# (.gitea/scripts/resolve-rebase-conflicts.py)。lockfile は rebase 後に作り直して commit する。
 # サーバーの bot (msjp-bot) が「[sync] ...」Issue に `/sync` とコメントすると、03:00 を待たずに同じ手順で走る。
 # そのときは結果を `[upgrade-status] ...` の行で Issue に書いて閉じる (bot がこの行を読んで管理者に伝える)。
 # conflict の解消は upstream-conflict.yml (Claude) の担当。
@@ -44,7 +45,7 @@ jobs:
       - name: Toolchain
         run: |
           apt-get update -qq
-          apt-get install -y -qq --no-install-recommends git ca-certificates curl jq > /dev/null
+          apt-get install -y -qq --no-install-recommends git ca-certificates curl jq python3 > /dev/null
 
       # GITEA_TOKEN は workflow が自動で発行する短命 token。
       # force-with-lease push (origin URL に埋め込み) と issue 作成の両方に使う。
@@ -91,23 +92,25 @@ jobs:
         working-directory: src
         run: |
           set +e
+          # rebase 中は作業ツリーが途中の commit に変わるので、解消用の script は先に取り出しておく
+          cp .gitea/scripts/resolve-rebase-conflicts.py /tmp/resolve-rebase-conflicts.py
           git rebase upstream/master >/tmp/rebase.log 2>&1
           RC=$?
-          # pnpm-lock.yaml だけの conflict は自動で進める (2026-10-06、Dependabot 対応の
-          # overrides で fork が lockfile を広く書き換えたため)。rebase 中の --ours は
-          # upstream 側 (rebase 先) を指す。その commit の lockfile 変更は捨て、全 commit を
-          # 載せ終えたあとの Regenerate step で package.json + overrides から作り直す。
-          LOCK_RESOLVED=0
+          # 判断の要らない conflict だけを自動で進める。rebase 中の --ours は upstream 側 (rebase 先)。
+          #   - pnpm-lock.yaml: upstream 側を採り、全 commit を載せ終えたあとの Regenerate step で作り直す
+          #     (2026-10-06、Dependabot 対応の overrides で fork が lockfile を広く書き換えたため)
+          #   - CHANGELOG.md: upstream 側を採る。fork 独自の変更履歴は CHANGELOG.fork.md に書き、fork は
+          #     CHANGELOG.md を編集しない (2026-11-12、release のたびに先頭への挿入同士が conflict していたため)
+          #   - package.json: JSON として 3-way merge する。同じ key を両側が別の値に変えていたら諦める
+          #     (2026-11-12、fork が足した依存の隣の行を upstream が版上げするたびに conflict していたため)
+          # 対象外のファイルが 1 つでもあれば script は何も触らずに失敗し、この loop を抜けて conflict 扱いになる。
+          : > /tmp/auto-resolved.tsv
           for _ in $(seq 1 2000); do
             [ "$RC" = "0" ] && break
             [ -d "$(git rev-parse --git-path rebase-merge)" ] || break
-            [ "$(git diff --name-only --diff-filter=U)" = "pnpm-lock.yaml" ] || break
-            # upstream が lockfile を消した modify/delete などで checkout できなければ諦める
-            git checkout --ours -- pnpm-lock.yaml && git add pnpm-lock.yaml || break
-            LOCK_RESOLVED=$((LOCK_RESOLVED + 1))
-            echo "--- auto-resolved pnpm-lock.yaml conflict ($LOCK_RESOLVED)" >> /tmp/rebase.log
+            python3 /tmp/resolve-rebase-conflicts.py >>/tmp/auto-resolved.tsv 2>>/tmp/rebase.log || break
             if git diff --cached --quiet; then
-              # lockfile だけを変える commit は空になるので飛ばす
+              # 解消した結果 commit が空になったら飛ばす
               git rebase --skip >>/tmp/rebase.log 2>&1
             else
               GIT_EDITOR=true git rebase --continue >>/tmp/rebase.log 2>&1
@@ -115,7 +118,17 @@ jobs:
             RC=$?
           done
           set -e
+          count() { awk -F'\t' -v k="$1" '$1 == k { n++ } END { print n + 0 }' /tmp/auto-resolved.tsv; }
+          LOCK_RESOLVED=$(count lock)
+          PKG_RESOLVED=$(count package-json)
+          CHANGELOG_RESOLVED=$(count changelog)
+          if [ -s /tmp/auto-resolved.tsv ]; then
+            echo "--- auto-resolved conflicts (kind, path, commit):"
+            cat /tmp/auto-resolved.tsv
+          fi
           echo "lock_resolved=$LOCK_RESOLVED" >> "$GITHUB_OUTPUT"
+          echo "pkg_resolved=$PKG_RESOLVED" >> "$GITHUB_OUTPUT"
+          echo "changelog_resolved=$CHANGELOG_RESOLVED" >> "$GITHUB_OUTPUT"
           if [ "$RC" = "0" ]; then
             echo "result=success" >> "$GITHUB_OUTPUT"
           else
@@ -133,12 +146,15 @@ jobs:
             git rebase --abort
           fi
 
-      # lockfile の conflict を upstream 側で進めた場合だけ、Node + pnpm を入れて lockfile を
+      # lockfile か package.json の conflict を自動で解消した場合だけ、Node + pnpm を入れて lockfile を
       # 作り直す (版は Dockerfile と同じく .node-version と package.json の packageManager)。
-      # 失敗したら push せず、conflict と同じ Issue 経路に回す。
+      # 起点は upstream の lockfile にする。rebase 中の git の自動 merge は lockfile を壊すことがある
+      # (2026-10-27 の手作業の取り込みで実際に起きた)。失敗したら push せず、conflict と同じ Issue 経路に回す。
       - name: Regenerate pnpm-lock.yaml
         id: regen
-        if: steps.rebase.outputs.result == 'success' && steps.rebase.outputs.lock_resolved != '0'
+        if: >-
+          steps.rebase.outputs.result == 'success' &&
+          (steps.rebase.outputs.lock_resolved != '0' || steps.rebase.outputs.pkg_resolved != '0')
         working-directory: src
         run: |
           set +e
@@ -153,13 +169,14 @@ jobs:
             PM=$(node -p "require('./package.json').packageManager")
             printf '%s' "$PM" | grep -qxE 'pnpm@[0-9]+\.[0-9]+\.[0-9]+'
             npm install -g --silent "$PM"
+            git show upstream/master:pnpm-lock.yaml > pnpm-lock.yaml
             # CI=true では pnpm が frozen-lockfile を既定にするため明示的に外す。.pnpmfile.cjs も読ませない
             pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts --ignore-pnpmfile
             pnpm install --lockfile-only --frozen-lockfile --ignore-scripts --ignore-pnpmfile
             git add pnpm-lock.yaml
             if ! git diff --cached --quiet; then
               git commit -q -m "chore(lockfile): upstream rebase 後に pnpm-lock.yaml を再生成" \
-                -m "upstream-sync が pnpm-lock.yaml の conflict を upstream 側で進めたため (${{ steps.rebase.outputs.lock_resolved }} 回)、package.json と overrides から作り直した。"
+                -m "upstream-sync が pnpm-lock.yaml (${{ steps.rebase.outputs.lock_resolved }} 回) と package.json (${{ steps.rebase.outputs.pkg_resolved }} 回) の conflict を自動で解消したため、upstream の pnpm-lock.yaml から package.json と overrides に合わせて作り直した。"
             fi
           ) >/tmp/regen.log 2>&1
           RC=$?
@@ -286,6 +303,9 @@ jobs:
           REBASE: ${{ steps.rebase.outputs.result }}
           REGEN: ${{ steps.regen.outputs.result }}
           PUSHED: ${{ steps.push.outcome }}
+          LOCK_N: ${{ steps.rebase.outputs.lock_resolved }}
+          PKG_N: ${{ steps.rebase.outputs.pkg_resolved }}
+          CHANGELOG_N: ${{ steps.rebase.outputs.changelog_resolved }}
           ISSUE: ${{ github.event.issue.number }}
           RUN_URL: ${{ gitea.server_url }}/${{ gitea.repository }}/actions/runs/${{ gitea.run_id }}
           API: ${{ gitea.server_url }}/api/v1/repos/${{ gitea.repository }}/issues/${{ github.event.issue.number }}
@@ -294,7 +314,14 @@ jobs:
           if [ "$NEEDED" = "false" ]; then
             BODY="[upgrade-status] done note=up-to-date version=$VERSION"$'\n\n'"upstream/master はもう取り込み済みだったよ。"
           elif [ "$PUSHED" = "success" ]; then
-            BODY="[upgrade-status] synced version=$VERSION"$'\n\n'"conflict は無かったから、そのまま push したよ。build と本番への反映はこれから。"
+            if [ "${LOCK_N:-0}${PKG_N:-0}${CHANGELOG_N:-0}" = "000" ]; then
+              BODY="[upgrade-status] synced version=$VERSION"$'\n\n'"conflict は無かったから、そのまま push したよ。build と本番への反映はこれから。"
+            else
+              BODY="[upgrade-status] synced version=$VERSION"$'\n\n'"決まった方法で直せる conflict だけだったから、自動で直して push したよ (pnpm-lock.yaml ${LOCK_N:-0} 回、package.json ${PKG_N:-0} 回、CHANGELOG.md ${CHANGELOG_N:-0} 回)。build と本番への反映はこれから。"
+              if [ "${CHANGELOG_N:-0}" != "0" ]; then
+                BODY="$BODY"$'\n'"CHANGELOG.md に入っていた fork 側の変更は捨てたから、必要なら CHANGELOG.fork.md に書き直してね。"
+              fi
+            fi
           elif [ "$REBASE" = "conflict" ] || [ "$REGEN" = "failed" ]; then
             BODY="[upgrade-status] conflict"$'\n\n'"conflict が出たから、Upstream rebase conflict の Issue を立てたよ。"
           else

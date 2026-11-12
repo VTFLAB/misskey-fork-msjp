@@ -6,7 +6,7 @@
 
 | Workflow | Trigger | 役割 |
 |---|---|---|
-| [upstream-sync.yml](workflows/upstream-sync.yml) | 毎日 18:00 UTC (= 03:00 JST) と手動 (`workflow_dispatch`) | `github.com/misskey-dev/misskey` の `master` を fetch し、`bsky-integration` に rebase。conflict なら `rebase --abort` して Gitea Issue を立て、workflow 全体は exit 1 で停止する。成功した場合は `git push --force-with-lease` で `bsky-integration` を更新する。 |
+| [upstream-sync.yml](workflows/upstream-sync.yml) | 毎日 18:00 UTC (= 03:00 JST) と手動 (`workflow_dispatch`) | `github.com/misskey-dev/misskey` の `master` を fetch し、`bsky-integration` に rebase。`pnpm-lock.yaml`・`CHANGELOG.md`・`package.json` だけの conflict は [scripts/resolve-rebase-conflicts.py](scripts/resolve-rebase-conflicts.py) で自動解消して進め、lockfile を作り直す。それ以外の conflict なら `rebase --abort` して Gitea Issue を立て、workflow 全体は exit 1 で停止する。成功した場合は `git push --force-with-lease` で `bsky-integration` を更新する。 |
 | [build-image.yml](workflows/build-image.yml) | `bsky-integration` への push と手動 | repo root の `Dockerfile` で container image を build、Gitea container registry に push する。tag は immutable な `<base_version>-bsky-<short_sha>` と rolling な `bsky-latest` の両方。 |
 | [wllama-vendor.yml](workflows/wllama-vendor.yml) | 毎日 19:30 UTC (upstream-sync の 90 分後)、手動 (`workflow_dispatch`)、この workflow・`Dockerfile`・`build.sh` を変えた push | `packages/frontend/vendor/wllama/` に同梱している wllama を、upstream master から CI で build し直す。 |
 
@@ -42,7 +42,7 @@ PLaMo 3 Translate の GGUF は llama.cpp の plamo3 tokenizer を要求する。
 
 ## Trouble shooting
 
-- **upstream-sync が conflict した**: 立った Issue を見て、`CLAUDE.md` の「上流追従」の手順に従い手動 rebase + `git push --force-with-lease origin bsky-integration` する。これで build-image.yml が trigger されて流れが復旧する。
+- **upstream-sync が conflict した**: 立った Issue を見て、`CLAUDE.md` の「上流追従」の手順に従い手動 rebase + `git push --force-with-lease origin bsky-integration` する (msjp-bot への「対応して」の返信で `upstream-conflict.yml` の Claude に任せることもできる)。これで build-image.yml が trigger されて流れが復旧する。fork は `CHANGELOG.md` を編集せず、独自の変更履歴は `CHANGELOG.fork.md` に書く (upstream の release のたびに conflict していたため、2026-11-12 に分離)。
 - **build-image.yml で push 失敗**: registry login の token 権限不足の可能性。`REGISTRY_TOKEN` の user が repo + packages 権限を持つか確認する。
 - **本番で image が更新されない**: 本番ホストの `podman-auto-update` timer の状態を確認する。確認コマンドは非公開の運用メモを参照。
 - **wllama-vendor が失敗した**: 立った Issue の段階を見る。`toolchain-check` なら upstream が emsdk の版を変えたので、`Dockerfile` の `EMSDK_TAG` と `EMSDK_DIGEST` を直し、`build.sh` が upstream の `scripts/docker-compose.yml` と合っているか確かめる。

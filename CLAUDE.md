@@ -193,8 +193,11 @@ Gitea の認証と到達経路は非公開の運用メモ (`OPS.md`) を参照�
 
 **自動 (推奨)**: Gitea Actions `upstream-sync.yml` が毎日 03:00 JST (= 18:00 UTC) に
 `upstream/master` を fetch → `bsky-integration` 上で rebase → `git push --force-with-lease`
-を試行する。conflict が出たら `rebase --abort` して Gitea Issue を立てて停止するので、
-それを見て手動で対応する。手動 trigger は Gitea Web UI から `workflow_dispatch`。
+を試行する。`pnpm-lock.yaml`・`CHANGELOG.md`・`package.json` だけの conflict は workflow が自動で解消する
+(lock と CHANGELOG.md は upstream 側を採り、package.json は JSON として 3-way merge する。手順は
+`.gitea/scripts/resolve-rebase-conflicts.py`)。それ以外の conflict が出たら `rebase --abort` して
+Gitea Issue を立てて停止するので、それを見て対応する (msjp-bot への「対応して」の返信で Claude に任せられる)。
+手動 trigger は Gitea Web UI から `workflow_dispatch`。
 
 **手動 (conflict 解消用)**:
 
