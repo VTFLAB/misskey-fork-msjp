@@ -76,4 +76,4 @@ curl -s -o /dev/null -w '%{http_code}\n' https://mi.msjp.pro/live/@<acct>/commen
 curl -s https://mi.msjp.pro/static-assets/misc/comment-generator.js | grep -c '<変更した識別子>'
 ```
 
-コミットは通常の Git 規約 (subject は日本語 ≤50 全角、`feat(twitch):` / `fix(twitch):` プレフィックス) に従い、CHANGELOG.md の Unreleased に一言追記する。
+コミットは通常の Git 規約 (subject は日本語 ≤50 全角、`feat(twitch):` / `fix(twitch):` プレフィックス) に従い、CHANGELOG.fork.md の Unreleased に一言追記する (CHANGELOG.md は upstream の内容のまま編集しない)。

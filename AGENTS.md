@@ -85,7 +85,7 @@
 2. **backend API 変更時**: `pnpm build-misskey-js-with-types` を実行し `packages/misskey-js/src/autogen/` の差分も commit に含めた
 3. **entity / migration 変更時**: `pnpm --filter backend check-migrations` が pending DDL 0 件で通る / 新規 migration は `up()` と `down()` 両方実装済
 4. **新規ファイル**: SPDX ヘッダーを付けた (`.vue` / `.html` は HTML コメント形式、それ以外は TS コメント形式)
-5. **ユーザー影響のある変更**: `CHANGELOG.md` の `## Unreleased` 配下の該当サブセクション (`### General` / `### Client` / `### Server`) に `- <Feat|Enhance|Fix>: <概要>` を 1 行追記
+5. **ユーザー影響のある変更**: `CHANGELOG.fork.md` (fork 独自の変更履歴) の `## Unreleased` 配下の該当サブセクション (`### General` / `### Client` / `### Server`) に `- <Feat|Enhance|Fix>: <概要>` を 1 行追記。`CHANGELOG.md` は upstream の内容のまま編集しない (upstream の取り込みで conflict するため)
 6. **locale safety**: `locales/` を編集した場合、`git diff --name-only develop -- 'locales/*.yml' | grep -v '^locales/ja-JP\.yml$'` が空 (ja-JP.yml 以外に差分が無い) ことを確認
 7. **一般ユーザーが知るべき変更** (新機能 / UI・挙動変更 / 体感される不具合修正): 本番デプロイ完了後にアップデート情報 (`/updates`) へ掲載する。**管理者・開発者のみ知ればよい変更 (admin 機能 / CI / 内部改善) と、まだ一般ユーザーが利用できない機能 (外部審査待ち等) は掲載しない**。判定基準・投稿方法は `shipping-misskey-change` スキルの `references/tasks/post-update-info.md` を参照
 

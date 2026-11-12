@@ -69,4 +69,4 @@ curl -X POST "$FEEDBACK_API_BASE/update-info/create-local" \
 
 ## CHANGELOG との対応
 
-`CHANGELOG.md` の `## Unreleased` に追記した Client / Server エントリのうち、上の判定基準で「掲載する」に該当するものが対象。CHANGELOG は開発履歴 (全変更)、アップデート情報はユーザー告知 (選別 + 翻訳) という役割分担。
+`CHANGELOG.fork.md` (fork 独自の変更履歴) の `## Unreleased` に追記した Client / Server エントリのうち、上の判定基準で「掲載する」に該当するものが対象。CHANGELOG は開発履歴 (全変更)、アップデート情報はユーザー告知 (選別 + 翻訳) という役割分担。
