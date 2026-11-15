@@ -1,44 +1,42 @@
 {
 	"wllama": {
 		"repo": "https://github.com/ngxson/wllama",
-		"commit": "d275dac17bc7f190161deb24fd834ce03342e2bc",
-		"version": "3.12.0",
-		"committedAt": "2026-11-05T00:44:12+01:00"
+		"commit": "0c97c750e4c5c4d2963f347ad05aa4825fc4aa46",
+		"version": "3.13.0",
+		"committedAt": "2026-11-08T19:48:45+01:00"
 	},
 	"llamaCpp": {
-		"commit": "5aeac37a35b44fde4bdffaec9159f2fcb253b622",
-		"committedAt": "2026-10-18T10:59:06+02:00"
+		"commit": "7d7f0287530bc8981690f361d8c1627dbae1c99a",
+		"committedAt": "2026-11-08T15:49:06+01:00"
 	},
 	"toolchain": {
 		"emscripten": "4.0.20",
 		"dawn": "v20260317.182325",
 		"dawnZipSha256": "8dcae86c630d76b6794b271c6572becba36f4237d132bee121a56638c3d76575"
 	},
-	"builtAt": "2026-11-05T05:23:34.891Z",
+	"builtAt": "2026-11-15T19:35:10.091Z",
 	"files": {
 		"LICENCE.wllama": "5866e3bd7e3cbd3f7c8bea6efd8a1e7fa7cc8de68c30f428aff7c6584a0fb720",
 		"LICENSE.emdawnwebgpu-webgpu": "2f79bf3699b0870251255b381670237f73f21a04a38c094f791eba39c5fd1df7",
 		"LICENSE.emdawnwebgpu-webgpu_cpp": "7e1efc85a78732a13d7ddfc8b52912da7c8f8d3c6d334624b20e3f3a96297de0",
 		"LICENSE.llama.cpp": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
-		"esm/cache-manager.d.ts": "a4da398d8680190e1c3f2375f13b482c94e3d792b50daa6e0c610dbac0bfc88a",
-		"esm/debug.d.ts": "1a516188a913a3729dc824536ec08db09d31d35a8c3053199ffa89b63363f9b8",
-		"esm/glue/glue.d.ts": "3122a715e00e3d78e5c60650408009e6a2be16c927ae8b59ed59f245d4d1f14d",
-		"esm/glue/messages.d.ts": "ebb4068d46e829409dd2382dd62fed4b0d592f01ff8b459f467180c7031f5779",
-		"esm/huggingface.d.ts": "31f05d0fe941ce7604697df050d60ff5baa45a6d5410cf13c387b8c189f2bf67",
-		"esm/index.d.ts": "bf0c08d3d86dc0b74b627005dcc31db46eced3bffebb534477c7e8fe8da5ea05",
-		"esm/index.js": "0e148d6473784ff1ac897c544457e6485cc4adb6749b0dfe47f1eec527bf3778",
-		"esm/model-manager.d.ts": "1f3078d797ccc96d7d7f77ccc73fee1d3dc98a42879fe477255962cf3e3f292e",
-		"esm/storage/cos.d.ts": "b88431515dc00cef6e5a3cb795e4bd225da6f53656af66733d31661934f4b535",
+		"esm/cache-manager.d.ts": "1a779396e03c8906786553b7db6fc2fb0959e4c4c9f1f04933f3afb1ed4b0660",
+		"esm/glue/glue.d.ts": "061ab840d45c2711c8dce4848e31e58e5aeb1aed5abaa8c1f2c3603bcac79232",
+		"esm/glue/messages.d.ts": "b0215949da0f15536ea7c1368804e200b2e3295c8aea3dd13932aa4a26f1f9e8",
+		"esm/huggingface.d.ts": "4c24e6c94b691ad9d08b9ee24ce0731bf56e3d46c19c2fd166305e4adfe199be",
+		"esm/index.d.ts": "44666c2f743ab64feb5689d88aab8126b1014ce6b3e0265f51d383f580768e66",
+		"esm/index.js": "1849e83cfed5bf708357e8d9787cf24091f7028b6ab3d516452a52d51aa59df2",
+		"esm/model-manager.d.ts": "3e24462bc908bc839c28a7fb694763db565ea00c5c3448c31ee9701558e18fb2",
+		"esm/storage/cos.d.ts": "4886112b04baea5034fd4c3bdd2bddf32d3696ef33fa854c5b37fdc68c6c5781",
 		"esm/storage/index.d.ts": "8e09aa788f3bbab899aef5b6b44fefb9de7df22ef32c6fb9dc3d0714aeca95e0",
-		"esm/storage/opfs.d.ts": "33969056afdd50d02fa865f1184a0d3cb45dce479821e797e9d887a2cb078711",
-		"esm/types/oai-compat.d.ts": "14375176f79ab136973d6a923f1ba8ef25f23a2f6bf1d6c66ea265cdda639fe2",
-		"esm/types/types.d.ts": "814a00a766bbd7921d1f0c8d5b778269049221f02a7759b138d031cfdcfe755e",
+		"esm/storage/opfs.d.ts": "b877a8531581335a608abfcecd3f8b0427777dd59a724743f40776e97f6f5b26",
+		"esm/types/oai-compat.d.ts": "5a0e66eb4ed5ca56982b9b6a147421ba5ec0f051e37e28b1a5d15bc2e40e786b",
+		"esm/types/types.d.ts": "b2b2be7accada80d201e15c2475ba5b6fcff15dcdb8fe3ec9fca8886345b21c7",
 		"esm/utils.d.ts": "8cea8602db6079bb95e97744a29a92ccbcdfab2c4c21d4f45775ce8182468c1f",
 		"esm/wasm-from-cdn.d.ts": "9d236a61f209ba03e5c69ea5ce51b5256e6db12f5731f016152b62da818210f2",
-		"esm/wasm/source-map.d.ts": "53c0271c3e4e11c2ed5e1b26572d88ddf5efcb411a2bc5037f3a7f8d3a7039d1",
-		"esm/wasm/wllama.wasm": "2601a95c21d03f15b1c325e358d4bf1d721930ba5a0f29fb6e63d0759e91b76f",
-		"esm/wllama.d.ts": "24a09515478269fbc8fe8a4a7fb06b2ae60f5c4040ddee4d3b7f31ce8a74cf7e",
-		"esm/worker.d.ts": "e8ff2a8d075a8ffa9dade298e622f0df5c49f97e1261d92a324b391b2a784595",
-		"esm/workers-code/generated.d.ts": "67852aa1c3f01e1a13661e4ff807b27d2c70e4919ad6cf9023a0a7a00c88232b"
+		"esm/wasm/wllama.wasm": "17137cf9d817c5a748884251e88f94be9583e658cd053181fa54360e6c702ead",
+		"esm/wllama.d.ts": "8710bdf27aef65cbc37cc4119767cbe1d1482e878e31ae34c21e624ed7304ded",
+		"esm/worker.d.ts": "ebb81ad2647fde914167db9500c16a42d96b1702f4f69238356b384b8ee42576",
+		"esm/workers-code/generated.d.ts": "269596365c7615f44f5acaf15ac67e094d33a952ed42a326e0712113ce9daeac"
 	}
 }

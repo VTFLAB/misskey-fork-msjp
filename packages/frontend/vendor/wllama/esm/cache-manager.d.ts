@@ -1,5 +1,5 @@
-import type { DownloadProgressCallback } from './model-manager';
-import type { StorageBackend } from './storage/index';
+import type { DownloadProgressCallback } from './model-manager.js';
+import type { StorageBackend } from './storage/index.js';
 export type DownloadOptions = {
     /**
      * Callback function to track download progress

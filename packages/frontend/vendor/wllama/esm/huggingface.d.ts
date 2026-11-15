@@ -1,4 +1,4 @@
-import { type ModelSource } from './model-manager';
+import { type ModelSource } from './model-manager.js';
 export interface HuggingFaceParams {
     /**
      * The repo name, e.g. user/model

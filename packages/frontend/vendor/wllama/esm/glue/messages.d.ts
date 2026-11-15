@@ -1,4 +1,4 @@
-import type { GlueMessageProto } from './glue';
+import type { GlueMessageProto } from './glue.js';
 export declare const GLUE_VERSION = 1;
 export declare const GLUE_MESSAGE_PROTOTYPES: {
     [name: string]: GlueMessageProto;
@@ -96,10 +96,18 @@ export interface GlueMsgLoadRes {
     media_marker: string;
     has_image_input: boolean;
     has_audio_input: boolean;
+    has_audio_output: boolean;
+    has_chat: boolean;
+    has_audio_stream: boolean;
+    has_live_asr: boolean;
+    audio_input_rate: number;
+    audio_output_rate: number;
+    audio_voices: string[];
 }
 export interface GlueMsgCompletionReq {
     _name: "cmpl_req";
     is_chat: boolean;
+    is_asr: boolean;
     data_json: string;
     files: Uint8Array[];
 }
@@ -116,6 +124,7 @@ export interface GlueMsgEmbeddingReq {
 export interface GlueMsgEmbeddingRes {
     _name: "embd_res";
     success: boolean;
+    message: string;
     req_id: number;
 }
 export interface GlueMsgRerankReq {
@@ -136,6 +145,36 @@ export interface GlueMsgSystemoneRes {
     success: boolean;
     req_id: number;
 }
+export interface GlueMsgTtsReq {
+    _name: "tts__req";
+    data_json: string;
+    files: Uint8Array[];
+}
+export interface GlueMsgTtsRes {
+    _name: "tts__res";
+    success: boolean;
+    message: string;
+    req_id: number;
+}
+export interface GlueMsgRealtimeStartReq {
+    _name: "rtst_req";
+    data_json: string;
+}
+export interface GlueMsgRealtimeStartRes {
+    _name: "rtst_res";
+    success: boolean;
+    message: string;
+    req_id: number;
+}
+export interface GlueMsgRealtimeSendReq {
+    _name: "rtsd_req";
+    req_id: number;
+    data_json: string;
+}
+export interface GlueMsgRealtimeSendRes {
+    _name: "rtsd_res";
+    success: boolean;
+}
 export interface GlueMsgGetResultReq {
     _name: "gres_req";
     req_id: number;
@@ -146,6 +185,7 @@ export interface GlueMsgGetResultRes {
     has_more: boolean;
     is_error: boolean;
     data_json: string;
+    data_raw: Uint8Array;
 }
 export interface GlueMsgCancelReq {
     _name: "cncl_req";
@@ -164,4 +204,4 @@ export interface GlueMsgTestBackendOpsRes {
     retcode: number;
     success: boolean;
 }
-export type GlueMsg = GlueMsgError | GlueMsgLoadReq | GlueMsgLoadRes | GlueMsgCompletionReq | GlueMsgCompletionRes | GlueMsgEmbeddingReq | GlueMsgEmbeddingRes | GlueMsgRerankReq | GlueMsgRerankRes | GlueMsgSystemoneReq | GlueMsgSystemoneRes | GlueMsgGetResultReq | GlueMsgGetResultRes | GlueMsgCancelReq | GlueMsgCancelRes | GlueMsgTestBackendOpsReq | GlueMsgTestBackendOpsRes;
+export type GlueMsg = GlueMsgError | GlueMsgLoadReq | GlueMsgLoadRes | GlueMsgCompletionReq | GlueMsgCompletionRes | GlueMsgEmbeddingReq | GlueMsgEmbeddingRes | GlueMsgRerankReq | GlueMsgRerankRes | GlueMsgSystemoneReq | GlueMsgSystemoneRes | GlueMsgTtsReq | GlueMsgTtsRes | GlueMsgRealtimeStartReq | GlueMsgRealtimeStartRes | GlueMsgRealtimeSendReq | GlueMsgRealtimeSendRes | GlueMsgGetResultReq | GlueMsgGetResultRes | GlueMsgCancelReq | GlueMsgCancelRes | GlueMsgTestBackendOpsReq | GlueMsgTestBackendOpsRes;

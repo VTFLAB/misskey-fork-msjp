@@ -1,8 +1,8 @@
-export * from './wllama';
-export * from './cache-manager';
-export * from './model-manager';
-export * from './huggingface';
-export * from './types/types';
-export * from './types/oai-compat';
-export { CacheManager } from './cache-manager';
-export { isValidGgufFile } from './utils';
+export * from './wllama.js';
+export * from './cache-manager.js';
+export * from './model-manager.js';
+export * from './huggingface.js';
+export * from './types/types.js';
+export * from './types/oai-compat.js';
+export { CacheManager } from './cache-manager.js';
+export { isValidGgufFile } from './utils.js';

@@ -75,6 +75,13 @@ export interface LoadedContextInfo {
     add_eos_token: boolean;
     has_image_input: boolean;
     has_audio_input: boolean;
+    has_audio_output: boolean;
+    has_chat: boolean;
+    has_audio_stream: boolean;
+    has_live_asr: boolean;
+    audio_input_rate: number;
+    audio_output_rate: number;
+    audio_voices: string[];
 }
 export interface SamplingParams {
     seed?: number;

@@ -1,4 +1,4 @@
-import type { StorageBackend } from './index';
+import type { StorageBackend } from './index.js';
 export declare class OPFSBackend implements StorageBackend {
     isSupported(): boolean;
     read(key: string): Promise<Blob | null>;
