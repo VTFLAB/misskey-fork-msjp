@@ -1,4 +1,4 @@
-import { type GlueMsg } from './messages';
+import { type GlueMsg } from './messages.js';
 /**
  * Glue is a simple binary protocol for serializing and deserializing messages.
  * It is inspired by protobuf, but much simpler.

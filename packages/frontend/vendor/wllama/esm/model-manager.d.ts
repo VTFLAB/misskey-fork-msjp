@@ -1,5 +1,5 @@
-import CacheManager, { type CacheEntry, type DownloadOptions } from './cache-manager';
-import { type WllamaLogger } from './wllama';
+import CacheManager, { type CacheEntry, type DownloadOptions } from './cache-manager.js';
+import { type WllamaLogger } from './wllama.js';
 export interface ModelSource {
     /**
      * URL to the GGUF file. If the model is splitted, pass the URL to the first shard. Mmproj file should also be provided via this array if you want to use multimodal.

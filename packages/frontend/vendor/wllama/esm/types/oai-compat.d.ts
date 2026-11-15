@@ -1,4 +1,4 @@
-import type { SamplingParams } from './types';
+import type { SamplingParams } from './types.js';
 export interface ChatCompletionMessageText {
     type: 'text';
     text: string;
@@ -247,10 +247,19 @@ export interface RawCompletionChunk {
     timings?: ResultTimings;
     prompt_progress?: ChatMessagePromptProgress;
 }
+export type EmbeddingContent = ChatCompletionMessageText | ChatCompletionMessageImage;
+/**
+ * A `EmbeddingContent[]` is one input: its parts are joined with no separator and give one embedding. Use `EmbeddingContent[][]` to get one embedding per entry.
+ */
+export type EmbeddingInput = string | number[] | string[] | number[][] | EmbeddingContent[] | EmbeddingContent[][];
 export interface EmbeddingCreateParams {
-    input: string | string[] | number[] | number[][];
+    input: EmbeddingInput;
     model?: string;
     encoding_format?: 'float' | 'base64';
+    /**
+     * Embedding normalization mode: -1 = none, 0 = max absolute int16, 1 = taxicab, 2 = Euclidean/L2 (default), >2 = p-norm.
+     */
+    embd_normalize?: number;
 }
 export interface Embedding {
     object: 'embedding';
@@ -328,4 +337,57 @@ export interface SystemOneResponse {
         input_tokens: number;
         output_tokens: number;
     };
+}
+export interface SpeechParams {
+    input: string;
+    voice?: string;
+    lang?: string;
+    speaker_ref?: ArrayBuffer;
+    response_format?: 'wav' | 'pcm';
+    n_predict?: number;
+    top_k?: number;
+    top_p?: number;
+    seed?: number;
+    abortSignal?: AbortSignal;
+}
+export interface SpeechResponse {
+    audio: ArrayBuffer;
+    sample_rate: number;
+}
+export interface SpeechChunk extends SpeechResponse {
+    final: boolean;
+}
+export interface TranscriptionParams {
+    file: ArrayBuffer;
+    language?: string;
+    prompt?: string;
+    temperature?: number;
+    max_tokens?: number;
+    seed?: number;
+    stream?: boolean;
+    abortSignal?: AbortSignal;
+}
+export interface TranscriptionUsage {
+    type: 'tokens';
+    input_tokens: number;
+    output_tokens: number;
+    total_tokens: number;
+}
+export interface TranscriptionResponse {
+    type: 'transcript.text.done';
+    text: string;
+    usage: TranscriptionUsage;
+}
+export interface TranscriptionDelta {
+    type: 'transcript.text.delta';
+    delta: string;
+}
+export type TranscriptionChunk = TranscriptionDelta | TranscriptionResponse;
+export interface RealtimeSessionParams {
+    intent?: 'transcription';
+    seed?: number;
+}
+export interface RealtimeEvent {
+    type: string;
+    [key: string]: any;
 }

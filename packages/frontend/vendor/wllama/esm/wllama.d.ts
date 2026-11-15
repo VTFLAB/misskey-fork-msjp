@@ -1,11 +1,11 @@
 /// <reference types="node" />
 /// <reference types="node" />
-import { type WllamaWorkerResources } from './worker';
-import CacheManager, { type DownloadOptions } from './cache-manager';
-import { ModelManager, Model, type ModelSource } from './model-manager';
-import type { LoadedContextInfo, LoadModelParams, StreamParams } from './types/types';
-import type { ChatCompletionChunk, ChatCompletionParams, ChatCompletionResponse, CreateEmbeddingResponse, EmbeddingCreateParams, RawCompletionChunk, RawCompletionParams, RawCompletionResponse, RerankParams, RerankResponse, SystemOneParams, SystemOneResponse } from './types/oai-compat';
-import { type HuggingFaceParams } from './huggingface';
+import { ProxyToWorker, type WllamaWorkerResources } from './worker.js';
+import CacheManager, { type DownloadOptions } from './cache-manager.js';
+import { ModelManager, Model, type ModelSource } from './model-manager.js';
+import type { LoadedContextInfo, LoadModelParams, StreamParams } from './types/types.js';
+import type { ChatCompletionChunk, ChatCompletionParams, ChatCompletionResponse, CreateEmbeddingResponse, EmbeddingCreateParams, RealtimeEvent, RealtimeSessionParams, RawCompletionChunk, RawCompletionParams, RawCompletionResponse, RerankParams, RerankResponse, SpeechChunk, SpeechParams, SpeechResponse, SystemOneParams, SystemOneResponse, TranscriptionChunk, TranscriptionParams, TranscriptionResponse } from './types/oai-compat.js';
+import { type HuggingFaceParams } from './huggingface.js';
 export interface WllamaLogger {
     debug: typeof console.debug;
     log: typeof console.log;
@@ -41,6 +41,12 @@ export interface WllamaConfig {
      * Custom model manager (only for advanced usage)
      */
     modelManager?: ModelManager;
+    /**
+     * If true, allow a wasm file built from a different llama.cpp version
+     *
+     * Default: skipVersionCheck = false
+     */
+    skipVersionCheck?: boolean;
 }
 export interface WllamaChatMessage {
     role: 'system' | 'user' | 'assistant';
@@ -107,7 +113,7 @@ export declare const LoggerWithoutDebug: {
     profile(label?: string | undefined): void;
     profileEnd(label?: string | undefined): void;
 };
-export type WllamaErrorType = 'model_not_loaded' | 'download_error' | 'load_error' | 'kv_cache_full' | 'unknown_error' | 'inference_error';
+export type WllamaErrorType = 'model_not_loaded' | 'download_error' | 'load_error' | 'version_mismatch' | 'kv_cache_full' | 'unknown_error' | 'inference_error';
 export declare class WllamaError extends Error {
     type: WllamaErrorType;
     constructor(message: string, type?: WllamaErrorType);
@@ -138,6 +144,44 @@ export interface WllamaCompat {
         code: string;
     };
     wasm: string;
+}
+/**
+ * Encode PCM samples to the base64 PCM16 format of `input_audio_buffer.append`.
+ */
+export declare const encodeRealtimeAudio: (samples: Float32Array) => string;
+/**
+ * Decode the base64 PCM16 audio of a `response.output_audio.delta` event.
+ */
+export declare const decodeRealtimeAudio: (delta: string) => Float32Array;
+/**
+ * A realtime audio session. Events follow the OAI realtime schema, same as the `/v1/realtime` route of llama-server.
+ * Inference runs while `events()` is being read, so keep reading it to get a response.
+ */
+export declare class WllamaRealtimeSession {
+    private proxy;
+    private reqId;
+    private closed;
+    private pending;
+    private wakeUp;
+    private sent;
+    constructor(proxy: ProxyToWorker, reqId: number);
+    /**
+     * Send a client event, for example `session.update` or `response.create`.
+     */
+    send(event: RealtimeEvent): Promise<void>;
+    /**
+     * Same as sending `input_audio_buffer.append`.
+     * @param samples mono PCM at `LoadedContextInfo.audio_input_rate`
+     */
+    appendAudio(samples: Float32Array): Promise<void>;
+    /**
+     * Read the server events. It ends when the session ends. Only one reader at a time.
+     */
+    events(): AsyncGenerator<RealtimeEvent>;
+    /**
+     * End the session and free its slot.
+     */
+    close(): Promise<void>;
 }
 export declare class Wllama {
     cacheManager: CacheManager;
@@ -313,7 +357,7 @@ export declare class Wllama {
     loadModel(ggufBlobsOrModel: Blob[] | Model, params?: LoadModelParams): Promise<void>;
     getLoadedContextInfo(): LoadedContextInfo;
     /**
-     * Calculate embedding vector for a given text.
+     * Calculate embedding vector for a given text or multimodal input.
      * By default, BOS and EOS tokens will be added automatically. You can use the "skipBOS" and "skipEOS" option to disable it.
      * @param options OAI-compatible embedding creation options
      * @returns OAI-compatible embedding response
@@ -333,6 +377,36 @@ export declare class Wllama {
      * @returns The answer of each question
      */
     createSystemOne(options: SystemOneParams): Promise<SystemOneResponse>;
+    /**
+     * Generate speech from text. The model must have audio output, see `LoadedContextInfo.has_audio_output`.
+     * @param options speech options
+     * @returns the whole audio (stream=false) or an async iterator of audio chunks (stream=true). A stream starts its request on the first read, so errors come from the iterator
+     */
+    createSpeech(options: SpeechParams & {
+        stream?: false;
+    }): Promise<SpeechResponse>;
+    createSpeech(options: SpeechParams & {
+        stream: true;
+    }): Promise<AsyncIterable<SpeechChunk>>;
+    /**
+     * Transcribe an audio file. The model must have audio input, see `supportInputModality()`.
+     * @param options OAI-compatible transcription options
+     * @returns OAI-compatible transcription response (stream=false), void when done (stream=true + onData), or async iterator (stream=true, no onData)
+     */
+    createTranscription(options: TranscriptionParams & {
+        stream?: false;
+    }): Promise<TranscriptionResponse>;
+    createTranscription(options: TranscriptionParams & StreamParams<TranscriptionChunk>): Promise<void>;
+    createTranscription(options: TranscriptionParams & {
+        stream: true;
+    }): Promise<AsyncIterable<TranscriptionChunk>>;
+    /**
+     * Start a realtime audio session. The model must support it, see `LoadedContextInfo.has_audio_stream`.
+     * It holds one slot until `close()` is called.
+     * @param options session options
+     * @returns the session
+     */
+    createRealtimeSession(options?: RealtimeSessionParams): Promise<WllamaRealtimeSession>;
     /**
      * Make chat completion for a given chat messages.
      * @param options OAI-compatible chat completion options
@@ -397,9 +471,13 @@ export declare class Wllama {
      */
     _getDebugInfo(): Promise<any>;
     private jsonDecode;
+    private replaceMedia;
     private prepareMultimodalInput;
+    private prepareEmbeddingInput;
     private cancelRequest;
+    private getSpeechChunks;
     private getSingleResult;
     private getResponse;
+    private checkWasmVersion;
     getWorkerResources(): WllamaWorkerResources;
 }

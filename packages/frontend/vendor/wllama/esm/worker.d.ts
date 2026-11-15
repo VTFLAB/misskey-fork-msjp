@@ -10,7 +10,7 @@
  * Signal from worker to main:
  * - Unidirection: { verb, args }
  */
-import type { GlueMsg } from './glue/messages';
+import type { GlueMsg } from './glue/messages.js';
 interface Logger {
     debug: typeof console.debug;
     log: typeof console.log;
@@ -44,6 +44,7 @@ export declare class ProxyToWorker {
     taskId: number;
     resultQueue: Task[];
     busy: boolean;
+    private exited;
     worker?: Worker | undefined;
     multiThread: boolean;
     nbThread: number;
@@ -89,5 +90,6 @@ export declare class ProxyToWorker {
      */
     private onRecvMsg;
     private abort;
+    private rejectAll;
 }
 export {};

@@ -1,4 +1,4 @@
-import type { StorageBackend, StorageFileHint } from './index';
+import type { StorageBackend, StorageFileHint } from './index.js';
 interface CrossOriginStorageGetFileHandleHash {
     value: string;
     algorithm: string;
