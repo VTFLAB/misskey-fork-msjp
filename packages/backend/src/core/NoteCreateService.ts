@@ -473,12 +473,17 @@ export class NoteCreateService implements OnApplicationShutdown {
 		if (data.channel != null) data.visibleUsers = [];
 		if (data.channel != null) data.localOnly = true;
 
+		// bsky-fork 独自: ロールの canFederateNote が false のローカルユーザー (新規アカウントなど) の投稿は連合なしに強制する。
+		// ローカルタイムラインには出るが、他サーバーや中継サーバーには配送しない
+		const userPolicies = this.userEntityService.isLocalUser(user) ? await this.roleService.getUserPolicies(user.id) : null;
+		if (userPolicies != null && userPolicies.canFederateNote === false) data.localOnly = true;
+
 		if (data.visibility === 'public' && data.channel == null) {
 			const sensitiveWords = this.meta.sensitiveWords;
 			const sensitiveWordsTarget = data.cw ?? data.text ?? '';
 			if (sensitiveWords.length > 0 && this.utilityService.isKeyWordIncluded([sensitiveWordsTarget, ...extractUrlsForKeyWordCheck(sensitiveWordsTarget)].join('\n'), sensitiveWords)) {
 				data.visibility = 'home';
-			} else if ((await this.roleService.getUserPolicies(user.id)).canPublicNote === false) {
+			} else if ((userPolicies ?? await this.roleService.getUserPolicies(user.id)).canPublicNote === false) {
 				data.visibility = 'home';
 			}
 		}
