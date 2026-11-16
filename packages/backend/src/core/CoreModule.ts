@@ -164,6 +164,7 @@ import { AtpSearchService } from './atproto/AtpSearchService.js';
 import { AtpNoteService } from './atproto/AtpNoteService.js';
 import { AtpJetstreamService } from './atproto/AtpJetstreamService.js';
 import { JuiceSettingsService } from './JuiceSettingsService.js';
+import { SignupIpBlocklistService } from './SignupIpBlocklistService.js';
 import { RemoteReactionService } from './RemoteReactionService.js';
 import { EmojiImageIdentityService } from './EmojiImageIdentityService.js';
 import { TwitchLoggerService } from './twitch/TwitchLoggerService.js';
@@ -365,6 +366,7 @@ const $AtpNoteService: Provider = { provide: 'AtpNoteService', useExisting: AtpN
 const $AtpJetstreamService: Provider = { provide: 'AtpJetstreamService', useExisting: AtpJetstreamService };
 
 const $JuiceSettingsService: Provider = { provide: 'JuiceSettingsService', useExisting: JuiceSettingsService };
+const $SignupIpBlocklistService: Provider = { provide: 'SignupIpBlocklistService', useExisting: SignupIpBlocklistService };
 const $RemoteReactionService: Provider = { provide: 'RemoteReactionService', useExisting: RemoteReactionService };
 const $EmojiImageIdentityService: Provider = { provide: 'EmojiImageIdentityService', useExisting: EmojiImageIdentityService };
 
@@ -568,6 +570,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		AtpNoteService,
 		AtpJetstreamService,
 		JuiceSettingsService,
+		SignupIpBlocklistService,
 		RemoteReactionService,
 		EmojiImageIdentityService,
 		TwitchLoggerService,
@@ -767,6 +770,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$AtpJetstreamService,
 
 		$JuiceSettingsService,
+		$SignupIpBlocklistService,
 		$RemoteReactionService,
 		$EmojiImageIdentityService,
 
@@ -962,6 +966,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		AtpNoteService,
 		AtpJetstreamService,
 		JuiceSettingsService,
+		SignupIpBlocklistService,
 		RemoteReactionService,
 		EmojiImageIdentityService,
 		TwitchLoggerService,
@@ -1159,6 +1164,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$AtpJetstreamService,
 
 		$JuiceSettingsService,
+		$SignupIpBlocklistService,
 		$RemoteReactionService,
 		$EmojiImageIdentityService,
 
