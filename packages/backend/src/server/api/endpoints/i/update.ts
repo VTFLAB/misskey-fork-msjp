@@ -195,6 +195,7 @@ export const paramDef = {
 		followApprovalRemoteSeconds: { type: 'integer', nullable: true, minimum: 0, maximum: FOLLOW_APPROVAL_MAX_SECONDS },
 		noCrawle: { type: 'boolean' },
 		preventAiLearning: { type: 'boolean' },
+		socialFilter: { type: 'boolean' },
 		requireSigninToViewContents: { type: 'boolean' },
 		makeNotesFollowersOnlyBefore: { type: 'integer', nullable: true },
 		makeNotesHiddenBefore: { type: 'integer', nullable: true },
@@ -372,6 +373,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 			if (ps.followApprovalRemoteSeconds !== undefined) profileUpdates.followApprovalRemoteSeconds = ps.followApprovalRemoteSeconds;
 			if (typeof ps.noCrawle === 'boolean') profileUpdates.noCrawle = ps.noCrawle;
 			if (typeof ps.preventAiLearning === 'boolean') profileUpdates.preventAiLearning = ps.preventAiLearning;
+			if (typeof ps.socialFilter === 'boolean') profileUpdates.socialFilter = ps.socialFilter;
 			if (typeof ps.requireSigninToViewContents === 'boolean') updates.requireSigninToViewContents = ps.requireSigninToViewContents;
 			if ((typeof ps.makeNotesFollowersOnlyBefore === 'number') || (ps.makeNotesFollowersOnlyBefore === null)) updates.makeNotesFollowersOnlyBefore = ps.makeNotesFollowersOnlyBefore;
 			if ((typeof ps.makeNotesHiddenBefore === 'number') || (ps.makeNotesHiddenBefore === null)) updates.makeNotesHiddenBefore = ps.makeNotesHiddenBefore;

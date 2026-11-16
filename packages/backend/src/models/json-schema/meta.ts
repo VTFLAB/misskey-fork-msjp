@@ -218,6 +218,10 @@ export const packedMetaLiteSchema = {
 			type: 'boolean',
 			optional: false, nullable: false,
 		},
+		socialFilterAvailable: {
+			type: 'boolean',
+			optional: false, nullable: false,
+		},
 		sentryForFrontend: {
 			type: 'object',
 			optional: false, nullable: true,

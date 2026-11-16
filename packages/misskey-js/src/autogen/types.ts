@@ -4856,6 +4856,7 @@ export type components = {
             followApprovalRemoteSeconds: number | null;
             noCrawle: boolean;
             preventAiLearning: boolean;
+            socialFilter: boolean;
             isExplorable: boolean;
             isDeleted: boolean;
             /** @enum {string} */
@@ -6335,6 +6336,7 @@ export type components = {
             enableEmail: boolean;
             enableServiceWorker: boolean;
             translatorAvailable: boolean;
+            socialFilterAvailable: boolean;
             sentryForFrontend: {
                 options: {
                     dsn: string;
@@ -31357,6 +31359,7 @@ export interface operations {
                     followApprovalRemoteSeconds?: number | null;
                     noCrawle?: boolean;
                     preventAiLearning?: boolean;
+                    socialFilter?: boolean;
                     requireSigninToViewContents?: boolean;
                     makeNotesFollowersOnlyBefore?: number | null;
                     makeNotesHiddenBefore?: number | null;

@@ -56,6 +56,7 @@ import { trackPromise } from '@/misc/promise-tracker.js';
 import { IdentifiableError } from '@/misc/identifiable-error.js';
 import { CollapsedQueue } from '@/misc/collapsed-queue.js';
 import { CacheService } from '@/core/CacheService.js';
+import { SocialFilterService } from '@/core/SocialFilterService.js';
 import { isQuote, isRenote } from '@/misc/is-renote.js';
 import { extractUrlsForKeyWordCheck } from '@/misc/extract-urls-for-keyword-check.js';
 
@@ -271,6 +272,7 @@ export class NoteCreateService implements OnApplicationShutdown {
 		private utilityService: UtilityService,
 		private userBlockingService: UserBlockingService,
 		private cacheService: CacheService,
+		private socialFilterService: SocialFilterService,
 	) {
 		this.updateNotesCountQueue = new CollapsedQueue(process.env.NODE_ENV !== 'test' ? 60 * 1000 * 5 : 0, this.collapseNotesCount, this.performUpdateNotesCount);
 	}
@@ -578,6 +580,14 @@ export class NoteCreateService implements OnApplicationShutdown {
 			if (data.reply.localOnly && data.channel == null) {
 				data.localOnly = true;
 			}
+		}
+
+		// bsky-fork 独自: 社会性フィルター。本人が有効にしていれば、他人への攻撃や暴言を含む投稿の本文と CW を置き換える。
+		// 公開範囲が確定した後で判定する (ダイレクトは API に送らない)。リモートユーザーの投稿は apply() が対象外にする
+		const socialFiltered = await this.socialFilterService.apply(user, { text: data.text ?? null, cw: data.cw ?? null, visibility: data.visibility });
+		if (socialFiltered != null) {
+			data.text = socialFiltered.text;
+			data.cw = socialFiltered.cw;
 		}
 
 		if (data.text) {

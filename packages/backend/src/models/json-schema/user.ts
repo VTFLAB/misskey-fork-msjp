@@ -548,6 +548,10 @@ export const packedMeDetailedOnlySchema = {
 			type: 'boolean',
 			nullable: false, optional: false,
 		},
+		socialFilter: {
+			type: 'boolean',
+			nullable: false, optional: false,
+		},
 		isExplorable: {
 			type: 'boolean',
 			nullable: false, optional: false,

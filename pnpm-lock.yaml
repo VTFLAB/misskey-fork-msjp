@@ -370,6 +370,9 @@ importers:
 
   packages/backend:
     dependencies:
+      '@anthropic-ai/sdk':
+        specifier: 1.6.0
+        version: 1.6.0
       '@aws-sdk/client-s3':
         specifier: 3.1161.0
         version: 3.1161.0
@@ -1656,6 +1659,15 @@ packages:
 
   '@analytics/type-utils@0.6.4':
     resolution: {integrity: sha512-Ou1gQxFakOWLcPnbFVsrPb8g1wLLUZYYJXDPjHkG07+5mustGs5yqACx42UAu4A6NszNN6Z5gGxhyH45zPWRxw==}
+
+  '@anthropic-ai/sdk@1.6.0':
+    resolution: {integrity: sha512-XqiO/46n8S6So8jQ/6/uNCkHntyW6QHHs1gZ+hlwTx1fWDr929g4VmwIXfdMVk7SuBWNdQvAlwyi1G3t6SEIuQ==}
+    hasBin: true
+    peerDependencies:
+      zod: ^3.25.0 || ^4.0.0
+    peerDependenciesMeta:
+      zod:
+        optional: true
 
   '@apidevtools/json-schema-ref-parser@15.5.2':
     resolution: {integrity: sha512-B+C9Ok0DF/rjANIUHgwcV5/d4C72MB7f2IbKFL8jDGcGq2qn3yr893s8vAn2kbhmyaelAin0JK8EKF9P1+y7aQ==}
@@ -3683,6 +3695,9 @@ packages:
   '@sqltools/formatter@1.2.5':
     resolution: {integrity: sha512-Uy0+khmZqUrUGm5dmMqVlnvufZRSK0FbYzVgp0UMstm+F5+W2/jnEEQyc9vo1ZR/E5ZI/B1WjjoTqBqwJL6Krw==}
 
+  '@stablelib/base64@1.0.1':
+    resolution: {integrity: sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ==}
+
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
@@ -5622,6 +5637,9 @@ packages:
   fast-safe-stringify@2.1.1:
     resolution: {integrity: sha512-W+KJc2dmILlPplD/H4K9l9LcAHAfPtP6BY84uVLXQ6Evcz9Lcg33Y2z1IVblT6xdY54PXYVHEv+0Wpq8Io6zkA==}
 
+  fast-sha256@1.3.0:
+    resolution: {integrity: sha512-n11RGP/lrWEFI/bWdygLxhI+pVeo1ZYIVwvvPkW7azl/rOy+F3HYRZ2K5zeE9mmkhQppyv9sQFx0JM9UabnpPQ==}
+
   fast-string-truncated-width@3.0.3:
     resolution: {integrity: sha512-0jjjIEL6+0jag3l2XWWizO64/aZVtpiGE3t0Zgqxv0DPuxiMjvB3M24fCyhZUO4KomJQPj3LTSUnDP3GpdwC0g==}
 
@@ -6362,6 +6380,10 @@ packages:
 
   json-schema-ref-resolver@3.0.1:
     resolution: {integrity: sha512-w+HwgljXpVwZ3IidoUR1qPZxSOQ+NRQWuVe6a5pe8XbHsNZE4UAwVPUvzZagn7yBKbJtt6UJnRFYbNTRPZI45Q==}
+
+  json-schema-to-ts@3.1.1:
+    resolution: {integrity: sha512-+DWg8jCJG2TEnpy7kOm/7/AxaYoaRbjVB4LFZLySZlWn8exGs3A4OLJR966cVvU26N7X9TWxl+Jsw7dzAqKT6g==}
+    engines: {node: '>=16'}
 
   json-schema-traverse@0.4.1:
     resolution: {integrity: sha512-xbbCH5dCYU5T8LcEhhuh7HJ88HXuW3qsI3Y0zOZFKfZEHcpWiHU/Jxzk629Brsab/mMiHQti9wMP+845RPe3Vg==}
@@ -8126,6 +8148,9 @@ packages:
   standard-as-callback@2.1.0:
     resolution: {integrity: sha512-qoRRSyROncaz1z0mvYqIE4lCd9p2R90i6GxW3uZv5ucSu8tU7B5HXUP1gG8pVZsYNVaXjk8ClXHPttLyxAL48A==}
 
+  standardwebhooks@1.1.1:
+    resolution: {integrity: sha512-bCbX9ZEyFkWPsRz7Bl3NuQUJohmwGSev/yhr7vhaGPlc4AfIrspIRa6cPTBuI1ItmrTDJ4d/S2hCsfe4+vQGnQ==}
+
   start-server-and-test@3.0.13:
     resolution: {integrity: sha512-Zlgm0u/S+J9XOPljvr2M/cOWCG4BasrNLnBBr/rCK/EWmmTF2c5+P4CCALQNwwmJHovvgsS8aGlmze2ybYUn3g==}
     engines: {node: ^22 || >=24}
@@ -8417,6 +8442,9 @@ packages:
 
   trough@2.2.0:
     resolution: {integrity: sha512-tmMpK00BjZiUyVyvrBK7knerNgmgvcV/KLVyuma/SC+TQN167GrMRciANTz09+k3zW8L8t60jWO1GpfkZdjTaw==}
+
+  ts-algebra@2.0.0:
+    resolution: {integrity: sha512-FPAhNPFMrkwz76P7cdjdmiShwMynZYN6SgOujD1urY4oNm80Ou9oMdmbR45LotcKOXoy7wSmHkRFE6Mxbrhefw==}
 
   ts-api-utils@2.5.0:
     resolution: {integrity: sha512-OJ/ibxhPlqrMM0UiNHJ/0CKQkoKF243/AEmplt3qpRgkW8VG7IfOS41h7V8TjITqdByHzrjcS/2si+y4lIh8NA==}
@@ -9156,6 +9184,12 @@ snapshots:
       '@analytics/type-utils': 0.6.4
 
   '@analytics/type-utils@0.6.4': {}
+
+  '@anthropic-ai/sdk@1.6.0':
+    dependencies:
+      '@opentelemetry/api': 1.10.0
+      json-schema-to-ts: 3.1.1
+      standardwebhooks: 1.1.1
 
   '@apidevtools/json-schema-ref-parser@15.5.2(@types/json-schema@7.0.15)':
     dependencies:
@@ -11046,6 +11080,8 @@ snapshots:
 
   '@sqltools/formatter@1.2.5': {}
 
+  '@stablelib/base64@1.0.1': {}
+
   '@standard-schema/spec@1.1.0': {}
 
   '@storybook/addon-actions@8.6.19(storybook@10.6.5(@types/react@19.3.0)(bufferutil@4.1.0)(prettier@3.9.10)(react@19.3.1)(utf-8-validate@6.0.6))':
@@ -11888,19 +11924,6 @@ snapshots:
       - vite
     optional: true
 
-  '@vitest/browser-playwright@5.0.5(bufferutil@4.1.0)(msw@3.0.3(@types/node@26.6.6)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)))(playwright@1.64.1)(utf-8-validate@6.0.6)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15))(vitest@5.0.5)':
-    dependencies:
-      '@vitest/browser': 5.0.5(bufferutil@4.1.0)(msw@3.0.3(@types/node@26.6.6)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)))(utf-8-validate@6.0.6)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15))(vitest@5.0.5)
-      '@vitest/mocker': 5.0.5(msw@3.0.3(@types/node@26.6.6)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15))
-      playwright: 1.64.1
-      tinyrainbow: 3.2.0
-      vitest: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(@vitest/browser-playwright@5.0.5)(@vitest/coverage-v8@5.0.5)(@vitest/ui@5.0.5)(happy-dom@21.0.4(bufferutil@4.1.0)(utf-8-validate@6.0.6))(msw@3.0.3(@types/node@26.6.6)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15))
-    transitivePeerDependencies:
-      - bufferutil
-      - msw
-      - utf-8-validate
-      - vite
-
   '@vitest/browser-playwright@5.0.5(bufferutil@4.1.0)(msw@3.0.3(@types/node@26.6.6)(supports-color@5.5.0)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)))(playwright@1.64.1)(utf-8-validate@6.0.6)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15))(vitest@5.0.5)':
     dependencies:
       '@vitest/browser': 5.0.5(bufferutil@4.1.0)(msw@3.0.3(@types/node@26.6.6)(supports-color@5.5.0)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)))(utf-8-validate@6.0.6)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15))(vitest@5.0.5)
@@ -11932,24 +11955,6 @@ snapshots:
       - utf-8-validate
       - vite
     optional: true
-
-  '@vitest/browser@5.0.5(bufferutil@4.1.0)(msw@3.0.3(@types/node@26.6.6)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)))(utf-8-validate@6.0.6)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15))(vitest@5.0.5)':
-    dependencies:
-      '@blazediff/core': 1.10.0
-      '@vitest/mocker': 5.0.5(msw@3.0.3(@types/node@26.6.6)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15))
-      '@vitest/ui': 5.0.5(vitest@5.0.5)
-      '@vitest/utils': 5.0.5
-      magic-string: 1.4.5
-      pngjs: 7.0.0
-      sirv: 3.0.2
-      tinyrainbow: 3.2.0
-      vitest: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(@vitest/browser-playwright@5.0.5)(@vitest/coverage-v8@5.0.5)(@vitest/ui@5.0.5)(happy-dom@21.0.4(bufferutil@4.1.0)(utf-8-validate@6.0.6))(msw@3.0.3(@types/node@26.6.6)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15))
-      ws: 8.22.1(bufferutil@4.1.0)(utf-8-validate@6.0.6)
-    transitivePeerDependencies:
-      - bufferutil
-      - msw
-      - utf-8-validate
-      - vite
 
   '@vitest/browser@5.0.5(bufferutil@4.1.0)(msw@3.0.3(@types/node@26.6.6)(supports-color@5.5.0)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)))(utf-8-validate@6.0.6)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15))(vitest@5.0.5)':
     dependencies:
@@ -12012,16 +12017,6 @@ snapshots:
       magic-string: 1.4.5
     optionalDependencies:
       msw: 3.0.3(@types/node@26.6.6)(@typescript/typescript6@6.0.2)(supports-color@10.2.2)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15))
-      vite: 8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)
-
-  '@vitest/mocker@5.0.5(msw@3.0.3(@types/node@26.6.6)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15))':
-    dependencies:
-      '@jridgewell/trace-mapping': 0.3.31
-      '@vitest/spy': 5.0.5
-      estree-walker: 3.0.3
-      magic-string: 1.4.5
-    optionalDependencies:
-      msw: 3.0.3(@types/node@26.6.6)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15))
       vite: 8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)
 
   '@vitest/mocker@5.0.5(msw@3.0.3(@types/node@26.6.6)(supports-color@5.5.0)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15))':
@@ -13635,6 +13630,8 @@ snapshots:
 
   fast-safe-stringify@2.1.1: {}
 
+  fast-sha256@1.3.0: {}
+
   fast-string-truncated-width@3.0.3: {}
 
   fast-string-width@3.0.2:
@@ -14446,6 +14443,11 @@ snapshots:
     dependencies:
       dequal: 2.0.3
 
+  json-schema-to-ts@3.1.1:
+    dependencies:
+      '@babel/runtime': 7.29.10
+      ts-algebra: 2.0.0
+
   json-schema-traverse@0.4.1: {}
 
   json-schema-traverse@1.0.0: {}
@@ -15178,27 +15180,6 @@ snapshots:
       - '@types/node'
       - supports-color
     optional: true
-
-  msw@3.0.3(@types/node@26.6.6)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)):
-    dependencies:
-      '@inquirer/confirm': 6.3.5(@types/node@26.6.6)
-      '@msw/url': 0.1.2
-      '@mswjs/interceptors': 0.45.11(supports-color@10.2.2)
-      cookie: 2.0.1
-      headers-polyfill: 5.0.1
-      is-node-process: 1.2.0
-      outvariant: 1.4.3
-      rettime: 0.11.12
-      tough-cookie: 6.0.2
-      type-fest: 5.10.0
-      until-async: 3.0.2
-      yargs: 18.2.0
-    optionalDependencies:
-      typescript: 6.0.3
-      vite: 8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)
-    transitivePeerDependencies:
-      - '@types/node'
-      - supports-color
 
   msw@3.0.3(@types/node@26.6.6)(supports-color@5.5.0)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)):
     dependencies:
@@ -16613,6 +16594,11 @@ snapshots:
 
   standard-as-callback@2.1.0: {}
 
+  standardwebhooks@1.1.1:
+    dependencies:
+      '@stablelib/base64': 1.0.1
+      fast-sha256: 1.3.0
+
   start-server-and-test@3.0.13(supports-color@10.2.2):
     dependencies:
       arg: 5.0.2
@@ -16884,6 +16870,8 @@ snapshots:
   trim-newlines@3.0.1: {}
 
   trough@2.2.0: {}
+
+  ts-algebra@2.0.0: {}
 
   ts-api-utils@2.5.0(@typescript/typescript6@6.0.2):
     dependencies:
@@ -17234,32 +17222,6 @@ snapshots:
       '@opentelemetry/api': 1.10.0
       '@types/node': 26.6.6
       '@vitest/browser-playwright': 5.0.5(bufferutil@4.1.0)(msw@3.0.3(@types/node@26.6.6)(@typescript/typescript6@6.0.2)(supports-color@10.2.2)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)))(playwright@1.64.1)(utf-8-validate@6.0.6)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15))(vitest@5.0.5)
-      '@vitest/coverage-v8': 5.0.5(@vitest/browser@5.0.5)(vitest@5.0.5)
-      '@vitest/ui': 5.0.5(vitest@5.0.5)
-      happy-dom: 21.0.4(bufferutil@4.1.0)(utf-8-validate@6.0.6)
-    transitivePeerDependencies:
-      - msw
-
-  vitest@5.0.5(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(@vitest/browser-playwright@5.0.5)(@vitest/coverage-v8@5.0.5)(@vitest/ui@5.0.5)(happy-dom@21.0.4(bufferutil@4.1.0)(utf-8-validate@6.0.6))(msw@3.0.3(@types/node@26.6.6)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)):
-    dependencies:
-      '@types/chai': 5.2.3
-      '@vitest/mocker': 5.0.5(msw@3.0.3(@types/node@26.6.6)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15))
-      chai: 6.3.0
-      es-module-lexer: 2.3.2
-      expect-type: 1.4.0
-      magic-string: 1.4.5
-      obug: 3.0.0
-      picomatch: 4.0.7
-      std-env: 4.3.0
-      tinybench: 6.2.3
-      tinyexec: 1.3.1
-      tinyglobby: 0.2.17
-      vite: 8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)
-      why-is-node-running: 3.2.1
-    optionalDependencies:
-      '@opentelemetry/api': 1.10.0
-      '@types/node': 26.6.6
-      '@vitest/browser-playwright': 5.0.5(bufferutil@4.1.0)(msw@3.0.3(@types/node@26.6.6)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15)))(playwright@1.64.1)(utf-8-validate@6.0.6)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(sass-embedded@1.107.1)(sass@1.107.1)(tsx@4.23.15))(vitest@5.0.5)
       '@vitest/coverage-v8': 5.0.5(@vitest/browser@5.0.5)(vitest@5.0.5)
       '@vitest/ui': 5.0.5(vitest@5.0.5)
       happy-dom: 21.0.4(bufferutil@4.1.0)(utf-8-validate@6.0.6)

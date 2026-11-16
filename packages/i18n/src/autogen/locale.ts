@@ -4709,6 +4709,14 @@ export interface Locale extends ILocale {
      */
     "preventAiLearningDescription": string;
     /**
+     * 社会性フィルター
+     */
+    "socialFilter": string;
+    /**
+     * 他人への攻撃や暴言を含むノートを、投稿する前に「にゃーん（社会性フィルター）」に置き換えます。誰も攻撃していない愚痴は置き換えません。判定のため、公開範囲がパブリック・ホーム・フォロワーのノートの本文とCWを、Anthropic社のAIであるClaudeに送ります。ダイレクトのノートは送りません。置き換える前の文は保存されません。判定はAIが行うため、置き換えの漏れや誤りが起こることがあります。AIの応答が無いときなど、判定できなかったノートはそのまま投稿されます。
+     */
+    "socialFilterDescription": string;
+    /**
      * オプション
      */
     "options": string;

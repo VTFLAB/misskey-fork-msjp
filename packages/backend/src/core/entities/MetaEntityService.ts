@@ -124,6 +124,7 @@ export class MetaEntityService {
 			enableServiceWorker: instance.enableServiceWorker,
 
 			translatorAvailable: instance.deeplAuthKey != null,
+			socialFilterAvailable: this.config.socialFilter != null,
 
 			serverRules: instance.serverRules,
 
