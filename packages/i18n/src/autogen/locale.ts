@@ -8399,6 +8399,14 @@ export interface Locale extends ILocale {
              */
             "canPublicNote": string;
             /**
+             * ノートの連合の許可
+             */
+            "canFederateNote": string;
+            /**
+             * オフにすると、このロールのユーザーのノートはすべて「連合なし」として投稿されます。ローカルタイムラインには表示されますが、他のサーバーには配送されません。他のサーバーのユーザーへのメンション、返信、ダイレクト投稿も相手に届きません。
+             */
+            "canFederateNoteDescription": string;
+            /**
              * ノート内の最大メンション数
              */
             "mentionMax": string;
