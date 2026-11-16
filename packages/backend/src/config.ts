@@ -34,6 +34,12 @@ type SentryBackendConfig = {
 /**
  * 設定ファイルの型
  */
+// bsky-fork 独自: signupIpBlocklist の既定の一覧 (X4BNet/lists_vpn、MIT)
+export const SIGNUP_IP_BLOCKLIST_DEFAULT_SOURCES = [
+	'https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output/datacenter/ipv4.txt',
+	'https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output/datacenter/ipv6.txt',
+];
+
 type Source = {
 	url?: string;
 	port?: number;
@@ -106,6 +112,19 @@ type Source = {
 	// bsky-fork 独自: msjp/learning-opt-outs を呼べるユーザー ID (学習する bot のアカウント)。
 	// 未設定なら誰も呼べない。
 	learningOptOutReaders?: string[];
+
+	// bsky-fork 独自: 新規登録の送信元 IP をデータセンター / VPN の一覧と照合して拒否する。
+	// 既定は有効 (X4BNet/lists_vpn の datacenter 一覧を 24 時間ごとに取得)。
+	// enabled: false で止める。sources で一覧の URL を差し替え、denyCidrs / allowCidrs で手で加減する。
+	signupIpBlocklist?: {
+		enabled?: boolean;
+		sources?: string[];
+		refreshIntervalHours?: number;
+		// 取得した一覧の有効な行がこれより少なければ壊れた応答とみなして捨てる (既定 1000。小さな自作一覧に差し替えるときは下げる)
+		minEntries?: number;
+		denyCidrs?: string[];
+		allowCidrs?: string[];
+	};
 
 	// bsky-fork 独自: msjp/bot/* の endpoint を呼べるユーザー ID (キャラクター bot のアカウント)。
 	// 未設定なら誰も呼べない。
@@ -225,6 +244,7 @@ export type Config = {
 	updateInfoLocalPost: { allowedIps: string[]; token?: string } | undefined;
 	learningOptOutReaders: string[];
 	msjpBotUserIds: string[];
+	signupIpBlocklist: { enabled: boolean; sources: string[]; refreshIntervalHours: number; minEntries: number; denyCidrs: string[]; allowCidrs: string[] };
 	maxFileSize: number;
 	clusterLimit: number | undefined;
 	threadPoolSize: number;
@@ -428,6 +448,20 @@ export function loadConfig(): Config {
 			: undefined,
 		learningOptOutReaders: Array.isArray(config.learningOptOutReaders) ? config.learningOptOutReaders.filter((v): v is string => typeof v === 'string') : [],
 		msjpBotUserIds: Array.isArray(config.msjpBotUserIds) ? config.msjpBotUserIds.filter((v): v is string => typeof v === 'string') : [],
+		signupIpBlocklist: {
+			enabled: config.signupIpBlocklist?.enabled ?? true,
+			sources: Array.isArray(config.signupIpBlocklist?.sources) && config.signupIpBlocklist.sources.length > 0
+				? config.signupIpBlocklist.sources.filter((v): v is string => typeof v === 'string')
+				: [...SIGNUP_IP_BLOCKLIST_DEFAULT_SOURCES],
+			refreshIntervalHours: typeof config.signupIpBlocklist?.refreshIntervalHours === 'number' && config.signupIpBlocklist.refreshIntervalHours > 0
+				? config.signupIpBlocklist.refreshIntervalHours
+				: 24,
+			minEntries: typeof config.signupIpBlocklist?.minEntries === 'number' && config.signupIpBlocklist.minEntries >= 0
+				? config.signupIpBlocklist.minEntries
+				: 1000,
+			denyCidrs: Array.isArray(config.signupIpBlocklist?.denyCidrs) ? config.signupIpBlocklist.denyCidrs.filter((v): v is string => typeof v === 'string') : [],
+			allowCidrs: Array.isArray(config.signupIpBlocklist?.allowCidrs) ? config.signupIpBlocklist.allowCidrs.filter((v): v is string => typeof v === 'string') : [],
+		},
 		maxFileSize: config.maxFileSize ?? 262144000,
 		clusterLimit: config.clusterLimit,
 		threadPoolSize: config.threadPoolSize ?? 1,

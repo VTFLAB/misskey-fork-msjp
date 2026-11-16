@@ -274,10 +274,7 @@ async function onSubmit(): Promise<void> {
 			'Content-Type': 'application/json',
 		},
 		body: JSON.stringify(signupPayload),
-	}).catch(() => {
-		onSignupApiError();
-		return null;
-	});
+	}).catch(() => null); // 失敗時は下の else で 1 回だけエラーを出す (以前は 2 回出ていた)
 
 	if (res && res.ok) {
 		if (res.status === 204 || instance.emailRequiredForSignup) {
@@ -298,13 +295,13 @@ async function onSubmit(): Promise<void> {
 			}
 		}
 	} else {
-		onSignupApiError();
+		await onSignupApiError(res);
 	}
 
 	submitting.value = false;
 }
 
-function onSignupApiError() {
+async function onSignupApiError(res: Response | null) {
 	submitting.value = false;
 	hcaptcha.value?.reset?.();
 	mcaptcha.value?.reset?.();
@@ -312,9 +309,16 @@ function onSignupApiError() {
 	turnstile.value?.reset?.();
 	testcaptcha.value?.reset?.();
 
+	// bsky-fork 独自: サーバーが返した理由コードがあれば、それに応じた文言を出す
+	let code: string | null = null;
+	if (res != null) {
+		const body = await res.json().catch(() => null) as { message?: unknown } | null;
+		if (body != null && typeof body.message === 'string') code = body.message;
+	}
+
 	os.alert({
 		type: 'error',
-		text: i18n.ts.somethingHappened,
+		text: code === 'DENIED_IP_RANGE' ? i18n.ts._signup.deniedIpRange : i18n.ts.somethingHappened,
 	});
 }
 </script>

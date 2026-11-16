@@ -14,6 +14,7 @@ import { IdService } from '@/core/IdService.js';
 import { SignupService } from '@/core/SignupService.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
 import { EmailService } from '@/core/EmailService.js';
+import { SignupIpBlocklistService } from '@/core/SignupIpBlocklistService.js';
 import { MiLocalUser } from '@/models/User.js';
 import { FastifyReplyError } from '@/misc/fastify-reply-error.js';
 import { bindThis } from '@/decorators.js';
@@ -54,6 +55,7 @@ export class SignupApiService {
 		private signupService: SignupService,
 		private signinService: SigninService,
 		private emailService: EmailService,
+		private signupIpBlocklistService: SignupIpBlocklistService,
 	) {
 	}
 
@@ -76,6 +78,13 @@ export class SignupApiService {
 		reply: FastifyReply,
 	) {
 		const body = request.body;
+
+		// bsky-fork 独自: データセンター / VPN からの登録を拒否する (CAPTCHA より先に判定し、無駄な照合をしない)
+		const ipCheck = this.signupIpBlocklistService.check(request.ip);
+		if (!ipCheck.allowed) {
+			this.signupIpBlocklistService.logDenied(request.ip, ipCheck.reason, body['username']);
+			throw new FastifyReplyError(400, 'DENIED_IP_RANGE');
+		}
 
 		// Verify *Captcha
 		// ただしテスト時はこの機構は障害となるため無効にする
