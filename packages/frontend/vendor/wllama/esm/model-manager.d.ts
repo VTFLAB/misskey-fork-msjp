@@ -97,6 +97,10 @@ export declare class Model {
      * Remove the model from the cache
      */
     remove(): Promise<void>;
+    /**
+     * URLs of all files of this model (shards + mmproj), without duplicates
+     */
+    private getAllUrls;
     private getAllFiles;
     private getTotalDownloadSize;
 }

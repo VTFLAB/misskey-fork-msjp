@@ -2210,19 +2210,20 @@ var CacheManager = class {
           progressCallback == null ? void 0 : progressCallback({ loaded, total: total || loaded });
         }
       });
-      const metadata = __spreadValues({
-        originalURL: url,
-        originalSize: total,
-        etag
-      }, (_d = options.metadataAdditional) != null ? _d : {});
-      if (sha256) {
-        metadata.sha256 = sha256;
-      }
       yield this.sb.write(
         fileKey,
         response.body.pipeThrough(progressStream),
         hint
       );
+      const metadata = __spreadValues({
+        originalURL: url,
+        // without Content-Length, the size is only known once the body is fully read
+        originalSize: total || loaded,
+        etag
+      }, (_d = options.metadataAdditional) != null ? _d : {});
+      if (sha256) {
+        metadata.sha256 = sha256;
+      }
       yield this.writeMetadata(fileKey, metadata);
     });
   }
@@ -2460,14 +2461,11 @@ var Model = class {
    * - The model files are missing (or the download is interrupted)
    */
   validate() {
-    let nbShards = ModelManager.parseModelUrl(this.url).length;
-    if (this.mmprojUrl) {
-      nbShards += 1;
-    }
+    const nbFiles = this.getAllUrls().length;
     if (this.size === -1) {
       return "deleted" /* DELETED */;
     }
-    if (this.size < 16 || this.files.length !== nbShards) {
+    if (this.size < 16 || this.files.length !== nbFiles) {
       return "invalid" /* INVALID */;
     }
     for (const file of this.files) {
@@ -2483,10 +2481,7 @@ var Model = class {
   refresh() {
     return __async(this, arguments, function* (options = {}) {
       var _a;
-      const urls = ModelManager.parseModelUrl(this.url);
-      if (this.mmprojUrl) {
-        urls.push(this.mmprojUrl);
-      }
+      const urls = this.getAllUrls();
       const works = urls.map((url, index) => ({
         url,
         index
@@ -2522,6 +2517,9 @@ var Model = class {
       }
       yield Promise.all(promises);
       this.files = this.getAllFiles(yield this.modelManager.cacheManager.list());
+      if (this.files.length !== urls.length) {
+        throw new Error(`Model file not found after download: ${this.url}`);
+      }
       this.size = this.files.reduce((acc, f) => acc + f.metadata.originalSize, 0);
     });
   }
@@ -2537,16 +2535,22 @@ var Model = class {
       this.size = -1;
     });
   }
-  getAllFiles(savedFiles) {
-    const allUrls = new Set(ModelManager.parseModelUrl(this.url));
+  /**
+   * URLs of all files of this model (shards + mmproj), without duplicates
+   */
+  getAllUrls() {
+    const urls = [...ModelManager.parseModelUrl(this.url)];
     if (this.mmprojUrl) {
-      allUrls.add(this.mmprojUrl);
+      urls.push(this.mmprojUrl);
     }
+    return [...new Set(urls)];
+  }
+  getAllFiles(savedFiles) {
     const allFiles = [];
-    for (const url of allUrls) {
+    for (const url of this.getAllUrls()) {
       const file = savedFiles.find((f) => f.metadata.originalURL === url);
       if (!file) {
-        throw new Error(`Model file not found: ${url}`);
+        continue;
       }
       allFiles.push(file);
     }
