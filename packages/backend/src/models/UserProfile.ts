@@ -199,6 +199,12 @@ export class MiUserProfile {
 	})
 	public preventAiLearning: boolean;
 
+	// bsky-fork 独自: 社会性フィルター (他人への攻撃や暴言を含む投稿の本文を置き換える) を本人が有効にしたか
+	@Column('boolean', {
+		default: false,
+	})
+	public socialFilter: boolean;
+
 	@Column('boolean', {
 		default: false,
 	})

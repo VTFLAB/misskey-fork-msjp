@@ -128,6 +128,7 @@ describe('ユーザー', () => {
 			followApprovalRemoteSeconds: user.followApprovalRemoteSeconds,
 			noCrawle: user.noCrawle,
 			preventAiLearning: user.preventAiLearning,
+			socialFilter: user.socialFilter,
 			isExplorable: user.isExplorable,
 			isDeleted: user.isDeleted,
 			twoFactorBackupCodesStock: user.twoFactorBackupCodesStock,
@@ -370,6 +371,7 @@ describe('ユーザー', () => {
 		assert.strictEqual(response.followApprovalRemoteSeconds, null);
 		assert.strictEqual(response.noCrawle, false);
 		assert.strictEqual(response.preventAiLearning, true);
+		assert.strictEqual(response.socialFilter, false);
 		assert.strictEqual(response.isExplorable, true);
 		assert.strictEqual(response.isDeleted, false);
 		assert.strictEqual(response.twoFactorBackupCodesStock, 'none');
@@ -454,6 +456,8 @@ describe('ユーザー', () => {
 		{ parameters: () => ({ noCrawle: false }) },
 		{ parameters: () => ({ preventAiLearning: false }) },
 		{ parameters: () => ({ preventAiLearning: true }) },
+		{ parameters: () => ({ socialFilter: true }) },
+		{ parameters: () => ({ socialFilter: false }) },
 		{ parameters: () => ({ isBot: true }) },
 		{ parameters: () => ({ isBot: false }) },
 		{ parameters: () => ({ isCat: true }) },

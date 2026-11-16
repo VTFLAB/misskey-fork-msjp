@@ -105,6 +105,15 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</MkSwitch>
 		</SearchMarker>
 
+		<template v-if="instance.socialFilterAvailable">
+			<SearchMarker :keywords="['social', 'filter', 'ai', 'nyan']">
+				<MkSwitch v-model="socialFilter" @update:modelValue="save()">
+					<template #label><SearchLabel>{{ i18n.ts.socialFilter }}</SearchLabel></template>
+					<template #caption><SearchText>{{ i18n.ts.socialFilterDescription }}</SearchText></template>
+				</MkSwitch>
+			</SearchMarker>
+		</template>
+
 		<SearchMarker :keywords="['explore']">
 			<MkSwitch v-model="isExplorable" @update:modelValue="save()">
 				<template #label><SearchLabel>{{ i18n.ts.makeExplorable }}</SearchLabel></template>
@@ -348,6 +357,7 @@ function saveFollowApproval(setting: FollowApprovalSetting) {
 
 const noCrawle = ref($i.noCrawle);
 const preventAiLearning = ref($i.preventAiLearning);
+const socialFilter = ref($i.socialFilter);
 const isExplorable = ref($i.isExplorable);
 const requireSigninToViewContents = ref($i.requireSigninToViewContents ?? false);
 const makeNotesFollowersOnlyBefore = ref($i.makeNotesFollowersOnlyBefore ?? null);
@@ -517,6 +527,7 @@ function save() {
 		autoAcceptFollowed: !!autoAcceptFollowed.value,
 		noCrawle: !!noCrawle.value,
 		preventAiLearning: !!preventAiLearning.value,
+		socialFilter: !!socialFilter.value,
 		isExplorable: !!isExplorable.value,
 		requireSigninToViewContents: !!requireSigninToViewContents.value,
 		makeNotesFollowersOnlyBefore: makeNotesFollowersOnlyBefore.value,

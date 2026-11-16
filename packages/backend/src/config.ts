@@ -130,6 +130,19 @@ type Source = {
 	// 未設定なら誰も呼べない。
 	msjpBotUserIds?: string[];
 
+	// bsky-fork 独自: 社会性フィルター。本人が設定で有効にしたユーザーの投稿を Claude API で判定し、
+	// 他人への攻撃や暴言を含むものは本文を「にゃーん（社会性フィルター）」に置き換える。
+	// anthropicApiKey が無ければ機能オフ (設定画面にも出さない)。
+	socialFilter?: {
+		anthropicApiKey?: string;
+		// 既定 claude-haiku-5-5
+		model?: string;
+		// 判定を待つ上限 (ミリ秒、既定 8000)。超えたら判定せずにそのまま投稿する
+		timeoutMs?: number;
+		// サーバー全体で 1 日 (UTC) に判定する件数の上限 (既定 3000)。超えたら判定せずにそのまま投稿する
+		dailyLimit?: number;
+	};
+
 	maxFileSize?: number;
 
 	clusterLimit?: number;
@@ -245,6 +258,7 @@ export type Config = {
 	learningOptOutReaders: string[];
 	msjpBotUserIds: string[];
 	signupIpBlocklist: { enabled: boolean; sources: string[]; refreshIntervalHours: number; minEntries: number; denyCidrs: string[]; allowCidrs: string[] };
+	socialFilter: { apiKey: string; model: string; timeoutMs: number; dailyLimit: number } | undefined;
 	maxFileSize: number;
 	clusterLimit: number | undefined;
 	threadPoolSize: number;
@@ -462,6 +476,15 @@ export function loadConfig(): Config {
 			denyCidrs: Array.isArray(config.signupIpBlocklist?.denyCidrs) ? config.signupIpBlocklist.denyCidrs.filter((v): v is string => typeof v === 'string') : [],
 			allowCidrs: Array.isArray(config.signupIpBlocklist?.allowCidrs) ? config.signupIpBlocklist.allowCidrs.filter((v): v is string => typeof v === 'string') : [],
 		},
+		// 置換されずに残ったテンプレートの印 (__NAME__) はキーとみなさない
+		socialFilter: typeof config.socialFilter?.anthropicApiKey === 'string' && config.socialFilter.anthropicApiKey !== '' && !/^__[A-Z0-9_]+__$/.test(config.socialFilter.anthropicApiKey)
+			? {
+				apiKey: config.socialFilter.anthropicApiKey,
+				model: typeof config.socialFilter.model === 'string' && config.socialFilter.model !== '' ? config.socialFilter.model : 'claude-haiku-5-5',
+				timeoutMs: typeof config.socialFilter.timeoutMs === 'number' && config.socialFilter.timeoutMs > 0 ? config.socialFilter.timeoutMs : 8000,
+				dailyLimit: typeof config.socialFilter.dailyLimit === 'number' && config.socialFilter.dailyLimit >= 0 ? config.socialFilter.dailyLimit : 3000,
+			}
+			: undefined,
 		maxFileSize: config.maxFileSize ?? 262144000,
 		clusterLimit: config.clusterLimit,
 		threadPoolSize: config.threadPoolSize ?? 1,
