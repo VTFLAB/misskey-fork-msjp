@@ -79,13 +79,6 @@ export class SignupApiService {
 	) {
 		const body = request.body;
 
-		// bsky-fork 独自: データセンター / VPN からの登録を拒否する (CAPTCHA より先に判定し、無駄な照合をしない)
-		const ipCheck = this.signupIpBlocklistService.check(request.ip);
-		if (!ipCheck.allowed) {
-			this.signupIpBlocklistService.logDenied(request.ip, ipCheck.reason, body['username']);
-			throw new FastifyReplyError(400, 'DENIED_IP_RANGE');
-		}
-
 		// Verify *Captcha
 		// ただしテスト時はこの機構は障害となるため無効にする
 		if (process.env.NODE_ENV !== 'test') {
@@ -120,13 +113,14 @@ export class SignupApiService {
 			}
 		}
 
-		// bsky-fork 独自: config で指定した User-Agent からの登録を拒否する。
+		// bsky-fork 独自: データセンター / VPN の帯と、config で指定した User-Agent からの登録を拒否する。
 		// 理由を返すと自動化の側が手口を変えるので、入力の検証に失敗したときと同じ本文なしの 400 にする。
 		// CAPTCHA の後で判定し、どの段で落ちたかを応答から区別できないようにする。
 		const userAgent = request.headers['user-agent'];
-		const uaCheck = this.signupIpBlocklistService.checkUserAgent(userAgent);
-		if (!uaCheck.allowed) {
-			this.signupIpBlocklistService.logDenied(request.ip, uaCheck.reason, body['username'], userAgent);
+		const ipCheck = this.signupIpBlocklistService.check(request.ip);
+		const signupCheck = ipCheck.allowed ? this.signupIpBlocklistService.checkUserAgent(userAgent) : ipCheck;
+		if (!signupCheck.allowed) {
+			this.signupIpBlocklistService.logDenied(request.ip, signupCheck.reason, body['username'], userAgent);
 			reply.code(400);
 			return;
 		}

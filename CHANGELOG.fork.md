@@ -162,7 +162,7 @@ upstream の取り込み (rebase) が毎回 conflict で止まるため (2026-11
 ### Server
 - Enhance: config の `signupIpBlocklist.denyUserAgents` (正規表現の文字列) に User-Agent が当たる新規登録を拒否できるように (bsky-fork 独自)。既定は空で判定しない。拒否した登録には理由を返さない (入力の検証に失敗したときと同じ本文なしの 400)。拒否は misskey-web の `signup-ip-blocklist` ロガーに記録する
 - Feat: ロールのポリシーに「ノートの連合の許可」(canFederateNote) を追加 (bsky-fork 独自)。オフにしたロールのユーザーの投稿は、公開範囲に関係なくすべて「連合なし」として作成される (ローカルタイムラインには出るが、他のサーバーや中継サーバーには配送しない)。新規アカウントに期間限定の条件付きロールで付け、スパム投稿が連合に流れるのを防ぐ用途
-- Feat: 新規登録の送信元 IP がデータセンター・VPN・プロキシ (iCloud プライベートリレーを含む) の帯のときは登録を拒否する (bsky-fork 独自)。一覧は X4BNet/lists_vpn の datacenter リスト (IPv4/IPv6) をサーバーが 24 時間ごとに取得して Redis に保持する。一覧が取れていない間は拒否しない。config の `signupIpBlocklist` で無効化、一覧 URL の差し替え、`denyCidrs` / `allowCidrs` による追加の拒否・許可ができる。拒否された人には、VPN などをオフにして一般の回線から登録するよう案内する
+- Feat: 新規登録の送信元 IP がデータセンター・VPN・プロキシ (iCloud プライベートリレーを含む) の帯のときは登録を拒否する (bsky-fork 独自)。一覧は X4BNet/lists_vpn の datacenter リスト (IPv4/IPv6) をサーバーが 24 時間ごとに取得して Redis に保持する。一覧が取れていない間は拒否しない。config の `signupIpBlocklist` で無効化、一覧 URL の差し替え、`denyCidrs` / `allowCidrs` による追加の拒否・許可ができる。拒否した登録には理由を返さない (入力の検証に失敗したときと同じ本文なしの 400)
 - Feat: 地震速報の取消報を管理者が手動で発報する API `admin/earthquake/send-cancel` を追加 (bsky-fork 独自)。配信元の取消報を受け取れなかった、または採用しなかった誤報を、履歴・トースト・全ユーザーへの通知で取り消す。全ユーザーへ通知が届くため管理者のログイン中のセッションからだけ呼べ、同じ地震への手動発報は24時間に1回まで
 - Fix: 地震速報の最終報のあとに届いた取消報が捨てられ、誤報が取り消されずに履歴・通知に残る問題を修正 (bsky-fork 独自)。取消報を採用するかどうかを Redis に永続化した履歴で判定するようにし、最終報のあとやサーバー再起動のあとに届いた取消報も1回だけ反映する
 - Fix: リレー経由で届く fedibird などの投稿が、LD-Signature の検証前に JSON-LD の safe mode で拒否され (`Safe mode validation error`)、取り込まれなかった問題を修正 (bsky-fork 独自)。送信側が付ける空の `generator.url` が相対 IRI として扱われていたため、検証前にその空の値だけを取り除く (署名側の正規化でも元々落ちる値なので、署名で保護されないデータを処理することはない)。これまで relay 経由の fedibird の投稿はおよそ半分が GTL に届いていなかった
