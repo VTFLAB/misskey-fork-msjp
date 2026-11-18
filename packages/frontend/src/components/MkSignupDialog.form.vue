@@ -319,13 +319,13 @@ async function onSubmit(): Promise<void> {
 			}
 		}
 	} else {
-		await onSignupApiError(res);
+		onSignupApiError();
 	}
 
 	submitting.value = false;
 }
 
-async function onSignupApiError(res: Response | null) {
+function onSignupApiError() {
 	submitting.value = false;
 	hcaptcha.value?.reset?.();
 	mcaptcha.value?.reset?.();
@@ -333,16 +333,9 @@ async function onSignupApiError(res: Response | null) {
 	turnstile.value?.reset?.();
 	testcaptcha.value?.reset?.();
 
-	// bsky-fork 独自: サーバーが返した理由コードがあれば、それに応じた文言を出す
-	let code: string | null = null;
-	if (res != null) {
-		const body = await res.json().catch(() => null) as { message?: unknown } | null;
-		if (body != null && typeof body.message === 'string') code = body.message;
-	}
-
 	os.alert({
 		type: 'error',
-		text: code === 'DENIED_IP_RANGE' ? i18n.ts._signup.deniedIpRange : i18n.ts.somethingHappened,
+		text: i18n.ts.somethingHappened,
 	});
 }
 </script>
