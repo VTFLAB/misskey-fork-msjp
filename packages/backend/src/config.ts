@@ -124,6 +124,8 @@ type Source = {
 		minEntries?: number;
 		denyCidrs?: string[];
 		allowCidrs?: string[];
+		// User-Agent がどれかに当たる登録を拒否する (正規表現の文字列)。既定は空で判定しない
+		denyUserAgents?: string[];
 	};
 
 	// bsky-fork 独自: msjp/bot/* の endpoint を呼べるユーザー ID (キャラクター bot のアカウント)。
@@ -257,7 +259,7 @@ export type Config = {
 	updateInfoLocalPost: { allowedIps: string[]; token?: string } | undefined;
 	learningOptOutReaders: string[];
 	msjpBotUserIds: string[];
-	signupIpBlocklist: { enabled: boolean; sources: string[]; refreshIntervalHours: number; minEntries: number; denyCidrs: string[]; allowCidrs: string[] };
+	signupIpBlocklist: { enabled: boolean; sources: string[]; refreshIntervalHours: number; minEntries: number; denyCidrs: string[]; allowCidrs: string[]; denyUserAgents: string[] };
 	socialFilter: { apiKey: string; model: string; timeoutMs: number; dailyLimit: number } | undefined;
 	maxFileSize: number;
 	clusterLimit: number | undefined;
@@ -475,6 +477,7 @@ export function loadConfig(): Config {
 				: 1000,
 			denyCidrs: Array.isArray(config.signupIpBlocklist?.denyCidrs) ? config.signupIpBlocklist.denyCidrs.filter((v): v is string => typeof v === 'string') : [],
 			allowCidrs: Array.isArray(config.signupIpBlocklist?.allowCidrs) ? config.signupIpBlocklist.allowCidrs.filter((v): v is string => typeof v === 'string') : [],
+			denyUserAgents: Array.isArray(config.signupIpBlocklist?.denyUserAgents) ? config.signupIpBlocklist.denyUserAgents.filter((v): v is string => typeof v === 'string') : [],
 		},
 		// 置換されずに残ったテンプレートの印 (__NAME__) はキーとみなさない
 		socialFilter: typeof config.socialFilter?.anthropicApiKey === 'string' && config.socialFilter.anthropicApiKey !== '' && !/^__[A-Z0-9_]+__$/.test(config.socialFilter.anthropicApiKey)

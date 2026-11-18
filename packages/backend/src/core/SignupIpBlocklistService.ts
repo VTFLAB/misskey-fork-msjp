@@ -11,6 +11,7 @@ import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { LoggerService } from '@/core/LoggerService.js';
 import { bindThis } from '@/decorators.js';
 import { IpRangeSet } from '@/misc/ip-range-set.js';
+import { compileUserAgentPatterns, matchesUserAgent } from '@/misc/signup-user-agent.js';
 import type Logger from '@/logger.js';
 import type { OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 
@@ -29,6 +30,7 @@ import type { OnApplicationShutdown, OnModuleInit } from '@nestjs/common';
 // - 取得した一覧の件数が少なすぎるとき (空の応答、障害ページなど) は古い一覧を使い続ける
 // - 一覧が一度も取れていない間は拒否しない (fail-open)。防御の穴にはなるが、取得失敗で登録を全部止めない
 // - config の allowCidrs は一覧より優先して許可する。denyCidrs は一覧に無い範囲を追加で拒否する
+// - config の denyUserAgents (正規表現) に User-Agent が当たる登録も拒否する (checkUserAgent)。既定は空
 // - テスト (NODE_ENV=test) では外部へ取りに行かない
 
 const FETCH_TIMEOUT_MS = 60 * 1000;
@@ -37,9 +39,11 @@ const LOCK_TTL_SEC = 10 * 60;
 const RELOAD_CHECK_MS = 10 * 60 * 1000;
 const LOCK_FOLLOWER_RELOAD_MS = 60 * 1000;
 
+export type SignupDenyReason = 'blocklist' | 'denyCidrs' | 'userAgent';
+
 export type SignupIpCheckResult =
 	| { allowed: true }
-	| { allowed: false; reason: 'blocklist' | 'denyCidrs' };
+	| { allowed: false; reason: SignupDenyReason };
 
 @Injectable()
 export class SignupIpBlocklistService implements OnModuleInit, OnApplicationShutdown {
@@ -47,6 +51,7 @@ export class SignupIpBlocklistService implements OnModuleInit, OnApplicationShut
 	private blocklist: IpRangeSet = new IpRangeSet([]);
 	private allowSet: IpRangeSet;
 	private denySet: IpRangeSet;
+	private denyUserAgents: RegExp[];
 	private loadedFetchedAt: number | null = null;
 	private reloadTimer: NodeJS.Timeout | null = null;
 	private refreshing: Promise<void> | null = null;
@@ -65,6 +70,10 @@ export class SignupIpBlocklistService implements OnModuleInit, OnApplicationShut
 		this.logger = this.loggerService.getLogger('signup-ip-blocklist');
 		this.allowSet = this.buildConfigSet('allowCidrs', this.config.signupIpBlocklist.allowCidrs);
 		this.denySet = this.buildConfigSet('denyCidrs', this.config.signupIpBlocklist.denyCidrs);
+		const { regexps, invalid } = compileUserAgentPatterns(this.config.signupIpBlocklist.denyUserAgents);
+		if (invalid.length > 0) this.logger.warn(`denyUserAgents: ${invalid.length} patterns could not be compiled and were ignored`);
+		if (regexps.length > 0) this.logger.info(`denyUserAgents: ${regexps.length} patterns`);
+		this.denyUserAgents = regexps;
 	}
 
 	private get settings() {
@@ -140,11 +149,22 @@ export class SignupIpBlocklistService implements OnModuleInit, OnApplicationShut
 		return { allowed: true };
 	}
 
+	/**
+	 * User-Agent が config の denyUserAgents に当たらないかを返す。
+	 */
+	@bindThis
+	public checkUserAgent(userAgent: string | null | undefined): SignupIpCheckResult {
+		if (!this.settings.enabled) return { allowed: true };
+		if (matchesUserAgent(this.denyUserAgents, userAgent)) return { allowed: false, reason: 'userAgent' };
+		return { allowed: true };
+	}
+
 	/** 拒否した登録をログに残す (運用で誤判定を追えるように) */
 	@bindThis
-	public logDenied(ip: string | null | undefined, reason: 'blocklist' | 'denyCidrs', username?: unknown): void {
-		// username は検証前の生の入力なので、改行などでログ行を偽装されないように JSON で書く
-		this.logger.info(`denied signup from ${ip ?? '(unknown)'} (${reason}) username=${typeof username === 'string' ? JSON.stringify(username.slice(0, 64)) : '(none)'}`);
+	public logDenied(ip: string | null | undefined, reason: SignupDenyReason, username?: unknown, userAgent?: string | null): void {
+		// username と UA は検証前の生の入力なので、改行などでログ行を偽装されないように JSON で書く
+		const ua = reason === 'userAgent' && typeof userAgent === 'string' ? ` ua=${JSON.stringify(userAgent.slice(0, 200))}` : '';
+		this.logger.info(`denied signup from ${ip ?? '(unknown)'} (${reason}) username=${typeof username === 'string' ? JSON.stringify(username.slice(0, 64)) : '(none)'}${ua}`);
 	}
 
 	/** 保持している一覧の状態 (ログや運用確認用) */

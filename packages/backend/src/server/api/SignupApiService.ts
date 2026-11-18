@@ -120,6 +120,17 @@ export class SignupApiService {
 			}
 		}
 
+		// bsky-fork 独自: config で指定した User-Agent からの登録を拒否する。
+		// 理由を返すと自動化の側が手口を変えるので、入力の検証に失敗したときと同じ本文なしの 400 にする。
+		// CAPTCHA の後で判定し、どの段で落ちたかを応答から区別できないようにする。
+		const userAgent = request.headers['user-agent'];
+		const uaCheck = this.signupIpBlocklistService.checkUserAgent(userAgent);
+		if (!uaCheck.allowed) {
+			this.signupIpBlocklistService.logDenied(request.ip, uaCheck.reason, body['username'], userAgent);
+			reply.code(400);
+			return;
+		}
+
 		const username = body['username'];
 		const password = body['password'];
 		const host: string | null = process.env.NODE_ENV === 'test' ? (body['host'] ?? null) : null;
