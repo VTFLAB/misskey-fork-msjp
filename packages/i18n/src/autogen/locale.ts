@@ -10083,6 +10083,14 @@ export interface Locale extends ILocale {
          * 拡張設定 (JUICE 由来) を見る
          */
         "read:admin:juice-settings": string;
+        /**
+         * ミュージックプレイヤーを操作する
+         */
+        "write:audio-player": string;
+        /**
+         * ミュージックプレイヤーのプレイリストを見る
+         */
+        "read:audio-player": string;
     };
     "_auth": {
         /**
@@ -12781,6 +12789,14 @@ export interface Locale extends ILocale {
          * プレイリスト「{name}」を削除しますか？
          */
         "deletePlaylistConfirm": ParameterizedString<"name">;
+        /**
+         * このブラウザで音声秘書からの操作を受ける
+         */
+        "remoteControl": string;
+        /**
+         * オンにすると、ミュージックプレイヤーを操作する権限を持つアプリからの再生・一時停止・曲送り・プレイリストの再生をこのブラウザで受けます。
+         */
+        "remoteControl_description": string;
         /**
          * このプレイリストには曲がありません
          */

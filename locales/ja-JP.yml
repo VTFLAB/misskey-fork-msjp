@@ -2647,6 +2647,8 @@ _permissions:
   "read:chat": "ダイレクトメッセージを閲覧する"
   "write:admin:juice-settings": "拡張設定 (JUICE 由来) を操作する"
   "read:admin:juice-settings": "拡張設定 (JUICE 由来) を見る"
+  "write:audio-player": "ミュージックプレイヤーを操作する"
+  "read:audio-player": "ミュージックプレイヤーのプレイリストを見る"
 
 _auth:
   shareAccessTitle: "アプリへのアクセス許可"
@@ -3398,6 +3400,8 @@ _audioPlayer:
   removeFromPlaylist: "プレイリストから削除"
   deletePlaylist: "プレイリストを削除"
   deletePlaylistConfirm: "プレイリスト「{name}」を削除しますか？"
+  remoteControl: "このブラウザで音声秘書からの操作を受ける"
+  remoteControl_description: "オンにすると、ミュージックプレイヤーを操作する権限を持つアプリからの再生・一時停止・曲送り・プレイリストの再生をこのブラウザで受けます。"
   emptyPlaylist: "このプレイリストには曲がありません"
   noPlaylists: "プレイリストはまだありません"
   playlistNotFound: "プレイリストが見つかりませんでした"

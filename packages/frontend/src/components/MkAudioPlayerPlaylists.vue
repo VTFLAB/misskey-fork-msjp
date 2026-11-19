@@ -98,6 +98,11 @@ SPDX-License-Identifier: AGPL-3.0-only
 				</template>
 			</MkDraggable>
 		</div>
+
+		<MkSwitch :class="$style.remoteControl" :modelValue="remoteControlEnabled" @update:modelValue="onToggleRemoteControl">
+			<template #label>{{ i18n.ts._audioPlayer.remoteControl }}</template>
+			<template #caption>{{ i18n.ts._audioPlayer.remoteControl_description }}</template>
+		</MkSwitch>
 	</template>
 </div>
 </template>
@@ -110,6 +115,8 @@ import type { AudioPlaylist, AudioPlaylistSummary } from '@/utility/audio-playli
 import { i18n } from '@/i18n.js';
 import * as os from '@/os.js';
 import MkDraggable from '@/components/MkDraggable.vue';
+import MkSwitch from '@/components/MkSwitch.vue';
+import { isAudioPlayerRemoteControlEnabled, setAudioPlayerRemoteControlEnabled } from '@/utility/audio-player-remote.js';
 import { genId } from '@/utility/id.js';
 import { promptYoutubeTrack, openYoutubePlaylistImport } from '@/utility/youtube-track.js';
 import { audioPlayerState, trackArtworkUrl, trackTitle, trackArtist, trackNoteId, isUnplayableTrack, trackUnavailableLabel, playTracks, enqueue } from '@/utility/audio-player.js';
@@ -133,6 +140,15 @@ import {
 type DetailItem = { id: string; track: AudioTrack };
 
 const loading = ref(false);
+
+// 音声秘書などからの操作をこの端末で受けるか (端末ごとの設定、既定オフ)
+const remoteControlEnabled = ref(isAudioPlayerRemoteControlEnabled());
+
+function onToggleRemoteControl(enabled: boolean) {
+	setAudioPlayerRemoteControlEnabled(enabled);
+	remoteControlEnabled.value = enabled;
+}
+
 const detail = ref<AudioPlaylist | null>(null);
 const detailItemsRaw = ref<DetailItem[]>([]);
 
@@ -467,6 +483,12 @@ async function onReorderPlaylists(list: AudioPlaylistSummary[]) {
 .list {
 	flex: 1;
 	overflow-y: auto;
+}
+
+.remoteControl {
+	flex-shrink: 0;
+	padding-top: 8px;
+	border-top: 1px solid var(--MI_THEME-divider);
 }
 
 .empty {
