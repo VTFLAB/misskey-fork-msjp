@@ -29,6 +29,7 @@ import { prefer } from '@/preferences.js';
 import { updateCurrentAccount } from '@/accounts.js';
 import { unisonReload } from '@/utility/unison-reload.js';
 import { isBirthday } from '@/utility/is-birthday.js';
+import { handleAudioPlayerCommand } from '@/utility/audio-player-remote.js';
 
 export async function mainBoot() {
 	const { isClientUpdated, lastVersion } = await common(async () => {
@@ -345,6 +346,11 @@ export async function mainBoot() {
 			// 自分の情報が更新されたとき
 			main.on('meUpdated', i => {
 				updateCurrentAccount(i);
+			});
+
+			// 音声秘書などからの常駐オーディオプレイヤー操作 (bsky-fork 独自)。この端末で受けるかは端末ごとの設定で決まる
+			main.on('audioPlayerCommand', payload => {
+				handleAudioPlayerCommand(payload).catch(err => console.error('[audio-player-remote]', err));
 			});
 
 			main.on('readAllNotifications', () => {

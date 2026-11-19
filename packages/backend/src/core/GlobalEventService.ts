@@ -91,6 +91,11 @@ export interface MainEventTypes {
 		key: string;
 		value: any | null;
 	};
+	audioPlayerCommand: {
+		action: 'play' | 'pause' | 'toggle' | 'next' | 'prev' | 'playPlaylist';
+		playlistId: string | null;
+		shuffle: boolean;
+	};
 	driveFileCreated: Packed<'DriveFile'>;
 	readAntenna: MiAntenna;
 	receiveFollowRequest: Packed<'UserLite'>;

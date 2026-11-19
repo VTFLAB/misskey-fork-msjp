@@ -271,6 +271,8 @@ export * as 'i/2fa/remove-key' from './endpoints/i/2fa/remove-key.js';
 export * as 'i/2fa/unregister' from './endpoints/i/2fa/unregister.js';
 export * as 'i/2fa/update-key' from './endpoints/i/2fa/update-key.js';
 export * as 'i/apps' from './endpoints/i/apps.js';
+export * as 'i/audio-player/command' from './endpoints/i/audio-player/command.js'; // fork 独自
+export * as 'i/audio-player/playlists' from './endpoints/i/audio-player/playlists.js'; // fork 独自
 export * as 'i/authorized-apps' from './endpoints/i/authorized-apps.js';
 export * as 'i/change-password' from './endpoints/i/change-password.js';
 export * as 'i/claim-achievement' from './endpoints/i/claim-achievement.js';

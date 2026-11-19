@@ -473,6 +473,8 @@ import type {
 	I2faUpdateKeyRequest,
 	IAppsRequest,
 	IAppsResponse,
+	IAudioPlayerCommandRequest,
+	IAudioPlayerPlaylistsResponse,
 	IAuthorizedAppsRequest,
 	IAuthorizedAppsResponse,
 	IChangePasswordRequest,
@@ -1101,6 +1103,8 @@ export type Endpoints = {
 	'i/2fa/unregister': { req: I2faUnregisterRequest; res: EmptyResponse };
 	'i/2fa/update-key': { req: I2faUpdateKeyRequest; res: EmptyResponse };
 	'i/apps': { req: IAppsRequest; res: IAppsResponse };
+	'i/audio-player/command': { req: IAudioPlayerCommandRequest; res: EmptyResponse };
+	'i/audio-player/playlists': { req: EmptyRequest; res: IAudioPlayerPlaylistsResponse };
 	'i/authorized-apps': { req: IAuthorizedAppsRequest; res: IAuthorizedAppsResponse };
 	'i/change-password': { req: IChangePasswordRequest; res: EmptyResponse };
 	'i/claim-achievement': { req: IClaimAchievementRequest; res: EmptyResponse };

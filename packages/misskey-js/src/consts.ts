@@ -147,6 +147,8 @@ export const permissions = [
 	'read:chat',
 	'write:admin:juice-settings',
 	'read:admin:juice-settings',
+	'write:audio-player',
+	'read:audio-player',
 ] as const;
 
 export const moderationLogTypes = [

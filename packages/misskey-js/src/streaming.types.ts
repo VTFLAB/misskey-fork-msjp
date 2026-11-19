@@ -81,6 +81,11 @@ export type Channels = {
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				value: any | null;
 			}) => void;
+			audioPlayerCommand: (payload: {
+				action: 'play' | 'pause' | 'toggle' | 'next' | 'prev' | 'playPlaylist';
+				playlistId: string | null;
+				shuffle: boolean;
+			}) => void;
 			driveFileCreated: (payload: DriveFile) => void;
 			readAntenna: (payload: Antenna) => void;
 			receiveFollowRequest: (payload: User) => void;

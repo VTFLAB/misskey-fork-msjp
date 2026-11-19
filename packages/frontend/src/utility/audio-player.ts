@@ -24,6 +24,7 @@ import {
 	youtubeSetMuted,
 } from '@/utility/audio-player-youtube.js';
 import { refreshStaleYoutubeTracks } from '@/utility/youtube-metadata.js';
+import { claimAudioPlayerRemoteControl } from '@/utility/audio-player-remote.js';
 
 export type FileAudioTrack = {
 	kind?: 'file';
@@ -918,7 +919,13 @@ window.document.addEventListener('visibilitychange', () => {
 
 setupMediaSessionActions();
 
+// 音声秘書などからの操作を受けるタブを、いま鳴っているタブに揃える (bsky-fork 独自、audio-player-remote.ts)
+watch(() => audioPlayerState.playing, playing => {
+	if (playing) claimAudioPlayerRemoteControl();
+});
+
 export {
+	play,
 	playTracks,
 	enqueue,
 	playAt,

@@ -49,7 +49,8 @@ export type Keys = (
 	`channelLastReadedAt:${string}` |
 	`idbfallback::${string}` |
 	'omePlayerVolume' |
-	'omePlayerMuted'
+	'omePlayerMuted' |
+	'audioPlayerRemoteControl'
 );
 
 // セッション毎に廃棄されるLocalStorage代替（セーフモードなどで使用できそう）
