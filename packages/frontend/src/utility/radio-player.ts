@@ -38,7 +38,10 @@ const DEFAULT_TARGET_LUFS = -18;
 // 音量を測れない経路 (plain) で鳴らすときの下げ幅
 const UNMEASURED_DB = -12;
 
-const VOLUME_KEY = 'mkRadioVolume';
+// 初期音量を 80% から 30% に下げたとき (2026-11-21) に、保存済みの音量も一度だけ初期値に戻すためキーを変えた
+const VOLUME_KEY = 'mkRadioVolume2';
+// 初めて聴く人がいきなり大きな音を聞かないよう、初期音量は控えめにする
+const DEFAULT_VOLUME = 0.3;
 const NORMALIZE_KEY = 'mkRadioNormalize';
 const TARGET_KEY = 'mkRadioTargetLufs';
 const LOUDNESS_KEY = 'mkRadioLoudness';
@@ -100,7 +103,7 @@ export const radioState = reactive({
 	status: 'idle' as RadioStatus,
 	error: null as string | null,
 	route: null as RadioRoute | null,
-	volume: readNumber(VOLUME_KEY, 0.8, 0, 1),
+	volume: readNumber(VOLUME_KEY, DEFAULT_VOLUME, 0, 1),
 	muted: false,
 	normalize: readStorage(NORMALIZE_KEY) !== 'false',
 	targetLufs: readNumber(TARGET_KEY, DEFAULT_TARGET_LUFS, -30, -6),
