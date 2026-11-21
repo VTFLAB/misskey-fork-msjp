@@ -35,6 +35,7 @@ import { OmeServerService } from './ome/OmeServerService.js';
 import { GoogleDriveServerService } from './google/GoogleDriveServerService.js';
 import { RecordingDownloadServerService } from './live/RecordingDownloadServerService.js';
 import { PlamoModelServerService } from './plamo/PlamoModelServerService.js';
+import { RadioStreamServerService } from './radio/RadioStreamServerService.js';
 
 import MainStreamConnection from '@/server/api/stream/Connection.js';
 import { MainChannel } from './api/stream/channels/main.js';
@@ -118,6 +119,7 @@ import { SigninWithPasskeyApiService } from './api/SigninWithPasskeyApiService.j
 		GoogleDriveServerService,
 		RecordingDownloadServerService,
 		PlamoModelServerService,
+		RadioStreamServerService,
 	],
 	exports: [
 		ServerService,

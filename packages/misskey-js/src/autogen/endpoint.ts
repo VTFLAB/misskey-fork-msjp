@@ -654,6 +654,13 @@ import type {
 	PingResponse,
 	PinnedUsersResponse,
 	PromoReadRequest,
+	RadioGardenChannelsRequest,
+	RadioGardenChannelsResponse,
+	RadioGardenPlacesResponse,
+	RadioGardenResolveRequest,
+	RadioGardenResolveResponse,
+	RadioGardenSearchRequest,
+	RadioGardenSearchResponse,
 	RemoteGuestLoginStartRequest,
 	RemoteGuestLoginStartResponse,
 	RemoteGuestSessionRevokeRequest,
@@ -1230,6 +1237,10 @@ export type Endpoints = {
 	'ping': { req: EmptyRequest; res: PingResponse };
 	'pinned-users': { req: EmptyRequest; res: PinnedUsersResponse };
 	'promo/read': { req: PromoReadRequest; res: EmptyResponse };
+	'radio-garden/channels': { req: RadioGardenChannelsRequest; res: RadioGardenChannelsResponse };
+	'radio-garden/places': { req: EmptyRequest; res: RadioGardenPlacesResponse };
+	'radio-garden/resolve': { req: RadioGardenResolveRequest; res: RadioGardenResolveResponse };
+	'radio-garden/search': { req: RadioGardenSearchRequest; res: RadioGardenSearchResponse };
 	'remote-guest/login/start': { req: RemoteGuestLoginStartRequest; res: RemoteGuestLoginStartResponse };
 	'remote-guest/session/revoke': { req: RemoteGuestSessionRevokeRequest; res: RemoteGuestSessionRevokeResponse };
 	'remote-guest/twitch-comments': { req: RemoteGuestTwitchCommentsRequest; res: RemoteGuestTwitchCommentsResponse };

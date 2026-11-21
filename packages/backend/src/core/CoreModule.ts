@@ -180,6 +180,7 @@ import { TwitchTranslationService } from './twitch/TwitchTranslationService.js';
 import { NowPlayingLoggerService } from './nowplaying/NowPlayingLoggerService.js';
 import { MusicUrlResolverService } from './nowplaying/MusicUrlResolverService.js';
 import { PlamoModelService } from './plamo/PlamoModelService.js';
+import { RadioGardenService } from './radio/RadioGardenService.js';
 import { LiveLoggerService } from './live/LiveLoggerService.js';
 import { LiveChannelService } from './live/LiveChannelService.js';
 import { LiveArchiveAccessService } from './live/LiveArchiveAccessService.js';
@@ -385,6 +386,7 @@ const $TwitchTranslationService: Provider = { provide: 'TwitchTranslationService
 const $NowPlayingLoggerService: Provider = { provide: 'NowPlayingLoggerService', useExisting: NowPlayingLoggerService };
 const $MusicUrlResolverService: Provider = { provide: 'MusicUrlResolverService', useExisting: MusicUrlResolverService };
 const $PlamoModelService: Provider = { provide: 'PlamoModelService', useExisting: PlamoModelService };
+const $RadioGardenService: Provider = { provide: 'RadioGardenService', useExisting: RadioGardenService };
 
 const $LiveLoggerService: Provider = { provide: 'LiveLoggerService', useExisting: LiveLoggerService };
 const $LiveChannelService: Provider = { provide: 'LiveChannelService', useExisting: LiveChannelService };
@@ -588,6 +590,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		NowPlayingLoggerService,
 		MusicUrlResolverService,
 		PlamoModelService,
+		RadioGardenService,
 		LiveLoggerService,
 		LiveChannelService,
 		LiveArchiveAccessService,
@@ -790,6 +793,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$NowPlayingLoggerService,
 		$MusicUrlResolverService,
 		$PlamoModelService,
+		$RadioGardenService,
 		$LiveLoggerService,
 		$LiveChannelService,
 		$LiveArchiveAccessService,
@@ -986,6 +990,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		NowPlayingLoggerService,
 		MusicUrlResolverService,
 		PlamoModelService,
+		RadioGardenService,
 		LiveLoggerService,
 		LiveChannelService,
 		LiveArchiveAccessService,
@@ -1186,6 +1191,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		$NowPlayingLoggerService,
 		$MusicUrlResolverService,
 		$PlamoModelService,
+		$RadioGardenService,
 		$LiveLoggerService,
 		$LiveChannelService,
 		$LiveArchiveAccessService,

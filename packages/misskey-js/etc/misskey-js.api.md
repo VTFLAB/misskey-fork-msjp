@@ -2479,6 +2479,13 @@ declare namespace entities {
         PingResponse,
         PinnedUsersResponse,
         PromoReadRequest,
+        RadioGardenChannelsRequest,
+        RadioGardenChannelsResponse,
+        RadioGardenPlacesResponse,
+        RadioGardenResolveRequest,
+        RadioGardenResolveResponse,
+        RadioGardenSearchRequest,
+        RadioGardenSearchResponse,
         RemoteGuestLoginStartRequest,
         RemoteGuestLoginStartResponse,
         RemoteGuestSessionRevokeRequest,
@@ -3862,6 +3869,27 @@ type QueueStatsLog = QueueStats[];
 
 // @public (undocumented)
 export const queueTypes: readonly ["system", "endedPollNotification", "postScheduledNote", "deliver", "inbox", "db", "relationship", "objectStorage", "userWebhookDeliver", "systemWebhookDeliver", "twitchCommentTranslate"];
+
+// @public (undocumented)
+type RadioGardenChannelsRequest = operations['radio-garden___channels']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type RadioGardenChannelsResponse = operations['radio-garden___channels']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type RadioGardenPlacesResponse = operations['radio-garden___places']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type RadioGardenResolveRequest = operations['radio-garden___resolve']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type RadioGardenResolveResponse = operations['radio-garden___resolve']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type RadioGardenSearchRequest = operations['radio-garden___search']['requestBody']['content']['application/json'];
+
+// @public (undocumented)
+type RadioGardenSearchResponse = operations['radio-garden___search']['responses']['200']['content']['application/json'];
 
 // @public (undocumented)
 type RemoteGuestLoginStartRequest = operations['remote-guest___login___start']['requestBody']['content']['application/json'];

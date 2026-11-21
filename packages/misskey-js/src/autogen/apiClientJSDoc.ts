@@ -4800,6 +4800,50 @@ declare module '../api.js' {
     ): Promise<SwitchCaseResponseType<E, P>>;
 
     /**
+     * Radio Garden の地点にあるラジオ局の一覧を返す (bsky-fork 独自)。
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'radio-garden/channels', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Radio Garden の地点 (ラジオ局のある町) の一覧を返す (bsky-fork 独自)。ラジオウィジェットの地球儀に描く点で、列ごとの配列で返す。
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'radio-garden/places', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Radio Garden のラジオ局の音声の URL を返す (bsky-fork 独自)。url は https の局だけで、ブラウザが局から直接受けるときに使う。proxyUrl はこのサーバーが中継する URL で、10 分だけ使える。
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'radio-garden/resolve', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
+     * Radio Garden で地点とラジオ局を検索する (bsky-fork 独自)。それぞれ最大 30 件。
+     * 
+     * **Credential required**: *Yes* / **Permission**: *read:account*
+     */
+    request<E extends 'radio-garden/search', P extends Endpoints[E]['req']>(
+      endpoint: E,
+      params: P,
+      credential?: string | null,
+    ): Promise<SwitchCaseResponseType<E, P>>;
+
+    /**
      * リモート Misskey インスタンスのアカウントで視聴+コメント用のゲストログインを開始する。相手インスタンスの MiAuth へリダイレクトする URL を返す。
      * 
      * **Credential required**: *No*
