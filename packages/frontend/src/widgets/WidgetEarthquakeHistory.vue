@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<MkContainer :showHeader="widgetProps.showHeader" data-cy-mkw-earthquakeHistory class="mkw-earthquakeHistory">
+<MkContainer :style="`height: ${widgetProps.height}px;`" :showHeader="widgetProps.showHeader" :scrollable="true" data-cy-mkw-earthquakeHistory class="mkw-earthquakeHistory">
 	<template #icon><i class="ti ti-analyze"></i></template>
 	<template #header>{{ i18n.ts._widgets.earthquakeHistory }}</template>
 
@@ -44,6 +44,12 @@ const widgetPropsDef = {
 		type: 'boolean',
 		label: i18n.ts._widgetOptions.showHeader,
 		default: true,
+	},
+	// 履歴が多いとウィジェット欄を埋めてしまうので、高さを決めて中でスクロールさせる
+	height: {
+		type: 'number',
+		label: i18n.ts.height,
+		default: 300,
 	},
 } satisfies FormWithDefault;
 
