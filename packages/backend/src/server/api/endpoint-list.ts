@@ -256,6 +256,10 @@ export * as 'gallery/posts/update' from './endpoints/gallery/posts/update.js';
 export * as 'get-avatar-decorations' from './endpoints/get-avatar-decorations.js';
 export * as 'get-online-users-count' from './endpoints/get-online-users-count.js';
 export * as 'get-weather' from './endpoints/get-weather.js';
+export * as 'radio-garden/places' from './endpoints/radio-garden/places.js'; // bsky-fork
+export * as 'radio-garden/channels' from './endpoints/radio-garden/channels.js'; // bsky-fork
+export * as 'radio-garden/search' from './endpoints/radio-garden/search.js'; // bsky-fork
+export * as 'radio-garden/resolve' from './endpoints/radio-garden/resolve.js'; // bsky-fork
 export * as 'hashtags/list' from './endpoints/hashtags/list.js';
 export * as 'hashtags/search' from './endpoints/hashtags/search.js';
 export * as 'hashtags/show' from './endpoints/hashtags/show.js';

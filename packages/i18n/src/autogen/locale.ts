@@ -10333,6 +10333,10 @@ export interface Locale extends ILocale {
          * オーディオプレイヤー
          */
         "audioPlayer": string;
+        /**
+         * 世界のラジオ
+         */
+        "radio": string;
     };
     "_widgetOptions": {
         /**
@@ -10470,6 +10474,12 @@ export interface Locale extends ILocale {
              * 最大震度
              */
             "maxIntensity": string;
+        };
+        "_radio": {
+            /**
+             * 鳴らしている間は、地球儀を回した先の局に切り替える
+             */
+            "tuneOnRotate": string;
         };
         "_clock": {
             /**
@@ -18396,5 +18406,171 @@ export interface Locale extends ILocale {
          * 端末内翻訳でエラーが起きたため、この端末の端末内翻訳をオフにしました。設定の「端末内でノートを翻訳する」から再びオンにできます
          */
         "disabledAfterError": string;
+    };
+    "_radio": {
+        /**
+         * 地球儀。ドラッグか矢印キーで回し、中央の円に重なった町を選びます
+         */
+        "globeDescription": string;
+        /**
+         * Radio Garden に接続できませんでした
+         */
+        "unavailable": string;
+        /**
+         * 拡大
+         */
+        "zoomIn": string;
+        /**
+         * 縮小
+         */
+        "zoomOut": string;
+        /**
+         * {n}局
+         */
+        "stationCount": ParameterizedString<"n">;
+        /**
+         * この町
+         */
+        "here": string;
+        /**
+         * お気に入り
+         */
+        "favorites": string;
+        /**
+         * 地球儀を回して町を選んでください
+         */
+        "selectPlace": string;
+        /**
+         * 見つかりませんでした
+         */
+        "noResults": string;
+        /**
+         * 局名・町・国名で検索
+         */
+        "searchPlaceholder": string;
+        /**
+         * 町
+         */
+        "places": string;
+        /**
+         * 局
+         */
+        "stations": string;
+        /**
+         * お気に入りを使うにはログインしてください
+         */
+        "signInForFavorites": string;
+        /**
+         * お気に入りの局はまだありません。局の横のハートで追加できます
+         */
+        "noFavorites": string;
+        /**
+         * 再生
+         */
+        "play": string;
+        /**
+         * 停止
+         */
+        "stop": string;
+        /**
+         * 停止中
+         */
+        "notPlaying": string;
+        /**
+         * 局を選んでください
+         */
+        "chooseStation": string;
+        /**
+         * 前の局
+         */
+        "previous": string;
+        /**
+         * 次の局
+         */
+        "next": string;
+        /**
+         * お気に入り
+         */
+        "favorite": string;
+        /**
+         * お気に入りに追加
+         */
+        "addFavorite": string;
+        /**
+         * お気に入りから外す
+         */
+        "removeFavorite": string;
+        /**
+         * ミュート
+         */
+        "mute": string;
+        /**
+         * 音量
+         */
+        "volume": string;
+        /**
+         * 接続しています…
+         */
+        "connecting": string;
+        /**
+         * この局は再生できませんでした
+         */
+        "cannotPlay": string;
+        /**
+         * ブラウザが自動再生を止めました。再生ボタンをもう一度押してください
+         */
+        "pressPlayAgain": string;
+        /**
+         * 音量の自動調整
+         */
+        "normalize": string;
+        /**
+         * 音量の自動調整: {state}
+         */
+        "normalizeState": ParameterizedString<"state">;
+        /**
+         * 局ごとの音量の差を測ってそろえます。オフにすると局の音量のまま再生します
+         */
+        "normalizeDescription": string;
+        /**
+         * この局は音量を測れないため、控えめな音量で再生しています
+         */
+        "normalizeUnavailable": string;
+        /**
+         * 音量を測っています。測り終えるまでは小さめに再生します
+         */
+        "measuring": string;
+        /**
+         * 音量を測れなかったため、小さめに再生しています
+         */
+        "measureFailed": string;
+        /**
+         * 測定値 {lufs} LUFS、補正 {gain}
+         */
+        "measured": ParameterizedString<"lufs" | "gain">;
+        /**
+         * そろえる大きさ
+         */
+        "targetLoudness": string;
+        /**
+         * 大きめ (-14 LUFS)
+         */
+        "targetLoud": string;
+        /**
+         * 標準 (-18 LUFS)
+         */
+        "targetStandard": string;
+        /**
+         * 控えめ (-23 LUFS)
+         */
+        "targetQuiet": string;
+        /**
+         * データ: Radio Garden
+         */
+        "source": string;
+        /**
+         * サーバー経由で再生中
+         */
+        "viaServer": string;
     };
 }

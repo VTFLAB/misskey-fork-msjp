@@ -39,6 +39,7 @@ export default function(app: App) {
 	app.component('WidgetWeather', defineAsyncComponent(() => import('./WidgetWeather.vue')));
 	app.component('WidgetEarthquakeHistory', defineAsyncComponent(() => import('./WidgetEarthquakeHistory.vue')));
 	app.component('WidgetAudioPlayer', defineAsyncComponent(() => import('./WidgetAudioPlayer.vue')));
+	app.component('WidgetRadio', defineAsyncComponent(() => import('./WidgetRadio.vue')));
 }
 
 // 連合関連のウィジェット（連合無効時に隠す）
@@ -78,6 +79,7 @@ export const widgets = [
 	'weather',
 	'earthquakeHistory',
 	'audioPlayer',
+	'radio',
 
 	...federationWidgets,
 ] as const;

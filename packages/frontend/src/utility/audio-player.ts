@@ -25,6 +25,7 @@ import {
 } from '@/utility/audio-player-youtube.js';
 import { refreshStaleYoutubeTracks } from '@/utility/youtube-metadata.js';
 import { claimAudioPlayerRemoteControl } from '@/utility/audio-player-remote.js';
+import { claimAudioFocus, registerAudioFocus } from '@/utility/audio-focus.js';
 
 export type FileAudioTrack = {
 	kind?: 'file';
@@ -922,7 +923,13 @@ setupMediaSessionActions();
 // 音声秘書などからの操作を受けるタブを、いま鳴っているタブに揃える (bsky-fork 独自、audio-player-remote.ts)
 watch(() => audioPlayerState.playing, playing => {
 	if (playing) claimAudioPlayerRemoteControl();
+	// ラジオ (radio-player.ts) と同時に鳴らさない。ラジオが書き換えた Media Session の操作と表示も取り戻す (bsky-fork 独自)
+	if (playing && claimAudioFocus('audioPlayer')) {
+		setupMediaSessionActions();
+		updateMediaSessionMetadata();
+	}
 });
+registerAudioFocus('audioPlayer', () => pause());
 
 export {
 	play,

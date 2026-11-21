@@ -39,6 +39,7 @@ import { OmeServerService } from './ome/OmeServerService.js';
 import { GoogleDriveServerService } from './google/GoogleDriveServerService.js';
 import { RecordingDownloadServerService } from './live/RecordingDownloadServerService.js';
 import { PlamoModelServerService } from './plamo/PlamoModelServerService.js';
+import { RadioStreamServerService } from './radio/RadioStreamServerService.js';
 
 const _dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -82,6 +83,7 @@ export class ServerService implements OnApplicationShutdown {
 		private googleDriveServerService: GoogleDriveServerService,
 		private recordingDownloadServerService: RecordingDownloadServerService,
 		private plamoModelServerService: PlamoModelServerService, // bsky-fork
+		private radioStreamServerService: RadioStreamServerService, // bsky-fork
 	) {
 		this.logger = this.loggerService.getLogger('server', 'gray');
 	}
@@ -176,6 +178,7 @@ export class ServerService implements OnApplicationShutdown {
 		fastify.register(this.googleDriveServerService.createServer, { prefix: '/google-drive' });
 		fastify.register(this.recordingDownloadServerService.createServer, { prefix: '/recording-download' });
 		fastify.register(this.plamoModelServerService.createServer, { prefix: '/plamo-model' }); // bsky-fork: 端末内翻訳のモデル
+		fastify.register(this.radioStreamServerService.createServer, { prefix: '/radio-garden-stream' }); // bsky-fork: ラジオウィジェットの音声の中継
 		fastify.register(this.remoteGuestServerService.createServer, { prefix: '/remote-guest' });
 		fastify.register(this.omeServerService.createServer, { prefix: '/ome' });
 		fastify.register(this.healthServerService.createServer, { prefix: '/healthz' });
