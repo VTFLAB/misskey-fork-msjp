@@ -5,29 +5,35 @@
 
 // ラジオウィジェットの再生 (bsky-fork 独自)。ページを移っても鳴り続けるよう、ウィジェットの外 (このモジュール) に持つ。
 //
-// 音量の自動調整: 局の音声の先頭数秒を別に取得して無音のままデコードし、BS.1770 の積分ラウドネス (LUFS) を
-// 測って、目標との差だけゲインで打ち消す (radio-loudness.ts)。再生中も数分ごとに測り直す。
-// 再生中の音声を Web Audio のアナライザーで測る方法は、環境によって 16 dB 小さく測れて大きい局をさらに
-// 持ち上げたので使わない (2026-11-21)。
+// 音量の自動調整: 鳴らす音声を AudioWorklet (radio-leveler.worklet.ts、中身は radio-loudness.ts) に通し、
+// 鳴らしながら BS.1770 のラウドネスを測って目標にそろえる。音声は 1.5 秒遅らせて出すので、補正は聞こえる前の
+// 音で決まる。鳴り始めからそろった音量で出し、急に大きくなる部分も聞こえる前に下げる。ピークは -1 dBFS に抑える。
+// 2026-11-21 の版は、局の音声の先頭数秒を別に取得してデコードして測っていた。補正が届くまで数秒かかり、
+// 先頭の数秒が局の普段の大きさと違うと外れたので、2026-11-22 にこの方式へ変えた。
+// その前に試した AnalyserNode での測定は、ある環境で 16 dB 小さく測れた (原因は未特定)。いまの方式は
+// 出す音そのものを測って補正するので、測った音と聞こえる音が食い違うことはない。
 //
 // 安全のための約束 (大きな音は耳とスピーカーを傷める):
-// - 局を選んだ直後は測り終えるまで小さく鳴らす。下げる変化はすぐ、上げる変化は数秒かけて行う
-// - 持ち上げは +12 dB まで。後段のリミッターでピークを -1 dBFS に抑える
-// - 音量を測れない経路 (plain) では控えめな音量で鳴らす
+// - 測らずに音を出さない。AudioWorklet の読み込みが終わるまでは、音声をどこにもつながない
+// - 持ち上げは +12 dB まで。下げる変化は速く、上げる変化はゆっくり行う
+// - AudioWorklet が使えないときと、音量を測れない経路 (plain) では、控えめな音量で鳴らす
 //
 // 音声の経路は 3 つあり、この順に試す:
 // - direct: ブラウザが局から直接受ける (crossOrigin=anonymous)。局が CORS を許可していれば測れる
 // - proxy: サーバーが中継する (/radio-garden-stream/)。CORS を許可しない局と http の局はこれで測れる
 // - plain: CORS なしで局から直接受ける。サーバーが局につなげなかったときの最後の手段で、音量は測れない
 //
-// 負荷: 止めている間は AudioContext を止め、音声の接続も切る。測定は数分に 1 回、数秒分の音声を読むだけ。
+// 負荷: 止めている間は AudioContext を止め、音声の接続も切る。測定は鳴らしている音声にかける計算だけで、
+// 局への接続は増やさない。
 
 import { reactive } from 'vue';
+import levelerWorkletUrl from '@/utility/radio-leveler.worklet?worker&url';
 import type { RadioChannel } from '@/utility/radio-garden.js';
+import type { LevelerMessage, LevelerProcessorOptions, LevelerStats } from '@/utility/radio-loudness.js';
 import { i18n } from '@/i18n.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { claimAudioFocus, registerAudioFocus, releaseAudioFocus } from '@/utility/audio-focus.js';
-import { combineLoudness, correctionDb, dbToGain, integratedLoudness, startGainDb } from '@/utility/radio-loudness.js';
+import { LEVELER_PROCESSOR_NAME, LIMITER_THRESHOLD_DB, dbToGain } from '@/utility/radio-loudness.js';
 import { channelSubtitle } from '@/utility/radio-garden.js';
 
 export type RadioRoute = 'direct' | 'proxy' | 'plain';
@@ -35,7 +41,7 @@ export type RadioStatus = 'idle' | 'connecting' | 'playing' | 'error';
 
 export const RADIO_TARGET_OPTIONS = [-14, -18, -23] as const;
 const DEFAULT_TARGET_LUFS = -18;
-// 音量を測れない経路 (plain) で鳴らすときの下げ幅
+// 音量を測れない経路 (plain) と、AudioWorklet が使えないときの下げ幅
 const UNMEASURED_DB = -12;
 
 // 初期音量を 80% から 30% に下げたとき (2026-11-21) に、保存済みの音量も一度だけ初期値に戻すためキーを変えた
@@ -48,17 +54,11 @@ const LOUDNESS_KEY = 'mkRadioLoudness';
 const LAST_CHANNEL_KEY = 'mkRadioLastChannel';
 const LOUDNESS_MAX_ENTRIES = 300;
 
-// 測定に読む音声の上限 (128 kbps で約 10 秒) と待つ時間の上限
-const MEASURE_MAX_BYTES = 160 * 1024;
-const MEASURE_MAX_MS = 6000;
-// これより短い音声しか読めなかったら、測れなかったものとする
-const MEASURE_MIN_SEC = 1.5;
-// 2 回目は早めに測って推定を固め、その後は数分ごとに測り直す
-const SECOND_MEASURE_MS = 30 * 1000;
-const REMEASURE_INTERVAL_MS = 3 * 60 * 1000;
-// まとめる測定値の数
-const MEASUREMENTS_KEPT = 5;
-const MEASURE_RETRY_MS = 15 * 1000;
+// 音量をそろえる処理 (AudioWorklet) の読み込みを待つ上限。過ぎたら測らずに控えめな音量で鳴らす
+const LEVELER_LOAD_TIMEOUT_MS = 5 * 1000;
+// 局ごとの大きさを記録するのは、これだけ測れてから。記録はこの間隔より頻繁にしない
+const SAVE_MIN_MEASURED_SEC = 5;
+const SAVE_INTERVAL_MS = 20 * 1000;
 const CONNECT_TIMEOUT_MS = 15 * 1000;
 const STALL_TIMEOUT_MS = 20 * 1000;
 const RECONNECT_DELAYS_MS = [1000, 3000, 8000];
@@ -108,7 +108,8 @@ export const radioState = reactive({
 	normalize: readStorage(NORMALIZE_KEY) !== 'false',
 	targetLufs: readNumber(TARGET_KEY, DEFAULT_TARGET_LUFS, -30, -6),
 	measuredLufs: null as number | null,
-	// 'measuring': 測っている、'failed': 測れなかった (控えめに鳴らしている)
+	// 'measuring': 測っている (音が出るまで、または測れる大きさの音がまだ来ていない)、
+	// 'failed': AudioWorklet が使えず測れない (控えめに鳴らしている)
 	measureState: 'idle' as 'idle' | 'measuring' | 'done' | 'failed',
 	gainDb: 0,
 });
@@ -143,12 +144,23 @@ function saveLoudness(channelId: string, lufs: number): void {
 type Graph = {
 	ctx: AudioContext;
 	el: HTMLAudioElement;
-	norm: GainNode;
+	source: MediaElementAudioSourceNode;
 	volume: GainNode;
+	// AudioWorklet を読み込めたら true。読み込み終わるまでは source を何にもつながない
+	ready: Promise<boolean>;
 };
 
 let graph: Graph | null = null;
 let graphUnavailable = false;
+// いま source の後ろにつないでいる処理。局を鳴らすたび (つなぎ直しも含む) に作り直す
+let leveler: AudioWorkletNode | null = null;
+// AudioWorklet のノードが作れなかった、または処理中に例外を出した。以後は測らずに鳴らす
+let levelerFailed = false;
+let fallbackNodes: AudioNode[] = [];
+let fallbackGain: GainNode | null = null;
+// いまの処理から最後に届いた測定値。つなぎ直すときに引き継ぎ、局を離れるときに記録する
+let lastStats: LevelerStats | null = null;
+let lastSavedAt = 0;
 let plainEl: HTMLAudioElement | null = null;
 // いま音を出している要素。これ以外の要素からのイベントは無視する
 let activeEl: HTMLAudioElement | null = null;
@@ -156,16 +168,7 @@ let playSeq = 0;
 let reconnectCount = 0;
 let reconnectTimer: number | null = null;
 let stallTimer: number | null = null;
-let measureTimer: number | null = null;
-let measureAbort: AbortController | null = null;
 let playingSince = 0;
-// norm に最後に設定した補正 (dB)。上げるのか下げるのかで変化の速さを変える
-let appliedGainDb = 0;
-// 局を選んだ直後、測り終えるまでの補正
-let pendingGainDb = 0;
-// いまの局で測った値 (前回の記録を含む)。radioState.measuredLufs はこれをまとめたもの
-let measurements: number[] = [];
-let freshMeasurements = 0;
 // 局ごとに、前回つながった経路 (CORS を許可しない局で direct を毎回試さないため)
 const preferredRoute = new Map<string, RadioRoute>();
 
@@ -182,6 +185,18 @@ function createElement(crossOrigin: boolean): HTMLAudioElement {
 	return el;
 }
 
+async function loadLeveler(ctx: AudioContext): Promise<boolean> {
+	try {
+		// 安全でない接続 (http) では audioWorklet が無い
+		if (!('audioWorklet' in ctx)) return false;
+		await ctx.audioWorklet.addModule(levelerWorkletUrl);
+		return true;
+	} catch (err) {
+		console.warn('[radio] the loudness worklet is unavailable', err);
+		return false;
+	}
+}
+
 // AudioContext は利用者の操作の中で作らないと止まったままになるので、再生の操作から同期的に呼ぶ
 function ensureGraph(): Graph | null {
 	if (graph != null || graphUnavailable) return graph;
@@ -189,18 +204,9 @@ function ensureGraph(): Graph | null {
 		const ctx = new AudioContext({ latencyHint: 'playback' });
 		const el = createElement(true);
 		const source = ctx.createMediaElementSource(el);
-		const norm = ctx.createGain();
-		// 持ち上げた局のピークを 0 dBFS の手前で抑える
-		const limiter = ctx.createDynamicsCompressor();
-		limiter.threshold.value = -1;
-		limiter.knee.value = 0;
-		limiter.ratio.value = 20;
-		limiter.attack.value = 0.003;
-		limiter.release.value = 0.25;
 		const volume = ctx.createGain();
-		source.connect(norm).connect(limiter).connect(volume).connect(ctx.destination);
-
-		graph = { ctx, el, norm, volume };
+		volume.connect(ctx.destination);
+		graph = { ctx, el, source, volume, ready: loadLeveler(ctx) };
 		applyVolume();
 		return graph;
 	} catch (err) {
@@ -213,6 +219,107 @@ function ensureGraph(): Graph | null {
 function ensurePlainEl(): HTMLAudioElement {
 	plainEl ??= createElement(false);
 	return plainEl;
+}
+
+function postToLeveler(message: LevelerMessage): void {
+	leveler?.port.postMessage(message);
+}
+
+function waitLeveler(g: Graph): Promise<boolean> {
+	return Promise.race([
+		g.ready,
+		new Promise<boolean>(resolve => window.setTimeout(() => resolve(false), LEVELER_LOAD_TIMEOUT_MS)),
+	]);
+}
+
+function createLeveler(g: Graph, priorLufs: number | null): AudioWorkletNode | null {
+	const processorOptions: LevelerProcessorOptions = {
+		targetLufs: radioState.targetLufs,
+		enabled: radioState.normalize,
+		priorLufs,
+	};
+	try {
+		return new AudioWorkletNode(g.ctx, LEVELER_PROCESSOR_NAME, {
+			numberOfInputs: 1,
+			numberOfOutputs: 1,
+			outputChannelCount: [2],
+			// モノラルの局も左右に広げて受ける (左右のスピーカーから鳴る音として測る)
+			channelCount: 2,
+			channelCountMode: 'explicit',
+			channelInterpretation: 'speakers',
+			processorOptions,
+		});
+	} catch (err) {
+		console.warn('[radio] cannot create the loudness worklet node', err);
+		levelerFailed = true;
+		return null;
+	}
+}
+
+// source の後ろに音量をそろえる処理をつなぐ。available が false (AudioWorklet が使えない) なら、
+// 測らずに控えめな音量で鳴らし、ピークだけ抑える
+function attachProcessing(g: Graph, available: boolean, priorLufs: number | null): void {
+	detachProcessing();
+	const node = available && !levelerFailed ? createLeveler(g, priorLufs) : null;
+	if (node != null) {
+		node.port.onmessage = (ev: MessageEvent<LevelerStats>) => {
+			if (node === leveler) onLevelerStats(ev.data);
+		};
+		// 処理の中で例外が出ると無音になるので、測らない経路に切り替えて鳴らし続ける
+		node.onprocessorerror = () => {
+			if (node !== leveler) return;
+			console.warn('[radio] the loudness worklet stopped with an error');
+			levelerFailed = true;
+			attachProcessing(g, false, null);
+		};
+		g.source.connect(node).connect(g.volume);
+		leveler = node;
+		radioState.measureState = 'measuring';
+	} else {
+		const gain = g.ctx.createGain();
+		// つないだ瞬間から下げた音量で通す
+		gain.gain.value = dbToGain(radioState.normalize ? UNMEASURED_DB : 0);
+		const limiter = g.ctx.createDynamicsCompressor();
+		limiter.threshold.value = LIMITER_THRESHOLD_DB;
+		limiter.knee.value = 0;
+		limiter.ratio.value = 20;
+		limiter.attack.value = 0.003;
+		limiter.release.value = 0.25;
+		g.source.connect(gain).connect(limiter).connect(g.volume);
+		fallbackGain = gain;
+		fallbackNodes = [gain, limiter];
+		radioState.measureState = 'failed';
+		applyFallbackGain(true);
+	}
+}
+
+function detachProcessing(): void {
+	if (leveler != null) {
+		postToLeveler({ type: 'dispose' });
+		leveler.port.onmessage = null;
+		leveler.disconnect();
+		leveler = null;
+	}
+	for (const node of fallbackNodes) node.disconnect();
+	fallbackNodes = [];
+	fallbackGain = null;
+	graph?.source.disconnect();
+}
+
+function onLevelerStats(stats: LevelerStats): void {
+	lastStats = stats;
+	radioState.measuredLufs = stats.lufs;
+	radioState.gainDb = stats.gainDb;
+	radioState.measureState = stats.primed && stats.lufs != null ? 'done' : 'measuring';
+	if (Date.now() - lastSavedAt > SAVE_INTERVAL_MS) saveCurrentLoudness();
+}
+
+// いまの局で測った大きさを記録する (次に選んだとき、測った値より大きければ最初から使う)
+function saveCurrentLoudness(): void {
+	const channel = radioState.channel;
+	if (channel == null || lastStats?.lufs == null || lastStats.measuredSec < SAVE_MIN_MEASURED_SEC) return;
+	lastSavedAt = Date.now();
+	saveLoudness(channel.id, lastStats.lufs);
 }
 
 function releaseElement(el: HTMLAudioElement | null): void {
@@ -244,136 +351,25 @@ function applyVolume(): void {
 	if (plainEl != null) plainEl.volume = v * (radioState.normalize ? dbToGain(UNMEASURED_DB) : 1);
 }
 
-// いま掛けるべき補正 (dB)
-function desiredGainDb(): number {
-	if (!radioState.normalize) return 0;
-	if (radioState.route === 'plain') return UNMEASURED_DB;
-	return correctionDb(radioState.targetLufs, radioState.measuredLufs) ?? pendingGainDb;
-}
-
-// 補正を反映する。下げるときはすぐ、上げるときは数秒かけて変える。immediate は局を切り替えた直後
-function applyGain(immediate: boolean): void {
-	const db = desiredGainDb();
+// AudioWorklet が使えないときの固定の補正。切っても急に大きくならないよう、上げる変化はゆっくり行う
+function applyFallbackGain(immediate: boolean): void {
+	if (graph == null || fallbackGain == null) return;
+	const db = radioState.normalize ? UNMEASURED_DB : 0;
 	radioState.gainDb = db;
-	if (graph == null) return;
-	const param = graph.norm.gain;
+	const param = fallbackGain.gain;
 	const now = graph.ctx.currentTime;
 	param.cancelScheduledValues(now);
 	if (immediate) {
 		param.setValueAtTime(dbToGain(db), now);
 	} else {
 		param.setValueAtTime(param.value, now);
-		param.setTargetAtTime(dbToGain(db), now, db < appliedGainDb ? 0.05 : 2);
+		param.setTargetAtTime(dbToGain(db), now, radioState.normalize ? 0.05 : 2);
 	}
-	appliedGainDb = db;
 }
 
-// ---- 音量の測定 ----
-
-function stopMeasuring(): void {
-	if (measureTimer != null) window.clearTimeout(measureTimer);
-	measureTimer = null;
-	measureAbort?.abort();
-	measureAbort = null;
-}
-
-function scheduleMeasure(channel: RadioChannel, seq: number, delayMs: number): void {
-	if (measureTimer != null) window.clearTimeout(measureTimer);
-	measureTimer = window.setTimeout(() => {
-		measureTimer = null;
-		void measureOnce(channel, seq);
-	}, delayMs);
-}
-
-// 局の音声の先頭を読む。上限のバイト数か時間に達したら打ち切る (接続も切る)
-async function readStreamHead(url: string, signal: AbortSignal): Promise<ArrayBuffer> {
-	const res = await window.fetch(url, { signal, cache: 'no-store', credentials: 'omit' });
-	if (!res.ok || res.body == null) throw new Error(`HTTP ${res.status}`);
-	const reader = res.body.getReader();
-	const chunks: Uint8Array[] = [];
-	let total = 0;
-	const timer = window.setTimeout(() => {
-		reader.cancel().catch(() => {});
-	}, MEASURE_MAX_MS);
-	try {
-		while (total < MEASURE_MAX_BYTES) {
-			const { value, done } = await reader.read();
-			if (done) break;
-			chunks.push(value);
-			total += value.length;
-		}
-	} finally {
-		window.clearTimeout(timer);
-		reader.cancel().catch(() => {});
-	}
-	const data = new Uint8Array(total);
-	let offset = 0;
-	for (const chunk of chunks) {
-		data.set(chunk, offset);
-		offset += chunk.length;
-	}
-	return data.buffer;
-}
-
-// 音声をデコードし、K 特性 (高域のシェルフ +4 dB と 38 Hz のハイパス) を通して積分ラウドネスを出す。
-// OfflineAudioContext の中だけで処理するので、音は出ない
-async function loudnessOf(data: ArrayBuffer): Promise<number | null> {
-	const decoder = new OfflineAudioContext(2, 1, 48000);
-	const audio = await decoder.decodeAudioData(data);
-	if (audio.duration < MEASURE_MIN_SEC) return null;
-	const ctx = new OfflineAudioContext(audio.numberOfChannels, audio.length, audio.sampleRate);
-	const source = ctx.createBufferSource();
-	source.buffer = audio;
-	const shelf = ctx.createBiquadFilter();
-	shelf.type = 'highshelf';
-	shelf.frequency.value = 1681.97;
-	shelf.gain.value = 4;
-	const highpass = ctx.createBiquadFilter();
-	highpass.type = 'highpass';
-	highpass.frequency.value = 38.14;
-	highpass.Q.value = 0.5;
-	source.connect(shelf).connect(highpass).connect(ctx.destination);
-	source.start();
-	const weighted = await ctx.startRendering();
-	const channels = Array.from({ length: weighted.numberOfChannels }, (_, i) => weighted.getChannelData(i));
-	// モノラルの局は左右のスピーカーから同じ音が出るので、2 チャンネル分として数える
-	if (channels.length === 1) channels.push(channels[0]);
-	return integratedLoudness(channels, weighted.sampleRate);
-}
-
-async function measureOnce(channel: RadioChannel, seq: number): Promise<void> {
-	if (seq !== playSeq || radioState.status !== 'playing' || !radioState.normalize || radioState.route === 'plain') return;
-	measureAbort?.abort();
-	const controller = new AbortController();
-	measureAbort = controller;
-	if (radioState.measuredLufs == null) radioState.measureState = 'measuring';
-	let lufs: number | null = null;
-	try {
-		const resolved = await misskeyApi('radio-garden/resolve', { channelId: channel.id });
-		if (seq !== playSeq || controller.signal.aborted) return;
-		// 再生と同じ経路で読む (direct で鳴っている局は CORS を許可しているので、直接読める)
-		const url = radioState.route === 'direct' && resolved.url != null ? resolved.url : resolved.proxyUrl;
-		lufs = await loudnessOf(await readStreamHead(url, controller.signal));
-	} catch {
-		lufs = null;
-	} finally {
-		if (measureAbort === controller) measureAbort = null;
-	}
-	if (seq !== playSeq || controller.signal.aborted) return;
-	if (lufs == null) {
-		// 測れないうちは小さいまま鳴らし、時間を置いて測り直す
-		if (radioState.measuredLufs == null) radioState.measureState = 'failed';
-		scheduleMeasure(channel, seq, radioState.measuredLufs == null ? MEASURE_RETRY_MS : REMEASURE_INTERVAL_MS);
-		return;
-	}
-	measurements = [...measurements, lufs].slice(-MEASUREMENTS_KEPT);
-	freshMeasurements++;
-	const combined = combineLoudness(measurements);
-	radioState.measuredLufs = combined;
-	radioState.measureState = 'done';
-	if (combined != null) saveLoudness(channel.id, combined);
-	applyGain(false);
-	scheduleMeasure(channel, seq, freshMeasurements < 2 ? SECOND_MEASURE_MS : REMEASURE_INTERVAL_MS);
+// 測らない経路 (plain) の補正の表示
+function updatePlainGain(): void {
+	if (radioState.route === 'plain') radioState.gainDb = radioState.normalize ? UNMEASURED_DB : 0;
 }
 
 // 1 つの経路で再生を試す。音が出たら 'ok'
@@ -403,7 +399,8 @@ function tryRoute(el: HTMLAudioElement, src: string): Promise<'ok' | 'failed' | 
 	});
 }
 
-async function connect(channel: RadioChannel, seq: number): Promise<void> {
+// priorLufs: 前にこの局で測った大きさ (つなぎ直しでは、直前まで測っていた値)
+async function connect(channel: RadioChannel, seq: number, priorLufs: number | null): Promise<void> {
 	radioState.status = 'connecting';
 	radioState.error = null;
 
@@ -414,6 +411,9 @@ async function connect(channel: RadioChannel, seq: number): Promise<void> {
 		if (seq === playSeq) fail(i18n.ts._radio.unavailable);
 		return;
 	}
+	if (seq !== playSeq) return;
+	// 音量をそろえる処理の読み込みを待つ (ふつうは局の情報を引いている間に終わっている)
+	const levelerAvailable = graph != null ? await waitLeveler(graph) : false;
 	if (seq !== playSeq) return;
 
 	const routes: RadioRoute[] = [];
@@ -448,17 +448,20 @@ async function connect(channel: RadioChannel, seq: number): Promise<void> {
 		const el = route === 'plain' ? ensurePlainEl() : graph?.el;
 		if (el == null) continue;
 		radioState.route = route;
+		if (route === 'plain') {
+			detachProcessing();
+			radioState.measureState = 'idle';
+			updatePlainGain();
+		} else if (graph != null) {
+			attachProcessing(graph, levelerAvailable, priorLufs);
+		}
 		applyVolume();
-		applyGain(true);
 		const result = await tryRoute(el, src);
 		if (seq !== playSeq) return;
 		if (result === 'ok') {
 			preferredRoute.set(channel.id, route);
 			radioState.status = 'playing';
 			playingSince = Date.now();
-			if (route !== 'plain' && radioState.normalize) {
-				scheduleMeasure(channel, seq, radioState.measuredLufs == null ? 0 : REMEASURE_INTERVAL_MS);
-			}
 			updateMediaSession();
 			return;
 		}
@@ -472,7 +475,7 @@ async function connect(channel: RadioChannel, seq: number): Promise<void> {
 
 function fail(message: string): void {
 	releaseAll();
-	stopMeasuring();
+	detachProcessing();
 	clearTimers();
 	radioState.status = 'error';
 	radioState.error = message;
@@ -492,14 +495,16 @@ function scheduleReconnect(): void {
 	}
 	const delay = RECONNECT_DELAYS_MS[reconnectCount++];
 	const seq = ++playSeq;
+	// 直前まで測っていた大きさを引き継ぐ (測った値より大きいときだけ効くので、持ち上げすぎない)
+	const prior = lastStats?.lufs ?? cachedLoudness(channel.id);
 	releaseAll();
-	stopMeasuring();
+	detachProcessing();
 	clearTimers();
 	radioState.status = 'connecting';
 	reconnectTimer = window.setTimeout(() => {
 		reconnectTimer = null;
 		if (seq !== playSeq) return;
-		void connect(channel, seq);
+		void connect(channel, seq, prior);
 	}, delay);
 }
 
@@ -566,9 +571,12 @@ function updateMediaSession(): void {
 
 export function playRadio(channel: RadioChannel, queue?: RadioChannel[]): void {
 	const seq = ++playSeq;
+	saveCurrentLoudness();
 	releaseAll();
-	stopMeasuring();
+	detachProcessing();
 	clearTimers();
+	lastStats = null;
+	lastSavedAt = Date.now();
 
 	radioState.channel = channel;
 	writeStorage(LAST_CHANNEL_KEY, JSON.stringify(channel));
@@ -583,23 +591,18 @@ export function playRadio(channel: RadioChannel, queue?: RadioChannel[]): void {
 	const g = ensureGraph();
 	g?.ctx.resume().catch(() => {});
 
-	// 測り終えるまでは小さく鳴らす。前回の測定値は、小さくする向きのときだけ使う
-	const previous = cachedLoudness(channel.id);
-	pendingGainDb = startGainDb(radioState.targetLufs, previous);
-	// 前回の記録は、新しく測った値とまとめるときにだけ使う (それだけで持ち上げない)
-	measurements = previous != null ? [previous] : [];
-	freshMeasurements = 0;
 	radioState.measuredLufs = null;
 	radioState.measureState = 'idle';
-	applyGain(true);
+	radioState.gainDb = 0;
 	updateMediaSession();
-	void connect(channel, seq);
+	void connect(channel, seq, cachedLoudness(channel.id));
 }
 
 export function stopRadio(): void {
 	playSeq++;
+	saveCurrentLoudness();
 	releaseAll();
-	stopMeasuring();
+	detachProcessing();
 	clearTimers();
 	radioState.status = 'idle';
 	radioState.error = null;
@@ -645,20 +648,17 @@ export function toggleRadioMute(): void {
 export function setRadioNormalize(enabled: boolean): void {
 	radioState.normalize = enabled;
 	writeStorage(NORMALIZE_KEY, String(enabled));
-	// 切っても急に大きくならないよう、上げる変化はゆっくり行う
-	applyGain(false);
+	// 切っても急に大きくならないよう、上げる変化はゆっくり行う (AudioWorklet の中も同じ)
+	postToLeveler({ type: 'config', config: { targetLufs: radioState.targetLufs, enabled } });
+	applyFallbackGain(false);
+	updatePlainGain();
 	applyVolume();
-	if (!enabled) {
-		stopMeasuring();
-	} else if (radioState.status === 'playing' && radioState.channel != null && radioState.route !== 'plain') {
-		scheduleMeasure(radioState.channel, playSeq, 0);
-	}
 }
 
 export function setRadioTarget(lufs: number): void {
 	radioState.targetLufs = lufs;
 	writeStorage(TARGET_KEY, String(lufs));
-	applyGain(false);
+	postToLeveler({ type: 'config', config: { targetLufs: lufs, enabled: radioState.normalize } });
 }
 
 registerAudioFocus('radio', () => stopRadio());

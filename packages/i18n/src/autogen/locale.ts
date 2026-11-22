@@ -18541,7 +18541,7 @@ export interface Locale extends ILocale {
          */
         "normalizeState": ParameterizedString<"state">;
         /**
-         * 局ごとの音量の差を測ってそろえます。オフにすると局の音量のまま再生します
+         * 鳴らしている音を測り続けて、局や番組ごとの音量の差をそろえます。急に大きくなる部分も、聞こえる前に下げます。オフにすると局の音量のまま再生します
          */
         "normalizeDescription": string;
         /**
@@ -18549,11 +18549,11 @@ export interface Locale extends ILocale {
          */
         "normalizeUnavailable": string;
         /**
-         * 音量を測っています。測り終えるまでは小さめに再生します
+         * 音量を測っています
          */
         "measuring": string;
         /**
-         * 音量を測れなかったため、小さめに再生しています
+         * このブラウザでは音量を測れないため、小さめに再生しています
          */
         "measureFailed": string;
         /**
