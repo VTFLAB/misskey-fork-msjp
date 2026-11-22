@@ -6,7 +6,7 @@
 process.env.NODE_ENV = 'test';
 
 import { describe, expect, test } from 'vitest';
-import { RadioGardenService, isRelayableContentType } from '@/core/radio/RadioGardenService.js';
+import { RadioGardenService, isRelayableContentType, toRadioGardenLocale } from '@/core/radio/RadioGardenService.js';
 import type { Config } from '@/config.js';
 import type { HttpRequestService } from '@/core/HttpRequestService.js';
 import type { LoggerService } from '@/core/LoggerService.js';
@@ -109,6 +109,86 @@ describe('RadioGardenService', () => {
 		const res = await service.search(' Tokyo ');
 		expect(res.places).toEqual([{ id: 'eR8K4rBb', title: 'Tokyo', country: 'Japan', count: 11 }]);
 		expect(res.channels).toEqual([{ id: 'XehO7lZ3', title: 'Listen.moe', placeId: 'eR8K4rBb', placeTitle: 'Tokyo', country: 'Japan', secure: true }]);
+	});
+
+	test('Misskey の表示言語を Radio Garden の言語に対応させる', () => {
+		expect(toRadioGardenLocale('ja-JP')).toBe('ja');
+		expect(toRadioGardenLocale('ja-KS')).toBe('ja');
+		expect(toRadioGardenLocale('ko-GS')).toBe('ko');
+		expect(toRadioGardenLocale('zh-CN')).toBe('zh-Hans');
+		expect(toRadioGardenLocale('zh-TW')).toBe('zh-Hant');
+		expect(toRadioGardenLocale('pt-PT')).toBe('pt');
+		expect(toRadioGardenLocale('pt-BR')).toBe('pt-BR');
+		expect(toRadioGardenLocale('no-NO')).toBe('no');
+		expect(toRadioGardenLocale('de-DE')).toBe('de');
+		// 英語は hl を付けない。Radio Garden が訳していない言語も英語になる
+		expect(toRadioGardenLocale('en-US')).toBeNull();
+		expect(toRadioGardenLocale('ru-RU')).toBeNull();
+		expect(toRadioGardenLocale('jbo-EN')).toBeNull();
+		expect(toRadioGardenLocale('')).toBeNull();
+		expect(toRadioGardenLocale(undefined)).toBeNull();
+		expect(toRadioGardenLocale('ja&hl=en')).toBeNull();
+	});
+
+	test('表示言語を hl で渡し、キャッシュを言語ごとに分ける', async () => {
+		const place = (title: string, country: string) => ({ data: { list: [{ id: 'vqzAr1BQ', title, country, geo: [-79.38, 43.65], size: 97 }] } });
+		const channels = (placeTitle: string, country: string) => ({
+			data: {
+				title: placeTitle,
+				content: [{ items: [{ page: { url: '/listen/680news/B3DfRJRH', type: 'channel', title: '680 News', secure: true, place: { id: 'vqzAr1BQ', title: placeTitle }, country: { title: country } } }] }],
+			},
+		});
+		const { service, calls } = createService({
+			'/ara/content/places': place('Toronto', 'Canada'),
+			'/ara/content/places?hl=ja': place('トロント', 'カナダ'),
+			'/ara/content/page/vqzAr1BQ/channels': channels('Toronto', 'Canada'),
+			'/ara/content/page/vqzAr1BQ/channels?hl=ja': channels('トロント', 'カナダ'),
+		});
+		const [en, ja] = await Promise.all([service.getPlaces('en-US'), service.getPlaces('ja-JP')]);
+		expect(en.titles).toEqual(['Toronto']);
+		expect(ja.titles).toEqual(['トロント']);
+		expect(ja.countries).toEqual(['カナダ']);
+		expect((await service.getPlaceChannels('vqzAr1BQ')).channels[0].placeTitle).toBe('Toronto');
+		const jaChannels = await service.getPlaceChannels('vqzAr1BQ', 'ja-JP');
+		expect(jaChannels.title).toBe('トロント');
+		expect(jaChannels.channels[0]).toMatchObject({ placeTitle: 'トロント', country: 'カナダ' });
+		// 同じ言語の 2 回目はキャッシュから返す
+		await service.getPlaces('ja-JP');
+		await service.getPlaceChannels('vqzAr1BQ', 'ja-JP');
+		expect(calls.length).toBe(4);
+	});
+
+	test('同じ言語の地点一覧の同時要求は 1 回の取得にまとめ、失敗したら次の要求で取り直す', async () => {
+		const responses: Record<string, unknown> = {};
+		const { service, calls } = createService(responses);
+		const failed = await Promise.allSettled([service.getPlaces('ja-JP'), service.getPlaces('ja-JP')]);
+		expect(failed.map(r => r.status)).toEqual(['rejected', 'rejected']);
+		expect(calls.length).toBe(1);
+		responses['/ara/content/places?hl=ja'] = { data: { list: [{ id: 'eR8K4rBb', title: '東京', country: '日本', geo: [139.69, 35.69], size: 11 }] } };
+		// ja-JP と ja-KS はどちらも Radio Garden の ja なので、同じ一覧を共有する
+		const [a, b] = await Promise.all([service.getPlaces('ja-JP'), service.getPlaces('ja-KS')]);
+		expect(a).toBe(b);
+		expect(a.titles).toEqual(['東京']);
+		expect(calls.length).toBe(2);
+	});
+
+	test('検索は表示言語の地名で引け、半角カナをそろえてから送る', async () => {
+		const result = (title: string, country: string) => ({
+			hits: { hits: [{ _source: { type: 'place', page: { map: 'vqzAr1BQ', url: '/visit/toronto/vqzAr1BQ', title, subtitle: country, count: 97 } } }] },
+		});
+		const { service, calls } = createService({
+			'/search?q=%E3%82%AB%E3%83%8A%E3%83%80&hl=ja': result('トロント', 'カナダ'),
+			'/search?q=canada': result('Toronto', 'Canada'),
+		});
+		// 「ｶﾅﾀﾞ」(半角) は「カナダ」として送る
+		const ja = await service.search('ｶﾅﾀﾞ', 'ja-JP');
+		expect(ja.places).toEqual([{ id: 'vqzAr1BQ', title: 'トロント', country: 'カナダ', count: 97 }]);
+		await service.search('カナダ', 'ja-JP');
+		expect(calls.length).toBe(1);
+		// 言語が違えば別に取りに行く
+		const en = await service.search('canada', 'en-US');
+		expect(en.places[0].title).toBe('Toronto');
+		expect(calls.length).toBe(2);
 	});
 
 	test('中継のトークンは発行した局とユーザーにだけ結び付く', async () => {

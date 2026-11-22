@@ -14,7 +14,7 @@ export const meta = {
 	requireCredential: true,
 	kind: 'read:account',
 
-	description: 'Radio Garden の地点 (ラジオ局のある町) の一覧を返す (bsky-fork 独自)。ラジオウィジェットの地球儀に描く点で、列ごとの配列で返す。',
+	description: 'Radio Garden の地点 (ラジオ局のある町) の一覧を返す (bsky-fork 独自)。ラジオウィジェットの地球儀に描く点で、列ごとの配列で返す。lang に利用者の表示言語 (ja-JP など) を渡すと、地名・国名をその言語で返す (Radio Garden が訳していない言語は英語)。',
 
 	limit: {
 		duration: 60 * 1000,
@@ -46,7 +46,9 @@ export const meta = {
 
 export const paramDef = {
 	type: 'object',
-	properties: {},
+	properties: {
+		lang: { type: 'string', maxLength: 32 },
+	},
 	required: [],
 } as const;
 
@@ -55,9 +57,9 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 	constructor(
 		private radioGardenService: RadioGardenService,
 	) {
-		super(meta, paramDef, async () => {
+		super(meta, paramDef, async (ps) => {
 			try {
-				return await this.radioGardenService.getPlaces();
+				return await this.radioGardenService.getPlaces(ps.lang);
 			} catch (err) {
 				if (err instanceof RadioGardenError) throw new ApiError(meta.errors.unavailable);
 				throw err;

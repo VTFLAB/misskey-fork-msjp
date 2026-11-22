@@ -5,10 +5,12 @@
 
 // ラジオウィジェットのデータ (bsky-fork 独自)。Radio Garden の地点・局・検索はサーバーの api/radio-garden/* が中継する。
 // - 地点の一覧 (約 1.3 万件) は IndexedDB に 1 日置き、ページを開くたびには取り直さない
+// - 地名と国名は表示言語で受け取る (サーバーが Radio Garden の hl に変換する)。検索もその言語の地名・国名で引ける
 // - お気に入りの局はアカウントのレジストリに保存し、端末をまたいで共有する
 
 import { reactive } from 'vue';
 import * as Misskey from 'misskey-js';
+import { lang } from '@@/js/config.js';
 import { $i } from '@/i.js';
 import { misskeyApi } from '@/utility/misskey-api.js';
 import { get as idbGet, set as idbSet } from '@/utility/idb-proxy.js';
@@ -38,6 +40,8 @@ const PLACES_CACHE_TTL_MS = 1000 * 60 * 60 * 24;
 
 type PlacesCache = {
 	fetchedAt: number;
+	// 地名と国名の言語。表示言語を変えたら取り直す (この項目が無い古いキャッシュは英語)
+	lang?: string;
 	data: Misskey.entities.RadioGardenPlacesResponse;
 };
 
@@ -78,13 +82,13 @@ let placesPromise: Promise<RadioPlaces> | null = null;
 export function loadRadioPlaces(): Promise<RadioPlaces> {
 	placesPromise ??= (async () => {
 		const cached = await (idbGet(PLACES_CACHE_KEY) as Promise<PlacesCache | undefined>).catch(() => undefined);
-		if (cached != null && Date.now() - cached.fetchedAt < PLACES_CACHE_TTL_MS) return buildPlaces(cached.data);
+		if (cached != null && cached.lang === lang && Date.now() - cached.fetchedAt < PLACES_CACHE_TTL_MS) return buildPlaces(cached.data);
 		try {
-			const data = await misskeyApi('radio-garden/places');
-			idbSet(PLACES_CACHE_KEY, { fetchedAt: Date.now(), data } satisfies PlacesCache).catch(() => {});
+			const data = await misskeyApi('radio-garden/places', { lang });
+			idbSet(PLACES_CACHE_KEY, { fetchedAt: Date.now(), lang, data } satisfies PlacesCache).catch(() => {});
 			return buildPlaces(data);
 		} catch (err) {
-			// 取り直せなくても、古い一覧があればそれで描く
+			// 取り直せなくても、古い一覧 (別の言語でも) があればそれで描く
 			if (cached != null) return buildPlaces(cached.data);
 			throw err;
 		}
@@ -104,7 +108,7 @@ const channelsCache = new Map<string, Promise<RadioPlaceChannels>>();
 export function fetchPlaceChannels(placeId: string): Promise<RadioPlaceChannels> {
 	let p = channelsCache.get(placeId);
 	if (p == null) {
-		p = misskeyApi('radio-garden/channels', { placeId });
+		p = misskeyApi('radio-garden/channels', { placeId, lang });
 		p.catch(() => channelsCache.delete(placeId));
 		channelsCache.set(placeId, p);
 		// 回して選ぶとたくさん開くので、古いものから捨てる
@@ -117,7 +121,7 @@ export function fetchPlaceChannels(placeId: string): Promise<RadioPlaceChannels>
 }
 
 export function searchRadio(query: string): Promise<RadioSearchResult> {
-	return misskeyApi('radio-garden/search', { query });
+	return misskeyApi('radio-garden/search', { query, lang });
 }
 
 export function channelSubtitle(channel: RadioChannel): string {

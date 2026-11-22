@@ -3939,7 +3939,7 @@ export type paths = {
     '/radio-garden/channels': {
         /**
          * radio-garden/channels
-         * @description Radio Garden の地点にあるラジオ局の一覧を返す (bsky-fork 独自)。
+         * @description Radio Garden の地点にあるラジオ局の一覧を返す (bsky-fork 独自)。lang に利用者の表示言語 (ja-JP など) を渡すと、地名・国名をその言語で返す (Radio Garden が訳していない言語は英語)。
          *
          *     **Credential required**: *Yes* / **Permission**: *read:account*
          */
@@ -3948,7 +3948,7 @@ export type paths = {
     '/radio-garden/places': {
         /**
          * radio-garden/places
-         * @description Radio Garden の地点 (ラジオ局のある町) の一覧を返す (bsky-fork 独自)。ラジオウィジェットの地球儀に描く点で、列ごとの配列で返す。
+         * @description Radio Garden の地点 (ラジオ局のある町) の一覧を返す (bsky-fork 独自)。ラジオウィジェットの地球儀に描く点で、列ごとの配列で返す。lang に利用者の表示言語 (ja-JP など) を渡すと、地名・国名をその言語で返す (Radio Garden が訳していない言語は英語)。
          *
          *     **Credential required**: *Yes* / **Permission**: *read:account*
          */
@@ -3966,7 +3966,7 @@ export type paths = {
     '/radio-garden/search': {
         /**
          * radio-garden/search
-         * @description Radio Garden で地点とラジオ局を検索する (bsky-fork 独自)。それぞれ最大 30 件。
+         * @description Radio Garden で地点とラジオ局を検索する (bsky-fork 独自)。それぞれ最大 30 件。lang に利用者の表示言語 (ja-JP など) を渡すと、その言語の地名・国名で引け、結果の地名・国名もその言語になる (Radio Garden が訳していない言語は英語)。
          *
          *     **Credential required**: *Yes* / **Permission**: *read:account*
          */
@@ -38069,6 +38069,7 @@ export interface operations {
             content: {
                 'application/json': {
                     placeId: string;
+                    lang?: string;
                 };
             };
         };
@@ -38151,6 +38152,13 @@ export interface operations {
         };
     };
     'radio-garden___places': {
+        requestBody: {
+            content: {
+                'application/json': {
+                    lang?: string;
+                };
+            };
+        };
         responses: {
             /** @description OK (with results) */
             200: {
@@ -38307,6 +38315,7 @@ export interface operations {
             content: {
                 'application/json': {
                     query: string;
+                    lang?: string;
                 };
             };
         };

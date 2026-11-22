@@ -14,7 +14,7 @@ export const meta = {
 	requireCredential: true,
 	kind: 'read:account',
 
-	description: 'Radio Garden で地点とラジオ局を検索する (bsky-fork 独自)。それぞれ最大 30 件。',
+	description: 'Radio Garden で地点とラジオ局を検索する (bsky-fork 独自)。それぞれ最大 30 件。lang に利用者の表示言語 (ja-JP など) を渡すと、その言語の地名・国名で引け、結果の地名・国名もその言語になる (Radio Garden が訳していない言語は英語)。',
 
 	limit: {
 		duration: 60 * 1000,
@@ -71,6 +71,7 @@ export const paramDef = {
 	type: 'object',
 	properties: {
 		query: { type: 'string', minLength: 1, maxLength: 100 },
+		lang: { type: 'string', maxLength: 32 },
 	},
 	required: ['query'],
 } as const;
@@ -83,7 +84,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		super(meta, paramDef, async (ps) => {
 			if (ps.query.trim() === '') return { places: [], channels: [] };
 			try {
-				return await this.radioGardenService.search(ps.query);
+				return await this.radioGardenService.search(ps.query, ps.lang);
 			} catch (err) {
 				if (err instanceof RadioGardenError) throw new ApiError(meta.errors.unavailable);
 				throw err;

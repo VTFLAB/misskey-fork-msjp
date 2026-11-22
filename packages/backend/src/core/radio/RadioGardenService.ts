@@ -15,12 +15,14 @@ import { bindThis } from '@/decorators.js';
 import type Logger from '@/logger.js';
 import { HttpRequestService } from '@/core/HttpRequestService.js';
 import { LoggerService } from '@/core/LoggerService.js';
-import { MemoryKVCache, MemorySingleCache } from '@/misc/cache.js';
+import { MemoryKVCache } from '@/misc/cache.js';
 
 // ラジオウィジェットのための Radio Garden (https://radio.garden) の中継 (bsky-fork 独自)。
 // Radio Garden の API は他のオリジンからの CORS を許可しないので、サーバーが代わりに取得してキャッシュする。
 // API の仕様は非公式の https://jonasrmichel.github.io/radio-garden-openapi/ による。
 // - 地点の一覧 (約 1.3 万件、1.9MB) は 1 日、地点ごとの局の一覧は 1 時間、検索結果は 10 分キャッシュする
+// - 地名と国名は利用者の表示言語で受け取る (API の hl。Radio Garden が訳している言語だけ)。キャッシュは言語ごとに持つ。
+//   hl を付けると、検索もその言語の地名・国名で引ける (「カナダ」「モントリオール」など)。英語の名前でも引ける
 // - 局の音声は、ブラウザが局のサーバーから直接受けるのが基本。CORS を許可しない局と http の局だけ、
 //   ストリームの中継 (server/radio/RadioStreamServerService) を使う。中継の URL は resolve で発行する
 //   一時トークン (Redis、10 分) で守り、局の URL は毎回サーバーが Radio Garden から引き直す
@@ -33,6 +35,12 @@ const INVISIBLE_RE = /(?!\u200D)[\p{Cc}\p{Cf}]/gu;
 const STREAM_TOKEN_TTL_SEC = 60 * 10;
 const STREAM_CONNECT_TIMEOUT_MS = 10 * 1000;
 const SEARCH_LIMIT = 30;
+// Radio Garden が地名・国名を訳している言語 (radio.garden の Web 版が持つ一覧、2026-11-22 時点)。
+// 英語 (en) は hl を付けないときと同じ結果なので含めない
+const RG_LOCALES = new Set(['ar', 'da', 'de', 'el', 'es', 'es-419', 'fr', 'he', 'hr', 'id', 'it', 'ja', 'ko', 'nl', 'no', 'pl', 'pt', 'pt-BR', 'ro', 'sv', 'zh-Hans', 'zh-Hant']);
+// 地点の一覧は全言語 (英語を含む 23) の分を持つ (1 言語あたり数 MB 以下)。上限を言語の数より小さくすると、
+// 言語を変えながら呼ぶだけで一覧を追い出し続け、Radio Garden から 1.9MB を何度も取り直させられる
+const PLACES_CACHE_LOCALES = RG_LOCALES.size + 1;
 
 export type RadioGardenPlaces = {
 	version: string;
@@ -124,6 +132,27 @@ export function isRadioGardenId(value: unknown): value is string {
 	return typeof value === 'string' && ID_RE.test(value);
 }
 
+// Misskey の表示言語 (ja-JP、zh-TW など) を Radio Garden の言語 (API の hl) に対応させる。
+// Radio Garden が訳していない言語と英語は null を返す (hl を付けず、英語の名前で受け取る)
+export function toRadioGardenLocale(lang: unknown): string | null {
+	if (typeof lang !== 'string') return null;
+	const [primary = '', ...rest] = lang.toLowerCase().split(/[-_]/);
+	let locale: string;
+	switch (primary) {
+		case 'zh': locale = rest.some(x => x === 'hant' || x === 'tw' || x === 'hk' || x === 'mo') ? 'zh-Hant' : 'zh-Hans'; break;
+		case 'pt': locale = rest.includes('br') ? 'pt-BR' : 'pt'; break;
+		case 'es': locale = rest.includes('419') ? 'es-419' : 'es'; break;
+		case 'nb': case 'nn': locale = 'no'; break;
+		default: locale = primary;
+	}
+	return RG_LOCALES.has(locale) ? locale : null;
+}
+
+function withLocale(path: string, locale: string | null): string {
+	if (locale == null) return path;
+	return `${path}${path.includes('?') ? '&' : '?'}hl=${encodeURIComponent(locale)}`;
+}
+
 // "/listen/afn-eagle-810-am-tokyo/OjFb4M9Q" -> "OjFb4M9Q"
 function idFromUrl(url: unknown): string | null {
 	if (typeof url !== 'string') return null;
@@ -157,8 +186,9 @@ export function isRelayableContentType(contentType: string): boolean {
 @Injectable()
 export class RadioGardenService {
 	private logger: Logger;
-	private placesCache = new MemorySingleCache<RadioGardenPlaces>(1000 * 60 * 60 * 24);
-	private placesInflight: Promise<RadioGardenPlaces> | null = null;
+	// キーは言語 (英語は '')
+	private placesCache = new MemoryKVCache<RadioGardenPlaces>(1000 * 60 * 60 * 24, PLACES_CACHE_LOCALES);
+	private placesInflight = new Map<string, Promise<RadioGardenPlaces>>();
 	private channelsCache = new MemoryKVCache<RadioGardenPlaceChannels>(1000 * 60 * 60, 2000);
 	private searchCache = new MemoryKVCache<RadioGardenSearchResult>(1000 * 60 * 10, 500);
 
@@ -190,19 +220,26 @@ export class RadioGardenService {
 		}
 	}
 
+	// lang は利用者の表示言語 (Misskey の言語コード)
 	@bindThis
-	public async getPlaces(): Promise<RadioGardenPlaces> {
-		const cached = this.placesCache.get();
+	public async getPlaces(lang?: string | null): Promise<RadioGardenPlaces> {
+		const locale = toRadioGardenLocale(lang);
+		const key = locale ?? '';
+		const cached = this.placesCache.get(key);
 		if (cached != null) return cached;
 		// 同時に来た要求で 1.9MB を何度も取らない
-		this.placesInflight ??= this.fetchPlaces().finally(() => {
-			this.placesInflight = null;
-		});
-		return await this.placesInflight;
+		let inflight = this.placesInflight.get(key);
+		if (inflight == null) {
+			inflight = this.fetchPlaces(locale).finally(() => {
+				this.placesInflight.delete(key);
+			});
+			this.placesInflight.set(key, inflight);
+		}
+		return await inflight;
 	}
 
-	private async fetchPlaces(): Promise<RadioGardenPlaces> {
-		const json = await this.getJson<{ version?: unknown; data?: { list?: RgPlace[] | null; version?: unknown } | null }>('/ara/content/places');
+	private async fetchPlaces(locale: string | null): Promise<RadioGardenPlaces> {
+		const json = await this.getJson<{ version?: unknown; data?: { list?: RgPlace[] | null; version?: unknown } | null }>(withLocale('/ara/content/places', locale));
 		const list = json.data?.list;
 		if (!Array.isArray(list)) throw new RadioGardenError('Unexpected places response');
 
@@ -235,17 +272,19 @@ export class RadioGardenService {
 			places.sizes.push(typeof place.size === 'number' && place.size > 0 ? Math.round(place.size) : 1);
 		}
 		if (places.ids.length === 0) throw new RadioGardenError('Empty places response');
-		this.placesCache.set(places);
-		this.logger.info(`loaded ${places.ids.length} places`);
+		this.placesCache.set(locale ?? '', places);
+		this.logger.info(`loaded ${places.ids.length} places (${locale ?? 'en'})`);
 		return places;
 	}
 
 	@bindThis
-	public async getPlaceChannels(placeId: string): Promise<RadioGardenPlaceChannels> {
-		const cached = this.channelsCache.get(placeId);
+	public async getPlaceChannels(placeId: string, lang?: string | null): Promise<RadioGardenPlaceChannels> {
+		const locale = toRadioGardenLocale(lang);
+		const key = `${locale ?? ''}/${placeId}`;
+		const cached = this.channelsCache.get(key);
 		if (cached != null) return cached;
 
-		const json = await this.getJson<RgPage>(`/ara/content/page/${encodeURIComponent(placeId)}/channels`);
+		const json = await this.getJson<RgPage>(withLocale(`/ara/content/page/${encodeURIComponent(placeId)}/channels`, locale));
 		const channels: RadioGardenChannel[] = [];
 		const seen = new Set<string>();
 		for (const section of json.data?.content ?? []) {
@@ -262,17 +301,20 @@ export class RadioGardenService {
 			country: channels[0]?.country ?? '',
 			channels,
 		};
-		this.channelsCache.set(placeId, result);
+		this.channelsCache.set(key, result);
 		return result;
 	}
 
 	@bindThis
-	public async search(query: string): Promise<RadioGardenSearchResult> {
-		const key = query.trim().toLowerCase();
+	public async search(query: string, lang?: string | null): Promise<RadioGardenSearchResult> {
+		// Radio Garden は半角カナ (ｶﾅﾀﾞ) や全角英字では引けないので、NFKC でそろえてから送る
+		const text = query.normalize('NFKC').trim();
+		const locale = toRadioGardenLocale(lang);
+		const key = `${locale ?? ''}\n${text.toLowerCase()}`;
 		const cached = this.searchCache.get(key);
 		if (cached != null) return cached;
 
-		const json = await this.getJson<RgSearch>(`/search?q=${encodeURIComponent(query.trim())}`);
+		const json = await this.getJson<RgSearch>(withLocale(`/search?q=${encodeURIComponent(text)}`, locale));
 		const result: RadioGardenSearchResult = { places: [], channels: [] };
 		for (const hit of json.hits?.hits ?? []) {
 			const source = hit._source;

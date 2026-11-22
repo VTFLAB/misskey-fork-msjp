@@ -659,6 +659,7 @@ export type PinnedUsersResponse = operations['pinned-users']['responses']['200']
 export type PromoReadRequest = operations['promo___read']['requestBody']['content']['application/json'];
 export type RadioGardenChannelsRequest = operations['radio-garden___channels']['requestBody']['content']['application/json'];
 export type RadioGardenChannelsResponse = operations['radio-garden___channels']['responses']['200']['content']['application/json'];
+export type RadioGardenPlacesRequest = operations['radio-garden___places']['requestBody']['content']['application/json'];
 export type RadioGardenPlacesResponse = operations['radio-garden___places']['responses']['200']['content']['application/json'];
 export type RadioGardenResolveRequest = operations['radio-garden___resolve']['requestBody']['content']['application/json'];
 export type RadioGardenResolveResponse = operations['radio-garden___resolve']['responses']['200']['content']['application/json'];

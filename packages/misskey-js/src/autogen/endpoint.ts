@@ -656,6 +656,7 @@ import type {
 	PromoReadRequest,
 	RadioGardenChannelsRequest,
 	RadioGardenChannelsResponse,
+	RadioGardenPlacesRequest,
 	RadioGardenPlacesResponse,
 	RadioGardenResolveRequest,
 	RadioGardenResolveResponse,
@@ -1238,7 +1239,7 @@ export type Endpoints = {
 	'pinned-users': { req: EmptyRequest; res: PinnedUsersResponse };
 	'promo/read': { req: PromoReadRequest; res: EmptyResponse };
 	'radio-garden/channels': { req: RadioGardenChannelsRequest; res: RadioGardenChannelsResponse };
-	'radio-garden/places': { req: EmptyRequest; res: RadioGardenPlacesResponse };
+	'radio-garden/places': { req: RadioGardenPlacesRequest; res: RadioGardenPlacesResponse };
 	'radio-garden/resolve': { req: RadioGardenResolveRequest; res: RadioGardenResolveResponse };
 	'radio-garden/search': { req: RadioGardenSearchRequest; res: RadioGardenSearchResponse };
 	'remote-guest/login/start': { req: RemoteGuestLoginStartRequest; res: RemoteGuestLoginStartResponse };

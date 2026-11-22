@@ -2481,6 +2481,7 @@ declare namespace entities {
         PromoReadRequest,
         RadioGardenChannelsRequest,
         RadioGardenChannelsResponse,
+        RadioGardenPlacesRequest,
         RadioGardenPlacesResponse,
         RadioGardenResolveRequest,
         RadioGardenResolveResponse,
@@ -3875,6 +3876,9 @@ type RadioGardenChannelsRequest = operations['radio-garden___channels']['request
 
 // @public (undocumented)
 type RadioGardenChannelsResponse = operations['radio-garden___channels']['responses']['200']['content']['application/json'];
+
+// @public (undocumented)
+type RadioGardenPlacesRequest = operations['radio-garden___places']['requestBody']['content']['application/json'];
 
 // @public (undocumented)
 type RadioGardenPlacesResponse = operations['radio-garden___places']['responses']['200']['content']['application/json'];
