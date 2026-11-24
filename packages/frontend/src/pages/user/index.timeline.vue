@@ -29,6 +29,7 @@ import * as Misskey from 'misskey-js';
 import MkNotesTimeline from '@/components/MkNotesTimeline.vue';
 import MkTab from '@/components/MkTab.vue';
 import { i18n } from '@/i18n.js';
+import { refreshRemoteProfile } from '@/utility/refresh-remote-profile.js';
 import { Paginator } from '@/utility/paginator.js';
 
 const props = defineProps<{
@@ -58,6 +59,7 @@ const notesPaginator = markRaw(new Paginator('users/notes', {
 defineExpose({
 	reload: () => (tab.value === 'featured' ? featuredPaginator : notesPaginator).reload(),
 });
+refreshRemoteProfile(props.user.host, notesPaginator);
 </script>
 
 <style lang="scss" module>

@@ -16,6 +16,7 @@ import { MiLocalUser } from '@/models/User.js';
 import { FanoutTimelineEndpointService } from '@/core/FanoutTimelineEndpointService.js';
 import { FanoutTimelineName } from '@/core/FanoutTimelineService.js';
 import { ApiError } from '@/server/api/error.js';
+import { RemoteUserNotesService } from '@/core/RemoteUserNotesService.js';
 import { ChannelMutingService } from '@/core/ChannelMutingService.js';
 
 export const meta = {
@@ -84,6 +85,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 		private idService: IdService,
 		private fanoutTimelineEndpointService: FanoutTimelineEndpointService,
 		private channelMutingService: ChannelMutingService,
+		private remoteUserNotesService: RemoteUserNotesService,
 	) {
 		super(meta, paramDef, async (ps, me) => {
 			const untilId = ps.untilId ?? (ps.untilDate ? this.idService.gen(ps.untilDate!) : null);
@@ -98,6 +100,10 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 				if (userIdsWhoBlockingMe.has(ps.userId)) {
 					return [];
 				}
+			}
+
+			if (me && !untilId && !sinceId) {
+				await this.remoteUserNotesService.fetch(ps.userId);
 			}
 
 			if (!this.serverSettings.enableFanoutTimeline) {

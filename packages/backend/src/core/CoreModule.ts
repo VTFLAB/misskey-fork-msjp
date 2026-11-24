@@ -166,6 +166,7 @@ import { AtpJetstreamService } from './atproto/AtpJetstreamService.js';
 import { JuiceSettingsService } from './JuiceSettingsService.js';
 import { SignupIpBlocklistService } from './SignupIpBlocklistService.js';
 import { SocialFilterService } from './SocialFilterService.js';
+import { RemoteUserNotesService } from './RemoteUserNotesService.js';
 import { RemoteReactionService } from './RemoteReactionService.js';
 import { EmojiImageIdentityService } from './EmojiImageIdentityService.js';
 import { TwitchLoggerService } from './twitch/TwitchLoggerService.js';
@@ -577,6 +578,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		SignupIpBlocklistService,
 		SocialFilterService,
 		RemoteReactionService,
+		RemoteUserNotesService,
 		EmojiImageIdentityService,
 		TwitchLoggerService,
 		TwitchApiService,
@@ -977,6 +979,7 @@ const $LiveRecordingService: Provider = { provide: 'LiveRecordingService', useEx
 		SignupIpBlocklistService,
 		SocialFilterService,
 		RemoteReactionService,
+		RemoteUserNotesService,
 		EmojiImageIdentityService,
 		TwitchLoggerService,
 		TwitchApiService,

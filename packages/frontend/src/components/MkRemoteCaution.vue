@@ -4,7 +4,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 <template>
-<div :class="$style.root"><i class="ti ti-alert-triangle" style="margin-right: 8px;"></i>{{ i18n.ts.remoteUserCaution }}<a v-if="href" :class="$style.link" :href="href" rel="nofollow noopener" target="_blank">{{ i18n.ts.showOnRemote }}</a></div>
+<div v-if="href" :class="$style.root"><i class="ti ti-external-link" aria-hidden="true"></i><a :class="$style.link" :href="href" rel="nofollow noopener" target="_blank">{{ i18n.ts.showOnRemote }}</a></div>
 </template>
 
 <script lang="ts" setup>
@@ -19,8 +19,8 @@ defineProps<{
 .root {
 	font-size: 0.8em;
 	padding: 16px;
-	background: var(--MI_THEME-infoWarnBg);
-	color: var(--MI_THEME-infoWarnFg);
+	background: var(--MI_THEME-panel);
+	color: var(--MI_THEME-fgTransparent);
 	border-radius: var(--MI-radius);
 	overflow: clip;
 }
