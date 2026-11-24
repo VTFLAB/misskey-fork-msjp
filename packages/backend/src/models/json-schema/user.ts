@@ -305,6 +305,16 @@ export const packedUserDetailedNotMeOnlySchema = {
 				format: 'url',
 			},
 		},
+		remoteProfile: {
+			type: 'object',
+			nullable: false, optional: true,
+			properties: {
+				followersCount: { type: 'number', nullable: false, optional: true },
+				followingCount: { type: 'number', nullable: false, optional: true },
+				notesCount: { type: 'number', nullable: false, optional: true },
+				createdAt: { type: 'string', format: 'date-time', nullable: false, optional: true },
+			},
+		},
 		followersCount: {
 			type: 'number',
 			nullable: false, optional: false,

@@ -62,4 +62,19 @@ describe('XHome', () => {
 		assert.exists(anchor, 'anchor to the remote exists');
 		assert.strictEqual(anchor?.href, 'https://example.com/@user');
 	});
+	test('Shows public remote totals even when relationship lists are private', () => {
+		const home = renderHome({
+			id: 'remote', username: 'alice', name: 'Alice', host: 'example.com',
+			uri: 'https://example.com/users/alice', roles: [], fields: [], pinnedNotes: [],
+			createdAt: '2022-11-09T00:00:00.000Z', avatarUrl: 'https://example.com/avatar', avatarDecorations: [],
+			followingVisibility: 'private', followersVisibility: 'private',
+			followingCount: 1, followersCount: 1, notesCount: 32087,
+			remoteProfile: { followingCount: 149, followersCount: 139 },
+		});
+		assert.include(home.container.textContent, '149');
+		assert.include(home.container.textContent, '139');
+		assert.isNull(home.container.querySelector('a[href$="/following"]'));
+		assert.isNull(home.container.querySelector('a[href$="/followers"]'));
+	});
+
 });

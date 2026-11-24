@@ -1297,6 +1297,10 @@ export interface Locale extends ILocale {
      */
     "home": string;
     /**
+     * 元のサーバーが公開している件数です。ここで表示できる一覧とは件数が異なる場合があります。
+     */
+    "remoteProfileCountsDescription": string;
+    /**
      * リモートユーザーのため、情報が不完全です。
      */
     "remoteUserCaution": string;

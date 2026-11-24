@@ -117,19 +117,27 @@ SPDX-License-Identifier: AGPL-3.0-only
 								</dd>
 							</dl>
 						</div>
-						<div class="status">
+						<div v-tooltip="user.remoteProfile ? i18n.ts.remoteProfileCountsDescription : undefined" class="status">
 							<MkA :to="userPage(user, 'notes')">
 								<b>{{ number(user.notesCount) }}</b>
 								<span>{{ i18n.ts.notes }}</span>
 							</MkA>
 							<MkA v-if="isFollowingVisibleForMe(user)" :to="userPage(user, 'following')">
-								<b>{{ number(user.followingCount) }}</b>
+								<b>{{ number(user.remoteProfile?.followingCount ?? user.followingCount) }}</b>
 								<span>{{ i18n.ts.following }}</span>
 							</MkA>
+							<div v-else-if="user.remoteProfile?.followingCount != null">
+								<b>{{ number(user.remoteProfile.followingCount) }}</b>
+								<span>{{ i18n.ts.following }}</span>
+							</div>
 							<MkA v-if="isFollowersVisibleForMe(user)" :to="userPage(user, 'followers')">
-								<b>{{ number(user.followersCount) }}</b>
+								<b>{{ number(user.remoteProfile?.followersCount ?? user.followersCount) }}</b>
 								<span>{{ i18n.ts.followers }}</span>
 							</MkA>
+							<div v-else-if="user.remoteProfile?.followersCount != null">
+								<b>{{ number(user.remoteProfile.followersCount) }}</b>
+								<span>{{ i18n.ts.followers }}</span>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -636,7 +644,7 @@ onDeactivated(disposeBannerParallaxResizeObserver);
 					padding: 24px;
 					border-top: solid 0.5px var(--MI_THEME-divider);
 
-					> a {
+					> a, > div {
 						flex: 1;
 						text-align: center;
 

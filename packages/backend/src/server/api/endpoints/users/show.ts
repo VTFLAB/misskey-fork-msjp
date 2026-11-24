@@ -9,6 +9,7 @@ import type { MiMeta, UsersRepository } from '@/models/_.js';
 import type { MiUser } from '@/models/User.js';
 import { Endpoint } from '@/server/api/endpoint-base.js';
 import { UserEntityService } from '@/core/entities/UserEntityService.js';
+import { RemoteUserProfileService } from '@/core/RemoteUserProfileService.js';
 import { RemoteUserResolveService } from '@/core/RemoteUserResolveService.js';
 import { DI } from '@/di-symbols.js';
 import PerUserPvChart from '@/core/chart/charts/per-user-pv.js';
@@ -111,6 +112,7 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 
 		private userEntityService: UserEntityService,
 		private remoteUserResolveService: RemoteUserResolveService,
+		private remoteUserProfileService: RemoteUserProfileService,
 		private roleService: RoleService,
 		private perUserPvChart: PerUserPvChart,
 		private apiLoggerService: ApiLoggerService,
@@ -187,9 +189,18 @@ export default class extends Endpoint<typeof meta, typeof paramDef> { // eslint-
 					}
 				}
 
-				return await this.userEntityService.pack(user, me, {
-					schema: 'UserDetailed',
-				});
+				const [packed, remote] = await Promise.all([
+					this.userEntityService.pack(user, me, { schema: 'UserDetailed' }),
+					this.remoteUserProfileService.get(user),
+				]);
+				if (remote) {
+					packed.remoteProfile = remote;
+					if (remote.notesCount !== undefined) packed.notesCount = remote.notesCount;
+					if (remote.createdAt) packed.createdAt = remote.createdAt;
+					if (packed.followersVisibility === 'public' && remote.followersCount !== undefined) packed.followersCount = remote.followersCount;
+					if (packed.followingVisibility === 'public' && remote.followingCount !== undefined) packed.followingCount = remote.followingCount;
+				}
+				return packed;
 			}
 		});
 	}

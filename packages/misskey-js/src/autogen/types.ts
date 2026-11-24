@@ -4846,6 +4846,13 @@ export type components = {
                 value: string;
             }[];
             verifiedLinks: string[];
+            remoteProfile?: {
+                followersCount?: number;
+                followingCount?: number;
+                notesCount?: number;
+                /** Format: date-time */
+                createdAt?: string;
+            };
             followersCount: number;
             followingCount: number;
             notesCount: number;
