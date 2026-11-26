@@ -550,7 +550,7 @@ async function onBulkImportClicked() {
 				bulkImportProgress.value.failed++;
 				failedLogs.push({
 					failed: true,
-					url: emoji.publicUrl,
+					url: getProxiedImageUrl(emoji.publicUrl, 'emoji'),
 					name: emoji.name,
 					error: err ? JSON.stringify(err) : undefined,
 				});
