@@ -19,8 +19,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 	</div>
 	<MkNoteSub v-if="appearNote.replyId" :note="appearNote?.reply ?? null" :class="$style.replyTo"/>
 	<div v-if="isRenote" :class="$style.renote">
-		<MkAvatar :class="$style.renoteAvatar" :user="note.user" link preview/>
-		<i class="ti ti-repeat" style="margin-right: 4px;"></i>
+		<span :class="$style.renoteIcon" aria-hidden="true"><i class="ti ti-repeat"></i></span>
 		<span :class="$style.renoteText">
 			<I18n :src="i18n.ts.renotedBy" tag="span">
 				<template #user>
@@ -31,7 +30,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</I18n>
 		</span>
 		<div :class="$style.renoteInfo">
-			<button ref="renoteTime" class="_button" :class="$style.renoteTime" @mousedown.prevent="showRenoteMenu()">
+			<button
+				ref="renoteTime"
+				class="_button"
+				:class="$style.renoteTime"
+				@mousedown.prevent="showRenoteMenu()"
+				@keydown.enter.prevent="showRenoteMenu()"
+				@keydown.space.prevent="showRenoteMenu()"
+			>
 				<i v-if="isMyRenote" class="ti ti-dots" style="margin-right: 4px;"></i>
 				<MkTime :time="note.createdAt"/>
 			</button>
@@ -415,6 +421,8 @@ const keymap = {
 	transition: box-shadow 0.1s ease;
 	overflow: clip;
 	contain: content;
+	--renoteAvatarWidth: 58px;
+	--renoteAvatarGap: 16px;
 
 	&:focus-visible {
 		outline: none;
@@ -451,40 +459,57 @@ const keymap = {
 .renote {
 	display: flex;
 	align-items: center;
-	padding: 16px 32px 8px 32px;
-	line-height: 28px;
-	white-space: pre;
-	color: var(--MI_THEME-renote);
+	padding: 16px 32px 0 32px;
+	font-size: 0.9em;
+	line-height: 1.5;
+	color: color-mix(in srgb, var(--MI_THEME-panel), var(--MI_THEME-fg) 75%);
 }
 
-.renoteAvatar {
+.renoteIcon {
 	flex-shrink: 0;
-	display: inline-block;
-	width: 28px;
-	height: 28px;
-	margin: 0 8px 0 0;
-	border-radius: 6px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: flex-end;
+	width: var(--renoteAvatarWidth, 58px);
+	margin-right: var(--renoteAvatarGap, 16px);
+	color: var(--MI_THEME-renote);
+	font-size: 1.3em;
+	line-height: 1;
 }
 
 .renoteText {
+	min-width: 0;
 	overflow: hidden;
 	flex-shrink: 1;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+	font-weight: 600;
 }
 
 .renoteName {
 	font-weight: bold;
+
+	&:hover {
+		color: var(--MI_THEME-fg);
+		text-decoration: underline;
+	}
 }
 
 .renoteInfo {
+	flex-shrink: 0;
 	margin-left: auto;
-	font-size: 0.9em;
+	padding-left: 8px;
+	font-size: 0.95em;
+	white-space: nowrap;
 }
 
 .renoteTime {
 	flex-shrink: 0;
 	color: inherit;
+
+	&:hover {
+		color: var(--MI_THEME-fg);
+	}
 }
 
 .renote + .note {
@@ -725,8 +750,12 @@ const keymap = {
 }
 
 @container (max-width: 450px) {
+	.root {
+		--renoteAvatarWidth: 50px;
+	}
+
 	.renote {
-		padding: 8px 16px 0 16px;
+		padding: 10px 16px 0 16px;
 	}
 
 	.note {
@@ -773,7 +802,7 @@ const keymap = {
 .deleted {
 	text-align: center;
 	padding: 32px;
-	margin: 6px 32px 32px;
+	margin: 10px 32px 32px;
 	--color: light-dark(rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.15));
 	background-size: auto auto;
 	background-image: repeating-linear-gradient(135deg, transparent, transparent 10px, var(--color) 4px, var(--color) 14px);

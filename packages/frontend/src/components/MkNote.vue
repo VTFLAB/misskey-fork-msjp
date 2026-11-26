@@ -11,12 +11,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 	:class="[$style.root, { [$style.showActionsOnlyHover]: prefer.s.showNoteActionsOnlyHover, [$style.skipRender]: prefer.s.skipNoteRender }]"
 	tabindex="0"
 >
-	<MkNoteSub v-if="appearNote.replyId && !renoteCollapsed" :note="appearNote?.reply ?? null" :class="$style.replyTo"/>
 	<div v-if="pinned" :class="$style.tip"><i class="ti ti-pin"></i> {{ i18n.ts.pinnedNote }}</div>
 	<div v-if="isRenote" :class="$style.renote">
 		<div v-if="note.channel" :class="$style.colorBar" :style="{ background: note.channel.color }"></div>
-		<MkAvatar :class="$style.renoteAvatar" :user="note.user" link preview/>
-		<i class="ti ti-repeat" style="margin-right: 4px;"></i>
+		<span :class="$style.renoteIcon" aria-hidden="true"><i class="ti ti-repeat"></i></span>
 		<I18n :src="i18n.ts.renotedBy" tag="span" :class="$style.renoteText">
 			<template #user>
 				<MkA v-user-preview="note.userId" :class="$style.renoteUserName" :to="userPage(note.user)">
@@ -25,7 +23,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 			</template>
 		</I18n>
 		<div :class="$style.renoteInfo">
-			<button ref="renoteTime" :class="$style.renoteTime" class="_button" @mousedown.prevent="showRenoteMenu()">
+			<button
+				ref="renoteTime"
+				:class="$style.renoteTime"
+				class="_button"
+				@mousedown.prevent="showRenoteMenu()"
+				@keydown.enter.prevent="showRenoteMenu()"
+				@keydown.space.prevent="showRenoteMenu()"
+			>
 				<i class="ti ti-dots" :class="$style.renoteMenu"></i>
 				<MkTime :time="note.createdAt"/>
 			</button>
@@ -38,6 +43,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<span v-if="note.channel" style="margin-left: 0.5em;" :title="note.channel.name"><i class="ti ti-device-tv"></i></span>
 		</div>
 	</div>
+	<MkNoteSub v-if="appearNote.replyId && !renoteCollapsed" :note="appearNote?.reply ?? null" :class="$style.replyTo"/>
 	<div v-if="isRenote && note.renote == null" :class="$style.deleted">
 		{{ i18n.ts.deletedNote }}
 	</div>
@@ -398,6 +404,8 @@ const keymap = {
 	font-size: 1.05em;
 	overflow: clip;
 	contain: content;
+	--renoteAvatarWidth: 58px;
+	--renoteAvatarGap: 14px;
 
 	&:focus-visible {
 		outline: none;
@@ -480,6 +488,14 @@ const keymap = {
 	padding-top: 8px;
 }
 
+.tip + .renote {
+	padding-top: 4px;
+}
+
+.tip + .replyTo {
+	padding-top: 8px;
+}
+
 .replyTo {
 	opacity: 0.7;
 	padding-bottom: 0;
@@ -489,12 +505,16 @@ const keymap = {
 	position: relative;
 	display: flex;
 	align-items: center;
-	padding: 16px 32px 8px 32px;
-	line-height: 28px;
-	white-space: pre;
-	color: var(--MI_THEME-renote);
+	padding: 14px 32px 0 32px;
+	font-size: 0.85em;
+	line-height: 1.5;
+	color: color-mix(in srgb, var(--MI_THEME-panel), var(--MI_THEME-fg) 75%);
 
 	& + .article {
+		padding-top: 6px;
+	}
+
+	& + .replyTo {
 		padding-top: 8px;
 	}
 
@@ -503,33 +523,51 @@ const keymap = {
 	}
 }
 
-.renoteAvatar {
+.renoteIcon {
 	flex-shrink: 0;
-	display: inline-block;
-	width: 28px;
-	height: 28px;
-	margin: 0 8px 0 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: flex-end;
+	width: var(--renoteAvatarWidth, 58px);
+	margin-right: var(--renoteAvatarGap, 14px);
+	color: var(--MI_THEME-renote);
+	font-size: 1.3em;
+	line-height: 1;
 }
 
 .renoteText {
+	min-width: 0;
 	overflow: hidden;
 	flex-shrink: 1;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+	font-weight: 600;
 }
 
 .renoteUserName {
 	font-weight: bold;
+
+	&:hover {
+		color: var(--MI_THEME-fg);
+		text-decoration: underline;
+	}
 }
 
 .renoteInfo {
+	flex-shrink: 0;
 	margin-left: auto;
-	font-size: 0.9em;
+	padding-left: 8px;
+	font-size: 0.95em;
+	white-space: nowrap;
 }
 
 .renoteTime {
 	flex-shrink: 0;
 	color: inherit;
+
+	&:hover {
+		color: var(--MI_THEME-fg);
+	}
 }
 
 .renoteMenu {
@@ -539,17 +577,17 @@ const keymap = {
 .collapsedRenoteTarget {
 	display: flex;
 	align-items: center;
-	line-height: 28px;
-	white-space: pre;
-	padding: 0 32px 18px;
+	line-height: 24px;
+	white-space: nowrap;
+	padding: 6px 32px 14px;
 }
 
 .collapsedRenoteTargetAvatar {
 	flex-shrink: 0;
 	display: inline-block;
-	width: 28px;
-	height: 28px;
-	margin: 0 8px 0 0;
+	width: 24px;
+	height: 24px;
+	margin: 0 var(--renoteAvatarGap, 14px) 0 calc(var(--renoteAvatarWidth, 58px) - 24px);
 }
 
 .collapsedRenoteTargetText {
@@ -735,10 +773,15 @@ const keymap = {
 @container (max-width: 580px) {
 	.root {
 		font-size: 0.95em;
+		--renoteAvatarWidth: 50px;
 	}
 
 	.renote {
 		padding: 12px 26px 0 26px;
+	}
+
+	.collapsedRenoteTarget {
+		padding: 6px 26px 14px;
 	}
 
 	.article {
@@ -760,6 +803,10 @@ const keymap = {
 		padding: 10px 22px 0 22px;
 	}
 
+	.collapsedRenoteTarget {
+		padding: 6px 22px 12px;
+	}
+
 	.article {
 		padding: 20px 22px;
 	}
@@ -771,7 +818,7 @@ const keymap = {
 
 @container (max-width: 480px) {
 	.renote {
-		padding: 8px 16px 0 16px;
+		padding: 10px 16px 0 16px;
 	}
 
 	.tip {
@@ -779,8 +826,7 @@ const keymap = {
 	}
 
 	.collapsedRenoteTarget {
-		padding: 0 16px 9px;
-		margin-top: 4px;
+		padding: 4px 16px 10px;
 	}
 
 	.article {
@@ -789,6 +835,11 @@ const keymap = {
 }
 
 @container (max-width: 450px) {
+	.root {
+		--renoteAvatarWidth: 46px;
+		--renoteAvatarGap: 10px;
+	}
+
 	.avatar {
 		margin: 0 10px 0 0;
 		width: 46px;
@@ -828,6 +879,10 @@ const keymap = {
 }
 
 @container (max-width: 300px) {
+	.root {
+		--renoteAvatarWidth: 44px;
+	}
+
 	.avatar {
 		width: 44px;
 		height: 44px;
@@ -864,7 +919,7 @@ const keymap = {
 .deleted {
 	text-align: center;
 	padding: 32px;
-	margin: 6px 32px 28px;
+	margin: 10px 32px 28px;
 	--color: light-dark(rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.15));
 	background-size: auto auto;
 	background-image: repeating-linear-gradient(135deg, transparent, transparent 10px, var(--color) 4px, var(--color) 14px);

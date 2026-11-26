@@ -183,7 +183,8 @@ export const PREF_DEF = definePreferences({
 		default: false,
 	},
 	collapseRenotes: {
-		default: true,
+		// bsky-fork: リノートされたノートを常にメイン表示するため既定値をオフにする
+		default: false,
 	},
 	menu: {
 		default: [
