@@ -140,10 +140,11 @@ export declare class WllamaRuntimeError extends Error {
  * By default, these are set to URL of the latest builds on CDN, which requires internet to download. If you want to use local assets or have your own CDN, follow the instruction from @wllama/wllama-compat package.
  */
 export interface WllamaCompat {
-    worker: string | {
-        code: string;
-    };
     wasm: string;
+    /** Optional, override the JS code embedded inside the wasm file */
+    worker?: string | {
+        code: string;
+    } | undefined;
 }
 /**
  * Encode PCM samples to the base64 PCM16 format of `input_audio_buffer.append`.
@@ -445,7 +446,26 @@ export declare class Wllama {
      * @param modality
      * @returns
      */
-    supportInputModality(modality: 'image' | 'audio'): boolean;
+    supportInputModality(modality: 'image' | 'audio' | 'video'): boolean;
+    /**
+     * Save the state of a slot (the processed prompt), to restore it later with `restoreSlotState()`.
+     *
+     * The state can only be restored with the same model and the same wllama version.
+     *
+     * @param idSlot ID of the slot, between 0 and `n_parallel - 1`
+     * @returns the state, you can store it (for example in OPFS)
+     */
+    saveSlotState(idSlot?: number): Promise<Uint8Array>;
+    /**
+     * Restore the state of a slot from the output of `saveSlotState()`.
+     *
+     * The next request that starts with the same prompt reuses it.
+     *
+     * @param data The saved state
+     * @param idSlot ID of the slot, between 0 and `n_parallel - 1`
+     * @returns number of tokens in the restored prompt
+     */
+    restoreSlotState(data: Uint8Array, idSlot?: number): Promise<number>;
     /**
      * Unload the model and free all memory.
      *

@@ -45,13 +45,17 @@ export declare class ProxyToWorker {
     resultQueue: Task[];
     busy: boolean;
     private exited;
+    private exitCtrl;
     worker?: Worker | undefined;
     multiThread: boolean;
     nbThread: number;
     useAsyncFile: boolean;
     fileBlobs: Map<string, Blob>;
     constructor(resources: WllamaWorkerResources, nbThread: number, suppressNativeLog: boolean, logger: Logger);
-    getModuleCode(): Promise<string>;
+    compileWasm(): Promise<WebAssembly.Module>;
+    getModuleCode(wasmModule: WebAssembly.Module): Promise<string>;
+    getEmbeddedModuleCode(wasmModule: WebAssembly.Module): string;
+    private throwIfExited;
     moduleInit(ggufFiles: {
         name: string;
         blob: Blob;

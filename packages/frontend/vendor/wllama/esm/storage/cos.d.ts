@@ -24,7 +24,8 @@ export declare class COSBackend implements StorageBackend {
     private priv;
     isSupported(): boolean;
     read(key: string, hint?: StorageFileHint): Promise<Blob | null>;
-    write(key: string, stream: ReadableStream, hint?: StorageFileHint): Promise<void>;
+    write(key: string, stream: ReadableStream, hint?: StorageFileHint, offset?: number): Promise<void>;
+    canWriteAt(hint?: StorageFileHint): boolean;
     getSize(key: string, hint?: StorageFileHint): Promise<number>;
     list(): Promise<Array<{
         key: string;

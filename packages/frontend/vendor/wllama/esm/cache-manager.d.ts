@@ -17,6 +17,11 @@ export type DownloadOptions = {
      * Abort signal for the request
      */
     signal?: AbortSignal;
+    /**
+     * If the connection drops, the download continues from the last byte (when the server and the storage support it).
+     * Number of tries in a row without new bytes before giving up. Default: 5, set to 0 to fail at once
+     */
+    retries?: number;
 };
 export declare const POLYFILL_ETAG = "polyfill_for_older_version";
 export interface CacheEntry {

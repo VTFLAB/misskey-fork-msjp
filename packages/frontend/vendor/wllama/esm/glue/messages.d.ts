@@ -65,6 +65,13 @@ export interface GlueMsgLoadReq {
     spec_draft_p_min?: number | undefined;
     spec_draft_threads?: number | undefined;
     spec_draft_threads_batch?: number | undefined;
+    spec_type?: string | undefined;
+    spec_ngram_simple_size_n?: number | undefined;
+    spec_ngram_simple_size_m?: number | undefined;
+    spec_ngram_simple_min_hits?: number | undefined;
+    spec_ngram_mod_n_min?: number | undefined;
+    spec_ngram_mod_n_max?: number | undefined;
+    spec_ngram_mod_n_match?: number | undefined;
     kv_overrides_keys?: string[] | undefined;
     kv_overrides_vals?: string[] | undefined;
     reasoning_budget_tokens?: number | undefined;
@@ -96,6 +103,7 @@ export interface GlueMsgLoadRes {
     media_marker: string;
     has_image_input: boolean;
     has_audio_input: boolean;
+    has_video_input: boolean;
     has_audio_output: boolean;
     has_chat: boolean;
     has_audio_stream: boolean;
@@ -195,6 +203,28 @@ export interface GlueMsgCancelRes {
     _name: "cncl_res";
     success: boolean;
 }
+export interface GlueMsgSlotSaveReq {
+    _name: "slsv_req";
+    id_slot: number;
+}
+export interface GlueMsgSlotSaveRes {
+    _name: "slsv_res";
+    success: boolean;
+    message: string;
+    n_tokens: number;
+    data: Uint8Array;
+}
+export interface GlueMsgSlotRestoreReq {
+    _name: "slrs_req";
+    id_slot: number;
+    data: Uint8Array;
+}
+export interface GlueMsgSlotRestoreRes {
+    _name: "slrs_res";
+    success: boolean;
+    message: string;
+    n_tokens: number;
+}
 export interface GlueMsgTestBackendOpsReq {
     _name: "tbop_req";
     args: string[];
@@ -204,4 +234,4 @@ export interface GlueMsgTestBackendOpsRes {
     retcode: number;
     success: boolean;
 }
-export type GlueMsg = GlueMsgError | GlueMsgLoadReq | GlueMsgLoadRes | GlueMsgCompletionReq | GlueMsgCompletionRes | GlueMsgEmbeddingReq | GlueMsgEmbeddingRes | GlueMsgRerankReq | GlueMsgRerankRes | GlueMsgSystemoneReq | GlueMsgSystemoneRes | GlueMsgTtsReq | GlueMsgTtsRes | GlueMsgRealtimeStartReq | GlueMsgRealtimeStartRes | GlueMsgRealtimeSendReq | GlueMsgRealtimeSendRes | GlueMsgGetResultReq | GlueMsgGetResultRes | GlueMsgCancelReq | GlueMsgCancelRes | GlueMsgTestBackendOpsReq | GlueMsgTestBackendOpsRes;
+export type GlueMsg = GlueMsgError | GlueMsgLoadReq | GlueMsgLoadRes | GlueMsgCompletionReq | GlueMsgCompletionRes | GlueMsgEmbeddingReq | GlueMsgEmbeddingRes | GlueMsgRerankReq | GlueMsgRerankRes | GlueMsgSystemoneReq | GlueMsgSystemoneRes | GlueMsgTtsReq | GlueMsgTtsRes | GlueMsgRealtimeStartReq | GlueMsgRealtimeStartRes | GlueMsgRealtimeSendReq | GlueMsgRealtimeSendRes | GlueMsgGetResultReq | GlueMsgGetResultRes | GlueMsgCancelReq | GlueMsgCancelRes | GlueMsgSlotSaveReq | GlueMsgSlotSaveRes | GlueMsgSlotRestoreReq | GlueMsgSlotRestoreRes | GlueMsgTestBackendOpsReq | GlueMsgTestBackendOpsRes;

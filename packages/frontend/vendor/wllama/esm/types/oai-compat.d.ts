@@ -11,7 +11,12 @@ export interface ChatCompletionMessageAudio {
     type: 'audio';
     data: ArrayBuffer;
 }
-export type ChatCompletionMessageContent = ChatCompletionMessageText | ChatCompletionMessageImage | ChatCompletionMessageAudio;
+export interface ChatCompletionMessageVideo {
+    type: 'video';
+    /** Frames from sampleVideo(). A video file (for example MP4) is not accepted */
+    data: ArrayBuffer;
+}
+export type ChatCompletionMessageContent = ChatCompletionMessageText | ChatCompletionMessageImage | ChatCompletionMessageAudio | ChatCompletionMessageVideo;
 export interface ChatCompletionToolFunctionParameters {
     type: 'object';
     properties: Record<string, {
@@ -176,6 +181,8 @@ export interface ResultTimings {
     predicted_ms: number;
     predicted_per_token_ms: number;
     predicted_per_second: number;
+    draft_n?: number;
+    draft_n_accepted?: number;
 }
 /** Response when stream=true — one chunk per SSE event */
 export interface ChatCompletionChunk {

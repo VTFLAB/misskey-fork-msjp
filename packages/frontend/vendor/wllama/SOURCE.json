@@ -1,42 +1,43 @@
 {
 	"wllama": {
 		"repo": "https://github.com/ngxson/wllama",
-		"commit": "6647c1ea3837b2f0205a300c3bf5ff644aaa06bf",
+		"commit": "be376c682b99b2dc94fb4ec5831a1d9cdc61d8f0",
 		"version": "3.13.0",
-		"committedAt": "2026-11-08T21:14:33+01:00"
+		"committedAt": "2026-11-20T19:22:27+01:00"
 	},
 	"llamaCpp": {
-		"commit": "7d7f0287530bc8981690f361d8c1627dbae1c99a",
-		"committedAt": "2026-11-08T15:49:06+01:00"
+		"commit": "b001d7bb22f45f246b43c482c0a877fef7626bee",
+		"committedAt": "2026-11-19T01:36:17+01:00"
 	},
 	"toolchain": {
 		"emscripten": "4.0.20",
 		"dawn": "v20260317.182325",
 		"dawnZipSha256": "8dcae86c630d76b6794b271c6572becba36f4237d132bee121a56638c3d76575"
 	},
-	"builtAt": "2026-11-16T19:40:11.847Z",
+	"builtAt": "2026-11-27T19:40:39.431Z",
 	"files": {
 		"LICENCE.wllama": "5866e3bd7e3cbd3f7c8bea6efd8a1e7fa7cc8de68c30f428aff7c6584a0fb720",
 		"LICENSE.emdawnwebgpu-webgpu": "2f79bf3699b0870251255b381670237f73f21a04a38c094f791eba39c5fd1df7",
 		"LICENSE.emdawnwebgpu-webgpu_cpp": "7e1efc85a78732a13d7ddfc8b52912da7c8f8d3c6d334624b20e3f3a96297de0",
 		"LICENSE.llama.cpp": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
-		"esm/cache-manager.d.ts": "1a779396e03c8906786553b7db6fc2fb0959e4c4c9f1f04933f3afb1ed4b0660",
+		"esm/cache-manager.d.ts": "80a1e34f8cb1b08716c99cd7533b40c4898283c3fd6975aa8c859369c3cac98a",
 		"esm/glue/glue.d.ts": "061ab840d45c2711c8dce4848e31e58e5aeb1aed5abaa8c1f2c3603bcac79232",
-		"esm/glue/messages.d.ts": "b0215949da0f15536ea7c1368804e200b2e3295c8aea3dd13932aa4a26f1f9e8",
+		"esm/glue/messages.d.ts": "72b57ad54781960a0cabafa2e4a3398a8e4e2110c92ba1b542cc6c4937393e08",
 		"esm/huggingface.d.ts": "4c24e6c94b691ad9d08b9ee24ce0731bf56e3d46c19c2fd166305e4adfe199be",
-		"esm/index.d.ts": "44666c2f743ab64feb5689d88aab8126b1014ce6b3e0265f51d383f580768e66",
-		"esm/index.js": "b59bef096ecb73af7a81c74541bb5521a125812c3b0e082866b9af487eaccf50",
+		"esm/index.d.ts": "98ce0ff315db17c3da6c59c3591500d1ed1eeb75b8c84c95e8859f56155f46e1",
+		"esm/index.js": "679ff9d61700d244a7398c277fc514b35b205ac4a3752f2d8d3f7536e5cb05f6",
 		"esm/model-manager.d.ts": "a5da2878dd2ed122f1a0e6e3701ab33fe7da8aed89a0fc3c2691675cd91c4b2e",
-		"esm/storage/cos.d.ts": "4886112b04baea5034fd4c3bdd2bddf32d3696ef33fa854c5b37fdc68c6c5781",
-		"esm/storage/index.d.ts": "8e09aa788f3bbab899aef5b6b44fefb9de7df22ef32c6fb9dc3d0714aeca95e0",
-		"esm/storage/opfs.d.ts": "b877a8531581335a608abfcecd3f8b0427777dd59a724743f40776e97f6f5b26",
-		"esm/types/oai-compat.d.ts": "5a0e66eb4ed5ca56982b9b6a147421ba5ec0f051e37e28b1a5d15bc2e40e786b",
-		"esm/types/types.d.ts": "b2b2be7accada80d201e15c2475ba5b6fcff15dcdb8fe3ec9fca8886345b21c7",
+		"esm/storage/cos.d.ts": "54c613e50e386b65ea64ebed44cf0d71fcb878f81e78208a5ac82ad5f12f1ac4",
+		"esm/storage/index.d.ts": "3a04d80a7ebcf5c701560d96444b6b1738d78a37e4aec3c8bc4eb29231ab886e",
+		"esm/storage/opfs.d.ts": "dcbd641061a1b837e8bf3a56d69c83c47d103dc55974d23387bf10a9224e8409",
+		"esm/types/oai-compat.d.ts": "a3eee91e3995016dba28e72133797ef548c005f0d36d7eb7a0bf7036093ae5c1",
+		"esm/types/types.d.ts": "d5bf83d6ddef1f2ecd9684ab9ec5a45890723355445178f2c7b5c3c256a6fac0",
 		"esm/utils.d.ts": "8cea8602db6079bb95e97744a29a92ccbcdfab2c4c21d4f45775ce8182468c1f",
-		"esm/wasm-from-cdn.d.ts": "9d236a61f209ba03e5c69ea5ce51b5256e6db12f5731f016152b62da818210f2",
-		"esm/wasm/wllama.wasm": "f3dfe8352a6ba08d3de71af5d037ee6f93ed19cd2263a0d226bc755119ec6e10",
-		"esm/wllama.d.ts": "8710bdf27aef65cbc37cc4119767cbe1d1482e878e31ae34c21e624ed7304ded",
-		"esm/worker.d.ts": "ebb81ad2647fde914167db9500c16a42d96b1702f4f69238356b384b8ee42576",
-		"esm/workers-code/generated.d.ts": "269596365c7615f44f5acaf15ac67e094d33a952ed42a326e0712113ce9daeac"
+		"esm/video.d.ts": "5a7192217cdec4a34cf2ffdf6c155a0d36ff3c8753e16fb39905fb1c4e4b54da",
+		"esm/wasm-from-cdn.d.ts": "1884371c04b300218d5d3c5d6365fdf87ad9edda239dec7cb5d1ef4cc1e11b22",
+		"esm/wasm/wllama.wasm": "ada98c8871f81cdaf287d3d3f4d422a9b4b84d9514d882a46aaac1073e6989d5",
+		"esm/wllama.d.ts": "876e3b8c83db5ccd67ac65e98fec294e58f5d97b440b65d415d95309914541e8",
+		"esm/worker.d.ts": "d89b124a2fc7e8b23a7c55b9936d19049c2e9121382e0e6a52081df92b5d75e7",
+		"esm/workers-code/generated.d.ts": "f63bfe4c53bb51233e314b3a113d8dbce4cd2a665d1d254b9be34f3183181f7f"
 	}
 }
